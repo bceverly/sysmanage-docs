@@ -1,0 +1,445 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Server Configuration Guide - SysManage</title>
+    <meta name="description" content="Complete configuration guide for SysManage server including security settings, database configuration, and advanced features.">
+    <link rel="stylesheet" href="../../assets/css/style.css">
+    <link rel="icon" type="image/svg+xml" href="../../assets/images/favicon.svg">
+</head>
+<body>
+    <header class="site-header">
+        <nav class="navbar">
+            <div class="container">
+                <div class="nav-brand">
+                    <a href="../../">
+                        <img src="../../assets/images/sysmanage-logo.svg" alt="SysManage" class="logo">
+                        <span class="brand-text">SysManage</span>
+                    </a>
+                </div>
+                <div class="nav-menu">
+                    <a href="../../#features" class="nav-link">Features</a>
+                    <a href="../../#getting-started" class="nav-link">Getting Started</a>
+                    <a href="../" class="nav-link active">Documentation</a>
+                    <a href="https://github.com/bceverly/sysmanage" class="nav-link" target="_blank">GitHub</a>
+                </div>
+            </div>
+        </nav>
+    </header>
+
+    <main class="docs-main">
+        <div class="container">
+            <div class="docs-breadcrumb">
+                <a href="../">Documentation</a> > <a href="./">Server</a> > <span>Configuration</span>
+            </div>
+
+            <div class="docs-header">
+                <h1>Server Configuration Guide</h1>
+                <p>Comprehensive configuration options for customizing your SysManage server deployment.</p>
+            </div>
+
+            <div class="docs-content">
+                <section class="docs-section">
+                    <h2>Configuration File Locations</h2>
+                    <div class="config-locations">
+                        <div class="location-item">
+                            <h3>🐧 Linux/macOS/BSD</h3>
+                            <code>/etc/sysmanage.yaml</code>
+                        </div>
+                        <div class="location-item">
+                            <h3>🪟 Windows</h3>
+                            <code>C:\ProgramData\SysManage\sysmanage.yaml</code>
+                        </div>
+                        <div class="location-item">
+                            <h3>🛠️ Development</h3>
+                            <code>sysmanage-dev.yaml</code> (in project root)
+                        </div>
+                    </div>
+                </section>
+
+                <section class="docs-section">
+                    <h2>Basic Configuration</h2>
+
+                    <div class="config-section">
+                        <h3>API Server Settings</h3>
+                        <pre><code>api:
+  host: "localhost"           # Server bind address
+  port: 6443                  # API server port (HTTPS if certificates available)
+  certFile: ""                # SSL certificate file path (optional)
+  chainFile: ""               # SSL certificate chain file path (optional)
+  keyFile: ""                 # SSL private key file path (optional)</code></pre>
+
+                        <div class="config-notes">
+                            <h4>📝 Notes</h4>
+                            <ul>
+                                <li><strong>Host binding:</strong> Use <code>0.0.0.0</code> for external access, <code>localhost</code> for local only</li>
+                                <li><strong>SSL certificates:</strong> If not provided, server falls back to HTTP</li>
+                                <li><strong>Port selection:</strong> Ensure the port is not in use by other services</li>
+                            </ul>
+                        </div>
+                    </div>
+
+                    <div class="config-section">
+                        <h3>Database Configuration</h3>
+                        <pre><code>database:
+  user: "sysmanage"           # PostgreSQL username
+  password: "abc123"          # PostgreSQL password (CHANGE FOR PRODUCTION!)
+  host: "localhost"           # Database server hostname
+  port: 5432                  # PostgreSQL port
+  name: "sysmanage"           # Database name</code></pre>
+
+                        <div class="security-warning">
+                            <h4>⚠️ Security Warning</h4>
+                            <p>The example password <code>abc123</code> is for development only. <strong>Always use strong passwords in production!</strong></p>
+                        </div>
+                    </div>
+
+                    <div class="config-section">
+                        <h3>Web UI Settings</h3>
+                        <pre><code>webui:
+  host: "localhost"           # Frontend server bind address
+  port: 7443                  # Frontend server port (HTTPS if certificates available)</code></pre>
+                    </div>
+                </section>
+
+                <section class="docs-section">
+                    <h2>Security Configuration</h2>
+
+                    <div class="config-section">
+                        <h3>Core Security Settings</h3>
+                        <pre><code>security:
+  password_salt: "YOUR_BASE64_SALT"      # Base64-encoded password salt
+  admin_userid: "admin@yourdomain.com"   # Default admin user email
+  admin_password: "YOUR_ADMIN_PASSWORD"  # Strong admin password
+  jwt_secret: "YOUR_JWT_SECRET"          # JWT signing secret
+  jwt_algorithm: "HS256"                 # JWT algorithm
+  jwt_auth_timeout: 6000                 # Auth token timeout (seconds)
+  jwt_refresh_timeout: 60000             # Refresh token timeout (seconds)</code></pre>
+
+                        <div class="security-steps">
+                            <h4>🔐 Generating Secure Values</h4>
+                            <pre><code># Generate password salt (32 bytes)
+openssl rand -base64 32
+
+# Generate JWT secret (32 bytes)
+openssl rand -base64 32
+
+# Example strong admin password (change this!)
+openssl rand -base64 16</code></pre>
+                        </div>
+                    </div>
+
+                    <div class="config-section">
+                        <h3>Password Policy Configuration</h3>
+                        <pre><code>security:
+  password_policy:
+    min_length: 8                        # Minimum password length
+    max_length: 128                      # Maximum password length
+    require_uppercase: true              # Require uppercase letters
+    require_lowercase: true              # Require lowercase letters
+    require_numbers: true                # Require numbers
+    require_special: true                # Require special characters
+    special_characters: "!@#$%^&*()_+-=[]{}|;:,.<>?"  # Allowed special chars
+    min_character_types: 3               # Minimum character types required
+    prevent_username_in_password: true   # Prevent username in password</code></pre>
+
+                        <div class="config-notes">
+                            <h4>📝 Password Policy Notes</h4>
+                            <ul>
+                                <li><strong>Real-time validation:</strong> Policies are enforced in both frontend and backend</li>
+                                <li><strong>Multi-language:</strong> Error messages available in all 14 supported languages</li>
+                                <li><strong>Flexible requirements:</strong> Adjust policies to meet your organization's needs</li>
+                            </ul>
+                        </div>
+                    </div>
+                </section>
+
+                <section class="docs-section">
+                    <h2>Email Configuration</h2>
+
+                    <div class="config-section">
+                        <h3>SMTP Settings</h3>
+                        <pre><code>email:
+  enabled: true                         # Enable/disable email functionality
+
+  smtp:
+    host: "smtp.gmail.com"              # SMTP server hostname
+    port: 587                           # SMTP port (587 for STARTTLS, 465 for SSL)
+    use_tls: true                       # Enable STARTTLS
+    use_ssl: false                      # Enable SSL/TLS (for port 465)
+    username: "your-email@gmail.com"    # SMTP authentication username
+    password: "your-app-password"       # SMTP authentication password
+    timeout: 30                         # Connection timeout (seconds)
+
+  from_address: "noreply@yourdomain.com"  # Default sender email
+  from_name: "SysManage System"           # Default sender name
+
+  templates:
+    subject_prefix: "[SysManage]"         # Email subject prefix</code></pre>
+
+                        <div class="email-providers">
+                            <h4>📧 Common SMTP Configurations</h4>
+
+                            <div class="provider-tabs">
+                                <div class="tab-header">
+                                    <button class="tab-button active" data-tab="gmail">Gmail</button>
+                                    <button class="tab-button" data-tab="office365">Office 365</button>
+                                    <button class="tab-button" data-tab="exchange">Exchange</button>
+                                    <button class="tab-button" data-tab="postfix">Postfix</button>
+                                </div>
+
+                                <div class="tab-content">
+                                    <div class="tab-pane active" id="gmail">
+                                        <pre><code>email:
+  smtp:
+    host: "smtp.gmail.com"
+    port: 587
+    use_tls: true
+    use_ssl: false
+    username: "your-email@gmail.com"
+    password: "your-16-digit-app-password"</code></pre>
+                                        <p><strong>Note:</strong> Requires 2FA and App Password. Visit <a href="https://support.google.com/accounts/answer/185833" target="_blank">Google App Passwords</a> for setup.</p>
+                                    </div>
+
+                                    <div class="tab-pane" id="office365">
+                                        <pre><code>email:
+  smtp:
+    host: "smtp-mail.outlook.com"
+    port: 587
+    use_tls: true
+    use_ssl: false
+    username: "your-email@yourdomain.com"
+    password: "your-password"</code></pre>
+                                    </div>
+
+                                    <div class="tab-pane" id="exchange">
+                                        <pre><code>email:
+  smtp:
+    host: "mail.yourdomain.com"
+    port: 587
+    use_tls: true
+    use_ssl: false
+    username: "your-email@yourdomain.com"
+    password: "your-password"</code></pre>
+                                    </div>
+
+                                    <div class="tab-pane" id="postfix">
+                                        <pre><code>email:
+  smtp:
+    host: "localhost"
+    port: 25
+    use_tls: false
+    use_ssl: false
+    username: ""    # Empty for localhost/no-auth
+    password: ""    # Empty for localhost/no-auth</code></pre>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <section class="docs-section">
+                    <h2>Certificate Management</h2>
+
+                    <div class="config-section">
+                        <h3>Certificate Storage</h3>
+                        <pre><code>certificates:
+  path: "/etc/sysmanage/certs/"         # Certificate storage directory
+
+  # Server certificates for HTTPS
+  server_cert: "server.crt"             # Server certificate filename
+  server_key: "server.key"              # Server private key filename
+
+  # CA certificates for mTLS
+  ca_cert: "ca.crt"                     # CA certificate filename
+  ca_key: "ca.key"                      # CA private key filename</code></pre>
+
+                        <div class="cert-permissions">
+                            <h4>🔒 Required Permissions</h4>
+                            <ul>
+                                <li><strong>Certificate directory:</strong> <code>0755</code> (owner rwx, group/others rx)</li>
+                                <li><strong>Private keys:</strong> <code>0600</code> (owner read/write only)</li>
+                                <li><strong>Certificates:</strong> <code>0644</code> (owner rw, others read)</li>
+                            </ul>
+                        </div>
+                    </div>
+
+                    <div class="config-section">
+                        <h3>mTLS Configuration</h3>
+                        <p>Mutual TLS settings are automatically managed by the server. When hosts are approved, client certificates are generated and stored in the certificate directory.</p>
+
+                        <div class="mtls-workflow">
+                            <h4>🔄 mTLS Workflow</h4>
+                            <ol>
+                                <li><strong>Host Registration:</strong> Agent registers with pending status</li>
+                                <li><strong>Manual Approval:</strong> Administrator approves host in web interface</li>
+                                <li><strong>Certificate Generation:</strong> Server generates unique client certificate</li>
+                                <li><strong>Secure Authentication:</strong> Subsequent connections use mTLS</li>
+                            </ol>
+                        </div>
+                    </div>
+                </section>
+
+                <section class="docs-section">
+                    <h2>Advanced Features</h2>
+
+                    <div class="config-section">
+                        <h3>Agent Discovery Service</h3>
+                        <pre><code>discovery:
+  enabled: true                         # Enable UDP discovery service
+  port: 31337                           # UDP discovery port
+  announcement_port: 31338              # UDP announcement port
+  announcement_interval: 30             # Seconds between announcements</code></pre>
+
+                        <div class="config-notes">
+                            <h4>📡 Discovery Service</h4>
+                            <p>Allows agents to automatically discover and configure themselves with available servers on the network.</p>
+                        </div>
+                    </div>
+
+                    <div class="config-section">
+                        <h3>Logging Configuration</h3>
+                        <pre><code>logging:
+  level: "INFO"                         # DEBUG, INFO, WARNING, ERROR, CRITICAL
+  file: "/var/log/sysmanage/server.log" # Log file path (optional)
+  format: "detailed"                    # Log format: simple, detailed, json
+  max_size: "10MB"                      # Maximum log file size
+  backup_count: 5                       # Number of backup log files</code></pre>
+                    </div>
+
+                    <div class="config-section">
+                        <h3>Performance Tuning</h3>
+                        <pre><code>performance:
+  workers: 4                            # Number of worker processes
+  max_connections: 1000                 # Maximum concurrent connections
+  keepalive_timeout: 30                 # Keep-alive timeout (seconds)
+  websocket_timeout: 300                # WebSocket timeout (seconds)
+
+  # Database connection pooling
+  db_pool_size: 10                      # Database connection pool size
+  db_max_overflow: 20                   # Maximum overflow connections</code></pre>
+                    </div>
+                </section>
+
+                <section class="docs-section">
+                    <h2>File Permissions and Security</h2>
+
+                    <div class="permission-guide">
+                        <h3>Required Directory Structure</h3>
+                        <pre><code># Create required directories with proper permissions
+sudo mkdir -p /etc/sysmanage/certs
+sudo mkdir -p /var/log/sysmanage
+
+# Set ownership (replace 'sysmanage' with your service user)
+sudo chown -R sysmanage:sysmanage /etc/sysmanage
+sudo chown -R sysmanage:sysmanage /var/log/sysmanage
+
+# Set permissions
+sudo chmod 755 /etc/sysmanage
+sudo chmod 755 /etc/sysmanage/certs
+sudo chmod 755 /var/log/sysmanage
+sudo chmod 600 /etc/sysmanage.yaml</code></pre>
+
+                        <div class="security-checklist">
+                            <h4>🛡️ Security Checklist</h4>
+                            <ul>
+                                <li>✅ Configuration file is readable only by service user</li>
+                                <li>✅ Certificate directory has restricted access</li>
+                                <li>✅ Private keys are protected with 0600 permissions</li>
+                                <li>✅ Strong passwords and secrets are used</li>
+                                <li>✅ JWT secrets are regularly rotated</li>
+                                <li>✅ Database credentials are unique and strong</li>
+                            </ul>
+                        </div>
+                    </div>
+                </section>
+
+                <section class="docs-section">
+                    <h2>Environment Variables</h2>
+                    <p>Configuration can also be set via environment variables (overrides YAML file):</p>
+
+                    <pre><code># Database configuration
+export SYSMANAGE_DB_HOST="localhost"
+export SYSMANAGE_DB_PORT="5432"
+export SYSMANAGE_DB_USER="sysmanage"
+export SYSMANAGE_DB_PASSWORD="your_password"
+export SYSMANAGE_DB_NAME="sysmanage"
+
+# API configuration
+export SYSMANAGE_API_HOST="0.0.0.0"
+export SYSMANAGE_API_PORT="6443"
+
+# Security configuration
+export SYSMANAGE_JWT_SECRET="your_jwt_secret"
+export SYSMANAGE_ADMIN_PASSWORD="your_admin_password"</code></pre>
+                </section>
+
+                <section class="docs-section">
+                    <h2>Testing Configuration</h2>
+
+                    <div class="test-steps">
+                        <h3>Validation Steps</h3>
+                        <ol>
+                            <li><strong>Configuration Syntax:</strong>
+                                <pre><code># Test YAML syntax
+python -c "import yaml; yaml.safe_load(open('/etc/sysmanage.yaml'))"</code></pre>
+                            </li>
+                            <li><strong>Database Connection:</strong>
+                                <pre><code># Test database connectivity
+PGPASSWORD=your_password psql -U sysmanage -d sysmanage -h localhost -c "SELECT 1;"</code></pre>
+                            </li>
+                            <li><strong>Email Configuration:</strong>
+                                <p>Use the Settings → Integrations page in the web interface to test email configuration.</p>
+                            </li>
+                            <li><strong>SSL Certificates:</strong>
+                                <pre><code># Verify certificate validity
+openssl x509 -in /etc/sysmanage/certs/server.crt -text -noout</code></pre>
+                            </li>
+                        </ol>
+                    </div>
+                </section>
+
+                <div class="docs-navigation">
+                    <div class="nav-links">
+                        <a href="installation.html" class="nav-link">← Installation Guide</a>
+                        <a href="deployment.html" class="nav-link">Deployment Guide →</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <footer class="site-footer">
+        <div class="container">
+            <div class="footer-bottom">
+                <p>&copy; 2024 SysManage. All rights reserved.</p>
+            </div>
+        </div>
+    </footer>
+
+    <script src="../../assets/js/main.js"></script>
+    <script>
+        // Tab functionality for email provider configurations
+        document.addEventListener('DOMContentLoaded', function() {
+            const tabButtons = document.querySelectorAll('.tab-button');
+
+            tabButtons.forEach(button => {
+                button.addEventListener('click', function() {
+                    const tabId = this.getAttribute('data-tab');
+                    const tabContainer = this.closest('.provider-tabs');
+
+                    // Remove active class from all buttons and panes in this container
+                    tabContainer.querySelectorAll('.tab-button').forEach(btn => btn.classList.remove('active'));
+                    tabContainer.querySelectorAll('.tab-pane').forEach(pane => pane.classList.remove('active'));
+
+                    // Add active class to clicked button and corresponding pane
+                    this.classList.add('active');
+                    tabContainer.querySelector(`#${tabId}`).classList.add('active');
+                });
+            });
+        });
+    </script>
+</body>
+</html>

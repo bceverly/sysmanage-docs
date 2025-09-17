@@ -1,0 +1,507 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Server Installation Guide - SysManage</title>
+    <meta name="description" content="Complete installation guide for SysManage server including prerequisites, database setup, and configuration.">
+    <link rel="stylesheet" href="../../assets/css/style.css">
+    <link rel="icon" type="image/svg+xml" href="../../assets/images/favicon.svg">
+</head>
+<body>
+    <header class="site-header">
+        <nav class="navbar">
+            <div class="container">
+                <div class="nav-brand">
+                    <a href="../../">
+                        <img src="../../assets/images/sysmanage-logo.svg" alt="SysManage" class="logo">
+                        <span class="brand-text">SysManage</span>
+                    </a>
+                </div>
+                <div class="nav-menu">
+                    <a href="../../#features" class="nav-link">Features</a>
+                    <a href="../../#getting-started" class="nav-link">Getting Started</a>
+                    <a href="../" class="nav-link active">Documentation</a>
+                    <a href="https://github.com/bceverly/sysmanage" class="nav-link" target="_blank">GitHub</a>
+                </div>
+            </div>
+        </nav>
+    </header>
+
+    <main class="docs-main">
+        <div class="container">
+            <div class="docs-breadcrumb">
+                <a href="../">Documentation</a> > <a href="./">Server</a> > <span>Installation</span>
+            </div>
+
+            <div class="docs-header">
+                <h1>Server Installation Guide</h1>
+                <p>Complete step-by-step installation guide for setting up the SysManage server on your infrastructure.</p>
+            </div>
+
+            <div class="docs-content">
+                <section class="docs-section">
+                    <h2>System Requirements</h2>
+                    <div class="requirement-grid">
+                        <div class="requirement-item">
+                            <h3>🐍 Python</h3>
+                            <p><strong>Required:</strong> 3.11 or 3.12</p>
+                            <p><em>Note: Python 3.13 is NOT yet supported due to package compatibility issues</em></p>
+                        </div>
+                        <div class="requirement-item">
+                            <h3>🟢 Node.js</h3>
+                            <p><strong>Required:</strong> 20.x or higher</p>
+                            <p>For building the React frontend</p>
+                        </div>
+                        <div class="requirement-item">
+                            <h3>🐘 PostgreSQL</h3>
+                            <p><strong>Required:</strong> 14 or higher</p>
+                            <p>Primary database for all application data</p>
+                        </div>
+                        <div class="requirement-item">
+                            <h3>💻 Operating System</h3>
+                            <p><strong>Supported:</strong> Linux, macOS, Windows, FreeBSD, OpenBSD</p>
+                            <p>Cross-platform deployment</p>
+                        </div>
+                    </div>
+                </section>
+
+                <section class="docs-section">
+                    <h2>Platform-Specific Prerequisites</h2>
+
+                    <div class="platform-tabs">
+                        <div class="tab-header">
+                            <button class="tab-button active" data-tab="ubuntu">Ubuntu/Debian</button>
+                            <button class="tab-button" data-tab="ubuntu25">Ubuntu 25.04+</button>
+                            <button class="tab-button" data-tab="centos">CentOS/RHEL</button>
+                            <button class="tab-button" data-tab="macos">macOS</button>
+                            <button class="tab-button" data-tab="windows">Windows</button>
+                            <button class="tab-button" data-tab="freebsd">FreeBSD</button>
+                            <button class="tab-button" data-tab="openbsd">OpenBSD</button>
+                        </div>
+
+                        <div class="tab-content">
+                            <div class="tab-pane active" id="ubuntu">
+                                <h3>Ubuntu 22.04 - 24.10 (Recommended)</h3>
+                                <pre><code># Update package manager
+sudo apt update
+
+# Install Python 3.11 or 3.12 (AVOID 3.13)
+sudo apt install python3.11 python3.11-venv python3.11-dev python3-pip
+
+# For Python 3.12 (if available):
+# sudo add-apt-repository ppa:deadsnakes/ppa
+# sudo apt update
+# sudo apt install python3.12 python3.12-venv python3.12-dev python3-pip
+
+# Install Node.js 20.x
+curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
+sudo apt install -y nodejs
+
+# Install PostgreSQL 14+
+sudo apt install postgresql postgresql-contrib
+sudo systemctl start postgresql
+sudo systemctl enable postgresql
+
+# Install build tools and development libraries
+sudo apt install build-essential libffi-dev libssl-dev libpq-dev
+sudo apt install libuv1-dev python3-setuptools</code></pre>
+                            </div>
+
+                            <div class="tab-pane" id="ubuntu25">
+                                <h3>Ubuntu 25.04+ (Python 3.12 from Source)</h3>
+                                <p><strong>Note:</strong> Ubuntu 25.04+ only ships with Python 3.13, which is not yet compatible. You must build Python 3.12 from source:</p>
+
+                                <pre><code># Install build dependencies
+sudo apt install build-essential libssl-dev zlib1g-dev libbz2-dev \
+    libreadline-dev libsqlite3-dev wget curl llvm libncurses5-dev \
+    libncursesw5-dev xz-utils tk-dev libffi-dev liblzma-dev \
+    python3-openssl git libpq-dev libuv1-dev
+
+# Download and build Python 3.12
+cd /tmp
+wget https://www.python.org/ftp/python/3.12.7/Python-3.12.7.tgz
+tar -xf Python-3.12.7.tgz
+cd Python-3.12.7
+
+# Configure and build (takes 10-15 minutes)
+./configure --enable-optimizations --with-ensurepip=install
+make -j$(nproc)
+sudo make altinstall
+
+# Verify installation
+python3.12 --version
+
+# Install remaining packages
+curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
+sudo apt install -y nodejs postgresql postgresql-contrib
+sudo systemctl start postgresql
+sudo systemctl enable postgresql</code></pre>
+                            </div>
+
+                            <div class="tab-pane" id="centos">
+                                <h3>CentOS/RHEL/Fedora</h3>
+                                <pre><code># Install Python 3.12+
+sudo dnf install python3 python3-devel python3-pip
+
+# Install Node.js 20.x
+curl -fsSL https://rpm.nodesource.com/setup_20.x | sudo bash -
+sudo dnf install -y nodejs
+
+# Install PostgreSQL 14+
+sudo dnf install postgresql postgresql-server postgresql-contrib
+sudo postgresql-setup --initdb
+sudo systemctl start postgresql
+sudo systemctl enable postgresql
+
+# Install build tools and libraries
+sudo dnf groupinstall "Development Tools"
+sudo dnf install libffi-devel openssl-devel postgresql-devel
+sudo dnf install libuv-devel python3-setuptools</code></pre>
+                            </div>
+
+                            <div class="tab-pane" id="macos">
+                                <h3>macOS</h3>
+                                <pre><code># Install Homebrew (if not already installed)
+/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+
+# Install Python 3.12
+brew install python@3.12
+
+# Install Node.js 20.x
+brew install node@20
+brew link node@20
+
+# Install PostgreSQL 14+
+brew install postgresql@14
+brew services start postgresql@14
+
+# Install Xcode Command Line Tools
+xcode-select --install</code></pre>
+                            </div>
+
+                            <div class="tab-pane" id="windows">
+                                <h3>Windows</h3>
+                                <div class="windows-install">
+                                    <ol>
+                                        <li><strong>Python 3.12:</strong> Download from <a href="https://python.org/downloads/" target="_blank">python.org</a>
+                                            <ul><li>⚠️ <strong>AVOID Python 3.13</strong> - Limited Windows binary support</li>
+                                            <li>✅ Check "Add Python to PATH" during installation</li></ul>
+                                        </li>
+                                        <li><strong>Node.js 20.x:</strong> Download from <a href="https://nodejs.org/" target="_blank">nodejs.org</a></li>
+                                        <li><strong>PostgreSQL 14+:</strong> Download from <a href="https://postgresql.org/download/windows/" target="_blank">postgresql.org</a></li>
+                                        <li><strong>Git for Windows:</strong> Download from <a href="https://git-scm.com/download/win" target="_blank">git-scm.com</a></li>
+                                        <li><strong>Visual Studio Build Tools:</strong> Download from <a href="https://visualstudio.microsoft.com/downloads/#build-tools-for-visual-studio-2022" target="_blank">Microsoft</a></li>
+                                    </ol>
+                                </div>
+                            </div>
+
+                            <div class="tab-pane" id="freebsd">
+                                <h3>FreeBSD</h3>
+                                <pre><code># Update package manager
+sudo pkg update
+
+# Install Python 3.12+
+sudo pkg install python312 py312-pip py312-sqlite3
+
+# Install Node.js 20.x
+sudo pkg install node20 npm
+
+# Install PostgreSQL 14+
+sudo pkg install postgresql14-server postgresql14-client
+sudo service postgresql enable
+sudo service postgresql initdb
+sudo service postgresql start
+
+# Install build tools
+sudo pkg install gcc cmake make</code></pre>
+                            </div>
+
+                            <div class="tab-pane" id="openbsd">
+                                <h3>OpenBSD</h3>
+                                <pre><code># Update package manager
+doas pkg_add -u
+
+# Install Python 3.12+
+doas pkg_add python-3.12 py3-pip
+
+# Install Node.js 20.x
+doas pkg_add node
+
+# Install PostgreSQL 14+
+doas pkg_add postgresql-server postgresql-client
+doas rcctl enable postgresql
+doas su - _postgresql -c "initdb -D /var/postgresql/data"
+doas rcctl start postgresql
+
+# Install build tools (required for cryptography packages)
+doas pkg_add rust gcc cmake gmake pkgconf</code></pre>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <section class="docs-section">
+                    <h2>Installation Steps</h2>
+
+                    <div class="install-steps">
+                        <div class="step">
+                            <h3>Step 1: Clone and Setup</h3>
+                            <pre><code>git clone https://github.com/bceverly/sysmanage.git
+cd sysmanage
+
+# Create Python virtual environment (use specific version)
+python3.11 -m venv .venv  # Or python3.12 -m venv .venv
+source .venv/bin/activate  # Windows: .venv\Scripts\activate
+                           # OpenBSD: . .venv/bin/activate
+
+# Upgrade pip to latest version
+pip install --upgrade pip</code></pre>
+                        </div>
+
+                        <div class="step">
+                            <h3>Step 2: Install Backend Dependencies</h3>
+                            <pre><code>pip install -r requirements.txt</code></pre>
+                        </div>
+
+                        <div class="step">
+                            <h3>Step 3: Database Setup</h3>
+                            <p>Create PostgreSQL database and user:</p>
+
+                            <div class="db-setup-tabs">
+                                <div class="tab-header">
+                                    <button class="tab-button active" data-tab="db-linux">Linux/macOS/FreeBSD</button>
+                                    <button class="tab-button" data-tab="db-openbsd">OpenBSD</button>
+                                    <button class="tab-button" data-tab="db-windows">Windows</button>
+                                </div>
+
+                                <div class="tab-content">
+                                    <div class="tab-pane active" id="db-linux">
+                                        <pre><code># Switch to postgres user
+sudo -u postgres psql
+
+# In PostgreSQL prompt (using dev credentials):
+CREATE USER sysmanage WITH PASSWORD 'abc123';
+CREATE DATABASE sysmanage OWNER sysmanage;
+GRANT ALL PRIVILEGES ON DATABASE sysmanage TO sysmanage;
+
+# Grant schema permissions
+\c sysmanage
+GRANT ALL ON SCHEMA public TO sysmanage;
+
+# Exit PostgreSQL
+\q</code></pre>
+                                    </div>
+
+                                    <div class="tab-pane" id="db-openbsd">
+                                        <pre><code># Switch to _postgresql user
+doas -u _postgresql psql postgres
+
+# Run the same SQL commands as Linux/macOS
+CREATE USER sysmanage WITH PASSWORD 'abc123';
+CREATE DATABASE sysmanage OWNER sysmanage;
+GRANT ALL PRIVILEGES ON DATABASE sysmanage TO sysmanage;
+\c sysmanage
+GRANT ALL ON SCHEMA public TO sysmanage;
+\q</code></pre>
+                                    </div>
+
+                                    <div class="tab-pane" id="db-windows">
+                                        <pre><code># Open "SQL Shell (psql)" from Start Menu
+# Or use Command Prompt:
+psql -U postgres -h localhost
+
+# Run the same SQL commands:
+CREATE USER sysmanage WITH PASSWORD 'abc123';
+CREATE DATABASE sysmanage OWNER sysmanage;
+GRANT ALL PRIVILEGES ON DATABASE sysmanage TO sysmanage;
+\c sysmanage
+GRANT ALL ON SCHEMA public TO sysmanage;
+\q</code></pre>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="security-warning">
+                                <h4>⚠️ Security Notes</h4>
+                                <ul>
+                                    <li>Development password <code>abc123</code> matches <code>sysmanage-dev.yaml</code></li>
+                                    <li><strong>NEVER use this password in production</strong></li>
+                                    <li>Change password in both PostgreSQL AND your configuration file</li>
+                                </ul>
+                            </div>
+                        </div>
+
+                        <div class="step">
+                            <h3>Step 4: Test Database Connection</h3>
+                            <pre><code># Test connection with development credentials
+PGPASSWORD=abc123 psql -U sysmanage -d sysmanage -h localhost -c "SELECT version();"</code></pre>
+                        </div>
+
+                        <div class="step">
+                            <h3>Step 5: Install Frontend Dependencies</h3>
+                            <pre><code>cd frontend
+npm install</code></pre>
+                        </div>
+
+                        <div class="step">
+                            <h3>Step 6: Configuration</h3>
+                            <p>Create configuration file at:</p>
+                            <ul>
+                                <li><strong>Linux/macOS/BSD:</strong> <code>/etc/sysmanage.yaml</code></li>
+                                <li><strong>Windows:</strong> <code>C:\ProgramData\SysManage\sysmanage.yaml</code></li>
+                            </ul>
+
+                            <pre><code>api:
+  host: "localhost"
+  port: 8080
+
+database:
+  user: "sysmanage"
+  password: "abc123"  # CHANGE FOR PRODUCTION!
+  host: "localhost"
+  port: 5432
+  name: "sysmanage"
+
+security:
+  password_salt: "GENERATE_NEW_BASE64_STRING"
+  admin_userid: "admin@yourdomain.com"
+  admin_password: "CHANGE_THIS_PASSWORD"
+  jwt_secret: "GENERATE_NEW_JWT_SECRET"
+  jwt_algorithm: "HS256"
+  jwt_auth_timeout: 6000
+  jwt_refresh_timeout: 60000
+
+webui:
+  host: "localhost"
+  port: 3000</code></pre>
+
+                            <div class="security-steps">
+                                <h4>🔐 Required Security Steps</h4>
+                                <ol>
+                                    <li>Generate new secrets: <code>openssl rand -base64 32</code></li>
+                                    <li>Use strong passwords (12+ characters)</li>
+                                    <li>Set proper file permissions: <code>chmod 600 /etc/sysmanage.yaml</code></li>
+                                    <li>Never commit configuration files to version control</li>
+                                </ol>
+                            </div>
+                        </div>
+
+                        <div class="step">
+                            <h3>Step 7: Run Database Migrations</h3>
+                            <pre><code># Run Alembic migrations to create schema
+alembic upgrade head</code></pre>
+                        </div>
+
+                        <div class="step">
+                            <h3>Step 8: Start the Application</h3>
+                            <pre><code># Start backend API server
+uvicorn backend.main:app --reload --host 0.0.0.0 --port 6443
+
+# In another terminal, start frontend (development)
+cd frontend
+npm run dev</code></pre>
+
+                            <p>Access the application at:</p>
+                            <ul>
+                                <li><strong>HTTPS:</strong> https://sysmanage.org:7443 (if SSL certs exist)</li>
+                                <li><strong>HTTP:</strong> http://localhost:3000 (fallback)</li>
+                            </ul>
+                        </div>
+                    </div>
+                </section>
+
+                <section class="docs-section">
+                    <h2>SSL Certificates (Optional)</h2>
+                    <p>For HTTPS development, place your SSL certificates in:</p>
+                    <pre><code>~/dev/certs/sysmanage.org/
+├── cert.pem
+└── privkey.pem</code></pre>
+                    <p>If certificates are not found, the system automatically falls back to HTTP on localhost.</p>
+                </section>
+
+                <section class="docs-section">
+                    <h2>Troubleshooting</h2>
+
+                    <div class="troubleshooting-grid">
+                        <div class="trouble-item">
+                            <h3>Package Build Errors</h3>
+                            <ul>
+                                <li><strong>Missing libpq-fe.h:</strong> Install <code>libpq-dev</code> (Ubuntu) or <code>postgresql-devel</code> (RHEL)</li>
+                                <li><strong>httptools build errors:</strong> Install <code>libuv1-dev</code> (Ubuntu) or <code>libuv-devel</code> (RHEL)</li>
+                                <li><strong>Python 3.13 issues:</strong> Use Python 3.11 or 3.12 instead</li>
+                            </ul>
+                        </div>
+
+                        <div class="trouble-item">
+                            <h3>Database Connection Issues</h3>
+                            <ul>
+                                <li>Verify PostgreSQL is running: <code>sudo systemctl status postgresql</code></li>
+                                <li>Check credentials match configuration file</li>
+                                <li>Test connection with psql command shown above</li>
+                            </ul>
+                        </div>
+
+                        <div class="trouble-item">
+                            <h3>Port Conflicts</h3>
+                            <ul>
+                                <li>Ensure ports 6443 (API) and 7443 (frontend) are available</li>
+                                <li>Check for existing services: <code>netstat -tlnp | grep :6443</code></li>
+                                <li>Modify ports in configuration if needed</li>
+                            </ul>
+                        </div>
+
+                        <div class="trouble-item">
+                            <h3>Permission Issues</h3>
+                            <ul>
+                                <li>Set configuration file permissions: <code>chmod 600 /etc/sysmanage.yaml</code></li>
+                                <li>Ensure proper ownership of directories</li>
+                                <li>Check virtual environment activation</li>
+                            </ul>
+                        </div>
+                    </div>
+                </section>
+
+                <div class="docs-navigation">
+                    <div class="nav-links">
+                        <a href="./" class="nav-link">← Server Documentation</a>
+                        <a href="configuration.html" class="nav-link">Configuration Guide →</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <footer class="site-footer">
+        <div class="container">
+            <div class="footer-bottom">
+                <p>&copy; 2024 SysManage. All rights reserved.</p>
+            </div>
+        </div>
+    </footer>
+
+    <script src="../../assets/js/main.js"></script>
+    <script>
+        // Tab functionality for platform-specific instructions
+        document.addEventListener('DOMContentLoaded', function() {
+            const tabButtons = document.querySelectorAll('.tab-button');
+            const tabPanes = document.querySelectorAll('.tab-pane');
+
+            tabButtons.forEach(button => {
+                button.addEventListener('click', function() {
+                    const tabId = this.getAttribute('data-tab');
+                    const tabContainer = this.closest('.platform-tabs, .db-setup-tabs');
+
+                    // Remove active class from all buttons and panes in this container
+                    tabContainer.querySelectorAll('.tab-button').forEach(btn => btn.classList.remove('active'));
+                    tabContainer.querySelectorAll('.tab-pane').forEach(pane => pane.classList.remove('active'));
+
+                    // Add active class to clicked button and corresponding pane
+                    this.classList.add('active');
+                    tabContainer.querySelector(`#${tabId}`).classList.add('active');
+                });
+            });
+        });
+    </script>
+</body>
+</html>
