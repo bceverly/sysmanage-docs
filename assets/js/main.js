@@ -84,18 +84,21 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    // Copy code blocks functionality
+    // Copy code blocks functionality with universal copy icon
     const codeBlocks = document.querySelectorAll('pre code');
     codeBlocks.forEach(block => {
         const pre = block.parentElement;
         const button = document.createElement('button');
         button.className = 'copy-button';
-        button.textContent = 'Copy';
+        button.innerHTML = '⧉'; // Universal copy icon (overlapping squares)
+        button.title = 'Copy to clipboard';
         button.addEventListener('click', () => {
             navigator.clipboard.writeText(block.textContent).then(() => {
-                button.textContent = 'Copied!';
+                button.innerHTML = '✓';
+                button.title = 'Copied!';
                 setTimeout(() => {
-                    button.textContent = 'Copy';
+                    button.innerHTML = '⧉';
+                    button.title = 'Copy to clipboard';
                 }, 2000);
             });
         });
@@ -168,6 +171,54 @@ document.addEventListener('DOMContentLoaded', function() {
         window.scrollTo({
             top: 0,
             behavior: 'smooth'
+        });
+    });
+
+    // Platform tab navigation with smooth scrolling
+    const tabButtons = document.querySelectorAll('.tab-button');
+    tabButtons.forEach(button => {
+        button.addEventListener('click', function() {
+            const tabId = this.getAttribute('data-tab');
+            const tabContainer = this.closest('.platform-tabs, .db-setup-tabs, .service-tabs');
+
+            if (tabContainer) {
+                // Remove active class from all buttons and panes in this container
+                tabContainer.querySelectorAll('.tab-button').forEach(btn => btn.classList.remove('active'));
+                tabContainer.querySelectorAll('.tab-pane').forEach(pane => pane.classList.remove('active'));
+
+                // Add active class to clicked button and corresponding pane
+                this.classList.add('active');
+                const targetPane = tabContainer.querySelector(`#${tabId}`);
+                if (targetPane) {
+                    targetPane.classList.add('active');
+                }
+
+                // Smooth scroll to the platform section
+                const platformSection = tabContainer.closest('.docs-section');
+                if (platformSection) {
+                    platformSection.scrollIntoView({
+                        behavior: 'smooth',
+                        block: 'start'
+                    });
+                }
+            }
+        });
+    });
+
+    // Add click handlers for any other platform navigation elements
+    document.querySelectorAll('.platform-nav, .platform-button').forEach(button => {
+        button.addEventListener('click', function(e) {
+            e.preventDefault();
+            const targetId = this.getAttribute('data-target') || this.getAttribute('href')?.substring(1);
+            if (targetId) {
+                const targetSection = document.getElementById(targetId);
+                if (targetSection) {
+                    targetSection.scrollIntoView({
+                        behavior: 'smooth',
+                        block: 'start'
+                    });
+                }
+            }
         });
     });
 
