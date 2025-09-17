@@ -3,20 +3,20 @@
 class I18n {
     constructor() {
         this.languages = {
-            'en': { name: 'English', flag: '🇺🇸', rtl: false },
-            'es': { name: 'Español', flag: '🇪🇸', rtl: false },
-            'fr': { name: 'Français', flag: '🇫🇷', rtl: false },
-            'de': { name: 'Deutsch', flag: '🇩🇪', rtl: false },
-            'it': { name: 'Italiano', flag: '🇮🇹', rtl: false },
-            'pt': { name: 'Português', flag: '🇵🇹', rtl: false },
-            'nl': { name: 'Nederlands', flag: '🇳🇱', rtl: false },
-            'ja': { name: '日本語', flag: '🇯🇵', rtl: false },
-            'zh_CN': { name: '简体中文', flag: '🇨🇳', rtl: false },
-            'zh_TW': { name: '繁體中文', flag: '🇹🇼', rtl: false },
-            'ko': { name: '한국어', flag: '🇰🇷', rtl: false },
-            'ru': { name: 'Русский', flag: '🇷🇺', rtl: false },
-            'ar': { name: 'العربية', flag: '🇸🇦', rtl: true },
-            'hi': { name: 'हिन्दी', flag: '🇮🇳', rtl: false }
+            'en': { name: 'English', rtl: false },
+            'es': { name: 'Español', rtl: false },
+            'fr': { name: 'Français', rtl: false },
+            'de': { name: 'Deutsch', rtl: false },
+            'it': { name: 'Italiano', rtl: false },
+            'pt': { name: 'Português', rtl: false },
+            'nl': { name: 'Nederlands', rtl: false },
+            'ja': { name: '日本語', rtl: false },
+            'zh_CN': { name: '简体中文', rtl: false },
+            'zh_TW': { name: '繁體中文', rtl: false },
+            'ko': { name: '한국어', rtl: false },
+            'ru': { name: 'Русский', rtl: false },
+            'ar': { name: 'العربية', rtl: true },
+            'hi': { name: 'हिन्दी', rtl: false }
         };
 
         this.currentLanguage = this.detectLanguage();
@@ -108,7 +108,7 @@ class I18n {
             const currentLang = this.languages[this.currentLanguage];
             const button = document.createElement('button');
             button.className = 'language-button';
-            button.innerHTML = `<span class="language-flag">${currentLang.flag}</span><span>${currentLang.name}</span>`;
+            button.innerHTML = `<span class="language-icon">🌐</span><span>${currentLang.name}</span>`;
 
             const dropdown = document.createElement('div');
             dropdown.className = 'language-dropdown';
@@ -122,7 +122,6 @@ class I18n {
                 }
 
                 option.innerHTML = `
-                    <span class="language-flag">${lang.flag}</span>
                     <span class="language-name">${lang.name}</span>
                     <span class="language-code">${code}</span>
                 `;
@@ -176,7 +175,7 @@ class I18n {
         const currentLang = this.languages[this.currentLanguage];
 
         buttons.forEach(button => {
-            button.innerHTML = `<span class="language-flag">${currentLang.flag}</span><span>${currentLang.name}</span>`;
+            button.innerHTML = `<span class="language-icon">🌐</span><span>${currentLang.name}</span>`;
         });
 
         // Update active state in dropdowns
