@@ -60,7 +60,7 @@
                         </div>
                         <div class="requirement-item">
                             <h3>💻 Operating System</h3>
-                            <p><strong>Supported:</strong> Linux, Windows, macOS, FreeBSD, OpenBSD</p>
+                            <p><strong>Supported:</strong> Linux (Ubuntu, CentOS/RHEL, openSUSE, SLES), Windows, macOS, FreeBSD, OpenBSD</p>
                             <p>Cross-platform compatibility</p>
                         </div>
                         <div class="requirement-item">
@@ -88,6 +88,8 @@
                             <button class="tab-button" data-tab="windows">Windows</button>
                             <button class="tab-button" data-tab="freebsd">FreeBSD</button>
                             <button class="tab-button" data-tab="openbsd">OpenBSD</button>
+                            <button class="tab-button" data-tab="opensuse">openSUSE</button>
+                            <button class="tab-button" data-tab="sles">SLES</button>
                         </div>
 
                         <div class="tab-content">
@@ -229,6 +231,66 @@ echo 'export PATH="$HOME/.cargo/bin:$PATH"' >> ~/.profile
                                 <div class="openbsd-note">
                                     <h4>⚠️ Important for OpenBSD</h4>
                                     <p>Rust is absolutely required for building cryptography packages. The agent uses certificate-based authentication which requires cryptography support for security.</p>
+                                </div>
+                            </div>
+
+                            <div class="tab-pane" id="opensuse">
+                                <h3>openSUSE Leap/Tumbleweed</h3>
+                                <pre><code># Update package manager
+sudo zypper refresh
+
+# Install Python 3.9+ (usually pre-installed)
+sudo zypper install python3 python3-pip python3-devel
+
+# Install build tools and development libraries
+sudo zypper install gcc gcc-c++ make cmake pkg-config
+sudo zypper install libopenssl-devel libffi-devel sqlite3-devel
+
+# Install Rust (required for cryptography)
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+source ~/.cargo/env
+
+# Alternative: Install Rust via zypper (openSUSE Tumbleweed)
+# sudo zypper install rust cargo</code></pre>
+
+                                <div class="opensuse-note">
+                                    <h4>📦 Package Manager Notes</h4>
+                                    <ul>
+                                        <li><strong>openSUSE Leap:</strong> Uses stable packages, may need manual Rust installation</li>
+                                        <li><strong>openSUSE Tumbleweed:</strong> Rolling release, Rust available via zypper</li>
+                                        <li><strong>Python versions:</strong> Leap ships with Python 3.9+, Tumbleweed with latest stable</li>
+                                    </ul>
+                                </div>
+                            </div>
+
+                            <div class="tab-pane" id="sles">
+                                <h3>SUSE Linux Enterprise Server (SLES)</h3>
+                                <pre><code># Update package manager
+sudo zypper refresh
+
+# Install Python 3.9+ and development tools
+sudo zypper install python3 python3-pip python3-devel
+sudo zypper install gcc gcc-c++ make cmake pkg-config
+
+# Install development libraries
+sudo zypper install libopenssl-devel libffi-devel sqlite3-devel
+
+# Install Rust (required for cryptography)
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+source ~/.cargo/env
+
+# For SLES 15 SP4+, you may also need:
+sudo zypper install glibc-devel kernel-devel</code></pre>
+
+                                <div class="sles-note">
+                                    <h4>🏢 Enterprise Considerations</h4>
+                                    <ul>
+                                        <li><strong>SLES 12:</strong> May require Software Collections (SCL) for newer Python</li>
+                                        <li><strong>SLES 15:</strong> Python 3.6+ included, but 3.9+ recommended</li>
+                                        <li><strong>Firewall:</strong> SuSEfirewall2 or firewalld may block agent ports</li>
+                                        <li><strong>SELinux:</strong> May require policy adjustments if enabled</li>
+                                        <li><strong>Subscription:</strong> Some packages require active SLES subscription</li>
+                                    </ul>
                                 </div>
                             </div>
                         </div>
@@ -446,6 +508,7 @@ Options:
                     <div class="service-tabs">
                         <div class="tab-header">
                             <button class="tab-button active" data-tab="systemd">Linux (systemd)</button>
+                            <button class="tab-button" data-tab="opensuse-service">openSUSE/SLES</button>
                             <button class="tab-button" data-tab="windows-service">Windows Service</button>
                             <button class="tab-button" data-tab="macos-launchd">macOS (launchd)</button>
                         </div>
@@ -489,6 +552,61 @@ sudo systemctl status sysmanage-agent
 
 # View logs
 sudo journalctl -u sysmanage-agent -f</code></pre>
+                            </div>
+
+                            <div class="tab-pane" id="opensuse-service">
+                                <h4>openSUSE/SLES systemd service</h4>
+                                <p>Create <code>/etc/systemd/system/sysmanage-agent.service</code>:</p>
+
+                                <pre><code>[Unit]
+Description=SysManage Agent
+After=network.target
+Wants=network.target
+
+[Service]
+Type=simple
+ExecStart=/opt/sysmanage-agent/.venv/bin/python /opt/sysmanage-agent/main.py
+Restart=always
+RestartSec=10
+User=sysmanage-agent
+Group=sysmanage-agent
+WorkingDirectory=/opt/sysmanage-agent
+
+# SUSE-specific security hardening
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ReadWritePaths=/var/log
+ProtectHome=true
+CapabilityBoundingSet=
+
+[Install]
+WantedBy=multi-user.target</code></pre>
+
+                                <h4>Service management commands</h4>
+                                <pre><code># Enable and start the service
+sudo systemctl enable sysmanage-agent
+sudo systemctl start sysmanage-agent
+
+# Check status
+sudo systemctl status sysmanage-agent
+
+# View logs
+sudo journalctl -u sysmanage-agent -f
+
+# openSUSE/SLES specific commands
+sudo zypper install systemd-presets  # If not installed
+sudo systemctl daemon-reload         # Reload systemd</code></pre>
+
+                                <div class="suse-service-note">
+                                    <h4>🏢 SUSE Enterprise Notes</h4>
+                                    <ul>
+                                        <li><strong>Firewall:</strong> Open required ports via YaST or firewall-cmd</li>
+                                        <li><strong>SELinux:</strong> May require setsebool or custom policies</li>
+                                        <li><strong>AppArmor:</strong> SUSE uses AppArmor instead of SELinux by default</li>
+                                        <li><strong>Logging:</strong> Logs available via journalctl or /var/log/messages</li>
+                                    </ul>
+                                </div>
                             </div>
 
                             <div class="tab-pane" id="windows-service">
