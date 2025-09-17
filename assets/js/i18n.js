@@ -73,7 +73,9 @@ class I18n {
         }
 
         try {
-            const response = await fetch(`/assets/locales/${langCode}.json`);
+            // Determine the correct path based on current location
+            const basePath = window.location.pathname.includes('/docs/') ? '../' : '';
+            const response = await fetch(`${basePath}assets/locales/${langCode}.json`);
             if (response.ok) {
                 const translations = await response.json();
                 this.translations[langCode] = translations;
