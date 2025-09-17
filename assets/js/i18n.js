@@ -74,7 +74,20 @@ class I18n {
 
         try {
             // Determine the correct path based on current location
-            const basePath = window.location.pathname.includes('/docs/') ? '../' : '';
+            let basePath = '';
+            const path = window.location.pathname;
+
+            // Count directory depth from root
+            if (path.includes('/docs/')) {
+                // If we're in a subdirectory of docs (like /docs/architecture/), need to go back more
+                const pathParts = path.split('/');
+                const docsIndex = pathParts.indexOf('docs');
+                if (docsIndex >= 0) {
+                    const depthFromDocs = pathParts.length - docsIndex - 2; // -2 for 'docs' and filename
+                    basePath = '../'.repeat(depthFromDocs + 1); // +1 to get out of docs directory
+                }
+            }
+
             const response = await fetch(`${basePath}assets/locales/${langCode}.json`);
             if (response.ok) {
                 const translations = await response.json();
