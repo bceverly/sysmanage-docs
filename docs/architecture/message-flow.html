@@ -350,6 +350,54 @@
             </section>
 
             <section class="docs-section">
+                <h2>Heartbeat Message Flow</h2>
+                <p>
+                    The heartbeat mechanism is critical for monitoring agent health and maintaining connection state. This detailed diagram shows the complete flow of a heartbeat message from generation to processing:
+                </p>
+
+                <div class="diagram-container">
+                    <img src="../../assets/images/heartbeat-flow-diagram.svg" alt="SysManage Heartbeat Message Flow Diagram" style="max-width: 100%; height: auto;" />
+                    <p><strong>Figure 2:</strong> Detailed heartbeat message flow from agent through queuing systems to final processing</p>
+                </div>
+
+                <div class="flow-section">
+                    <h3>Agent Side Processing</h3>
+                    <ul>
+                        <li><strong>Timer Event:</strong> The <code>message_sender()</code> loop triggers heartbeats based on <code>ping_interval</code> configuration</li>
+                        <li><strong>Message Creation:</strong> <code>create_heartbeat_message()</code> generates a heartbeat with agent status, hostname, IPs, and timestamp</li>
+                        <li><strong>Local Queueing:</strong> Message is queued in SQLite database (<code>agent.db</code>) via <code>queue_outbound_message()</code></li>
+                        <li><strong>Background Processing:</strong> The <code>process_outbound_queue()</code> thread picks up high-priority heartbeats</li>
+                        <li><strong>WebSocket Transmission:</strong> Messages are sent via secure WebSocket with mTLS encryption</li>
+                    </ul>
+                </div>
+
+                <div class="flow-section">
+                    <h3>Server Side Processing</h3>
+                    <ul>
+                        <li><strong>WebSocket Reception:</strong> FastAPI WebSocket endpoint receives the message</li>
+                        <li><strong>Message Routing:</strong> <code>_route_message()</code> identifies the heartbeat type</li>
+                        <li><strong>Database Queueing:</strong> Message is queued in PostgreSQL with INBOUND direction</li>
+                        <li><strong>Async Processing:</strong> Background <code>MessageProcessor</code> service processes queued messages</li>
+                        <li><strong>Heartbeat Handling:</strong> <code>handle_heartbeat()</code> updates host's <code>last_access</code> timestamp and status</li>
+                        <li><strong>Acknowledgment:</strong> Server sends ACK message back to agent</li>
+                    </ul>
+                </div>
+
+                <div class="technical-specs">
+                    <h4>Heartbeat Monitoring Service</h4>
+                    <p>
+                        A separate background service runs every 60 seconds to check for hosts that haven't sent heartbeats within the configured timeout period (default: 5 minutes). Hosts exceeding this threshold are automatically marked as "down" in the system.
+                    </p>
+                    <ul>
+                        <li><strong>Check Interval:</strong> 60 seconds</li>
+                        <li><strong>Timeout Threshold:</strong> Configurable (default: 5 minutes)</li>
+                        <li><strong>State Transitions:</strong> up → down when timeout exceeded</li>
+                        <li><strong>Recovery:</strong> Automatic status update to "up" on next successful heartbeat</li>
+                    </ul>
+                </div>
+            </section>
+
+            <section class="docs-section">
                 <h2>Reliability Features</h2>
 
                 <div class="flow-section">
