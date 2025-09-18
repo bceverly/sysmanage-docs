@@ -1,0 +1,812 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Troubleshooting Guide - SysManage Server</title>
+    <meta name="description" content="Common issues, debugging techniques, and solutions for SysManage server problems.">
+    <link rel="stylesheet" href="../../assets/css/style.css">
+    <link rel="icon" type="image/svg+xml" href="../../assets/images/favicon.svg">
+</head>
+<body>
+    <header class="site-header">
+        <nav class="navbar">
+            <div class="container">
+                <div class="nav-brand">
+                    <a href="../../">
+                        <img src="../../assets/images/sysmanage-logo.svg" alt="SysManage" class="logo">
+                    </a>
+                </div>
+                <div class="nav-menu">
+                    <a href="../../#features" class="nav-link">Features</a>
+                    <a href="../../#getting-started" class="nav-link">Getting Started</a>
+                    <a href="../" class="nav-link active">Documentation</a>
+                    <a href="https://github.com/bceverly/sysmanage" class="nav-link" target="_blank">GitHub</a>
+                </div>
+            </div>
+        </nav>
+    </header>
+
+    <main class="docs-main">
+        <div class="container">
+            <div class="docs-breadcrumb">
+                <a href="../">Documentation</a> > <a href="./">Server</a> > <span>Troubleshooting</span>
+            </div>
+
+            <div class="docs-header">
+                <h1>Troubleshooting Guide</h1>
+                <p>Common issues, debugging techniques, and comprehensive solutions for SysManage server problems.</p>
+            </div>
+
+            <div class="docs-content">
+                <section class="docs-overview">
+                    <h2>Quick Diagnostic Steps</h2>
+                    <p>Before diving into specific issues, follow these general diagnostic steps:</p>
+
+                    <div class="diagnostic-checklist">
+                        <h3>🔍 Initial Checks</h3>
+                        <ol>
+                            <li><strong>Check Service Status:</strong> Verify SysManage services are running</li>
+                            <li><strong>Review Logs:</strong> Check application and system logs for errors</li>
+                            <li><strong>Network Connectivity:</strong> Test network connections and firewall rules</li>
+                            <li><strong>Database Connection:</strong> Verify database connectivity and status</li>
+                            <li><strong>Resource Usage:</strong> Check CPU, memory, and disk usage</li>
+                            <li><strong>Configuration Validation:</strong> Verify configuration file syntax and values</li>
+                        </ol>
+                    </div>
+
+                    <div class="diagnostic-commands">
+                        <h3>📋 Quick Diagnostic Commands</h3>
+                        <div class="code-block">
+                            <pre><code># Check service status
+systemctl status sysmanage
+
+# View recent logs
+journalctl -u sysmanage -n 50
+
+# Check database connection
+psql -h localhost -U sysmanage -d sysmanage -c "SELECT version();"
+
+# Test web interface
+curl -k https://localhost:6443/health
+
+# Check disk space
+df -h
+
+# Monitor resources
+htop</code></pre>
+                        </div>
+                    </div>
+                </section>
+
+                <section class="docs-section">
+                    <h2>Installation Issues</h2>
+
+                    <div class="troubleshooting-category">
+                        <h3>🔧 Dependency Problems</h3>
+
+                        <div class="issue-item">
+                            <h4>Python Version Compatibility</h4>
+                            <p><strong>Symptoms:</strong> Import errors, syntax errors, or package installation failures</p>
+                            <p><strong>Cause:</strong> Using unsupported Python version (3.13 not yet supported)</p>
+                            <div class="solution">
+                                <h5>Solution:</h5>
+                                <div class="code-block">
+                                    <pre><code># Check Python version
+python3 --version
+
+# Install supported Python version (Ubuntu/Debian)
+sudo apt install python3.12 python3.12-venv
+
+# Create virtual environment with correct version
+python3.12 -m venv .venv</code></pre>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="issue-item">
+                            <h4>PostgreSQL Installation Issues</h4>
+                            <p><strong>Symptoms:</strong> Cannot connect to database, authentication failures</p>
+                            <p><strong>Cause:</strong> PostgreSQL not properly installed or configured</p>
+                            <div class="solution">
+                                <h5>Solution:</h5>
+                                <div class="code-block">
+                                    <pre><code># Install PostgreSQL (Ubuntu/Debian)
+sudo apt install postgresql postgresql-contrib
+
+# Start PostgreSQL service
+sudo systemctl start postgresql
+sudo systemctl enable postgresql
+
+# Create database user
+sudo -u postgres createuser -P sysmanage
+sudo -u postgres createdb -O sysmanage sysmanage
+
+# Test connection
+psql -h localhost -U sysmanage -d sysmanage</code></pre>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="issue-item">
+                            <h4>Node.js/npm Issues</h4>
+                            <p><strong>Symptoms:</strong> Frontend build failures, npm install errors</p>
+                            <p><strong>Cause:</strong> Outdated Node.js version or npm cache corruption</p>
+                            <div class="solution">
+                                <h5>Solution:</h5>
+                                <div class="code-block">
+                                    <pre><code># Install Node.js 20.x
+curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
+sudo apt install -y nodejs
+
+# Clear npm cache
+npm cache clean --force
+
+# Remove node_modules and reinstall
+rm -rf node_modules package-lock.json
+npm install</code></pre>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <section class="docs-section">
+                    <h2>Configuration Issues</h2>
+
+                    <div class="troubleshooting-category">
+                        <h3>⚙️ Configuration File Problems</h3>
+
+                        <div class="issue-item">
+                            <h4>Invalid YAML Syntax</h4>
+                            <p><strong>Symptoms:</strong> Server fails to start with YAML parsing errors</p>
+                            <p><strong>Cause:</strong> Malformed YAML in configuration file</p>
+                            <div class="solution">
+                                <h5>Solution:</h5>
+                                <div class="code-block">
+                                    <pre><code># Validate YAML syntax
+python3 -c "import yaml; yaml.safe_load(open('/etc/sysmanage.yaml'))"
+
+# Common YAML issues:
+# - Incorrect indentation (use spaces, not tabs)
+# - Missing quotes around strings with special characters
+# - Inconsistent list formatting
+
+# Example correct format:
+database:
+  host: "localhost"
+  port: 5432
+  name: "sysmanage"
+  user: "sysmanage"
+  password: "your_password"</code></pre>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="issue-item">
+                            <h4>SSL Certificate Issues</h4>
+                            <p><strong>Symptoms:</strong> HTTPS connection failures, certificate errors</p>
+                            <p><strong>Cause:</strong> Invalid or expired SSL certificates</p>
+                            <div class="solution">
+                                <h5>Solution:</h5>
+                                <div class="code-block">
+                                    <pre><code># Check certificate validity
+openssl x509 -in /etc/ssl/certs/sysmanage.crt -text -noout
+
+# Verify certificate and key match
+openssl x509 -noout -modulus -in /etc/ssl/certs/sysmanage.crt | openssl md5
+openssl rsa -noout -modulus -in /etc/ssl/private/sysmanage.key | openssl md5
+
+# Generate self-signed certificate for testing
+openssl req -x509 -newkey rsa:4096 -keyout /etc/ssl/private/sysmanage.key \
+  -out /etc/ssl/certs/sysmanage.crt -days 365 -nodes</code></pre>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="issue-item">
+                            <h4>Database Connection Configuration</h4>
+                            <p><strong>Symptoms:</strong> Database connection timeouts or authentication errors</p>
+                            <p><strong>Cause:</strong> Incorrect database configuration parameters</p>
+                            <div class="solution">
+                                <h5>Solution:</h5>
+                                <div class="code-block">
+                                    <pre><code># Test database connection manually
+psql "postgresql://sysmanage:password@localhost:5432/sysmanage"
+
+# Check PostgreSQL configuration
+sudo -u postgres psql -c "SHOW hba_file;"
+sudo cat /etc/postgresql/*/main/pg_hba.conf
+
+# Add connection rule if needed
+echo "host sysmanage sysmanage 127.0.0.1/32 md5" | sudo tee -a /etc/postgresql/*/main/pg_hba.conf
+
+# Restart PostgreSQL
+sudo systemctl restart postgresql</code></pre>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <section class="docs-section">
+                    <h2>Runtime Issues</h2>
+
+                    <div class="troubleshooting-category">
+                        <h3>🚨 Service Startup Problems</h3>
+
+                        <div class="issue-item">
+                            <h4>Service Won't Start</h4>
+                            <p><strong>Symptoms:</strong> SysManage service fails to start or crashes immediately</p>
+                            <p><strong>Cause:</strong> Configuration errors, missing dependencies, or permission issues</p>
+                            <div class="solution">
+                                <h5>Diagnosis:</h5>
+                                <div class="code-block">
+                                    <pre><code># Check service status and logs
+systemctl status sysmanage
+journalctl -u sysmanage -f
+
+# Run manually for debugging
+cd /path/to/sysmanage
+source .venv/bin/activate
+python -m uvicorn backend.main:app --host 0.0.0.0 --port 6443</code></pre>
+                                </div>
+                                <h5>Common Solutions:</h5>
+                                <ul>
+                                    <li>Check file permissions on configuration and log directories</li>
+                                    <li>Verify all required environment variables are set</li>
+                                    <li>Ensure database is accessible and credentials are correct</li>
+                                    <li>Check for port conflicts (port 6443 already in use)</li>
+                                </ul>
+                            </div>
+                        </div>
+
+                        <div class="issue-item">
+                            <h4>High Memory Usage</h4>
+                            <p><strong>Symptoms:</strong> Server becomes unresponsive, OOM killer terminates process</p>
+                            <p><strong>Cause:</strong> Memory leaks, inefficient queries, or insufficient system resources</p>
+                            <div class="solution">
+                                <h5>Diagnosis:</h5>
+                                <div class="code-block">
+                                    <pre><code># Monitor memory usage
+htop
+ps aux | grep sysmanage
+
+# Check for memory leaks
+valgrind --tool=memcheck python -m uvicorn backend.main:app
+
+# PostgreSQL memory usage
+sudo -u postgres psql -c "SELECT * FROM pg_stat_activity;"</code></pre>
+                                </div>
+                                <h5>Solutions:</h5>
+                                <ul>
+                                    <li>Increase system memory or add swap space</li>
+                                    <li>Optimize database queries and add indexes</li>
+                                    <li>Configure connection pooling limits</li>
+                                    <li>Review and optimize WebSocket connection handling</li>
+                                </ul>
+                            </div>
+                        </div>
+
+                        <div class="issue-item">
+                            <h4>Performance Issues</h4>
+                            <p><strong>Symptoms:</strong> Slow response times, timeouts, high CPU usage</p>
+                            <p><strong>Cause:</strong> Database performance, inefficient code, or resource constraints</p>
+                            <div class="solution">
+                                <h5>Performance Analysis:</h5>
+                                <div class="code-block">
+                                    <pre><code># Monitor system performance
+iostat -x 1
+sar -u 1 10
+
+# Database performance
+sudo -u postgres psql -c "SELECT * FROM pg_stat_statements ORDER BY total_time DESC LIMIT 10;"
+
+# Application profiling
+python -m cProfile -o profile.stats -m uvicorn backend.main:app</code></pre>
+                                </div>
+                                <h5>Optimization Steps:</h5>
+                                <ul>
+                                    <li>Add database indexes for frequently queried columns</li>
+                                    <li>Implement query result caching</li>
+                                    <li>Optimize WebSocket message handling</li>
+                                    <li>Configure appropriate worker processes</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <section class="docs-section">
+                    <h2>Network & Connectivity Issues</h2>
+
+                    <div class="troubleshooting-category">
+                        <h3>🌐 Connection Problems</h3>
+
+                        <div class="issue-item">
+                            <h4>WebSocket Connection Failures</h4>
+                            <p><strong>Symptoms:</strong> Agents cannot connect, frequent disconnections</p>
+                            <p><strong>Cause:</strong> Firewall issues, proxy problems, or network instability</p>
+                            <div class="solution">
+                                <h5>Diagnosis:</h5>
+                                <div class="code-block">
+                                    <pre><code># Test WebSocket connection
+curl -i -N -H "Connection: Upgrade" -H "Upgrade: websocket" \
+  -H "Sec-WebSocket-Key: SGVsbG8sIHdvcmxkIQ==" \
+  -H "Sec-WebSocket-Version: 13" \
+  https://localhost:6443/ws
+
+# Check firewall rules
+sudo ufw status
+sudo iptables -L
+
+# Test network connectivity
+telnet your-server 6443
+nc -zv your-server 6443</code></pre>
+                                </div>
+                                <h5>Solutions:</h5>
+                                <ul>
+                                    <li>Configure firewall to allow WebSocket connections</li>
+                                    <li>Check proxy server WebSocket support</li>
+                                    <li>Verify SSL certificate validity for secure WebSockets</li>
+                                    <li>Implement connection retry logic with backoff</li>
+                                </ul>
+                            </div>
+                        </div>
+
+                        <div class="issue-item">
+                            <h4>Agent Registration Issues</h4>
+                            <p><strong>Symptoms:</strong> Agents fail to register or appear offline</p>
+                            <p><strong>Cause:</strong> Authentication problems, network issues, or configuration mismatches</p>
+                            <div class="solution">
+                                <h5>Diagnosis:</h5>
+                                <div class="code-block">
+                                    <pre><code># Check agent logs
+tail -f /var/log/sysmanage-agent/agent.log
+
+# Test agent API endpoint
+curl -k -X POST https://server:6443/api/agents/register \
+  -H "Content-Type: application/json" \
+  -d '{"hostname": "test", "token": "agent-token"}'
+
+# Verify agent configuration
+cat /etc/sysmanage-agent/config.yaml</code></pre>
+                                </div>
+                                <h5>Solutions:</h5>
+                                <ul>
+                                    <li>Verify agent authentication tokens</li>
+                                    <li>Check server hostname/IP configuration</li>
+                                    <li>Ensure proper SSL certificate validation</li>
+                                    <li>Review agent and server version compatibility</li>
+                                </ul>
+                            </div>
+                        </div>
+
+                        <div class="issue-item">
+                            <h4>Load Balancer Issues</h4>
+                            <p><strong>Symptoms:</strong> Inconsistent behavior, session problems with multiple servers</p>
+                            <p><strong>Cause:</strong> Session affinity issues or health check failures</p>
+                            <div class="solution">
+                                <h5>Load Balancer Configuration:</h5>
+                                <div class="code-block">
+                                    <pre><code># Nginx health check configuration
+location /health {
+    proxy_pass https://backend;
+    proxy_set_header Host $host;
+    access_log off;
+}
+
+# HAProxy health check
+backend sysmanage
+    option httpchk GET /health
+    server app1 10.0.1.10:6443 check
+    server app2 10.0.1.11:6443 check</code></pre>
+                                </div>
+                                <h5>Solutions:</h5>
+                                <ul>
+                                    <li>Configure sticky sessions for WebSocket connections</li>
+                                    <li>Implement proper health check endpoints</li>
+                                    <li>Use shared session storage (Redis/database)</li>
+                                    <li>Configure appropriate timeout values</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <section class="docs-section">
+                    <h2>Database Issues</h2>
+
+                    <div class="troubleshooting-category">
+                        <h3>🗃️ Database Problems</h3>
+
+                        <div class="issue-item">
+                            <h4>Connection Pool Exhaustion</h4>
+                            <p><strong>Symptoms:</strong> "Too many connections" errors, connection timeouts</p>
+                            <p><strong>Cause:</strong> Insufficient connection pool size or connection leaks</p>
+                            <div class="solution">
+                                <h5>Diagnosis:</h5>
+                                <div class="code-block">
+                                    <pre><code># Check PostgreSQL connections
+sudo -u postgres psql -c "SELECT count(*) FROM pg_stat_activity;"
+sudo -u postgres psql -c "SHOW max_connections;"
+
+# Monitor connection usage
+watch "sudo -u postgres psql -c 'SELECT count(*) FROM pg_stat_activity;'"</code></pre>
+                                </div>
+                                <h5>Solutions:</h5>
+                                <ul>
+                                    <li>Increase PostgreSQL max_connections setting</li>
+                                    <li>Configure connection pooling in application</li>
+                                    <li>Implement connection timeout and cleanup</li>
+                                    <li>Review code for connection leaks</li>
+                                </ul>
+                            </div>
+                        </div>
+
+                        <div class="issue-item">
+                            <h4>Slow Query Performance</h4>
+                            <p><strong>Symptoms:</strong> Long response times, database timeouts</p>
+                            <p><strong>Cause:</strong> Missing indexes, complex queries, or database locks</p>
+                            <div class="solution">
+                                <h5>Performance Analysis:</h5>
+                                <div class="code-block">
+                                    <pre><code># Enable query logging
+sudo -u postgres psql -c "ALTER SYSTEM SET log_statement = 'all';"
+sudo -u postgres psql -c "ALTER SYSTEM SET log_min_duration_statement = 1000;"
+sudo systemctl reload postgresql
+
+# Analyze slow queries
+sudo -u postgres psql -c "SELECT query, mean_time, calls FROM pg_stat_statements ORDER BY mean_time DESC LIMIT 10;"
+
+# Check for locks
+sudo -u postgres psql -c "SELECT * FROM pg_locks WHERE NOT granted;"</code></pre>
+                                </div>
+                                <h5>Optimization:</h5>
+                                <ul>
+                                    <li>Add indexes for frequently queried columns</li>
+                                    <li>Use EXPLAIN ANALYZE to understand query plans</li>
+                                    <li>Optimize JOIN operations and WHERE clauses</li>
+                                    <li>Implement query result caching</li>
+                                </ul>
+                            </div>
+                        </div>
+
+                        <div class="issue-item">
+                            <h4>Database Migration Issues</h4>
+                            <p><strong>Symptoms:</strong> Migration failures, schema inconsistencies</p>
+                            <p><strong>Cause:</strong> Interrupted migrations, version conflicts, or data issues</p>
+                            <div class="solution">
+                                <h5>Migration Troubleshooting:</h5>
+                                <div class="code-block">
+                                    <pre><code># Check migration status
+alembic current
+alembic history
+
+# Show pending migrations
+alembic show
+
+# Force migration to specific version
+alembic stamp head
+
+# Backup before migration
+pg_dump -h localhost -U sysmanage sysmanage > backup_pre_migration.sql</code></pre>
+                                </div>
+                                <h5>Solutions:</h5>
+                                <ul>
+                                    <li>Always backup database before migrations</li>
+                                    <li>Run migrations in maintenance mode</li>
+                                    <li>Test migrations on copy of production data</li>
+                                    <li>Have rollback plan ready</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <section class="docs-section">
+                    <h2>Authentication & Security Issues</h2>
+
+                    <div class="troubleshooting-category">
+                        <h3>🔐 Security Problems</h3>
+
+                        <div class="issue-item">
+                            <h4>JWT Token Issues</h4>
+                            <p><strong>Symptoms:</strong> Authentication failures, token expired errors</p>
+                            <p><strong>Cause:</strong> Invalid tokens, clock skew, or configuration issues</p>
+                            <div class="solution">
+                                <h5>Token Debugging:</h5>
+                                <div class="code-block">
+                                    <pre><code># Decode JWT token (use jwt.io or)
+python3 -c "
+import jwt
+import json
+token = 'your-jwt-token-here'
+decoded = jwt.decode(token, options={'verify_signature': False})
+print(json.dumps(decoded, indent=2))
+"
+
+# Check system time synchronization
+timedatectl status
+ntpq -p</code></pre>
+                                </div>
+                                <h5>Solutions:</h5>
+                                <ul>
+                                    <li>Verify JWT secret key configuration</li>
+                                    <li>Check token expiration settings</li>
+                                    <li>Synchronize system clocks (NTP)</li>
+                                    <li>Implement token refresh mechanism</li>
+                                </ul>
+                            </div>
+                        </div>
+
+                        <div class="issue-item">
+                            <h4>Permission Denied Errors</h4>
+                            <p><strong>Symptoms:</strong> 403 Forbidden errors, access denied messages</p>
+                            <p><strong>Cause:</strong> Incorrect RBAC configuration or user permissions</p>
+                            <div class="solution">
+                                <h5>Permission Debugging:</h5>
+                                <div class="code-block">
+                                    <pre><code># Check user roles and permissions
+sudo -u postgres psql sysmanage -c "
+SELECT u.userid, r.name as role, p.name as permission
+FROM users u
+JOIN user_roles ur ON u.id = ur.user_id
+JOIN roles r ON ur.role_id = r.id
+JOIN role_permissions rp ON r.id = rp.role_id
+JOIN permissions p ON rp.permission_id = p.id
+WHERE u.userid = 'username@example.com';
+"</code></pre>
+                                </div>
+                                <h5>Solutions:</h5>
+                                <ul>
+                                    <li>Review user role assignments</li>
+                                    <li>Verify permission definitions</li>
+                                    <li>Check for inherited permissions</li>
+                                    <li>Validate RBAC policy configuration</li>
+                                </ul>
+                            </div>
+                        </div>
+
+                        <div class="issue-item">
+                            <h4>SSL/TLS Certificate Problems</h4>
+                            <p><strong>Symptoms:</strong> Certificate warnings, HTTPS connection failures</p>
+                            <p><strong>Cause:</strong> Expired certificates, hostname mismatches, or chain issues</p>
+                            <div class="solution">
+                                <h5>Certificate Validation:</h5>
+                                <div class="code-block">
+                                    <pre><code># Check certificate details
+openssl x509 -in /etc/ssl/certs/sysmanage.crt -text -noout
+
+# Test certificate chain
+openssl s_client -connect your-server:6443 -servername your-server
+
+# Verify certificate expiration
+openssl x509 -in /etc/ssl/certs/sysmanage.crt -noout -dates</code></pre>
+                                </div>
+                                <h5>Solutions:</h5>
+                                <ul>
+                                    <li>Renew expired certificates</li>
+                                    <li>Ensure hostname matches certificate CN/SAN</li>
+                                    <li>Include intermediate certificates in chain</li>
+                                    <li>Configure automatic certificate renewal</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <section class="docs-section">
+                    <h2>Frontend Issues</h2>
+
+                    <div class="troubleshooting-category">
+                        <h3>🖥️ Web Interface Problems</h3>
+
+                        <div class="issue-item">
+                            <h4>JavaScript/React Errors</h4>
+                            <p><strong>Symptoms:</strong> White screen, console errors, component failures</p>
+                            <p><strong>Cause:</strong> JavaScript errors, missing dependencies, or build issues</p>
+                            <div class="solution">
+                                <h5>Debugging:</h5>
+                                <div class="code-block">
+                                    <pre><code># Check browser console for errors
+# Press F12 and look at Console tab
+
+# Rebuild frontend
+cd frontend
+npm run build
+
+# Check for TypeScript errors
+npm run type-check
+
+# Run development server for detailed errors
+npm run dev</code></pre>
+                                </div>
+                                <h5>Solutions:</h5>
+                                <ul>
+                                    <li>Clear browser cache and cookies</li>
+                                    <li>Rebuild frontend assets</li>
+                                    <li>Check for missing environment variables</li>
+                                    <li>Verify API endpoint connectivity</li>
+                                </ul>
+                            </div>
+                        </div>
+
+                        <div class="issue-item">
+                            <h4>API Communication Errors</h4>
+                            <p><strong>Symptoms:</strong> Failed API requests, CORS errors, network timeouts</p>
+                            <p><strong>Cause:</strong> CORS configuration, network issues, or API errors</p>
+                            <div class="solution">
+                                <h5>Network Debugging:</h5>
+                                <div class="code-block">
+                                    <pre><code># Check browser network tab for failed requests
+# Press F12 and look at Network tab
+
+# Test API endpoints directly
+curl -k -H "Authorization: Bearer your-token" \
+  https://localhost:6443/api/hosts
+
+# Check CORS headers
+curl -k -H "Origin: https://your-frontend-domain" \
+  -H "Access-Control-Request-Method: POST" \
+  -H "Access-Control-Request-Headers: X-Requested-With" \
+  -X OPTIONS https://localhost:6443/api/hosts</code></pre>
+                                </div>
+                                <h5>Solutions:</h5>
+                                <ul>
+                                    <li>Configure CORS settings in backend</li>
+                                    <li>Check API authentication tokens</li>
+                                    <li>Verify network connectivity and DNS</li>
+                                    <li>Review proxy configuration if applicable</li>
+                                </ul>
+                            </div>
+                        </div>
+
+                        <div class="issue-item">
+                            <h4>WebSocket Connection Issues</h4>
+                            <p><strong>Symptoms:</strong> Real-time updates not working, connection errors</p>
+                            <p><strong>Cause:</strong> WebSocket connection failures or proxy issues</p>
+                            <div class="solution">
+                                <h5>WebSocket Testing:</h5>
+                                <div class="code-block">
+                                    <pre><code># Test WebSocket in browser console
+const ws = new WebSocket('wss://localhost:6443/ws');
+ws.onopen = () => console.log('Connected');
+ws.onmessage = (event) => console.log('Message:', event.data);
+ws.onerror = (error) => console.log('Error:', error);
+
+# Check proxy WebSocket support (Nginx)
+proxy_http_version 1.1;
+proxy_set_header Upgrade $http_upgrade;
+proxy_set_header Connection "upgrade";</code></pre>
+                                </div>
+                                <h5>Solutions:</h5>
+                                <ul>
+                                    <li>Configure proxy for WebSocket support</li>
+                                    <li>Check firewall WebSocket rules</li>
+                                    <li>Implement connection retry logic</li>
+                                    <li>Verify SSL certificate for WSS connections</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <section class="docs-section">
+                    <h2>Log Analysis</h2>
+
+                    <h3>📋 Log Locations</h3>
+                    <div class="log-locations">
+                        <div class="code-block">
+                            <pre><code># SysManage application logs
+/var/log/sysmanage/sysmanage.log
+/var/log/sysmanage/error.log
+/var/log/sysmanage/access.log
+
+# System logs
+journalctl -u sysmanage
+/var/log/syslog
+/var/log/messages
+
+# PostgreSQL logs
+/var/log/postgresql/postgresql-*.log
+
+# Nginx logs (if used)
+/var/log/nginx/access.log
+/var/log/nginx/error.log
+
+# Agent logs
+/var/log/sysmanage-agent/agent.log</code></pre>
+                        </div>
+                    </div>
+
+                    <h3>🔍 Log Analysis Commands</h3>
+                    <div class="code-block">
+                        <pre><code># Real-time log monitoring
+tail -f /var/log/sysmanage/sysmanage.log
+
+# Search for errors
+grep -i error /var/log/sysmanage/sysmanage.log
+
+# Filter by date range
+journalctl -u sysmanage --since "2024-01-01" --until "2024-01-02"
+
+# Count error occurrences
+grep -c "ERROR" /var/log/sysmanage/sysmanage.log
+
+# Extract IP addresses from access logs
+awk '{print $1}' /var/log/sysmanage/access.log | sort | uniq -c | sort -nr</code></pre>
+                    </div>
+
+                    <h3>📊 Common Log Patterns</h3>
+                    <div class="log-patterns">
+                        <h4>Error Patterns to Look For:</h4>
+                        <ul>
+                            <li><strong>Database Errors:</strong> "connection refused", "timeout", "deadlock"</li>
+                            <li><strong>Authentication:</strong> "unauthorized", "forbidden", "invalid token"</li>
+                            <li><strong>WebSocket:</strong> "connection closed", "handshake failed"</li>
+                            <li><strong>Performance:</strong> "timeout", "slow query", "high memory"</li>
+                        </ul>
+                    </div>
+                </section>
+
+                <section class="docs-section">
+                    <h2>Getting Help</h2>
+
+                    <div class="help-resources">
+                        <h3>📞 Support Channels</h3>
+                        <ul>
+                            <li><strong>GitHub Issues:</strong> <a href="https://github.com/bceverly/sysmanage/issues">Report bugs and request features</a></li>
+                            <li><strong>GitHub Discussions:</strong> <a href="https://github.com/bceverly/sysmanage/discussions">Community support and questions</a></li>
+                            <li><strong>Documentation:</strong> <a href="https://sysmanage.org/docs/">Complete documentation</a></li>
+                        </ul>
+
+                        <h3>📋 Information to Include</h3>
+                        <p>When seeking help, please include:</p>
+                        <ul>
+                            <li>SysManage version and installation method</li>
+                            <li>Operating system and version</li>
+                            <li>Complete error messages and stack traces</li>
+                            <li>Relevant log excerpts</li>
+                            <li>Steps to reproduce the issue</li>
+                            <li>Configuration files (redact sensitive information)</li>
+                        </ul>
+
+                        <h3>🔧 Debug Information Script</h3>
+                        <div class="code-block">
+                            <pre><code>#!/bin/bash
+# debug_info.sh - Collect debug information
+
+echo "=== SysManage Debug Information ==="
+echo "Date: $(date)"
+echo "Hostname: $(hostname)"
+echo "OS: $(uname -a)"
+echo
+echo "=== Service Status ==="
+systemctl status sysmanage
+echo
+echo "=== Recent Logs ==="
+journalctl -u sysmanage -n 20 --no-pager
+echo
+echo "=== Database Connection ==="
+psql -h localhost -U sysmanage -d sysmanage -c "SELECT version();" 2>&1
+echo
+echo "=== Disk Usage ==="
+df -h
+echo
+echo "=== Memory Usage ==="
+free -h</code></pre>
+                        </div>
+                    </div>
+                </section>
+            </div>
+        </div>
+    </main>
+
+    <footer class="site-footer">
+        <div class="container">
+            <p>&copy; 2024 SysManage. Licensed under AGPLv3.</p>
+        </div>
+    </footer>
+</body>
+</html>
