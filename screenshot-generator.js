@@ -23,24 +23,69 @@ async function generateDashboardScreenshot() {
         // First, try to inject a mock authentication token to bypass login
         console.log('🔓 Attempting to bypass login with mock authentication...');
 
-        // Navigate to the mockup dashboard HTML file
-        const mockupPath = 'file://' + path.join(__dirname, 'mockup-dashboard.html');
-        console.log(`📁 Loading mockup from: ${mockupPath}`);
-
-        await page.goto(mockupPath, {
+        // Navigate to the real SysManage frontend
+        await page.goto('http://t14.theeverlys.com:3000', {
             waitUntil: 'networkidle',
             timeout: 30000
         });
 
-        console.log('⏳ Waiting for mockup page to load...');
+        console.log('⏳ Waiting for React app to load...');
 
-        // Wait for the mockup HTML to load - look for the main content
+        // Wait for React app to load - look for the root div to have content
         await page.waitForFunction(() => {
-            const mainContent = document.querySelector('.main-content');
-            return mainContent && mainContent.children.length > 0;
+            const root = document.querySelector('#root');
+            return root && root.children.length > 0;
         }, { timeout: 15000 });
 
-        console.log('✅ Mockup page loaded!');
+        console.log('✅ React app loaded, checking for login...');
+
+        // Check if we're on login page and try to login with demo credentials
+        const loginForm = await page.$('input[name="userid"]');
+        if (loginForm) {
+            console.log('🔑 Found login form, using demo credentials...');
+
+            // Fill the userid field
+            const useridField = await page.$('input[name="userid"]');
+            if (useridField) {
+                await useridField.fill('demo@sysmanage.local');
+                console.log('📧 Filled userid field');
+            }
+
+            // Fill the password field
+            const passwordField = await page.$('input[name="password"]');
+            if (passwordField) {
+                await passwordField.fill('DemoPassword123!');
+                console.log('🔑 Filled password field');
+            }
+
+            // Click login button
+            const loginButton = await page.$('button[type="submit"]');
+            if (loginButton) {
+                await loginButton.click();
+                console.log('🖱️ Clicked login button');
+            }
+
+            // Wait for navigation
+            await page.waitForTimeout(5000);
+            console.log('⏳ Waiting for dashboard to load...');
+
+            // Check if login was successful
+            const stillOnLoginPage = await page.$('input[name="password"]');
+            if (!stillOnLoginPage) {
+                console.log('✅ Login successful!');
+
+                // Navigate to hosts page
+                await page.goto('http://t14.theeverlys.com:3000/hosts', {
+                    waitUntil: 'networkidle',
+                    timeout: 30000
+                });
+
+                await page.waitForTimeout(3000);
+                console.log('📋 Navigated to hosts page');
+            } else {
+                console.log('❌ Login failed, staying on login page');
+            }
+        }
 
         // Wait a bit more for components to render
         await page.waitForTimeout(2000);
