@@ -63,33 +63,57 @@ async function generateDashboardScreenshot() {
                 );
                 console.log('🔍 Found input fields:', JSON.stringify(allInputs, null, 2));
 
-                // Fill the userid field (found via debug)
-                const useridField = await page.$('input[name="userid"]');
-                if (useridField) {
-                    await useridField.fill('admin@sysmanage.local');
-                    console.log('📧 Filled userid field');
-                } else {
-                    console.log('⚠️ Could not find userid field');
+                // Try multiple credential combinations
+                const credentials = [
+                    { userid: 'admin', password: 'admin' },
+                    { userid: 'admin@sysmanage.local', password: 'admin' },
+                    { userid: 'demo', password: 'demo' },
+                    { userid: 'test', password: 'test' },
+                    { userid: 'admin', password: 'password' }
+                ];
+
+                let loginSuccess = false;
+                for (const cred of credentials) {
+                    console.log(`🔐 Trying credentials: ${cred.userid} / ${cred.password}`);
+
+                    // Fill the userid field (found via debug)
+                    const useridField = await page.$('input[name="userid"]');
+                    if (useridField) {
+                        await useridField.selectAll();
+                        await useridField.fill(cred.userid);
+                        console.log('📧 Filled userid field');
+                    }
+
+                    // Fill the password field (found via debug)
+                    const passwordField = await page.$('input[name="password"]');
+                    if (passwordField) {
+                        await passwordField.selectAll();
+                        await passwordField.fill(cred.password);
+                        console.log('🔑 Filled password field');
+                    }
+
+                    // Click login button
+                    const loginButton = await page.$('button[type="submit"], .login-button, .btn-primary, button:has-text("Login"), button:has-text("Sign in"), button:has-text("Enter")');
+                    if (loginButton) {
+                        await loginButton.click();
+                        console.log('🖱️ Clicked login button');
+                    }
+
+                    // Wait and check if login succeeded
+                    await page.waitForTimeout(3000);
+                    const stillOnLoginPage = await page.$('input[type="password"]');
+                    if (!stillOnLoginPage) {
+                        console.log('✅ Login successful!');
+                        loginSuccess = true;
+                        break;
+                    } else {
+                        console.log('❌ Login failed, trying next credentials...');
+                    }
                 }
 
-                // Fill the password field (found via debug)
-                const passwordField = await page.$('input[name="password"]');
-                if (passwordField) {
-                    await passwordField.fill('admin');
-                    console.log('🔑 Filled password field');
-                } else {
-                    console.log('⚠️ Could not find password field');
+                if (!loginSuccess) {
+                    console.log('⚠️ All login attempts failed');
                 }
-
-                // Try to find and click login button
-                const loginButton = await page.$('button[type="submit"], .login-button, .btn-primary, button:has-text("Login"), button:has-text("Sign in"), button:has-text("Enter")');
-                if (loginButton) {
-                    await loginButton.click();
-                    console.log('🖱️ Clicked login button');
-                }
-
-                // Wait for navigation away from login page
-                await page.waitForTimeout(2000);
 
                 // Wait for dashboard elements to appear (not login elements)
                 try {
@@ -99,13 +123,67 @@ async function generateDashboardScreenshot() {
                         return !loginForm;
                     }, { timeout: 10000 });
                     console.log('✅ Successfully navigated away from login page');
+
+                    // Navigate to host details view
+                    console.log('🔍 Looking for hosts or navigation...');
+
+                    // Give time for dashboard to load
+                    await page.waitForTimeout(3000);
+
+                    // Look for hosts navigation or host entries
+                    const hostSelectors = [
+                        'a[href*="host"]',
+                        'button:has-text("Hosts")',
+                        '.host-item',
+                        '.MuiTableRow-root',
+                        'tr[role="row"]',
+                        '[data-testid*="host"]'
+                    ];
+
+                    let hostFound = false;
+                    for (const selector of hostSelectors) {
+                        const hostElement = await page.$(selector);
+                        if (hostElement) {
+                            console.log(`🎯 Found host element: ${selector}`);
+                            await hostElement.click();
+                            hostFound = true;
+                            break;
+                        }
+                    }
+
+                    if (hostFound) {
+                        console.log('🖱️ Clicked on host element');
+                        await page.waitForTimeout(2000);
+
+                        // Look for Info tab
+                        const infoSelectors = [
+                            'button:has-text("Info")',
+                            'tab:has-text("Info")',
+                            '.MuiTab-root:has-text("Info")',
+                            '[role="tab"]:has-text("Info")'
+                        ];
+
+                        for (const selector of infoSelectors) {
+                            const infoTab = await page.$(selector);
+                            if (infoTab) {
+                                console.log(`📋 Found Info tab: ${selector}`);
+                                await infoTab.click();
+                                console.log('🖱️ Clicked Info tab');
+                                await page.waitForTimeout(2000);
+                                break;
+                            }
+                        }
+                    } else {
+                        console.log('⚠️ No host elements found, staying on current page');
+                    }
+
                 } catch (navError) {
                     console.log('⚠️ Still on login page or navigation timeout');
                 }
 
-                // Give extra time for dashboard to fully load
+                // Give extra time for content to fully load
                 await page.waitForTimeout(3000);
-                console.log('✅ Login attempt completed!');
+                console.log('✅ Navigation attempt completed!');
             } catch (loginError) {
                 console.log('⚠️ Login failed or not needed:', loginError.message);
             }
