@@ -1,0 +1,995 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Agent Troubleshooting - SysManage</title>
+    <meta name="description" content="Comprehensive troubleshooting guide for SysManage agents including common issues, debugging techniques, and resolution strategies.">
+    <link rel="stylesheet" href="../../assets/css/style.css">
+    <link rel="icon" type="image/svg+xml" href="../../assets/images/favicon.svg">
+</head>
+<body>
+    <header class="site-header">
+        <nav class="navbar">
+            <div class="container">
+                <div class="nav-brand">
+                    <a href="../../">
+                        <img src="../../assets/images/sysmanage-logo.svg" alt="SysManage" class="logo">
+                    </a>
+                </div>
+                <div class="nav-menu">
+                    <a href="../../#features" class="nav-link">Features</a>
+                    <a href="../../#getting-started" class="nav-link">Getting Started</a>
+                    <a href="../" class="nav-link active">Documentation</a>
+                    <a href="https://github.com/bceverly/sysmanage" class="nav-link" target="_blank">GitHub</a>
+                </div>
+            </div>
+        </nav>
+    </header>
+
+    <main class="docs-main">
+        <div class="container">
+            <div class="docs-breadcrumb">
+                <a href="../">Documentation</a> > <a href="./">Agent</a> > <span>Troubleshooting</span>
+            </div>
+
+            <div class="docs-header">
+                <h1>Agent Troubleshooting</h1>
+                <p>Comprehensive troubleshooting guide for SysManage agents including common issues, debugging techniques, and resolution strategies.</p>
+            </div>
+
+            <div class="docs-content">
+                <section class="overview">
+                    <h2>Overview</h2>
+                    <p>This guide provides systematic approaches to diagnosing and resolving common issues with SysManage agents. Follow the troubleshooting steps in order, starting with basic connectivity checks and progressing to advanced debugging techniques.</p>
+
+                    <div class="troubleshooting-approach">
+                        <h3>Troubleshooting Methodology</h3>
+                        <ol>
+                            <li><strong>Identify the Problem:</strong> Gather symptoms and error messages</li>
+                            <li><strong>Check Basic Requirements:</strong> Verify system requirements and configuration</li>
+                            <li><strong>Review Logs:</strong> Examine agent and system logs for clues</li>
+                            <li><strong>Test Components:</strong> Isolate and test individual components</li>
+                            <li><strong>Apply Solutions:</strong> Implement targeted fixes</li>
+                            <li><strong>Verify Resolution:</strong> Confirm the issue is resolved</li>
+                        </ol>
+                    </div>
+                </section>
+
+                <section class="quick-diagnostics">
+                    <h2>Quick Diagnostics</h2>
+                    <p>Start with these quick checks to identify common issues.</p>
+
+                    <div class="diagnostic-checklist">
+                        <h3>Basic Health Check</h3>
+                        <div class="code-block">
+                            <pre><code># Check if agent is running
+systemctl status sysmanage-agent
+ps aux | grep sysmanage-agent
+
+# Check agent logs
+tail -f /var/log/sysmanage-agent.log
+journalctl -u sysmanage-agent -f
+
+# Test server connectivity
+telnet sysmanage.example.com 8080
+curl -k https://sysmanage.example.com:8080/health
+
+# Check configuration syntax
+sysmanage-agent --config-test
+
+# Verify permissions
+ls -la /etc/sysmanage-agent/
+whoami</code></pre>
+                        </div>
+                    </div>
+
+                    <div class="status-indicators">
+                        <h3>Agent Status Indicators</h3>
+                        <table class="status-table">
+                            <thead>
+                                <tr>
+                                    <th>Status</th>
+                                    <th>Description</th>
+                                    <th>Action Required</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td class="status-good">🟢 Online</td>
+                                    <td>Agent connected and functioning normally</td>
+                                    <td>None</td>
+                                </tr>
+                                <tr>
+                                    <td class="status-warning">🟡 Connecting</td>
+                                    <td>Agent attempting to connect to server</td>
+                                    <td>Check network connectivity</td>
+                                </tr>
+                                <tr>
+                                    <td class="status-error">🔴 Offline</td>
+                                    <td>Agent cannot connect to server</td>
+                                    <td>Check configuration and network</td>
+                                </tr>
+                                <tr>
+                                    <td class="status-error">⚫ Stopped</td>
+                                    <td>Agent service is not running</td>
+                                    <td>Start the agent service</td>
+                                </tr>
+                                <tr>
+                                    <td class="status-warning">🟠 Error</td>
+                                    <td>Agent running but experiencing errors</td>
+                                    <td>Check logs for specific errors</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </section>
+
+                <section class="common-issues">
+                    <h2>Common Issues</h2>
+
+                    <div class="issue-category">
+                        <h3>Connection Issues</h3>
+
+                        <div class="issue">
+                            <h4>Agent Cannot Connect to Server</h4>
+                            <div class="symptoms">
+                                <h5>Symptoms:</h5>
+                                <ul>
+                                    <li>Agent shows "Offline" or "Connecting" status</li>
+                                    <li>Connection timeout errors in logs</li>
+                                    <li>Agent continuously retrying connection</li>
+                                </ul>
+                            </div>
+                            <div class="solutions">
+                                <h5>Solutions:</h5>
+                                <ol>
+                                    <li><strong>Verify server configuration:</strong>
+                                        <div class="code-block">
+                                            <pre><code># Check server hostname and port
+ping sysmanage.example.com
+telnet sysmanage.example.com 8080
+
+# Test HTTPS connection
+curl -k https://sysmanage.example.com:8080/health</code></pre>
+                                        </div>
+                                    </li>
+                                    <li><strong>Check firewall rules:</strong>
+                                        <div class="code-block">
+                                            <pre><code># Linux (iptables)
+iptables -L | grep 8080
+
+# Linux (firewalld)
+firewall-cmd --list-ports
+
+# FreeBSD (pf)
+pfctl -sr | grep 8080
+
+# Check if port is listening on server
+netstat -tlnp | grep 8080</code></pre>
+                                        </div>
+                                    </li>
+                                    <li><strong>Verify DNS resolution:</strong>
+                                        <div class="code-block">
+                                            <pre><code># Test DNS resolution
+nslookup sysmanage.example.com
+dig sysmanage.example.com
+
+# Check /etc/hosts for overrides
+cat /etc/hosts | grep sysmanage</code></pre>
+                                        </div>
+                                    </li>
+                                    <li><strong>Check proxy settings:</strong>
+                                        <div class="code-block">
+                                            <pre><code># Check environment variables
+echo $HTTP_PROXY
+echo $HTTPS_PROXY
+echo $NO_PROXY
+
+# Test direct connection
+curl --noproxy '*' https://sysmanage.example.com:8080</code></pre>
+                                        </div>
+                                    </li>
+                                </ol>
+                            </div>
+                        </div>
+
+                        <div class="issue">
+                            <h4>SSL/TLS Certificate Issues</h4>
+                            <div class="symptoms">
+                                <h5>Symptoms:</h5>
+                                <ul>
+                                    <li>SSL certificate verification errors</li>
+                                    <li>"Certificate has expired" messages</li>
+                                    <li>"Hostname mismatch" errors</li>
+                                </ul>
+                            </div>
+                            <div class="solutions">
+                                <h5>Solutions:</h5>
+                                <ol>
+                                    <li><strong>Test certificate validity:</strong>
+                                        <div class="code-block">
+                                            <pre><code># Check certificate details
+openssl s_client -connect sysmanage.example.com:8080 -servername sysmanage.example.com
+
+# Verify certificate expiration
+echo | openssl s_client -connect sysmanage.example.com:8080 2>/dev/null | openssl x509 -noout -dates
+
+# Check certificate chain
+curl -vvI https://sysmanage.example.com:8080</code></pre>
+                                        </div>
+                                    </li>
+                                    <li><strong>Temporary SSL bypass (development only):</strong>
+                                        <div class="code-block">
+                                            <pre><code># In agent configuration
+server:
+  hostname: "sysmanage.example.com"
+  port: 8080
+  use_https: true
+  verify_ssl: false  # ONLY for development/testing</code></pre>
+                                        </div>
+                                    </li>
+                                    <li><strong>Update CA certificates:</strong>
+                                        <div class="code-block">
+                                            <pre><code># Ubuntu/Debian
+apt update && apt install ca-certificates
+update-ca-certificates
+
+# RHEL/CentOS/Fedora
+yum update ca-certificates
+# or
+dnf update ca-certificates
+
+# FreeBSD
+pkg update && pkg install ca_root_nss</code></pre>
+                                        </div>
+                                    </li>
+                                </ol>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="issue-category">
+                        <h3>Authentication Issues</h3>
+
+                        <div class="issue">
+                            <h4>Agent Registration Failures</h4>
+                            <div class="symptoms">
+                                <h5>Symptoms:</h5>
+                                <ul>
+                                    <li>Agent appears offline in server dashboard</li>
+                                    <li>"Registration failed" messages in logs</li>
+                                    <li>HTTP 401 or 403 errors</li>
+                                </ul>
+                            </div>
+                            <div class="solutions">
+                                <h5>Solutions:</h5>
+                                <ol>
+                                    <li><strong>Check agent approval status:</strong>
+                                        <div class="code-block">
+                                            <pre><code># Log into SysManage web interface
+# Navigate to Hosts > Pending Approval
+# Approve the agent if it appears in pending list</code></pre>
+                                        </div>
+                                    </li>
+                                    <li><strong>Verify hostname detection:</strong>
+                                        <div class="code-block">
+                                            <pre><code># Check system hostname
+hostname
+hostname -f
+
+# Override in agent config if needed
+client:
+  hostname_override: "my-custom-hostname"</code></pre>
+                                        </div>
+                                    </li>
+                                    <li><strong>Clear agent database:</strong>
+                                        <div class="code-block">
+                                            <pre><code># Stop agent
+systemctl stop sysmanage-agent
+
+# Remove agent database
+rm /path/to/agent.db
+
+# Restart agent (will re-register)
+systemctl start sysmanage-agent</code></pre>
+                                        </div>
+                                    </li>
+                                </ol>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="issue-category">
+                        <h3>Performance Issues</h3>
+
+                        <div class="issue">
+                            <h4>High CPU Usage</h4>
+                            <div class="symptoms">
+                                <h5>Symptoms:</h5>
+                                <ul>
+                                    <li>Agent process consuming high CPU</li>
+                                    <li>System slowdown when agent is running</li>
+                                    <li>Frequent data collection in logs</li>
+                                </ul>
+                            </div>
+                            <div class="solutions">
+                                <h5>Solutions:</h5>
+                                <ol>
+                                    <li><strong>Adjust collection intervals:</strong>
+                                        <div class="code-block">
+                                            <pre><code># Increase collection intervals
+collection:
+  intervals:
+    system_info: 600      # 10 minutes (was 5)
+    software: 7200        # 2 hours (was 1)
+    hardware: 3600        # 1 hour (was 30 min)
+    network: 600          # 10 minutes (was 5)</code></pre>
+                                        </div>
+                                    </li>
+                                    <li><strong>Disable unnecessary collection:</strong>
+                                        <div class="code-block">
+                                            <pre><code># Disable specific collection types
+collection:
+  types:
+    available_packages: false  # Expensive operation
+    user_accounts: false       # If not needed
+    system_metrics: false      # If monitoring elsewhere</code></pre>
+                                        </div>
+                                    </li>
+                                    <li><strong>Monitor agent resource usage:</strong>
+                                        <div class="code-block">
+                                            <pre><code># Monitor CPU and memory usage
+top -p $(pgrep sysmanage-agent)
+htop -p $(pgrep sysmanage-agent)
+
+# Check for memory leaks
+ps -o pid,ppid,cmd,%mem,%cpu --sort=-%mem | head</code></pre>
+                                        </div>
+                                    </li>
+                                </ol>
+                            </div>
+                        </div>
+
+                        <div class="issue">
+                            <h4>High Memory Usage</h4>
+                            <div class="symptoms">
+                                <h5>Symptoms:</h5>
+                                <ul>
+                                    <li>Agent memory usage continuously growing</li>
+                                    <li>System running out of memory</li>
+                                    <li>OOM (Out of Memory) killer terminating agent</li>
+                                </ul>
+                            </div>
+                            <div class="solutions">
+                                <h5>Solutions:</h5>
+                                <ol>
+                                    <li><strong>Enable memory monitoring:</strong>
+                                        <div class="code-block">
+                                            <pre><code># Monitor memory usage over time
+while true; do
+  echo "$(date): $(ps -o pid,ppid,cmd,%mem --sort=-%mem | grep sysmanage-agent)"
+  sleep 60
+done > memory_usage.log</code></pre>
+                                        </div>
+                                    </li>
+                                    <li><strong>Reduce data collection scope:</strong>
+                                        <div class="code-block">
+                                            <pre><code># Limit large data collections
+collection:
+  types:
+    available_packages: false  # Large dataset
+    hardware_info: false       # If static
+
+# Reduce message queue size
+message_queue:
+  max_size: 1000
+  cleanup_interval_minutes: 15</code></pre>
+                                        </div>
+                                    </li>
+                                    <li><strong>Implement memory limits:</strong>
+                                        <div class="code-block">
+                                            <pre><code># Systemd service limits
+[Service]
+MemoryMax=256M
+MemoryHigh=200M
+
+# Or use cgroups directly
+echo "256M" > /sys/fs/cgroup/memory/sysmanage-agent/memory.limit_in_bytes</code></pre>
+                                        </div>
+                                    </li>
+                                </ol>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="issue-category">
+                        <h3>Package Management Issues</h3>
+
+                        <div class="issue">
+                            <h4>Package Manager Not Detected</h4>
+                            <div class="symptoms">
+                                <h5>Symptoms:</h5>
+                                <ul>
+                                    <li>"No package manager found" errors</li>
+                                    <li>Empty package inventory</li>
+                                    <li>Package operations failing</li>
+                                </ul>
+                            </div>
+                            <div class="solutions">
+                                <h5>Solutions:</h5>
+                                <ol>
+                                    <li><strong>Verify package manager installation:</strong>
+                                        <div class="code-block">
+                                            <pre><code># Check for package managers
+which apt apt-get yum dnf pkg pkg_add brew choco
+
+# Verify they're in PATH
+echo $PATH
+
+# Test package manager directly
+apt --version
+yum --version
+pkg --version</code></pre>
+                                        </div>
+                                    </li>
+                                    <li><strong>Check permissions:</strong>
+                                        <div class="code-block">
+                                            <pre><code># Verify agent user can access package manager
+sudo -u sysmanage apt list --installed
+sudo -u sysmanage yum list installed
+
+# Check sudo configuration for package management
+sudo -l -U sysmanage</code></pre>
+                                        </div>
+                                    </li>
+                                    <li><strong>Configure custom package manager paths:</strong>
+                                        <div class="code-block">
+                                            <pre><code># Custom package manager configuration
+package_management:
+  custom_paths:
+    apt: "/usr/bin/apt"
+    brew: "/opt/homebrew/bin/brew"
+    pkg: "/usr/local/sbin/pkg"</code></pre>
+                                        </div>
+                                    </li>
+                                </ol>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="issue-category">
+                        <h3>Service Management Issues</h3>
+
+                        <div class="issue">
+                            <h4>Agent Service Won't Start</h4>
+                            <div class="symptoms">
+                                <h5>Symptoms:</h5>
+                                <ul>
+                                    <li>Service fails to start</li>
+                                    <li>"Service failed to start" messages</li>
+                                    <li>Immediate service exit after start</li>
+                                </ul>
+                            </div>
+                            <div class="solutions">
+                                <h5>Solutions:</h5>
+                                <ol>
+                                    <li><strong>Check service status and logs:</strong>
+                                        <div class="code-block">
+                                            <pre><code># Check service status
+systemctl status sysmanage-agent
+journalctl -u sysmanage-agent --no-pager
+
+# Check for configuration errors
+sysmanage-agent --config-test
+
+# Try starting manually
+sudo -u sysmanage sysmanage-agent --verbose</code></pre>
+                                        </div>
+                                    </li>
+                                    <li><strong>Verify file permissions:</strong>
+                                        <div class="code-block">
+                                            <pre><code># Check binary permissions
+ls -la /usr/local/bin/sysmanage-agent
+
+# Check configuration permissions
+ls -la /etc/sysmanage-agent/
+ls -la /var/log/sysmanage-agent/
+
+# Fix permissions if needed
+chmod +x /usr/local/bin/sysmanage-agent
+chown -R sysmanage:sysmanage /etc/sysmanage-agent/</code></pre>
+                                        </div>
+                                    </li>
+                                    <li><strong>Check dependencies:</strong>
+                                        <div class="code-block">
+                                            <pre><code># Check required libraries
+ldd /usr/local/bin/sysmanage-agent
+
+# Verify Python dependencies (if applicable)
+pip list | grep -E "(requests|websocket|pyyaml)"
+
+# Check system dependencies
+python3 --version
+systemctl --version</code></pre>
+                                        </div>
+                                    </li>
+                                </ol>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <section class="debugging-tools">
+                    <h2>Debugging Tools and Techniques</h2>
+
+                    <div class="logging-debugging">
+                        <h3>Advanced Logging</h3>
+                        <div class="code-block">
+                            <pre><code># Enable debug logging
+logging:
+  level: "DEBUG"
+  format: "%(asctime)s [%(levelname)s] %(name)s: %(message)s"
+
+# Increase log verbosity for specific components
+logging:
+  loggers:
+    websocket: "DEBUG"
+    package_manager: "DEBUG"
+    collection: "INFO"
+
+# Log to separate files
+logging:
+  handlers:
+    file:
+      filename: "/var/log/sysmanage-agent/debug.log"
+      level: "DEBUG"
+    console:
+      level: "WARNING"</code></pre>
+                        </div>
+                    </div>
+
+                    <div class="network-debugging">
+                        <h3>Network Debugging</h3>
+                        <div class="code-block">
+                            <pre><code># Monitor network connections
+netstat -tuln | grep sysmanage
+ss -tuln | grep sysmanage
+
+# Trace network requests
+strace -e trace=network -p $(pgrep sysmanage-agent)
+
+# Monitor DNS queries
+sudo tcpdump -i any port 53 and host sysmanage.example.com
+
+# Check WebSocket connections
+tcpdump -i any port 8080 and host sysmanage.example.com
+
+# Test with curl
+curl -v -H "Upgrade: websocket" \
+     -H "Connection: Upgrade" \
+     -H "Sec-WebSocket-Key: $(openssl rand -base64 16)" \
+     -H "Sec-WebSocket-Version: 13" \
+     https://sysmanage.example.com:8080/ws</code></pre>
+                        </div>
+                    </div>
+
+                    <div class="process-debugging">
+                        <h3>Process Debugging</h3>
+                        <div class="code-block">
+                            <pre><code># Monitor system calls
+strace -f -p $(pgrep sysmanage-agent)
+
+# Monitor file access
+strace -e trace=file -p $(pgrep sysmanage-agent)
+
+# Check open files
+lsof -p $(pgrep sysmanage-agent)
+
+# Monitor resource usage
+pidstat -p $(pgrep sysmanage-agent) 1
+
+# Check for deadlocks (if applicable)
+gdb -p $(pgrep sysmanage-agent)
+(gdb) thread apply all bt
+(gdb) quit</code></pre>
+                        </div>
+                    </div>
+                </section>
+
+                <section class="log-analysis">
+                    <h2>Log Analysis</h2>
+
+                    <div class="log-locations">
+                        <h3>Common Log Locations</h3>
+                        <div class="code-block">
+                            <pre><code># Agent logs
+/var/log/sysmanage-agent.log
+/var/log/sysmanage-agent/agent.log
+~/logs/agent.log
+
+# System logs
+/var/log/syslog          # Ubuntu/Debian
+/var/log/messages        # RHEL/CentOS
+/var/log/system.log      # macOS
+C:\Windows\System32\winevt\Logs\  # Windows
+
+# Service logs
+journalctl -u sysmanage-agent
+systemctl status sysmanage-agent</code></pre>
+                        </div>
+                    </div>
+
+                    <div class="log-patterns">
+                        <h3>Important Log Patterns</h3>
+                        <div class="pattern-examples">
+                            <h4>Connection Issues</h4>
+                            <div class="code-block">
+                                <pre><code># Connection failures
+grep -i "connection.*failed\|timeout\|refused" /var/log/sysmanage-agent.log
+
+# SSL/TLS issues
+grep -i "ssl\|tls\|certificate\|handshake" /var/log/sysmanage-agent.log
+
+# Authentication failures
+grep -i "auth.*failed\|unauthorized\|forbidden" /var/log/sysmanage-agent.log</code></pre>
+                            </div>
+
+                            <h4>Performance Issues</h4>
+                            <div class="code-block">
+                                <pre><code># High resource usage warnings
+grep -i "memory\|cpu\|performance\|slow" /var/log/sysmanage-agent.log
+
+# Collection timeouts
+grep -i "collection.*timeout\|collection.*failed" /var/log/sysmanage-agent.log
+
+# Queue issues
+grep -i "queue.*full\|message.*expired" /var/log/sysmanage-agent.log</code></pre>
+                            </div>
+
+                            <h4>Configuration Issues</h4>
+                            <div class="code-block">
+                                <pre><code># Configuration errors
+grep -i "config.*error\|invalid.*config\|missing.*config" /var/log/sysmanage-agent.log
+
+# Permission issues
+grep -i "permission.*denied\|access.*denied\|not.*permitted" /var/log/sysmanage-agent.log
+
+# File system issues
+grep -i "no.*space\|disk.*full\|read.*only" /var/log/sysmanage-agent.log</code></pre>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <section class="recovery-procedures">
+                    <h2>Recovery Procedures</h2>
+
+                    <div class="recovery-scenarios">
+                        <h3>Agent Recovery Scenarios</h3>
+
+                        <div class="scenario">
+                            <h4>Complete Agent Reset</h4>
+                            <p>When agent is completely unresponsive or corrupted:</p>
+                            <div class="code-block">
+                                <pre><code># 1. Stop the agent service
+systemctl stop sysmanage-agent
+
+# 2. Backup configuration (optional)
+cp /etc/sysmanage-agent/sysmanage-agent.yaml /tmp/
+
+# 3. Remove agent database and cache
+rm -f /var/lib/sysmanage-agent/agent.db
+rm -rf /var/cache/sysmanage-agent/*
+
+# 4. Clear logs (optional)
+> /var/log/sysmanage-agent.log
+
+# 5. Restart agent service
+systemctl start sysmanage-agent
+
+# 6. Monitor startup
+journalctl -u sysmanage-agent -f</code></pre>
+                            </div>
+                        </div>
+
+                        <div class="scenario">
+                            <h4>Network Configuration Reset</h4>
+                            <p>When experiencing persistent connection issues:</p>
+                            <div class="code-block">
+                                <pre><code># 1. Test basic connectivity
+ping -c 3 sysmanage.example.com
+telnet sysmanage.example.com 8080
+
+# 2. Clear DNS cache
+systemctl restart systemd-resolved  # Ubuntu 18+
+service nscd restart                 # Older systems
+
+# 3. Reset network configuration in agent
+systemctl stop sysmanage-agent
+
+# Edit configuration to use IP instead of hostname
+server:
+  hostname: "192.168.1.100"  # Use server IP
+  port: 8080
+  use_https: false           # Temporarily disable SSL
+
+systemctl start sysmanage-agent
+
+# 4. Monitor connection attempts
+tail -f /var/log/sysmanage-agent.log | grep -i connect</code></pre>
+                            </div>
+                        </div>
+
+                        <div class="scenario">
+                            <h4>Permission Recovery</h4>
+                            <p>When facing permission-related issues:</p>
+                            <div class="code-block">
+                                <pre><code># 1. Fix file ownership
+chown -R sysmanage:sysmanage /etc/sysmanage-agent/
+chown -R sysmanage:sysmanage /var/log/sysmanage-agent/
+chown -R sysmanage:sysmanage /var/lib/sysmanage-agent/
+
+# 2. Set correct permissions
+chmod 755 /usr/local/bin/sysmanage-agent
+chmod 640 /etc/sysmanage-agent/sysmanage-agent.yaml
+chmod 755 /var/log/sysmanage-agent/
+chmod 755 /var/lib/sysmanage-agent/
+
+# 3. Verify user exists
+id sysmanage
+getent passwd sysmanage
+
+# 4. Check sudo configuration
+sudo -l -U sysmanage
+
+# 5. Test basic operations
+sudo -u sysmanage /usr/local/bin/sysmanage-agent --version</code></pre>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <section class="monitoring-health">
+                    <h2>Monitoring Agent Health</h2>
+
+                    <div class="health-monitoring">
+                        <h3>Automated Health Checks</h3>
+                        <div class="code-block">
+                            <pre><code>#!/bin/bash
+# Agent health check script
+
+AGENT_NAME="sysmanage-agent"
+LOG_FILE="/var/log/sysmanage-agent.log"
+PID_FILE="/var/run/sysmanage-agent.pid"
+
+# Check if service is running
+if ! systemctl is-active --quiet $AGENT_NAME; then
+    echo "ERROR: $AGENT_NAME service is not running"
+    exit 1
+fi
+
+# Check if process exists
+if [ -f "$PID_FILE" ]; then
+    PID=$(cat $PID_FILE)
+    if ! kill -0 $PID 2>/dev/null; then
+        echo "ERROR: Process $PID not found"
+        exit 1
+    fi
+else
+    echo "WARNING: PID file not found"
+fi
+
+# Check log for recent errors
+if [ -f "$LOG_FILE" ]; then
+    ERRORS=$(tail -100 $LOG_FILE | grep -c -i error)
+    if [ $ERRORS -gt 5 ]; then
+        echo "WARNING: Found $ERRORS recent errors in log"
+    fi
+fi
+
+# Check memory usage
+MEM_USAGE=$(ps -o %mem -p $PID --no-headers | tr -d ' ')
+if (( $(echo "$MEM_USAGE > 10.0" | bc -l) )); then
+    echo "WARNING: High memory usage: ${MEM_USAGE}%"
+fi
+
+# Check disk space
+DISK_USAGE=$(df /var/log | tail -1 | awk '{print $5}' | sed 's/%//')
+if [ $DISK_USAGE -gt 80 ]; then
+    echo "WARNING: High disk usage: ${DISK_USAGE}%"
+fi
+
+echo "Agent health check completed successfully"</code></pre>
+                        </div>
+                    </div>
+
+                    <div class="alerting-setup">
+                        <h3>Setting Up Alerts</h3>
+                        <div class="code-block">
+                            <pre><code># Systemd service monitoring (systemctl status alerts)
+# Add to /etc/systemd/system/sysmanage-agent-monitor.service
+
+[Unit]
+Description=SysManage Agent Monitor
+After=sysmanage-agent.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/check-agent-health.sh
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
+
+# Create timer for regular checks
+# /etc/systemd/system/sysmanage-agent-monitor.timer
+
+[Unit]
+Description=Run SysManage Agent Health Check
+Requires=sysmanage-agent-monitor.service
+
+[Timer]
+OnCalendar=*:0/5  # Every 5 minutes
+Persistent=true
+
+[Install]
+WantedBy=timers.target
+
+# Enable the timer
+systemctl enable sysmanage-agent-monitor.timer
+systemctl start sysmanage-agent-monitor.timer</code></pre>
+                        </div>
+                    </div>
+                </section>
+
+                <section class="support-information">
+                    <h2>Getting Support</h2>
+
+                    <div class="information-gathering">
+                        <h3>Information to Gather Before Requesting Support</h3>
+                        <div class="code-block">
+                            <pre><code>#!/bin/bash
+# Support information gathering script
+
+echo "=== SysManage Agent Support Information ==="
+echo "Date: $(date)"
+echo
+
+echo "=== System Information ==="
+uname -a
+lsb_release -a 2>/dev/null || cat /etc/os-release
+echo
+
+echo "=== Agent Information ==="
+sysmanage-agent --version
+systemctl status sysmanage-agent
+echo
+
+echo "=== Configuration ==="
+echo "Configuration file:"
+cat /etc/sysmanage-agent/sysmanage-agent.yaml
+echo
+
+echo "=== Recent Logs ==="
+echo "Last 50 lines of agent log:"
+tail -50 /var/log/sysmanage-agent.log
+echo
+
+echo "=== System Resources ==="
+free -h
+df -h
+ps aux | grep sysmanage-agent
+echo
+
+echo "=== Network Connectivity ==="
+ping -c 3 sysmanage.example.com
+netstat -tuln | grep sysmanage
+echo
+
+echo "=== Environment ==="
+env | grep -i sysmanage
+env | grep -i proxy</code></pre>
+                        </div>
+                    </div>
+
+                    <div class="support-channels">
+                        <h3>Support Channels</h3>
+                        <ul>
+                            <li><strong>GitHub Issues:</strong> <a href="https://github.com/bceverly/sysmanage/issues" target="_blank">Report bugs and feature requests</a></li>
+                            <li><strong>GitHub Discussions:</strong> <a href="https://github.com/bceverly/sysmanage/discussions" target="_blank">Community support and questions</a></li>
+                            <li><strong>Documentation:</strong> Check the official documentation for updates</li>
+                            <li><strong>Log Analysis:</strong> Always include relevant log excerpts when requesting support</li>
+                        </ul>
+                    </div>
+                </section>
+
+                <section class="prevention">
+                    <h2>Prevention and Best Practices</h2>
+
+                    <div class="preventive-measures">
+                        <h3>Preventive Measures</h3>
+                        <ul>
+                            <li><strong>Regular Updates:</strong> Keep agent software updated to latest stable version</li>
+                            <li><strong>Configuration Validation:</strong> Test configuration changes in development first</li>
+                            <li><strong>Monitoring Setup:</strong> Implement proactive monitoring and alerting</li>
+                            <li><strong>Backup Procedures:</strong> Regular backup of agent configuration and database</li>
+                            <li><strong>Log Rotation:</strong> Implement proper log rotation to prevent disk space issues</li>
+                            <li><strong>Resource Monitoring:</strong> Monitor CPU, memory, and disk usage trends</li>
+                            <li><strong>Network Monitoring:</strong> Monitor network connectivity and certificate expiry</li>
+                            <li><strong>Documentation:</strong> Maintain documentation of custom configurations</li>
+                        </ul>
+                    </div>
+
+                    <div class="maintenance-schedule">
+                        <h3>Regular Maintenance Schedule</h3>
+                        <table class="maintenance-table">
+                            <thead>
+                                <tr>
+                                    <th>Frequency</th>
+                                    <th>Task</th>
+                                    <th>Description</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td>Daily</td>
+                                    <td>Health Check</td>
+                                    <td>Verify agent status and basic connectivity</td>
+                                </tr>
+                                <tr>
+                                    <td>Weekly</td>
+                                    <td>Log Review</td>
+                                    <td>Review agent logs for errors and warnings</td>
+                                </tr>
+                                <tr>
+                                    <td>Monthly</td>
+                                    <td>Update Check</td>
+                                    <td>Check for agent software updates</td>
+                                </tr>
+                                <tr>
+                                    <td>Monthly</td>
+                                    <td>Resource Review</td>
+                                    <td>Review CPU, memory, and disk usage trends</td>
+                                </tr>
+                                <tr>
+                                    <td>Quarterly</td>
+                                    <td>Configuration Review</td>
+                                    <td>Review and optimize agent configuration</td>
+                                </tr>
+                                <tr>
+                                    <td>Quarterly</td>
+                                    <td>Certificate Check</td>
+                                    <td>Verify SSL certificate expiry dates</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </section>
+            </div>
+
+            <div class="docs-footer">
+                <div class="docs-navigation">
+                    <h3>Quick Navigation</h3>
+                    <div class="nav-links">
+                        <a href="cross-platform.html" class="nav-link">← Cross-Platform Support</a>
+                        <a href="../api/" class="nav-link">API Reference →</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <footer class="site-footer">
+        <div class="container">
+            <div class="footer-bottom">
+                <p>&copy; 2024 SysManage. All rights reserved.</p>
+            </div>
+        </div>
+    </footer>
+
+    <script src="../../assets/js/main.js"></script>
+    <script src="../../assets/js/i18n.js"></script>
+</body>
+</html>

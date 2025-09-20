@@ -1,0 +1,640 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Monitoring API - SysManage</title>
+    <meta name="description" content="SysManage Monitoring API documentation for system monitoring, metrics collection, and alerting.">
+    <link rel="stylesheet" href="../../assets/css/style.css">
+    <link rel="icon" type="image/svg+xml" href="../../assets/images/favicon.svg">
+</head>
+<body>
+    <header class="site-header">
+        <nav class="navbar">
+            <div class="container">
+                <div class="nav-brand">
+                    <a href="../../">
+                        <img src="../../assets/images/sysmanage-logo.svg" alt="SysManage" class="logo">
+                    </a>
+                </div>
+                <div class="nav-menu">
+                    <a href="../../#features" class="nav-link">Features</a>
+                    <a href="../../#getting-started" class="nav-link">Getting Started</a>
+                    <a href="../" class="nav-link active">Documentation</a>
+                    <a href="https://github.com/bceverly/sysmanage" class="nav-link" target="_blank">GitHub</a>
+                </div>
+            </div>
+        </nav>
+    </header>
+
+    <main class="docs-main">
+        <div class="container">
+            <div class="docs-breadcrumb">
+                <a href="../">Documentation</a> > <a href="./">API Reference</a> > <span>Monitoring</span>
+            </div>
+
+            <div class="docs-header">
+                <h1>Monitoring API</h1>
+                <p>System monitoring, metrics collection, and alerting through programmatic interfaces.</p>
+            </div>
+
+            <div class="docs-content">
+                <section class="overview">
+                    <h2>Overview</h2>
+                    <p>The Monitoring API provides comprehensive system monitoring capabilities including real-time metrics collection, health checks, alert management, and historical data analysis across your entire infrastructure.</p>
+                </section>
+
+                <section class="endpoint-section">
+                    <h2>Diagnostics Collection</h2>
+
+                    <div class="endpoint">
+                        <div class="endpoint-header">
+                            <span class="method post">POST</span>
+                            <code>/api/v1/host/{host_id}/collect-diagnostics</code>
+                        </div>
+                        <p>Initiate comprehensive diagnostic data collection for a specific host.</p>
+                        <div class="auth-required">🔒 Authentication Required</div>
+
+                        <h4>Path Parameters</h4>
+                        <ul>
+                            <li><code>host_id</code> (string) - UUID of the target host</li>
+                        </ul>
+
+                        <h4>Request Body</h4>
+                        <div class="code-block">
+                            <pre><code>{
+  "include_logs": true,
+  "include_processes": true,
+  "include_network": true,
+  "include_storage": true,
+  "log_lines": 1000,
+  "custom_commands": [
+    "systemctl status",
+    "df -h",
+    "free -m"
+  ]
+}</code></pre>
+                        </div>
+
+                        <h4>Response (200 OK)</h4>
+                        <div class="code-block">
+                            <pre><code>{
+  "diagnostic_id": "uuid",
+  "status": "initiated",
+  "estimated_completion": "2024-01-01T12:05:00Z",
+  "collection_size_estimate": "2.5 MB"
+}</code></pre>
+                        </div>
+                    </div>
+
+                    <div class="endpoint">
+                        <div class="endpoint-header">
+                            <span class="method get">GET</span>
+                            <code>/api/v1/host/{host_id}/diagnostics</code>
+                        </div>
+                        <p>Get list of diagnostic collections for a specific host.</p>
+                        <div class="auth-required">🔒 Authentication Required</div>
+
+                        <h4>Response (200 OK)</h4>
+                        <div class="code-block">
+                            <pre><code>[
+  {
+    "diagnostic_id": "uuid",
+    "collected_at": "2024-01-01T12:00:00Z",
+    "status": "completed",
+    "size": "2.3 MB",
+    "components": [
+      "system_info",
+      "processes",
+      "network",
+      "storage",
+      "logs"
+    ]
+  }
+]</code></pre>
+                        </div>
+                    </div>
+
+                    <div class="endpoint">
+                        <div class="endpoint-header">
+                            <span class="method get">GET</span>
+                            <code>/api/v1/diagnostic/{diagnostic_id}</code>
+                        </div>
+                        <p>Get detailed diagnostic data for a specific collection.</p>
+                        <div class="auth-required">🔒 Authentication Required</div>
+
+                        <h4>Response (200 OK)</h4>
+                        <div class="code-block">
+                            <pre><code>{
+  "diagnostic_id": "uuid",
+  "host_id": "uuid",
+  "collected_at": "2024-01-01T12:00:00Z",
+  "status": "completed",
+  "data": {
+    "system_info": {
+      "hostname": "web-01",
+      "uptime": "15 days, 3:22:45",
+      "load_average": [1.2, 1.5, 1.8],
+      "cpu_cores": 4,
+      "memory_total": "8 GB",
+      "disk_usage": [
+        {
+          "mount": "/",
+          "used": "45%",
+          "available": "55%"
+        }
+      ]
+    },
+    "processes": [
+      {
+        "pid": 1234,
+        "name": "nginx",
+        "cpu_percent": 2.3,
+        "memory_percent": 1.8,
+        "status": "running"
+      }
+    ],
+    "network": {
+      "interfaces": [
+        {
+          "name": "eth0",
+          "ip": "192.168.1.100",
+          "status": "up",
+          "rx_bytes": 1234567890,
+          "tx_bytes": 987654321
+        }
+      ]
+    }
+  }
+}</code></pre>
+                        </div>
+                    </div>
+
+                    <div class="endpoint">
+                        <div class="endpoint-header">
+                            <span class="method get">GET</span>
+                            <code>/api/v1/diagnostic/{diagnostic_id}/status</code>
+                        </div>
+                        <p>Get status of a diagnostic collection operation.</p>
+                        <div class="auth-required">🔒 Authentication Required</div>
+
+                        <h4>Response (200 OK)</h4>
+                        <div class="code-block">
+                            <pre><code>{
+  "diagnostic_id": "uuid",
+  "status": "in_progress",
+  "progress": 65,
+  "current_step": "collecting_logs",
+  "estimated_completion": "2024-01-01T12:03:00Z",
+  "error": null
+}</code></pre>
+                        </div>
+                    </div>
+
+                    <div class="endpoint">
+                        <div class="endpoint-header">
+                            <span class="method delete">DELETE</span>
+                            <code>/api/v1/diagnostic/{diagnostic_id}</code>
+                        </div>
+                        <p>Delete a diagnostic collection and its data.</p>
+                        <div class="auth-required">🔒 Authentication Required</div>
+
+                        <h4>Response (200 OK)</h4>
+                        <div class="code-block">
+                            <pre><code>{
+  "message": "Diagnostic collection deleted successfully",
+  "diagnostic_id": "uuid"
+}</code></pre>
+                        </div>
+                    </div>
+                </section>
+
+                <section class="endpoint-section">
+                    <h2>Queue Monitoring</h2>
+
+                    <div class="endpoint">
+                        <div class="endpoint-header">
+                            <span class="method get">GET</span>
+                            <code>/api/v1/queue/failed</code>
+                        </div>
+                        <p>Get list of failed queue messages for monitoring and debugging.</p>
+                        <div class="auth-required">🔒 Authentication Required</div>
+
+                        <h4>Query Parameters</h4>
+                        <ul>
+                            <li><code>limit</code> (integer, optional) - Maximum results (default: 50)</li>
+                            <li><code>offset</code> (integer, optional) - Results offset (default: 0)</li>
+                        </ul>
+
+                        <h4>Response (200 OK)</h4>
+                        <div class="code-block">
+                            <pre><code>[
+  {
+    "message_id": "uuid",
+    "queue_name": "host_commands",
+    "message_type": "command_execution",
+    "failed_at": "2024-01-01T12:00:00Z",
+    "retry_count": 3,
+    "error": "Connection timeout to host",
+    "payload": {
+      "host_id": "uuid",
+      "command": "systemctl restart nginx"
+    }
+  }
+]</code></pre>
+                        </div>
+                    </div>
+
+                    <div class="endpoint">
+                        <div class="endpoint-header">
+                            <span class="method get">GET</span>
+                            <code>/api/v1/queue/failed/{message_id}</code>
+                        </div>
+                        <p>Get detailed information about a specific failed message.</p>
+                        <div class="auth-required">🔒 Authentication Required</div>
+
+                        <h4>Response (200 OK)</h4>
+                        <div class="code-block">
+                            <pre><code>{
+  "message_id": "uuid",
+  "queue_name": "host_commands",
+  "message_type": "command_execution",
+  "created_at": "2024-01-01T11:55:00Z",
+  "failed_at": "2024-01-01T12:00:00Z",
+  "retry_count": 3,
+  "max_retries": 3,
+  "error": "Connection timeout to host web-01",
+  "error_stack": "...",
+  "payload": {
+    "host_id": "uuid",
+    "command": "systemctl restart nginx",
+    "timeout": 30
+  },
+  "retry_history": [
+    {
+      "attempt": 1,
+      "failed_at": "2024-01-01T11:56:00Z",
+      "error": "Connection timeout"
+    }
+  ]
+}</code></pre>
+                        </div>
+                    </div>
+
+                    <div class="endpoint">
+                        <div class="endpoint-header">
+                            <span class="method delete">DELETE</span>
+                            <code>/api/v1/queue/failed</code>
+                        </div>
+                        <p>Clear all failed messages from the queue.</p>
+                        <div class="auth-required">🔒 Authentication Required</div>
+
+                        <h4>Request Body (Optional)</h4>
+                        <div class="code-block">
+                            <pre><code>{
+  "older_than": "2024-01-01T00:00:00Z",
+  "queue_name": "host_commands"
+}</code></pre>
+                        </div>
+
+                        <h4>Response (200 OK)</h4>
+                        <div class="code-block">
+                            <pre><code>{
+  "message": "Failed messages cleared",
+  "count": 25
+}</code></pre>
+                        </div>
+                    </div>
+                </section>
+
+                <section class="endpoint-section">
+                    <h2>Security Monitoring</h2>
+
+                    <div class="endpoint">
+                        <div class="endpoint-header">
+                            <span class="method get">GET</span>
+                            <code>/api/v1/security/default-credentials-status</code>
+                        </div>
+                        <p>Check if the system is using default credentials (security monitoring).</p>
+                        <div class="auth-required">🔒 Authentication Required</div>
+
+                        <h4>Response (200 OK)</h4>
+                        <div class="code-block">
+                            <pre><code>{
+  "using_default_credentials": false,
+  "last_password_change": "2024-01-01T10:00:00Z",
+  "admin_users_count": 3,
+  "users_with_default_passwords": [],
+  "security_score": 95,
+  "recommendations": [
+    "Enable two-factor authentication",
+    "Rotate API keys monthly"
+  ]
+}</code></pre>
+                        </div>
+                    </div>
+                </section>
+
+                <section class="endpoint-section">
+                    <h2>Email Configuration Monitoring</h2>
+
+                    <div class="endpoint">
+                        <div class="endpoint-header">
+                            <span class="method get">GET</span>
+                            <code>/api/v1/email/config</code>
+                        </div>
+                        <p>Get email configuration status for monitoring alert delivery.</p>
+                        <div class="auth-required">🔒 Authentication Required</div>
+
+                        <h4>Response (200 OK)</h4>
+                        <div class="code-block">
+                            <pre><code>{
+  "configured": true,
+  "smtp_server": "smtp.example.com",
+  "smtp_port": 587,
+  "use_tls": true,
+  "from_address": "alerts@example.com",
+  "last_test": "2024-01-01T10:00:00Z",
+  "test_status": "success"
+}</code></pre>
+                        </div>
+                    </div>
+
+                    <div class="endpoint">
+                        <div class="endpoint-header">
+                            <span class="method post">POST</span>
+                            <code>/api/v1/email/test</code>
+                        </div>
+                        <p>Test email configuration by sending a test email.</p>
+                        <div class="auth-required">🔒 Authentication Required</div>
+
+                        <h4>Request Body</h4>
+                        <div class="code-block">
+                            <pre><code>{
+  "to_address": "admin@example.com",
+  "subject": "SysManage Email Test"
+}</code></pre>
+                        </div>
+
+                        <h4>Response (200 OK)</h4>
+                        <div class="code-block">
+                            <pre><code>{
+  "success": true,
+  "message": "Test email sent successfully",
+  "sent_at": "2024-01-01T12:00:00Z"
+}</code></pre>
+                        </div>
+                    </div>
+                </section>
+
+                <section class="endpoint-section">
+                    <h2>System Health Checks</h2>
+
+                    <div class="endpoint">
+                        <div class="endpoint-header">
+                            <span class="method get">GET</span>
+                            <code>/api/v1/health</code>
+                        </div>
+                        <p>Get overall system health status.</p>
+
+                        <h4>Response (200 OK)</h4>
+                        <div class="code-block">
+                            <pre><code>{
+  "status": "healthy",
+  "timestamp": "2024-01-01T12:00:00Z",
+  "version": "1.0.0",
+  "components": {
+    "database": {
+      "status": "healthy",
+      "response_time_ms": 12
+    },
+    "websocket": {
+      "status": "healthy",
+      "active_connections": 25
+    },
+    "queue": {
+      "status": "healthy",
+      "pending_messages": 3,
+      "failed_messages": 0
+    },
+    "agents": {
+      "status": "degraded",
+      "online": 148,
+      "offline": 2,
+      "total": 150
+    }
+  }
+}</code></pre>
+                        </div>
+                    </div>
+
+                    <div class="endpoint">
+                        <div class="endpoint-header">
+                            <span class="method get">GET</span>
+                            <code>/api/v1/health/database</code>
+                        </div>
+                        <p>Get detailed database health information.</p>
+                        <div class="auth-required">🔒 Authentication Required</div>
+
+                        <h4>Response (200 OK)</h4>
+                        <div class="code-block">
+                            <pre><code>{
+  "status": "healthy",
+  "connection_pool": {
+    "active": 5,
+    "idle": 10,
+    "max": 20
+  },
+  "query_performance": {
+    "avg_response_time_ms": 8.5,
+    "slow_queries": 0
+  },
+  "disk_usage": {
+    "size": "1.2 GB",
+    "growth_rate": "50 MB/day"
+  },
+  "last_backup": "2024-01-01T02:00:00Z"
+}</code></pre>
+                        </div>
+                    </div>
+                </section>
+
+                <section class="endpoint-section">
+                    <h2>Metrics and Analytics</h2>
+
+                    <div class="endpoint">
+                        <div class="endpoint-header">
+                            <span class="method get">GET</span>
+                            <code>/api/v1/metrics/summary</code>
+                        </div>
+                        <p>Get aggregated metrics summary across the infrastructure.</p>
+                        <div class="auth-required">🔒 Authentication Required</div>
+
+                        <h4>Query Parameters</h4>
+                        <ul>
+                            <li><code>timeframe</code> (string) - Time period (hour, day, week, month)</li>
+                            <li><code>metrics</code> (array) - Specific metrics to include</li>
+                        </ul>
+
+                        <h4>Response (200 OK)</h4>
+                        <div class="code-block">
+                            <pre><code>{
+  "timeframe": "24h",
+  "summary": {
+    "total_hosts": 150,
+    "avg_cpu_usage": 23.5,
+    "avg_memory_usage": 67.2,
+    "avg_disk_usage": 45.8,
+    "total_commands_executed": 1247,
+    "total_packages_managed": 356,
+    "alerts_generated": 12,
+    "uptime_percentage": 99.8
+  },
+  "trends": {
+    "cpu_usage": "stable",
+    "memory_usage": "increasing",
+    "disk_usage": "stable",
+    "network_traffic": "decreasing"
+  }
+}</code></pre>
+                        </div>
+                    </div>
+
+                    <div class="endpoint">
+                        <div class="endpoint-header">
+                            <span class="method get">GET</span>
+                            <code>/api/v1/metrics/hosts/{host_id}/history</code>
+                        </div>
+                        <p>Get historical metrics data for a specific host.</p>
+                        <div class="auth-required">🔒 Authentication Required</div>
+
+                        <h4>Query Parameters</h4>
+                        <ul>
+                            <li><code>start_time</code> (string) - Start timestamp (ISO 8601)</li>
+                            <li><code>end_time</code> (string) - End timestamp (ISO 8601)</li>
+                            <li><code>interval</code> (string) - Data interval (5m, 1h, 1d)</li>
+                        </ul>
+
+                        <h4>Response (200 OK)</h4>
+                        <div class="code-block">
+                            <pre><code>{
+  "host_id": "uuid",
+  "interval": "1h",
+  "data_points": [
+    {
+      "timestamp": "2024-01-01T11:00:00Z",
+      "cpu_usage": 25.3,
+      "memory_usage": 65.1,
+      "disk_usage": 45.8,
+      "network_rx": 1024,
+      "network_tx": 2048
+    }
+  ]
+}</code></pre>
+                        </div>
+                    </div>
+                </section>
+
+                <section class="alerts-section">
+                    <h2>Alert Management</h2>
+
+                    <div class="endpoint">
+                        <div class="endpoint-header">
+                            <span class="method get">GET</span>
+                            <code>/api/v1/alerts</code>
+                        </div>
+                        <p>Get list of active alerts.</p>
+                        <div class="auth-required">🔒 Authentication Required</div>
+
+                        <h4>Query Parameters</h4>
+                        <ul>
+                            <li><code>severity</code> (string) - Filter by severity (info, warning, critical)</li>
+                            <li><code>status</code> (string) - Filter by status (active, acknowledged, resolved)</li>
+                            <li><code>host_id</code> (string) - Filter by specific host</li>
+                        </ul>
+
+                        <h4>Response (200 OK)</h4>
+                        <div class="code-block">
+                            <pre><code>[
+  {
+    "alert_id": "uuid",
+    "severity": "warning",
+    "title": "High disk usage",
+    "description": "Disk usage on /var is 85%",
+    "host_id": "uuid",
+    "hostname": "web-01",
+    "triggered_at": "2024-01-01T12:00:00Z",
+    "status": "active",
+    "metric": "disk_usage",
+    "threshold": 80,
+    "current_value": 85
+  }
+]</code></pre>
+                        </div>
+                    </div>
+
+                    <div class="endpoint">
+                        <div class="endpoint-header">
+                            <span class="method post">POST</span>
+                            <code>/api/v1/alerts/{alert_id}/acknowledge</code>
+                        </div>
+                        <p>Acknowledge an alert.</p>
+                        <div class="auth-required">🔒 Authentication Required</div>
+
+                        <h4>Request Body</h4>
+                        <div class="code-block">
+                            <pre><code>{
+  "message": "Investigating high disk usage",
+  "acknowledged_by": "admin"
+}</code></pre>
+                        </div>
+
+                        <h4>Response (200 OK)</h4>
+                        <div class="code-block">
+                            <pre><code>{
+  "alert_id": "uuid",
+  "status": "acknowledged",
+  "acknowledged_at": "2024-01-01T12:05:00Z",
+  "acknowledged_by": "admin"
+}</code></pre>
+                        </div>
+                    </div>
+                </section>
+
+                <section class="notes">
+                    <h2>Important Notes</h2>
+                    <ul>
+                        <li>Diagnostic collections can be resource-intensive - schedule during low-usage periods</li>
+                        <li>Failed queue messages indicate potential system issues requiring attention</li>
+                        <li>Regular health checks help identify issues before they become critical</li>
+                        <li>Historical metrics data is retained for 90 days by default</li>
+                        <li>Alert thresholds can be customized through configuration</li>
+                        <li>Email configuration is required for alert notifications</li>
+                    </ul>
+                </section>
+            </div>
+
+            <div class="docs-footer">
+                <div class="docs-navigation">
+                    <h3>Quick Navigation</h3>
+                    <div class="nav-links">
+                        <a href="websockets.html" class="nav-link">← WebSocket API</a>
+                        <a href="reports.html" class="nav-link">Reports API →</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <footer class="site-footer">
+        <div class="container">
+            <div class="footer-bottom">
+                <p>&copy; 2024 SysManage. All rights reserved.</p>
+            </div>
+        </div>
+    </footer>
+
+    <script src="../../assets/js/main.js"></script>
+    <script src="../../assets/js/i18n.js"></script>
+</body>
+</html>

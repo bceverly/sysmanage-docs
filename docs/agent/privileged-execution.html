@@ -1,0 +1,511 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Privileged Execution - SysManage Agent</title>
+    <meta name="description" content="Guide to configuring and managing privileged script execution with SysManage agents, including security considerations and best practices.">
+    <link rel="stylesheet" href="../../assets/css/style.css">
+    <link rel="icon" type="image/svg+xml" href="../../assets/images/favicon.svg">
+</head>
+<body>
+    <header class="site-header">
+        <nav class="navbar">
+            <div class="container">
+                <div class="nav-brand">
+                    <a href="../../">
+                        <img src="../../assets/images/sysmanage-logo.svg" alt="SysManage" class="logo">
+                    </a>
+                </div>
+                <div class="nav-menu">
+                    <a href="../../#features" class="nav-link">Features</a>
+                    <a href="../../#getting-started" class="nav-link">Getting Started</a>
+                    <a href="../" class="nav-link active">Documentation</a>
+                    <a href="https://github.com/bceverly/sysmanage" class="nav-link" target="_blank">GitHub</a>
+                </div>
+            </div>
+        </nav>
+    </header>
+
+    <main class="docs-main">
+        <div class="container">
+            <div class="docs-breadcrumb">
+                <a href="../">Documentation</a> > <a href="./">Agent</a> > <span>Privileged Execution</span>
+            </div>
+
+            <div class="docs-header">
+                <h1>Privileged Execution</h1>
+                <p>Comprehensive guide to configuring and managing privileged script execution with SysManage agents, including security considerations and best practices.</p>
+            </div>
+
+            <div class="docs-content">
+                <section class="overview">
+                    <h2>Overview</h2>
+                    <div class="security-warning">
+                        <strong>⚠️ Security Warning:</strong> Privileged execution allows remote scripts to run with elevated permissions on your systems. This is a powerful feature that requires careful configuration and understanding of security implications. Only enable this feature if you trust the server administrators and have proper security controls in place.
+                    </div>
+
+                    <p>Privileged execution in SysManage allows agents to run scripts and commands with elevated permissions, enabling system administration tasks like package installation, service management, and system configuration changes. This feature is disabled by default and requires explicit configuration.</p>
+                </section>
+
+                <section class="execution-modes">
+                    <h2>Execution Modes</h2>
+
+                    <div class="mode">
+                        <h3>Standard User Mode</h3>
+                        <p>The agent runs as a standard user account with limited privileges.</p>
+                        <div class="pros-cons">
+                            <div class="pros">
+                                <h4>Advantages</h4>
+                                <ul>
+                                    <li>Enhanced security - limited system access</li>
+                                    <li>Reduced risk of system damage</li>
+                                    <li>Follows principle of least privilege</li>
+                                    <li>Suitable for monitoring and data collection</li>
+                                </ul>
+                            </div>
+                            <div class="cons">
+                                <h4>Limitations</h4>
+                                <ul>
+                                    <li>Cannot install packages</li>
+                                    <li>Cannot modify system configuration</li>
+                                    <li>Cannot manage system services</li>
+                                    <li>Limited file system access</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mode">
+                        <h3>Privileged Mode (Root/Administrator)</h3>
+                        <p>The agent runs with root privileges (Linux/Unix) or as Administrator (Windows).</p>
+                        <div class="pros-cons">
+                            <div class="pros">
+                                <h4>Capabilities</h4>
+                                <ul>
+                                    <li>Full system administration capabilities</li>
+                                    <li>Package installation and management</li>
+                                    <li>System service control</li>
+                                    <li>System configuration changes</li>
+                                    <li>User account management</li>
+                                    <li>Network configuration</li>
+                                </ul>
+                            </div>
+                            <div class="cons">
+                                <h4>Security Risks</h4>
+                                <ul>
+                                    <li>Complete system access</li>
+                                    <li>Potential for system damage</li>
+                                    <li>Increased attack surface</li>
+                                    <li>Requires strict access controls</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mode">
+                        <h3>Sudo Mode (Recommended)</h3>
+                        <p>The agent runs as a standard user but can execute specific commands with sudo privileges.</p>
+                        <div class="pros-cons">
+                            <div class="pros">
+                                <h4>Advantages</h4>
+                                <ul>
+                                    <li>Granular privilege control</li>
+                                    <li>Audit trail through sudo logging</li>
+                                    <li>Limited scope of privileged operations</li>
+                                    <li>Follows security best practices</li>
+                                </ul>
+                            </div>
+                            <div class="requirements">
+                                <h4>Requirements</h4>
+                                <ul>
+                                    <li>Proper sudoers configuration</li>
+                                    <li>NOPASSWD configuration for automated execution</li>
+                                    <li>Specific command restrictions</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <section class="sudo-configuration">
+                    <h2>Sudo Configuration</h2>
+                    <p>For secure privileged execution, configure sudo to allow the agent user to execute specific commands without a password prompt.</p>
+
+                    <div class="sudoers-config">
+                        <h3>Basic Sudoers Configuration</h3>
+                        <p>Create a sudoers file for the SysManage agent:</p>
+                        <div class="code-block">
+                            <pre><code># Create sudoers file for sysmanage-agent
+sudo visudo -f /etc/sudoers.d/sysmanage-agent</code></pre>
+                        </div>
+
+                        <h4>Example Sudoers Configuration</h4>
+                        <div class="code-block">
+                            <pre><code># SysManage Agent Sudoers Configuration
+# Allow sysmanage user to execute specific administrative commands
+
+# Package management
+sysmanage ALL=(root) NOPASSWD: /usr/bin/apt, /usr/bin/apt-get, /usr/bin/aptitude
+sysmanage ALL=(root) NOPASSWD: /usr/bin/yum, /usr/bin/dnf
+sysmanage ALL=(root) NOPASSWD: /usr/sbin/pkg, /usr/sbin/pkg_add
+sysmanage ALL=(root) NOPASSWD: /opt/homebrew/bin/brew, /usr/local/bin/brew
+
+# Service management
+sysmanage ALL=(root) NOPASSWD: /bin/systemctl, /sbin/service
+sysmanage ALL=(root) NOPASSWD: /sbin/rc-service, /usr/sbin/svcadm
+
+# System updates
+sysmanage ALL=(root) NOPASSWD: /usr/bin/unattended-upgrade
+sysmanage ALL=(root) NOPASSWD: /usr/bin/do-release-upgrade
+
+# File operations (specific paths only)
+sysmanage ALL=(root) NOPASSWD: /bin/mkdir /var/log/sysmanage/*
+sysmanage ALL=(root) NOPASSWD: /bin/chown sysmanage /var/log/sysmanage/*
+
+# Network configuration (if needed)
+sysmanage ALL=(root) NOPASSWD: /sbin/ifconfig, /bin/ip
+
+# Hardware information
+sysmanage ALL=(root) NOPASSWD: /usr/bin/dmidecode, /usr/sbin/smartctl</code></pre>
+                        </div>
+                    </div>
+
+                    <div class="security-considerations">
+                        <h3>Security Considerations for Sudo</h3>
+                        <ul>
+                            <li><strong>Use specific command paths:</strong> Always specify full paths to executables</li>
+                            <li><strong>Avoid wildcards:</strong> Don't use <code>ALL</code> or wildcards in command specifications</li>
+                            <li><strong>Regular reviews:</strong> Periodically review and update sudo permissions</li>
+                            <li><strong>Logging:</strong> Ensure sudo logging is enabled for audit trails</li>
+                            <li><strong>Testing:</strong> Test sudo configuration in a safe environment first</li>
+                        </ul>
+                    </div>
+                </section>
+
+                <section class="script-execution-config">
+                    <h2>Script Execution Configuration</h2>
+                    <p>Configure the agent's script execution capabilities through the configuration file.</p>
+
+                    <div class="config-example">
+                        <h3>Secure Configuration Example</h3>
+                        <div class="code-block">
+                            <pre><code>script_execution:
+  # Enable script execution
+  enabled: true
+
+  # Maximum script execution timeout (5 minutes)
+  timeout: 300
+
+  # Limit concurrent executions
+  max_concurrent: 2
+
+  # Restrict allowed shells
+  allowed_shells:
+    - "bash"
+    - "sh"
+
+  # User execution restrictions
+  user_restrictions:
+    # Disable user switching for security
+    allow_user_switching: false
+    allowed_users: []
+
+  # Security restrictions
+  security:
+    # Prevent access to sensitive files
+    restricted_paths:
+      - "/etc/passwd"
+      - "/etc/shadow"
+      - "/etc/ssh/"
+      - "/home/*/.ssh/"
+      - "/root/.ssh/"
+      - "*.key"
+      - "*.pem"
+      - "/etc/sudoers*"
+
+    # Enable comprehensive audit logging
+    audit_logging: true
+
+    # Require approval for all script executions
+    require_approval: true
+
+    # Additional security measures
+    environment_isolation: true
+    resource_limits:
+      max_memory_mb: 256
+      max_cpu_percent: 50</code></pre>
+                        </div>
+                    </div>
+
+                    <div class="approval-workflow">
+                        <h3>Script Approval Workflow</h3>
+                        <p>When <code>require_approval</code> is enabled, scripts go through an approval process:</p>
+                        <ol>
+                            <li>Script execution request is received</li>
+                            <li>Script is queued for approval</li>
+                            <li>Administrator reviews script content and context</li>
+                            <li>Administrator approves or rejects the script</li>
+                            <li>Approved scripts are executed</li>
+                            <li>Results are logged and reported</li>
+                        </ol>
+                    </div>
+                </section>
+
+                <section class="execution-examples">
+                    <h2>Execution Examples</h2>
+
+                    <div class="example">
+                        <h3>Package Installation</h3>
+                        <div class="code-block">
+                            <pre><code># Install a package using sudo
+#!/bin/bash
+sudo apt update
+sudo apt install -y nginx
+
+# Check installation
+systemctl status nginx</code></pre>
+                        </div>
+                    </div>
+
+                    <div class="example">
+                        <h3>Service Management</h3>
+                        <div class="code-block">
+                            <pre><code># Restart a service
+#!/bin/bash
+sudo systemctl restart apache2
+sudo systemctl enable apache2
+
+# Verify service status
+systemctl is-active apache2</code></pre>
+                        </div>
+                    </div>
+
+                    <div class="example">
+                        <h3>System Updates</h3>
+                        <div class="code-block">
+                            <pre><code># Update system packages
+#!/bin/bash
+sudo apt update
+sudo apt upgrade -y
+
+# Clean up package cache
+sudo apt autoremove -y
+sudo apt autoclean</code></pre>
+                        </div>
+                    </div>
+
+                    <div class="example">
+                        <h3>Configuration Management</h3>
+                        <div class="code-block">
+                            <pre><code># Update configuration file
+#!/bin/bash
+# Backup original configuration
+sudo cp /etc/nginx/nginx.conf /etc/nginx/nginx.conf.backup
+
+# Update configuration
+sudo tee /etc/nginx/sites-available/mysite << 'EOF'
+server {
+    listen 80;
+    server_name example.com;
+    root /var/www/html;
+    index index.html;
+}
+EOF
+
+# Enable site and reload nginx
+sudo ln -sf /etc/nginx/sites-available/mysite /etc/nginx/sites-enabled/
+sudo nginx -t
+sudo systemctl reload nginx</code></pre>
+                        </div>
+                    </div>
+                </section>
+
+                <section class="monitoring-logging">
+                    <h2>Monitoring and Logging</h2>
+
+                    <div class="audit-logging">
+                        <h3>Audit Logging</h3>
+                        <p>Enable comprehensive logging for all privileged operations:</p>
+                        <div class="code-block">
+                            <pre><code># Example audit log entry
+2024-01-01 12:00:00 [AUDIT] User: admin
+2024-01-01 12:00:00 [AUDIT] Host: web-server-01
+2024-01-01 12:00:00 [AUDIT] Script: install_nginx.sh
+2024-01-01 12:00:00 [AUDIT] Command: sudo apt install -y nginx
+2024-01-01 12:00:00 [AUDIT] Exit Code: 0
+2024-01-01 12:00:00 [AUDIT] Duration: 15.3s
+2024-01-01 12:00:00 [AUDIT] Changes: Package nginx installed</code></pre>
+                        </div>
+                    </div>
+
+                    <div class="sudo-logging">
+                        <h3>Sudo Logging Configuration</h3>
+                        <p>Configure detailed sudo logging:</p>
+                        <div class="code-block">
+                            <pre><code># Add to /etc/sudoers or sudoers.d/sysmanage-agent
+Defaults:sysmanage log_host, log_year, logfile="/var/log/sudo-sysmanage.log"
+Defaults:sysmanage !syslog</code></pre>
+                        </div>
+                    </div>
+
+                    <div class="monitoring-alerts">
+                        <h3>Security Monitoring</h3>
+                        <ul>
+                            <li><strong>Failed executions:</strong> Monitor and alert on failed sudo commands</li>
+                            <li><strong>Unusual patterns:</strong> Detect abnormal script execution patterns</li>
+                            <li><strong>Privilege escalation:</strong> Monitor attempts to modify sudo configuration</li>
+                            <li><strong>File access:</strong> Track access to sensitive files and directories</li>
+                            <li><strong>Network activity:</strong> Monitor network connections during script execution</li>
+                        </ul>
+                    </div>
+                </section>
+
+                <section class="security-hardening">
+                    <h2>Security Hardening</h2>
+
+                    <div class="system-hardening">
+                        <h3>System-Level Security</h3>
+                        <ul>
+                            <li><strong>SELinux/AppArmor:</strong> Use mandatory access controls where available</li>
+                            <li><strong>Container isolation:</strong> Run agents in containers with limited capabilities</li>
+                            <li><strong>Network segmentation:</strong> Isolate agent traffic on dedicated networks</li>
+                            <li><strong>File system restrictions:</strong> Use read-only file systems where possible</li>
+                            <li><strong>Resource limits:</strong> Implement cgroups or similar resource controls</li>
+                        </ul>
+                    </div>
+
+                    <div class="agent-hardening">
+                        <h3>Agent-Level Security</h3>
+                        <ul>
+                            <li><strong>Certificate pinning:</strong> Pin server certificates to prevent MITM attacks</li>
+                            <li><strong>Script validation:</strong> Implement script signature verification</li>
+                            <li><strong>Execution sandboxing:</strong> Use chroot or similar isolation techniques</li>
+                            <li><strong>Regular updates:</strong> Keep agent software updated with security patches</li>
+                            <li><strong>Configuration encryption:</strong> Encrypt sensitive configuration data</li>
+                        </ul>
+                    </div>
+                </section>
+
+                <section class="troubleshooting">
+                    <h2>Troubleshooting Privileged Execution</h2>
+
+                    <div class="common-issues">
+                        <h3>Common Issues</h3>
+
+                        <div class="issue">
+                            <h4>Permission Denied Errors</h4>
+                            <p><strong>Symptoms:</strong> Scripts fail with "Permission denied" errors</p>
+                            <p><strong>Solutions:</strong></p>
+                            <ul>
+                                <li>Verify sudo configuration in <code>/etc/sudoers.d/sysmanage-agent</code></li>
+                                <li>Check file permissions on executable files</li>
+                                <li>Ensure agent user is in correct groups</li>
+                                <li>Test sudo commands manually: <code>sudo -u sysmanage sudo apt update</code></li>
+                            </ul>
+                        </div>
+
+                        <div class="issue">
+                            <h4>Password Prompts</h4>
+                            <p><strong>Symptoms:</strong> Scripts hang waiting for password input</p>
+                            <p><strong>Solutions:</strong></p>
+                            <ul>
+                                <li>Add <code>NOPASSWD</code> to sudo rules</li>
+                                <li>Verify sudo rule syntax is correct</li>
+                                <li>Check for conflicting sudo rules</li>
+                                <li>Test with <code>sudo -n</code> (non-interactive) flag</li>
+                            </ul>
+                        </div>
+
+                        <div class="issue">
+                            <h4>Script Timeouts</h4>
+                            <p><strong>Symptoms:</strong> Long-running scripts are terminated</p>
+                            <p><strong>Solutions:</strong></p>
+                            <ul>
+                                <li>Increase timeout value in agent configuration</li>
+                                <li>Optimize scripts for faster execution</li>
+                                <li>Break large operations into smaller tasks</li>
+                                <li>Use background processes for long operations</li>
+                            </ul>
+                        </div>
+
+                        <div class="issue">
+                            <h4>Environment Issues</h4>
+                            <p><strong>Symptoms:</strong> Scripts can't find commands or files</p>
+                            <p><strong>Solutions:</strong></p>
+                            <ul>
+                                <li>Use full paths to executables</li>
+                                <li>Set PATH environment variable in scripts</li>
+                                <li>Check sudo <code>secure_path</code> configuration</li>
+                                <li>Verify required packages are installed</li>
+                            </ul>
+                        </div>
+                    </div>
+
+                    <div class="debugging">
+                        <h3>Debugging Steps</h3>
+                        <ol>
+                            <li><strong>Enable debug logging:</strong> Set log level to DEBUG in agent configuration</li>
+                            <li><strong>Test sudo manually:</strong> Try running commands as the agent user</li>
+                            <li><strong>Check system logs:</strong> Review /var/log/auth.log and /var/log/sudo.log</li>
+                            <li><strong>Verify permissions:</strong> Check file and directory permissions</li>
+                            <li><strong>Test in isolation:</strong> Run scripts manually to identify issues</li>
+                            <li><strong>Review audit logs:</strong> Check agent audit logs for detailed execution info</li>
+                        </ol>
+                    </div>
+                </section>
+
+                <section class="best-practices">
+                    <h2>Best Practices</h2>
+
+                    <div class="security-practices">
+                        <h3>Security Best Practices</h3>
+                        <ul>
+                            <li><strong>Principle of least privilege:</strong> Grant only necessary permissions</li>
+                            <li><strong>Regular audits:</strong> Review and audit privileged operations regularly</li>
+                            <li><strong>Script validation:</strong> Review all scripts before deployment</li>
+                            <li><strong>Monitoring:</strong> Implement comprehensive monitoring and alerting</li>
+                            <li><strong>Documentation:</strong> Document all privileged operations and procedures</li>
+                            <li><strong>Testing:</strong> Test scripts thoroughly in development environments</li>
+                            <li><strong>Incident response:</strong> Have procedures for handling security incidents</li>
+                        </ul>
+                    </div>
+
+                    <div class="operational-practices">
+                        <h3>Operational Best Practices</h3>
+                        <ul>
+                            <li><strong>Change management:</strong> Use formal change management for privileged scripts</li>
+                            <li><strong>Rollback procedures:</strong> Always have rollback plans for changes</li>
+                            <li><strong>Backup verification:</strong> Ensure backups are taken before changes</li>
+                            <li><strong>Gradual deployment:</strong> Deploy changes gradually across infrastructure</li>
+                            <li><strong>Health checks:</strong> Implement health checks after script execution</li>
+                            <li><strong>Resource monitoring:</strong> Monitor system resources during execution</li>
+                        </ul>
+                    </div>
+                </section>
+            </div>
+
+            <div class="docs-footer">
+                <div class="docs-navigation">
+                    <h3>Quick Navigation</h3>
+                    <div class="nav-links">
+                        <a href="configuration.html" class="nav-link">← Configuration</a>
+                        <a href="cross-platform.html" class="nav-link">Cross-Platform Support →</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <footer class="site-footer">
+        <div class="container">
+            <div class="footer-bottom">
+                <p>&copy; 2024 SysManage. All rights reserved.</p>
+            </div>
+        </div>
+    </footer>
+
+    <script src="../../assets/js/main.js"></script>
+    <script src="../../assets/js/i18n.js"></script>
+</body>
+</html>

@@ -1,0 +1,558 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Package Management API - SysManage</title>
+    <meta name="description" content="SysManage Package Management API documentation for cross-platform package operations.">
+    <link rel="stylesheet" href="../../assets/css/style.css">
+    <link rel="icon" type="image/svg+xml" href="../../assets/images/favicon.svg">
+</head>
+<body>
+    <header class="site-header">
+        <nav class="navbar">
+            <div class="container">
+                <div class="nav-brand">
+                    <a href="../../">
+                        <img src="../../assets/images/sysmanage-logo.svg" alt="SysManage" class="logo">
+                    </a>
+                </div>
+                <div class="nav-menu">
+                    <a href="../../#features" class="nav-link">Features</a>
+                    <a href="../../#getting-started" class="nav-link">Getting Started</a>
+                    <a href="../" class="nav-link active">Documentation</a>
+                    <a href="https://github.com/bceverly/sysmanage" class="nav-link" target="_blank">GitHub</a>
+                </div>
+            </div>
+        </nav>
+    </header>
+
+    <main class="docs-main">
+        <div class="container">
+            <div class="docs-breadcrumb">
+                <a href="../">Documentation</a> > <a href="./">API Reference</a> > <span>Package Management</span>
+            </div>
+
+            <div class="docs-header">
+                <h1>Package Management API</h1>
+                <p>Cross-platform package management for installing, updating, and removing software packages across your infrastructure.</p>
+            </div>
+
+            <div class="docs-content">
+                <section class="overview">
+                    <h2>Overview</h2>
+                    <p>The Package Management API provides unified access to various package managers across different operating systems including apt (Debian/Ubuntu), yum/dnf (RHEL/CentOS/Fedora), pkg (FreeBSD), pkg_add (OpenBSD), and Homebrew (macOS).</p>
+                </section>
+
+                <section class="endpoint-section">
+                    <h2>Package Discovery</h2>
+
+                    <div class="endpoint">
+                        <div class="endpoint-header">
+                            <span class="method get">GET</span>
+                            <code>/api/v1/packages/summary</code>
+                        </div>
+                        <p>Get package summary statistics across all managed hosts.</p>
+                        <div class="auth-required">🔒 Authentication Required</div>
+
+                        <h4>Response (200 OK)</h4>
+                        <div class="code-block">
+                            <pre><code>[
+  {
+    "os_name": "Ubuntu",
+    "os_version": "22.04",
+    "host_count": 25,
+    "total_packages": 46250,
+    "unique_packages": 1847,
+    "package_managers": ["apt"]
+  },
+  {
+    "os_name": "CentOS",
+    "os_version": "8",
+    "host_count": 15,
+    "total_packages": 22500,
+    "unique_packages": 1203,
+    "package_managers": ["yum", "dnf"]
+  }
+]</code></pre>
+                        </div>
+                    </div>
+
+                    <div class="endpoint">
+                        <div class="endpoint-header">
+                            <span class="method get">GET</span>
+                            <code>/api/v1/packages/managers</code>
+                        </div>
+                        <p>Get list of supported package managers.</p>
+                        <div class="auth-required">🔒 Authentication Required</div>
+
+                        <h4>Response (200 OK)</h4>
+                        <div class="code-block">
+                            <pre><code>[
+  "apt",
+  "yum",
+  "dnf",
+  "pkg",
+  "pkg_add",
+  "brew",
+  "snap",
+  "flatpak"
+]</code></pre>
+                        </div>
+                    </div>
+
+                    <div class="endpoint">
+                        <div class="endpoint-header">
+                            <span class="method get">GET</span>
+                            <code>/api/v1/packages/os-versions</code>
+                        </div>
+                        <p>Get supported operating system versions for package management.</p>
+                        <div class="auth-required">🔒 Authentication Required</div>
+
+                        <h4>Response (200 OK)</h4>
+                        <div class="code-block">
+                            <pre><code>[
+  {
+    "os_name": "Ubuntu",
+    "versions": ["20.04", "22.04", "24.04"],
+    "default_manager": "apt"
+  },
+  {
+    "os_name": "FreeBSD",
+    "versions": ["13.0", "13.1", "14.0"],
+    "default_manager": "pkg"
+  }
+]</code></pre>
+                        </div>
+                    </div>
+                </section>
+
+                <section class="endpoint-section">
+                    <h2>Package Search</h2>
+
+                    <div class="endpoint">
+                        <div class="endpoint-header">
+                            <span class="method get">GET</span>
+                            <code>/api/v1/packages/search</code>
+                        </div>
+                        <p>Search for packages across your infrastructure.</p>
+                        <div class="auth-required">🔒 Authentication Required</div>
+
+                        <h4>Query Parameters</h4>
+                        <ul>
+                            <li><code>q</code> (string) - Search query (package name or description)</li>
+                            <li><code>os</code> (string, optional) - Filter by operating system</li>
+                            <li><code>version</code> (string, optional) - Filter by OS version</li>
+                            <li><code>manager</code> (string, optional) - Filter by package manager</li>
+                            <li><code>limit</code> (integer, optional) - Maximum results (default: 50)</li>
+                            <li><code>offset</code> (integer, optional) - Results offset (default: 0)</li>
+                        </ul>
+
+                        <h4>Response (200 OK)</h4>
+                        <div class="code-block">
+                            <pre><code>[
+  {
+    "name": "nginx",
+    "version": "1.18.0-6ubuntu14.4",
+    "description": "high performance web server",
+    "architecture": "amd64",
+    "manager": "apt",
+    "os_name": "Ubuntu",
+    "os_version": "22.04",
+    "installed_on_hosts": 15,
+    "available_on_hosts": 32
+  }
+]</code></pre>
+                        </div>
+
+                        <h4>Example</h4>
+                        <div class="code-block">
+                            <pre><code>curl -X GET "https://your-server.example.com/api/v1/packages/search?q=nginx&os=Ubuntu" \
+     -H "Authorization: Bearer YOUR_JWT_TOKEN"</code></pre>
+                        </div>
+                    </div>
+
+                    <div class="endpoint">
+                        <div class="endpoint-header">
+                            <span class="method get">GET</span>
+                            <code>/api/v1/packages/search/count</code>
+                        </div>
+                        <p>Get count of packages matching search criteria.</p>
+                        <div class="auth-required">🔒 Authentication Required</div>
+
+                        <h4>Query Parameters</h4>
+                        <ul>
+                            <li><code>q</code> (string) - Search query</li>
+                            <li><code>os</code> (string, optional) - Filter by operating system</li>
+                            <li><code>version</code> (string, optional) - Filter by OS version</li>
+                        </ul>
+
+                        <h4>Response (200 OK)</h4>
+                        <div class="code-block">
+                            <pre><code>{
+  "total_matches": 127,
+  "by_os": {
+    "Ubuntu": 85,
+    "CentOS": 42
+  },
+  "by_manager": {
+    "apt": 85,
+    "yum": 42
+  }
+}</code></pre>
+                        </div>
+                    </div>
+
+                    <div class="endpoint">
+                        <div class="endpoint-header">
+                            <span class="method get">GET</span>
+                            <code>/api/v1/packages/by-manager/{manager_name}</code>
+                        </div>
+                        <p>Get packages available through a specific package manager.</p>
+                        <div class="auth-required">🔒 Authentication Required</div>
+
+                        <h4>Path Parameters</h4>
+                        <ul>
+                            <li><code>manager_name</code> (string) - Package manager name (apt, yum, dnf, etc.)</li>
+                        </ul>
+
+                        <h4>Query Parameters</h4>
+                        <ul>
+                            <li><code>limit</code> (integer, optional) - Maximum results (default: 100)</li>
+                            <li><code>offset</code> (integer, optional) - Results offset (default: 0)</li>
+                        </ul>
+
+                        <h4>Response (200 OK)</h4>
+                        <div class="code-block">
+                            <pre><code>[
+  {
+    "name": "apache2",
+    "version": "2.4.52-1ubuntu4.7",
+    "description": "Apache HTTP Server",
+    "architecture": "amd64",
+    "size": "1,432 KB",
+    "section": "httpd"
+  }
+]</code></pre>
+                        </div>
+                    </div>
+                </section>
+
+                <section class="endpoint-section">
+                    <h2>Package Installation</h2>
+
+                    <div class="endpoint">
+                        <div class="endpoint-header">
+                            <span class="method post">POST</span>
+                            <code>/api/v1/fleet/agent/{hostname}/install-package</code>
+                        </div>
+                        <p>Install a package on a specific host.</p>
+                        <div class="auth-required">🔒 Authentication Required</div>
+
+                        <h4>Path Parameters</h4>
+                        <ul>
+                            <li><code>hostname</code> (string) - Target hostname</li>
+                        </ul>
+
+                        <h4>Request Body</h4>
+                        <div class="code-block">
+                            <pre><code>{
+  "package_name": "nginx",
+  "version": "latest",
+  "manager": "apt",
+  "force": false,
+  "assume_yes": true
+}</code></pre>
+                        </div>
+
+                        <h4>Response (200 OK)</h4>
+                        <div class="code-block">
+                            <pre><code>{
+  "execution_id": "uuid",
+  "status": "initiated",
+  "message": "Package installation started",
+  "estimated_time": "2-5 minutes"
+}</code></pre>
+                        </div>
+
+                        <h4>Example</h4>
+                        <div class="code-block">
+                            <pre><code>curl -X POST "https://your-server.example.com/api/v1/fleet/agent/web-01/install-package" \
+     -H "Authorization: Bearer YOUR_JWT_TOKEN" \
+     -H "Content-Type: application/json" \
+     -d '{
+       "package_name": "nginx",
+       "version": "latest",
+       "assume_yes": true
+     }'</code></pre>
+                        </div>
+                    </div>
+                </section>
+
+                <section class="endpoint-section">
+                    <h2>Package Updates</h2>
+
+                    <div class="endpoint">
+                        <div class="endpoint-header">
+                            <span class="method get">GET</span>
+                            <code>/api/v1/updates/</code>
+                        </div>
+                        <p>Get available package updates across all hosts.</p>
+                        <div class="auth-required">🔒 Authentication Required</div>
+
+                        <h4>Response (200 OK)</h4>
+                        <div class="code-block">
+                            <pre><code>[
+  {
+    "host_id": "uuid",
+    "hostname": "web-01",
+    "updates_available": 15,
+    "security_updates": 3,
+    "updates": [
+      {
+        "package": "nginx",
+        "current_version": "1.18.0-6ubuntu14.3",
+        "available_version": "1.18.0-6ubuntu14.4",
+        "type": "security",
+        "size": "1.2 MB"
+      }
+    ],
+    "last_checked": "2024-01-01T12:00:00Z"
+  }
+]</code></pre>
+                        </div>
+                    </div>
+
+                    <div class="endpoint">
+                        <div class="endpoint-header">
+                            <span class="method get">GET</span>
+                            <code>/api/v1/updates/{host_id}</code>
+                        </div>
+                        <p>Get available updates for a specific host.</p>
+                        <div class="auth-required">🔒 Authentication Required</div>
+
+                        <h4>Path Parameters</h4>
+                        <ul>
+                            <li><code>host_id</code> (string) - UUID of the target host</li>
+                        </ul>
+
+                        <h4>Response (200 OK)</h4>
+                        <div class="code-block">
+                            <pre><code>{
+  "host_id": "uuid",
+  "hostname": "web-01",
+  "updates_available": 15,
+  "security_updates": 3,
+  "updates": [
+    {
+      "package": "linux-image-generic",
+      "current_version": "5.15.0.91.88",
+      "available_version": "5.15.0.92.89",
+      "type": "security",
+      "size": "12.5 MB",
+      "description": "Linux kernel security update"
+    }
+  ],
+  "last_checked": "2024-01-01T12:00:00Z"
+}</code></pre>
+                        </div>
+                    </div>
+
+                    <div class="endpoint">
+                        <div class="endpoint-header">
+                            <span class="method post">POST</span>
+                            <code>/api/v1/updates/execute</code>
+                        </div>
+                        <p>Execute package updates on specified hosts.</p>
+                        <div class="auth-required">🔒 Authentication Required</div>
+
+                        <h4>Request Body</h4>
+                        <div class="code-block">
+                            <pre><code>{
+  "host_ids": ["uuid1", "uuid2"],
+  "update_type": "security",
+  "packages": ["nginx", "apache2"],
+  "reboot_if_required": false,
+  "schedule_time": null
+}</code></pre>
+                        </div>
+
+                        <h4>Response (200 OK)</h4>
+                        <div class="code-block">
+                            <pre><code>{
+  "batch_id": "uuid",
+  "total_hosts": 2,
+  "status": "initiated",
+  "estimated_completion": "2024-01-01T12:30:00Z",
+  "results": [
+    {
+      "host_id": "uuid1",
+      "hostname": "web-01",
+      "status": "started",
+      "execution_id": "uuid"
+    }
+  ]
+}</code></pre>
+                        </div>
+                    </div>
+
+                    <div class="endpoint">
+                        <div class="endpoint-header">
+                            <span class="method get">GET</span>
+                            <code>/api/v1/updates/execution-log/{host_id}</code>
+                        </div>
+                        <p>Get update execution log for a specific host.</p>
+                        <div class="auth-required">🔒 Authentication Required</div>
+
+                        <h4>Path Parameters</h4>
+                        <ul>
+                            <li><code>host_id</code> (string) - UUID of the target host</li>
+                        </ul>
+
+                        <h4>Response (200 OK)</h4>
+                        <div class="code-block">
+                            <pre><code>{
+  "host_id": "uuid",
+  "execution_id": "uuid",
+  "status": "completed",
+  "started_at": "2024-01-01T12:00:00Z",
+  "completed_at": "2024-01-01T12:15:00Z",
+  "packages_updated": 15,
+  "packages_failed": 0,
+  "reboot_required": false,
+  "log_entries": [
+    {
+      "timestamp": "2024-01-01T12:00:30Z",
+      "level": "info",
+      "message": "Starting package update: nginx"
+    }
+  ]
+}</code></pre>
+                        </div>
+                    </div>
+                </section>
+
+                <section class="endpoint-section">
+                    <h2>OS Upgrades</h2>
+
+                    <div class="endpoint">
+                        <div class="endpoint-header">
+                            <span class="method get">GET</span>
+                            <code>/api/v1/updates/os-upgrades</code>
+                        </div>
+                        <p>Get available operating system upgrades across all hosts.</p>
+                        <div class="auth-required">🔒 Authentication Required</div>
+
+                        <h4>Response (200 OK)</h4>
+                        <div class="code-block">
+                            <pre><code>[
+  {
+    "host_id": "uuid",
+    "hostname": "web-01",
+    "current_version": "Ubuntu 20.04.6 LTS",
+    "available_version": "Ubuntu 22.04.3 LTS",
+    "upgrade_type": "lts",
+    "estimated_size": "1.2 GB",
+    "estimated_time": "45-60 minutes",
+    "requires_reboot": true
+  }
+]</code></pre>
+                        </div>
+                    </div>
+
+                    <div class="endpoint">
+                        <div class="endpoint-header">
+                            <span class="method post">POST</span>
+                            <code>/api/v1/updates/execute-os-upgrades</code>
+                        </div>
+                        <p>Execute operating system upgrades on specified hosts.</p>
+                        <div class="auth-required">🔒 Authentication Required</div>
+
+                        <h4>Request Body</h4>
+                        <div class="code-block">
+                            <pre><code>{
+  "host_ids": ["uuid1", "uuid2"],
+  "target_version": "22.04",
+  "backup_before_upgrade": true,
+  "schedule_time": "2024-01-01T02:00:00Z"
+}</code></pre>
+                        </div>
+
+                        <h4>Response (200 OK)</h4>
+                        <div class="code-block">
+                            <pre><code>{
+  "batch_id": "uuid",
+  "total_hosts": 2,
+  "status": "scheduled",
+  "scheduled_time": "2024-01-01T02:00:00Z",
+  "estimated_completion": "2024-01-01T04:00:00Z"
+}</code></pre>
+                        </div>
+                    </div>
+                </section>
+
+                <section class="endpoint-section">
+                    <h2>Package Cache Management</h2>
+
+                    <div class="endpoint">
+                        <div class="endpoint-header">
+                            <span class="method post">POST</span>
+                            <code>/api/v1/packages/refresh/{os_name}/{os_version}</code>
+                        </div>
+                        <p>Refresh package cache for a specific OS version.</p>
+                        <div class="auth-required">🔒 Authentication Required</div>
+
+                        <h4>Path Parameters</h4>
+                        <ul>
+                            <li><code>os_name</code> (string) - Operating system name</li>
+                            <li><code>os_version</code> (string) - Operating system version</li>
+                        </ul>
+
+                        <h4>Response (200 OK)</h4>
+                        <div class="code-block">
+                            <pre><code>{
+  "message": "Package cache refresh initiated",
+  "task_id": "uuid",
+  "estimated_completion": "2024-01-01T12:10:00Z"
+}</code></pre>
+                        </div>
+                    </div>
+                </section>
+
+                <section class="notes">
+                    <h2>Important Notes</h2>
+                    <ul>
+                        <li>Package operations are executed asynchronously - use execution IDs to track progress</li>
+                        <li>Some operations require root/administrator privileges on target hosts</li>
+                        <li>OS upgrades should be scheduled during maintenance windows</li>
+                        <li>Always test updates on non-production systems first</li>
+                        <li>Backup systems before major updates or OS upgrades</li>
+                        <li>Package availability depends on configured repositories</li>
+                    </ul>
+                </section>
+            </div>
+
+            <div class="docs-footer">
+                <div class="docs-navigation">
+                    <h3>Quick Navigation</h3>
+                    <div class="nav-links">
+                        <a href="hosts.html" class="nav-link">← Host Management</a>
+                        <a href="websockets.html" class="nav-link">WebSocket API →</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <footer class="site-footer">
+        <div class="container">
+            <div class="footer-bottom">
+                <p>&copy; 2024 SysManage. All rights reserved.</p>
+            </div>
+        </div>
+    </footer>
+
+    <script src="../../assets/js/main.js"></script>
+    <script src="../../assets/js/i18n.js"></script>
+</body>
+</html>
