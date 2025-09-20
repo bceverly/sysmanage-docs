@@ -1,0 +1,547 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WebSocket API - SysManage</title>
+    <meta name="description" content="SysManage WebSocket API documentation for real-time communication and live updates.">
+    <link rel="stylesheet" href="../../assets/css/style.css">
+    <link rel="icon" type="image/svg+xml" href="../../assets/images/favicon.svg">
+</head>
+<body>
+    <header class="site-header">
+        <nav class="navbar">
+            <div class="container">
+                <div class="nav-brand">
+                    <a href="../../">
+                        <img src="../../assets/images/sysmanage-logo.svg" alt="SysManage" class="logo">
+                    </a>
+                </div>
+                <div class="nav-menu">
+                    <a href="../../#features" class="nav-link">Features</a>
+                    <a href="../../#getting-started" class="nav-link">Getting Started</a>
+                    <a href="../" class="nav-link active">Documentation</a>
+                    <a href="https://github.com/bceverly/sysmanage" class="nav-link" target="_blank">GitHub</a>
+                </div>
+            </div>
+        </nav>
+    </header>
+
+    <main class="docs-main">
+        <div class="container">
+            <div class="docs-breadcrumb">
+                <a href="../">Documentation</a> > <a href="./">API Reference</a> > <span>WebSocket API</span>
+            </div>
+
+            <div class="docs-header">
+                <h1>WebSocket API</h1>
+                <p>Real-time bidirectional communication for live updates, command execution, and status monitoring.</p>
+            </div>
+
+            <div class="docs-content">
+                <section class="overview">
+                    <h2>Overview</h2>
+                    <p>SysManage uses WebSockets for real-time communication between the server, web interface, and agents. This enables live status updates, real-time command execution feedback, and instant notifications of system events.</p>
+
+                    <div class="websocket-features">
+                        <h3>WebSocket Features</h3>
+                        <ul>
+                            <li><strong>Real-time Updates</strong> - Live host status, package installation progress, and system metrics</li>
+                            <li><strong>Bidirectional Communication</strong> - Send commands and receive responses in real-time</li>
+                            <li><strong>Event Streaming</strong> - Subscribe to specific events like host status changes</li>
+                            <li><strong>Authentication</strong> - JWT-based authentication for secure connections</li>
+                            <li><strong>Automatic Reconnection</strong> - Built-in reconnection logic for network interruptions</li>
+                        </ul>
+                    </div>
+                </section>
+
+                <section class="connection-section">
+                    <h2>Connection</h2>
+
+                    <div class="connection-info">
+                        <h3>WebSocket Endpoint</h3>
+                        <div class="code-block">
+                            <pre><code>wss://your-server.example.com/ws</code></pre>
+                        </div>
+
+                        <h3>Authentication</h3>
+                        <p>WebSocket connections require authentication via JWT token passed as a query parameter:</p>
+                        <div class="code-block">
+                            <pre><code>wss://your-server.example.com/ws?token=YOUR_JWT_TOKEN</code></pre>
+                        </div>
+
+                        <h3>JavaScript Example</h3>
+                        <div class="code-block">
+                            <pre><code>const token = 'YOUR_JWT_TOKEN';
+const ws = new WebSocket(`wss://your-server.example.com/ws?token=${token}`);
+
+ws.onopen = function(event) {
+    console.log('WebSocket connected');
+
+    // Subscribe to host status updates
+    ws.send(JSON.stringify({
+        type: 'subscribe',
+        channel: 'host_status'
+    }));
+};
+
+ws.onmessage = function(event) {
+    const message = JSON.parse(event.data);
+    console.log('Received message:', message);
+};
+
+ws.onclose = function(event) {
+    console.log('WebSocket disconnected:', event.code, event.reason);
+};
+
+ws.onerror = function(error) {
+    console.error('WebSocket error:', error);
+};</code></pre>
+                        </div>
+                    </div>
+                </section>
+
+                <section class="message-format">
+                    <h2>Message Format</h2>
+                    <p>All WebSocket messages use JSON format with a standardized structure:</p>
+
+                    <div class="code-block">
+                        <pre><code>{
+  "type": "message_type",
+  "channel": "channel_name",
+  "data": {
+    "key": "value"
+  },
+  "timestamp": "2024-01-01T12:00:00Z",
+  "id": "optional_message_id"
+}</code></pre>
+                    </div>
+
+                    <h3>Message Types</h3>
+                    <ul>
+                        <li><code>subscribe</code> - Subscribe to a channel</li>
+                        <li><code>unsubscribe</code> - Unsubscribe from a channel</li>
+                        <li><code>command</code> - Execute a command</li>
+                        <li><code>status</code> - Status update message</li>
+                        <li><code>event</code> - System event notification</li>
+                        <li><code>response</code> - Response to a command or request</li>
+                        <li><code>error</code> - Error message</li>
+                    </ul>
+                </section>
+
+                <section class="channels-section">
+                    <h2>Channels</h2>
+
+                    <div class="channel">
+                        <h3>host_status</h3>
+                        <p>Receive real-time updates about host status changes.</p>
+
+                        <h4>Subscribe</h4>
+                        <div class="code-block">
+                            <pre><code>{
+  "type": "subscribe",
+  "channel": "host_status"
+}</code></pre>
+                        </div>
+
+                        <h4>Example Messages</h4>
+                        <div class="code-block">
+                            <pre><code>{
+  "type": "event",
+  "channel": "host_status",
+  "data": {
+    "host_id": "uuid",
+    "hostname": "web-01",
+    "status": "online",
+    "previous_status": "offline",
+    "timestamp": "2024-01-01T12:00:00Z"
+  }
+}</code></pre>
+                        </div>
+                    </div>
+
+                    <div class="channel">
+                        <h3>package_operations</h3>
+                        <p>Monitor package installation, update, and removal operations.</p>
+
+                        <h4>Subscribe</h4>
+                        <div class="code-block">
+                            <pre><code>{
+  "type": "subscribe",
+  "channel": "package_operations",
+  "filters": {
+    "host_id": "uuid"
+  }
+}</code></pre>
+                        </div>
+
+                        <h4>Example Messages</h4>
+                        <div class="code-block">
+                            <pre><code>{
+  "type": "event",
+  "channel": "package_operations",
+  "data": {
+    "execution_id": "uuid",
+    "host_id": "uuid",
+    "hostname": "web-01",
+    "operation": "install",
+    "package": "nginx",
+    "status": "in_progress",
+    "progress": 45,
+    "message": "Downloading package nginx (1.18.0)"
+  }
+}</code></pre>
+                        </div>
+                    </div>
+
+                    <div class="channel">
+                        <h3>command_execution</h3>
+                        <p>Real-time command execution feedback and results.</p>
+
+                        <h4>Subscribe</h4>
+                        <div class="code-block">
+                            <pre><code>{
+  "type": "subscribe",
+  "channel": "command_execution"
+}</code></pre>
+                        </div>
+
+                        <h4>Execute Command</h4>
+                        <div class="code-block">
+                            <pre><code>{
+  "type": "command",
+  "channel": "command_execution",
+  "data": {
+    "host_id": "uuid",
+    "command": "systemctl status nginx",
+    "timeout": 30
+  },
+  "id": "request_123"
+}</code></pre>
+                        </div>
+
+                        <h4>Command Response</h4>
+                        <div class="code-block">
+                            <pre><code>{
+  "type": "response",
+  "channel": "command_execution",
+  "data": {
+    "execution_id": "uuid",
+    "host_id": "uuid",
+    "command": "systemctl status nginx",
+    "status": "completed",
+    "exit_code": 0,
+    "stdout": "● nginx.service - A high performance web server...",
+    "stderr": "",
+    "execution_time": 0.156
+  },
+  "id": "request_123"
+}</code></pre>
+                        </div>
+                    </div>
+
+                    <div class="channel">
+                        <h3>system_alerts</h3>
+                        <p>Receive system alerts and notifications.</p>
+
+                        <h4>Subscribe</h4>
+                        <div class="code-block">
+                            <pre><code>{
+  "type": "subscribe",
+  "channel": "system_alerts",
+  "filters": {
+    "severity": ["warning", "critical"]
+  }
+}</code></pre>
+                        </div>
+
+                        <h4>Example Messages</h4>
+                        <div class="code-block">
+                            <pre><code>{
+  "type": "event",
+  "channel": "system_alerts",
+  "data": {
+    "alert_id": "uuid",
+    "severity": "warning",
+    "title": "High disk usage",
+    "message": "Disk usage on /var is 85%",
+    "host_id": "uuid",
+    "hostname": "web-01",
+    "category": "disk_space"
+  }
+}</code></pre>
+                        </div>
+                    </div>
+
+                    <div class="channel">
+                        <h3>user_activity</h3>
+                        <p>Monitor user login/logout and activity events.</p>
+
+                        <h4>Subscribe (Admin only)</h4>
+                        <div class="code-block">
+                            <pre><code>{
+  "type": "subscribe",
+  "channel": "user_activity"
+}</code></pre>
+                        </div>
+
+                        <h4>Example Messages</h4>
+                        <div class="code-block">
+                            <pre><code>{
+  "type": "event",
+  "channel": "user_activity",
+  "data": {
+    "user_id": "uuid",
+    "username": "admin",
+    "action": "login",
+    "ip_address": "192.168.1.100",
+    "user_agent": "Mozilla/5.0...",
+    "timestamp": "2024-01-01T12:00:00Z"
+  }
+}</code></pre>
+                        </div>
+                    </div>
+                </section>
+
+                <section class="live-monitoring">
+                    <h2>Live System Monitoring</h2>
+
+                    <div class="monitoring-example">
+                        <h3>Real-time Host Metrics</h3>
+                        <div class="code-block">
+                            <pre><code>// Subscribe to live metrics for a specific host
+{
+  "type": "subscribe",
+  "channel": "host_metrics",
+  "filters": {
+    "host_id": "uuid",
+    "metrics": ["cpu", "memory", "disk"]
+  }
+}
+
+// Receive periodic metric updates
+{
+  "type": "event",
+  "channel": "host_metrics",
+  "data": {
+    "host_id": "uuid",
+    "timestamp": "2024-01-01T12:00:00Z",
+    "metrics": {
+      "cpu_usage": 23.5,
+      "memory_usage": 67.2,
+      "disk_usage": {
+        "/": 45.8,
+        "/var": 78.2
+      },
+      "load_average": [1.2, 1.5, 1.8]
+    }
+  }
+}</code></pre>
+                        </div>
+                    </div>
+
+                    <div class="monitoring-example">
+                        <h3>Fleet-wide Status</h3>
+                        <div class="code-block">
+                            <pre><code>// Subscribe to fleet status updates
+{
+  "type": "subscribe",
+  "channel": "fleet_status"
+}
+
+// Receive fleet statistics
+{
+  "type": "event",
+  "channel": "fleet_status",
+  "data": {
+    "total_hosts": 150,
+    "online_hosts": 148,
+    "offline_hosts": 2,
+    "hosts_with_alerts": 5,
+    "pending_operations": 3,
+    "last_updated": "2024-01-01T12:00:00Z"
+  }
+}</code></pre>
+                        </div>
+                    </div>
+                </section>
+
+                <section class="error-handling">
+                    <h2>Error Handling</h2>
+
+                    <div class="error-example">
+                        <h3>Authentication Error</h3>
+                        <div class="code-block">
+                            <pre><code>{
+  "type": "error",
+  "channel": "system",
+  "data": {
+    "code": "AUTH_FAILED",
+    "message": "Invalid or expired JWT token",
+    "action": "reconnect_with_valid_token"
+  }
+}</code></pre>
+                        </div>
+                    </div>
+
+                    <div class="error-example">
+                        <h3>Channel Subscription Error</h3>
+                        <div class="code-block">
+                            <pre><code>{
+  "type": "error",
+  "channel": "subscription",
+  "data": {
+    "code": "SUBSCRIPTION_FAILED",
+    "message": "Insufficient permissions for channel 'user_activity'",
+    "requested_channel": "user_activity"
+  }
+}</code></pre>
+                        </div>
+                    </div>
+
+                    <div class="error-example">
+                        <h3>Command Execution Error</h3>
+                        <div class="code-block">
+                            <pre><code>{
+  "type": "error",
+  "channel": "command_execution",
+  "data": {
+    "code": "COMMAND_FAILED",
+    "message": "Host not reachable",
+    "host_id": "uuid",
+    "execution_id": "uuid"
+  },
+  "id": "request_123"
+}</code></pre>
+                        </div>
+                    </div>
+                </section>
+
+                <section class="best-practices">
+                    <h2>Best Practices</h2>
+
+                    <div class="practice">
+                        <h3>Connection Management</h3>
+                        <ul>
+                            <li>Implement automatic reconnection with exponential backoff</li>
+                            <li>Handle connection state changes gracefully</li>
+                            <li>Store JWT tokens securely and refresh before expiration</li>
+                            <li>Monitor connection health with periodic ping/pong messages</li>
+                        </ul>
+                    </div>
+
+                    <div class="practice">
+                        <h3>Message Handling</h3>
+                        <ul>
+                            <li>Always validate incoming message format</li>
+                            <li>Use message IDs for request/response correlation</li>
+                            <li>Implement message queuing for offline scenarios</li>
+                            <li>Handle out-of-order message delivery</li>
+                        </ul>
+                    </div>
+
+                    <div class="practice">
+                        <h3>Performance</h3>
+                        <ul>
+                            <li>Subscribe only to channels you need</li>
+                            <li>Use filters to reduce message volume</li>
+                            <li>Unsubscribe from channels when no longer needed</li>
+                            <li>Implement client-side message throttling if necessary</li>
+                        </ul>
+                    </div>
+
+                    <div class="practice">
+                        <h3>Security</h3>
+                        <ul>
+                            <li>Never expose JWT tokens in client-side logs</li>
+                            <li>Validate all incoming data on the client side</li>
+                            <li>Use WSS (WebSocket Secure) in production</li>
+                            <li>Implement proper CORS policies</li>
+                        </ul>
+                    </div>
+                </section>
+
+                <section class="client-examples">
+                    <h2>Client Implementation Examples</h2>
+
+                    <div class="client-example">
+                        <h3>React Hook Example</h3>
+                        <div class="code-block">
+                            <pre><code>import { useState, useEffect, useRef } from 'react';
+
+export const useWebSocket = (url, token) => {
+  const [connectionStatus, setConnectionStatus] = useState('Disconnected');
+  const [lastMessage, setLastMessage] = useState(null);
+  const ws = useRef(null);
+
+  useEffect(() => {
+    const connectWebSocket = () => {
+      ws.current = new WebSocket(`${url}?token=${token}`);
+
+      ws.current.onopen = () => {
+        setConnectionStatus('Connected');
+      };
+
+      ws.current.onmessage = (event) => {
+        const message = JSON.parse(event.data);
+        setLastMessage(message);
+      };
+
+      ws.current.onclose = () => {
+        setConnectionStatus('Disconnected');
+        // Reconnect after 3 seconds
+        setTimeout(connectWebSocket, 3000);
+      };
+
+      ws.current.onerror = (error) => {
+        console.error('WebSocket error:', error);
+        setConnectionStatus('Error');
+      };
+    };
+
+    connectWebSocket();
+
+    return () => {
+      if (ws.current) {
+        ws.current.close();
+      }
+    };
+  }, [url, token]);
+
+  const sendMessage = (message) => {
+    if (ws.current && ws.current.readyState === WebSocket.OPEN) {
+      ws.current.send(JSON.stringify(message));
+    }
+  };
+
+  return { connectionStatus, lastMessage, sendMessage };
+};</code></pre>
+                        </div>
+                    </div>
+                </section>
+            </div>
+
+            <div class="docs-footer">
+                <div class="docs-navigation">
+                    <h3>Quick Navigation</h3>
+                    <div class="nav-links">
+                        <a href="packages.html" class="nav-link">← Package Management</a>
+                        <a href="monitoring.html" class="nav-link">Monitoring API →</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <footer class="site-footer">
+        <div class="container">
+            <div class="footer-bottom">
+                <p>&copy; 2024 SysManage. All rights reserved.</p>
+            </div>
+        </div>
+    </footer>
+
+    <script src="../../assets/js/main.js"></script>
+    <script src="../../assets/js/i18n.js"></script>
+</body>
+</html>
