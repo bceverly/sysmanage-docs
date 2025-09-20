@@ -8,7 +8,7 @@ The SysManage documentation site provides comprehensive guides, tutorials, and r
 
 ## Structure
 
-```
+```text
 /
 ├── index.html              # Homepage
 ├── CNAME                   # Custom domain configuration
@@ -31,6 +31,7 @@ The SysManage documentation site provides comprehensive guides, tutorials, and r
 ## Documentation Sections
 
 ### Server Documentation (`/docs/server/`)
+
 - Installation and setup guides
 - Configuration options
 - Deployment strategies
@@ -38,6 +39,7 @@ The SysManage documentation site provides comprehensive guides, tutorials, and r
 - Troubleshooting guides
 
 ### Agent Documentation (`/docs/agent/`)
+
 - Cross-platform installation
 - Configuration and auto-discovery
 - Privileged execution setup
@@ -45,23 +47,27 @@ The SysManage documentation site provides comprehensive guides, tutorials, and r
 - Security and mTLS setup
 
 ### API Reference (`/docs/api/`)
+
 - REST API documentation
 - WebSocket API reference
 - Authentication guides
 - Integration examples
 
 ### Security (`/docs/security/`)
+
 - Security features overview
 - mTLS configuration
 - Security best practices
 - Vulnerability reporting
 
 ### Getting Started (`/docs/getting-started/`)
+
 - Quick start guides
 - First deployment tutorials
 - Basic management tasks
 
 ### Administration (`/docs/administration/`)
+
 - User management
 - Host administration
 - Monitoring and alerts
