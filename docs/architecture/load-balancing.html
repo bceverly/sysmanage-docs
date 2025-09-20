@@ -1,0 +1,1012 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Load Balancing - SysManage Architecture</title>
+    <meta name="description" content="Load balancer configuration, health checks, session affinity, and scaling patterns for SysManage distributed deployments.">
+    <link rel="stylesheet" href="../../assets/css/style.css">
+    <link rel="icon" type="image/svg+xml" href="../../assets/images/favicon.svg">
+</head>
+<body>
+    <header class="site-header">
+        <nav class="navbar">
+            <div class="container">
+                <div class="nav-brand">
+                    <a href="../../">
+                        <img src="../../assets/images/sysmanage-logo.svg" alt="SysManage" class="logo">
+                    </a>
+                </div>
+                <div class="nav-menu">
+                    <a href="../../#features" class="nav-link">Features</a>
+                    <a href="../../#getting-started" class="nav-link">Getting Started</a>
+                    <a href="../" class="nav-link active">Documentation</a>
+                    <a href="https://github.com/bceverly/sysmanage" class="nav-link" target="_blank">GitHub</a>
+                </div>
+            </div>
+        </nav>
+    </header>
+
+    <main class="docs-main">
+        <div class="container">
+            <div class="docs-breadcrumb">
+                <a href="../">Documentation</a> > <a href="./">Architecture</a> > <span>Load Balancing</span>
+            </div>
+
+            <div class="docs-header">
+                <h1>Load Balancing</h1>
+                <p>Load balancer configuration, health checks, session affinity, and scaling patterns for SysManage distributed deployments.</p>
+            </div>
+
+            <div class="docs-content">
+                <section class="overview">
+                    <h2>Load Balancing Overview</h2>
+                    <p>SysManage is designed to support horizontal scaling through load balancing. The architecture enables multiple server instances to share the load while maintaining session continuity and data consistency.</p>
+
+                    <div class="lb-principles">
+                        <h3>Core Principles</h3>
+                        <ul>
+                            <li><strong>Stateless Design:</strong> Application servers maintain no session state</li>
+                            <li><strong>Database Centralization:</strong> Shared PostgreSQL cluster for consistency</li>
+                            <li><strong>WebSocket Affinity:</strong> Sticky sessions for real-time connections</li>
+                            <li><strong>Health-Based Routing:</strong> Automatic failure detection and recovery</li>
+                        </ul>
+                    </div>
+                </section>
+
+                <section class="lb-architecture">
+                    <h2>Load Balancing Architecture</h2>
+
+                    <div class="architecture-diagram">
+                        <h3>Multi-Tier Load Balancing</h3>
+                        <pre class="ascii-diagram">
+┌─────────────────────────────────────────────────────────────────┐
+│                    External Load Balancer                      │
+│                      (Layer 4/7)                               │
+│                   ┌─────────────────┐                          │
+│                   │ Cloud LB / F5   │                          │
+│                   │ AWS ALB / GCP   │                          │
+│                   └─────────┬───────┘                          │
+└─────────────────────────────┼───────────────────────────────────┘
+                              │
+┌─────────────────────────────┼───────────────────────────────────┐
+│                   Internal Load Balancer                       │
+│                     (Application Layer)                        │
+│    ┌──────────────┐    ┌──────────────┐    ┌──────────────┐    │
+│    │    Nginx     │    │   HAProxy    │    │   Traefik    │    │
+│    │ (Preferred)  │    │ (Alternative)│    │ (Container)  │    │
+│    └──────┬───────┘    └──────┬───────┘    └──────┬───────┘    │
+└───────────┼─────────────────────┼─────────────────────┼─────────┘
+            │                   │                   │
+    ┌───────┼───────┬───────────┼───────┬───────────┼───────┐
+    │               │                   │                   │
+┌───▼────┐    ┌───▼────┐        ┌───▼────┐        ┌───▼────┐
+│ App #1 │    │ App #2 │        │ App #3 │        │ App #4 │
+│        │    │        │        │        │        │        │
+│FastAPI │    │FastAPI │        │FastAPI │        │FastAPI │
+│Server  │    │Server  │        │Server  │        │Server  │
+└────────┘    └────────┘        └────────┘        └────────┘
+    │               │                   │                   │
+    └───────┬───────┴───────────┬───────┴───────────┬───────┘
+            │                   │                   │
+┌───────────┼─────────────────────┼─────────────────────┼─────────┐
+│                     PostgreSQL Cluster                        │
+│    ┌──────────────┐    ┌──────────────┐    ┌──────────────┐    │
+│    │   Primary    │    │   Replica    │    │   Replica    │    │
+│    │  (Write)     │    │   (Read)     │    │   (Read)     │    │
+│    └──────────────┘    └──────────────┘    └──────────────┘    │
+└─────────────────────────────────────────────────────────────────┘
+                        </pre>
+                    </div>
+                </section>
+
+                <section class="nginx-configuration">
+                    <h2>Nginx Configuration</h2>
+
+                    <h3>Primary Load Balancer Setup</h3>
+                    <div class="code-section">
+                        <h4>nginx.conf - Main Configuration</h4>
+                        <pre><code class="language-nginx">upstream sysmanage_backend {
+    # Load balancing method
+    least_conn;
+
+    # Backend server pool
+    server 10.0.1.10:8000 weight=3 max_fails=3 fail_timeout=30s;
+    server 10.0.1.11:8000 weight=3 max_fails=3 fail_timeout=30s;
+    server 10.0.1.12:8000 weight=2 max_fails=3 fail_timeout=30s;
+    server 10.0.1.13:8000 backup;  # Backup server
+
+    # Health check configuration
+    keepalive 32;
+    keepalive_requests 100;
+    keepalive_timeout 60s;
+}
+
+upstream sysmanage_websocket {
+    # WebSocket connections need IP hash for stickiness
+    ip_hash;
+
+    server 10.0.1.10:8000;
+    server 10.0.1.11:8000;
+    server 10.0.1.12:8000;
+
+    keepalive 16;
+}
+
+server {
+    listen 80;
+    listen 443 ssl http2;
+    server_name sysmanage.example.com;
+
+    # SSL Configuration
+    ssl_certificate /etc/nginx/ssl/sysmanage.crt;
+    ssl_certificate_key /etc/nginx/ssl/sysmanage.key;
+    ssl_protocols TLSv1.2 TLSv1.3;
+    ssl_ciphers ECDHE-RSA-AES256-GCM-SHA512:DHE-RSA-AES256-GCM-SHA512;
+    ssl_prefer_server_ciphers off;
+
+    # Security headers
+    add_header X-Frame-Options DENY;
+    add_header X-Content-Type-Options nosniff;
+    add_header X-XSS-Protection "1; mode=block";
+    add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
+
+    # Rate limiting
+    limit_req_zone $binary_remote_addr zone=api:10m rate=10r/s;
+    limit_req_zone $binary_remote_addr zone=auth:10m rate=5r/s;
+
+    # API endpoints
+    location /api/ {
+        limit_req zone=api burst=20 nodelay;
+
+        proxy_pass http://sysmanage_backend;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+
+        # Health check endpoint bypass
+        proxy_next_upstream error timeout invalid_header http_500 http_502 http_503;
+        proxy_connect_timeout 5s;
+        proxy_send_timeout 60s;
+        proxy_read_timeout 60s;
+    }
+
+    # Authentication endpoints (stricter rate limiting)
+    location /api/auth/ {
+        limit_req zone=auth burst=10 nodelay;
+
+        proxy_pass http://sysmanage_backend;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
+    # WebSocket connections (sticky sessions)
+    location /ws/ {
+        proxy_pass http://sysmanage_websocket;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+
+        # WebSocket specific timeouts
+        proxy_connect_timeout 7d;
+        proxy_send_timeout 7d;
+        proxy_read_timeout 7d;
+    }
+
+    # Static files
+    location /static/ {
+        alias /var/www/sysmanage/static/;
+        expires 1y;
+        add_header Cache-Control "public, immutable";
+    }
+
+    # Health check endpoint
+    location /health {
+        access_log off;
+        return 200 "healthy\n";
+        add_header Content-Type text/plain;
+    }
+}</code></pre>
+                    </div>
+
+                    <h3>Advanced Health Checks</h3>
+                    <div class="code-section">
+                        <h4>Custom Health Check Configuration</h4>
+                        <pre><code class="language-nginx"># Define custom health check
+location /backend-health {
+    internal;
+    proxy_pass http://sysmanage_backend/api/health/detailed;
+    proxy_pass_request_body off;
+    proxy_set_header Content-Length "";
+    proxy_set_header X-Original-URI $request_uri;
+    proxy_connect_timeout 1s;
+    proxy_send_timeout 1s;
+    proxy_read_timeout 1s;
+}
+
+# Health check with failover logic
+location /api/ {
+    # Try primary backend first
+    error_page 502 503 504 = @fallback;
+    proxy_pass http://sysmanage_backend;
+
+    # Custom health validation
+    auth_request /backend-health;
+
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+}
+
+# Fallback to backup servers
+location @fallback {
+    proxy_pass http://sysmanage_backup;
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+}</code></pre>
+                    </div>
+                </section>
+
+                <section class="haproxy-configuration">
+                    <h2>HAProxy Configuration</h2>
+
+                    <h3>Enterprise-Grade Load Balancing</h3>
+                    <div class="code-section">
+                        <h4>haproxy.cfg - Complete Configuration</h4>
+                        <pre><code class="language-haproxy">global
+    daemon
+    user haproxy
+    group haproxy
+    pidfile /var/run/haproxy.pid
+
+    # SSL/TLS Configuration
+    ssl-default-bind-ciphers ECDHE-RSA-AES256-GCM-SHA512:DHE-RSA-AES256-GCM-SHA512
+    ssl-default-bind-options no-sslv3 no-tlsv10 no-tlsv11
+
+    # Logging
+    log 127.0.0.1:514 local0
+
+    # Performance tuning
+    tune.ssl.default-dh-param 2048
+    tune.bufsize 32768
+    tune.maxrewrite 8192
+
+defaults
+    mode http
+    log global
+    option httplog
+    option dontlognull
+    option log-health-checks
+    option forwardfor
+    option http-server-close
+
+    # Timeouts
+    timeout connect 5000ms
+    timeout client 50000ms
+    timeout server 50000ms
+    timeout http-request 10s
+    timeout http-keep-alive 10s
+    timeout check 3000ms
+
+    # Retry configuration
+    retries 3
+    option redispatch
+
+frontend sysmanage_frontend
+    bind *:80
+    bind *:443 ssl crt /etc/ssl/certs/sysmanage.pem
+
+    # Redirect HTTP to HTTPS
+    redirect scheme https if !{ ssl_fc }
+
+    # Security headers
+    http-response set-header X-Frame-Options DENY
+    http-response set-header X-Content-Type-Options nosniff
+    http-response set-header X-XSS-Protection "1; mode=block"
+    http-response set-header Strict-Transport-Security "max-age=31536000; includeSubDomains"
+
+    # Rate limiting using stick tables
+    stick-table type ip size 100k expire 30s store http_req_rate(10s)
+    http-request track-sc0 src
+    http-request deny if { sc_http_req_rate(0) gt 20 }
+
+    # ACL definitions
+    acl is_websocket hdr_val(upgrade) -i websocket
+    acl is_api path_beg /api/
+    acl is_auth path_beg /api/auth/
+    acl is_static path_beg /static/
+    acl is_health path /health
+
+    # Routing logic
+    use_backend sysmanage_websocket if is_websocket
+    use_backend sysmanage_api if is_api
+    use_backend sysmanage_static if is_static
+    use_backend sysmanage_health if is_health
+    default_backend sysmanage_web
+
+backend sysmanage_api
+    balance leastconn
+    option httpchk GET /api/health
+
+    # Server pool with health checks
+    server app1 10.0.1.10:8000 check inter 5s fall 3 rise 2 weight 100
+    server app2 10.0.1.11:8000 check inter 5s fall 3 rise 2 weight 100
+    server app3 10.0.1.12:8000 check inter 5s fall 3 rise 2 weight 80
+    server app4 10.0.1.13:8000 check inter 5s fall 3 rise 2 weight 80 backup
+
+    # Connection pooling
+    option forwardfor
+    option httpclose
+
+    # Retry logic
+    retry-on all-retryable-errors
+    retries 3
+
+backend sysmanage_websocket
+    balance source  # Sticky sessions for WebSocket
+    option httpchk GET /api/health/websocket
+
+    server app1 10.0.1.10:8000 check inter 10s fall 2 rise 1
+    server app2 10.0.1.11:8000 check inter 10s fall 2 rise 1
+    server app3 10.0.1.12:8000 check inter 10s fall 2 rise 1
+
+    # WebSocket specific settings
+    timeout tunnel 1h
+    timeout server 1h
+
+backend sysmanage_web
+    balance roundrobin
+    option httpchk GET /health
+
+    server web1 10.0.1.20:3000 check inter 5s
+    server web2 10.0.1.21:3000 check inter 5s
+    server web3 10.0.1.22:3000 check inter 5s backup
+
+backend sysmanage_static
+    balance roundrobin
+    option httpchk GET /health
+
+    server static1 10.0.1.30:80 check inter 10s
+    server static2 10.0.1.31:80 check inter 10s
+
+backend sysmanage_health
+    option httpchk
+    http-request return status 200 content-type text/plain string "OK"
+
+# Statistics and monitoring
+listen stats
+    bind *:8404
+    stats enable
+    stats uri /stats
+    stats refresh 30s
+    stats admin if TRUE</code></pre>
+                    </div>
+                </section>
+
+                <section class="health-checks">
+                    <h2>Health Check Implementation</h2>
+
+                    <h3>Application Health Endpoints</h3>
+                    <div class="code-section">
+                        <h4>FastAPI Health Check Implementation</h4>
+                        <pre><code class="language-python">from fastapi import APIRouter, HTTPException, Depends
+from typing import Dict, Any
+import asyncio
+import time
+from datetime import datetime
+
+health_router = APIRouter(prefix="/api/health")
+
+class HealthChecker:
+    def __init__(self):
+        self.start_time = time.time()
+        self.last_db_check = None
+        self.last_redis_check = None
+
+    async def check_database(self) -> Dict[str, Any]:
+        """Check PostgreSQL database connectivity"""
+        try:
+            start = time.time()
+            # Simple connectivity check
+            await db.execute("SELECT 1")
+            latency = (time.time() - start) * 1000
+
+            self.last_db_check = datetime.utcnow()
+            return {
+                "status": "healthy",
+                "latency_ms": round(latency, 2),
+                "last_check": self.last_db_check.isoformat()
+            }
+        except Exception as e:
+            return {
+                "status": "unhealthy",
+                "error": str(e),
+                "last_check": datetime.utcnow().isoformat()
+            }
+
+    async def check_redis(self) -> Dict[str, Any]:
+        """Check Redis connectivity"""
+        try:
+            start = time.time()
+            await redis_client.ping()
+            latency = (time.time() - start) * 1000
+
+            self.last_redis_check = datetime.utcnow()
+            return {
+                "status": "healthy",
+                "latency_ms": round(latency, 2),
+                "last_check": self.last_redis_check.isoformat()
+            }
+        except Exception as e:
+            return {
+                "status": "unhealthy",
+                "error": str(e),
+                "last_check": datetime.utcnow().isoformat()
+            }
+
+    async def check_agent_connectivity(self) -> Dict[str, Any]:
+        """Check agent connectivity health"""
+        try:
+            # Get agent connectivity stats
+            active_agents = await get_active_agent_count()
+            total_agents = await get_total_agent_count()
+            disconnected_agents = total_agents - active_agents
+
+            connectivity_ratio = active_agents / max(total_agents, 1)
+
+            return {
+                "status": "healthy" if connectivity_ratio > 0.8 else "degraded",
+                "active_agents": active_agents,
+                "total_agents": total_agents,
+                "disconnected_agents": disconnected_agents,
+                "connectivity_ratio": round(connectivity_ratio, 3)
+            }
+        except Exception as e:
+            return {
+                "status": "unhealthy",
+                "error": str(e)
+            }
+
+health_checker = HealthChecker()
+
+@health_router.get("/")
+async def basic_health():
+    """Basic health check for load balancer"""
+    return {"status": "ok", "timestamp": datetime.utcnow().isoformat()}
+
+@health_router.get("/detailed")
+async def detailed_health():
+    """Detailed health check with dependency status"""
+
+    # Run all checks concurrently
+    db_check, redis_check, agent_check = await asyncio.gather(
+        health_checker.check_database(),
+        health_checker.check_redis(),
+        health_checker.check_agent_connectivity(),
+        return_exceptions=True
+    )
+
+    # Calculate overall health
+    checks = [db_check, redis_check, agent_check]
+    healthy_checks = sum(1 for check in checks
+                        if isinstance(check, dict) and
+                        check.get("status") in ["healthy", "degraded"])
+
+    overall_status = "healthy"
+    if healthy_checks < len(checks):
+        overall_status = "unhealthy"
+    elif any(check.get("status") == "degraded" for check in checks
+             if isinstance(check, dict)):
+        overall_status = "degraded"
+
+    response = {
+        "status": overall_status,
+        "timestamp": datetime.utcnow().isoformat(),
+        "uptime_seconds": round(time.time() - health_checker.start_time, 2),
+        "checks": {
+            "database": db_check if isinstance(db_check, dict) else {"status": "error", "error": str(db_check)},
+            "redis": redis_check if isinstance(redis_check, dict) else {"status": "error", "error": str(redis_check)},
+            "agents": agent_check if isinstance(agent_check, dict) else {"status": "error", "error": str(agent_check)}
+        }
+    }
+
+    # Return appropriate HTTP status
+    if overall_status == "unhealthy":
+        raise HTTPException(status_code=503, detail=response)
+
+    return response
+
+@health_router.get("/websocket")
+async def websocket_health():
+    """WebSocket-specific health check"""
+    try:
+        # Check WebSocket server health
+        active_connections = await get_active_websocket_connections()
+        max_connections = 1000  # Configuration-based limit
+
+        connection_ratio = active_connections / max_connections
+
+        if connection_ratio > 0.9:
+            status = "degraded"
+        else:
+            status = "healthy"
+
+        return {
+            "status": status,
+            "active_connections": active_connections,
+            "max_connections": max_connections,
+            "connection_ratio": round(connection_ratio, 3),
+            "timestamp": datetime.utcnow().isoformat()
+        }
+    except Exception as e:
+        raise HTTPException(status_code=503, detail={
+            "status": "unhealthy",
+            "error": str(e),
+            "timestamp": datetime.utcnow().isoformat()
+        })</code></pre>
+                    </div>
+
+                    <h3>Custom Health Check Script</h3>
+                    <div class="code-section">
+                        <h4>Advanced Health Verification</h4>
+                        <pre><code class="language-bash">#!/bin/bash
+# Health check script for external monitoring
+
+ENDPOINT="https://sysmanage.example.com/api/health/detailed"
+TIMEOUT=10
+RETRY_COUNT=3
+
+check_health() {
+    local attempt=1
+
+    while [ $attempt -le $RETRY_COUNT ]; do
+        echo "Health check attempt $attempt..."
+
+        response=$(curl -s -w "%{http_code}" -m $TIMEOUT "$ENDPOINT")
+        http_code="${response: -3}"
+        body="${response%???}"
+
+        case $http_code in
+            200)
+                echo "✓ Service healthy"
+                echo "$body" | jq .
+                return 0
+                ;;
+            503)
+                echo "⚠ Service degraded"
+                echo "$body" | jq .
+                return 1
+                ;;
+            *)
+                echo "✗ Service unhealthy (HTTP $http_code)"
+                echo "$body"
+                ;;
+        esac
+
+        attempt=$((attempt + 1))
+        sleep 2
+    done
+
+    return 2
+}
+
+# Run health check
+if check_health; then
+    echo "All systems operational"
+    exit 0
+else
+    echo "Health check failed"
+    exit 1
+fi</code></pre>
+                    </div>
+                </section>
+
+                <section class="session-affinity">
+                    <h2>Session Affinity</h2>
+
+                    <h3>WebSocket Sticky Sessions</h3>
+                    <p>WebSocket connections require session affinity to maintain real-time communication state:</p>
+
+                    <div class="code-section">
+                        <h4>Redis-Based Session Store</h4>
+                        <pre><code class="language-python">import redis
+import json
+from typing import Optional, Dict, Any
+
+class SessionAffinityManager:
+    def __init__(self, redis_client: redis.Redis):
+        self.redis = redis_client
+        self.session_ttl = 3600  # 1 hour
+
+    async def get_server_for_session(self, session_id: str) -> Optional[str]:
+        """Get assigned server for WebSocket session"""
+        try:
+            server = await self.redis.get(f"session:{session_id}")
+            return server.decode() if server else None
+        except Exception as e:
+            logger.error(f"Failed to get session affinity: {e}")
+            return None
+
+    async def assign_server_to_session(self, session_id: str, server_id: str):
+        """Assign server to WebSocket session"""
+        try:
+            await self.redis.setex(
+                f"session:{session_id}",
+                self.session_ttl,
+                server_id
+            )
+
+            # Track active sessions per server
+            await self.redis.sadd(f"server:{server_id}:sessions", session_id)
+            await self.redis.expire(f"server:{server_id}:sessions", self.session_ttl)
+
+        except Exception as e:
+            logger.error(f"Failed to assign session affinity: {e}")
+
+    async def remove_session(self, session_id: str):
+        """Remove session affinity mapping"""
+        try:
+            server_id = await self.get_server_for_session(session_id)
+            if server_id:
+                await self.redis.srem(f"server:{server_id}:sessions", session_id)
+
+            await self.redis.delete(f"session:{session_id}")
+
+        except Exception as e:
+            logger.error(f"Failed to remove session affinity: {e}")
+
+    async def get_server_session_count(self, server_id: str) -> int:
+        """Get active session count for server"""
+        try:
+            count = await self.redis.scard(f"server:{server_id}:sessions")
+            return count
+        except Exception as e:
+            logger.error(f"Failed to get session count: {e}")
+            return 0</code></pre>
+                    </div>
+
+                    <h3>Load Balancer Integration</h3>
+                    <div class="code-section">
+                        <h4>Nginx Lua Script for Dynamic Routing</h4>
+                        <pre><code class="language-lua">-- Dynamic server selection for WebSocket connections
+local redis = require "resty.redis"
+local cjson = require "cjson"
+
+local function get_redis_connection()
+    local red = redis:new()
+    red:set_timeouts(1000, 1000, 1000) -- connect, send, read timeouts
+
+    local ok, err = red:connect("127.0.0.1", 6379)
+    if not ok then
+        ngx.log(ngx.ERR, "Failed to connect to Redis: ", err)
+        return nil
+    end
+
+    return red
+end
+
+local function get_session_server(session_id)
+    local red = get_redis_connection()
+    if not red then
+        return nil
+    end
+
+    local res, err = red:get("session:" .. session_id)
+    if not res or res == ngx.null then
+        return nil
+    end
+
+    red:set_keepalive(10000, 100)
+    return res
+end
+
+local function assign_least_loaded_server(session_id)
+    local servers = {"10.0.1.10:8000", "10.0.1.11:8000", "10.0.1.12:8000"}
+    local min_load = math.huge
+    local selected_server = servers[1]
+
+    local red = get_redis_connection()
+    if not red then
+        return selected_server
+    end
+
+    -- Find server with least connections
+    for _, server in ipairs(servers) do
+        local count, err = red:scard("server:" .. server .. ":sessions")
+        if count and count < min_load then
+            min_load = count
+            selected_server = server
+        end
+    end
+
+    -- Assign session to selected server
+    red:setex("session:" .. session_id, 3600, selected_server)
+    red:sadd("server:" .. selected_server .. ":sessions", session_id)
+    red:expire("server:" .. selected_server .. ":sessions", 3600)
+
+    red:set_keepalive(10000, 100)
+    return selected_server
+end
+
+-- Main routing logic
+local session_id = ngx.var.cookie_sessionid or ngx.var.arg_session
+if not session_id then
+    ngx.status = 400
+    ngx.say("Missing session ID")
+    return
+end
+
+local assigned_server = get_session_server(session_id)
+if not assigned_server then
+    assigned_server = assign_least_loaded_server(session_id)
+end
+
+-- Set upstream server
+ngx.var.backend_server = assigned_server</code></pre>
+                    </div>
+                </section>
+
+                <section class="auto-scaling">
+                    <h2>Auto-Scaling Configuration</h2>
+
+                    <h3>Kubernetes Horizontal Pod Autoscaler</h3>
+                    <div class="code-section">
+                        <h4>HPA Configuration</h4>
+                        <pre><code class="language-yaml">apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: sysmanage-hpa
+  namespace: sysmanage
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: sysmanage-backend
+  minReplicas: 2
+  maxReplicas: 10
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 70
+  - type: Resource
+    resource:
+      name: memory
+      target:
+        type: Utilization
+        averageUtilization: 80
+  - type: Pods
+    pods:
+      metric:
+        name: active_connections
+      target:
+        type: AverageValue
+        averageValue: "100"
+  behavior:
+    scaleDown:
+      stabilizationWindowSeconds: 300
+      policies:
+      - type: Percent
+        value: 50
+        periodSeconds: 60
+    scaleUp:
+      stabilizationWindowSeconds: 60
+      policies:
+      - type: Percent
+        value: 100
+        periodSeconds: 15
+      - type: Pods
+        value: 2
+        periodSeconds: 60</code></pre>
+                    </div>
+
+                    <h3>Custom Metrics for Scaling</h3>
+                    <div class="code-section">
+                        <h4>Prometheus Metrics Export</h4>
+                        <pre><code class="language-python">from prometheus_client import Counter, Histogram, Gauge, generate_latest
+import time
+
+# Metrics for autoscaling
+active_connections = Gauge('sysmanage_active_connections', 'Active WebSocket connections')
+request_duration = Histogram('sysmanage_request_duration_seconds', 'Request duration')
+requests_total = Counter('sysmanage_requests_total', 'Total HTTP requests', ['method', 'endpoint'])
+cpu_usage = Gauge('sysmanage_cpu_usage_percent', 'CPU usage percentage')
+memory_usage = Gauge('sysmanage_memory_usage_bytes', 'Memory usage in bytes')
+
+class MetricsMiddleware:
+    def __init__(self, app):
+        self.app = app
+
+    async def __call__(self, scope, receive, send):
+        if scope["type"] == "http":
+            start_time = time.time()
+
+            # Track request
+            method = scope["method"]
+            path = scope["path"]
+            requests_total.labels(method=method, endpoint=path).inc()
+
+            async def send_wrapper(message):
+                if message["type"] == "http.response.start":
+                    # Record request duration
+                    duration = time.time() - start_time
+                    request_duration.observe(duration)
+                await send(message)
+
+            await self.app(scope, receive, send_wrapper)
+        else:
+            await self.app(scope, receive, send)
+
+@app.get("/metrics")
+async def get_metrics():
+    """Prometheus metrics endpoint"""
+    return Response(generate_latest(), media_type="text/plain")</code></pre>
+                    </div>
+                </section>
+
+                <section class="monitoring">
+                    <h2>Load Balancer Monitoring</h2>
+
+                    <h3>Key Metrics</h3>
+                    <div class="metrics-grid">
+                        <div class="metric-item">
+                            <h4>Traffic Distribution</h4>
+                            <ul>
+                                <li>Requests per backend server</li>
+                                <li>Connection distribution ratios</li>
+                                <li>Session affinity effectiveness</li>
+                                <li>Load balancing algorithm performance</li>
+                            </ul>
+                        </div>
+                        <div class="metric-item">
+                            <h4>Health & Availability</h4>
+                            <ul>
+                                <li>Backend server health status</li>
+                                <li>Failed health check counts</li>
+                                <li>Server failover frequency</li>
+                                <li>Recovery time metrics</li>
+                            </ul>
+                        </div>
+                        <div class="metric-item">
+                            <h4>Performance Metrics</h4>
+                            <ul>
+                                <li>Response time distribution</li>
+                                <li>Connection establishment time</li>
+                                <li>SSL handshake duration</li>
+                                <li>Throughput per server</li>
+                            </ul>
+                        </div>
+                    </div>
+
+                    <h3>Monitoring Dashboard</h3>
+                    <div class="code-section">
+                        <h4>Grafana Dashboard Query Examples</h4>
+                        <pre><code class="language-promql"># Request rate per backend
+rate(nginx_http_requests_total[5m])
+
+# Response time percentiles
+histogram_quantile(0.95, rate(sysmanage_request_duration_seconds_bucket[5m]))
+
+# Active connections per server
+sysmanage_active_connections
+
+# Health check success rate
+rate(nginx_upstream_checks_total{status="up"}[5m]) / rate(nginx_upstream_checks_total[5m])
+
+# Load distribution fairness (coefficient of variation)
+stddev_over_time(rate(nginx_http_requests_total[5m])) / avg_over_time(rate(nginx_http_requests_total[5m]))
+
+# SSL handshake duration
+histogram_quantile(0.90, rate(nginx_ssl_handshake_time_bucket[5m]))</code></pre>
+                    </div>
+                </section>
+
+                <section class="troubleshooting">
+                    <h2>Troubleshooting</h2>
+
+                    <h3>Common Issues</h3>
+                    <div class="troubleshooting-grid">
+                        <div class="issue-item">
+                            <h4>Uneven Load Distribution</h4>
+                            <p><strong>Symptoms:</strong> Some servers overloaded while others idle</p>
+                            <p><strong>Solutions:</strong></p>
+                            <ul>
+                                <li>Check load balancing algorithm configuration</li>
+                                <li>Verify server weights are appropriate</li>
+                                <li>Monitor session affinity impact</li>
+                                <li>Review health check intervals</li>
+                            </ul>
+                        </div>
+                        <div class="issue-item">
+                            <h4>WebSocket Connection Drops</h4>
+                            <p><strong>Symptoms:</strong> Frequent WebSocket disconnections</p>
+                            <p><strong>Solutions:</strong></p>
+                            <ul>
+                                <li>Verify session affinity configuration</li>
+                                <li>Check WebSocket timeout settings</li>
+                                <li>Monitor server failover behavior</li>
+                                <li>Review proxy buffer sizes</li>
+                            </ul>
+                        </div>
+                        <div class="issue-item">
+                            <h4>Health Check Failures</h4>
+                            <p><strong>Symptoms:</strong> False positive health check failures</p>
+                            <p><strong>Solutions:</strong></p>
+                            <ul>
+                                <li>Adjust health check timeouts</li>
+                                <li>Implement gradual health checks</li>
+                                <li>Review application startup times</li>
+                                <li>Check resource constraints</li>
+                            </ul>
+                        </div>
+                    </div>
+                </section>
+
+                <section class="best-practices">
+                    <h2>Best Practices</h2>
+
+                    <h3>Configuration Guidelines</h3>
+                    <ul>
+                        <li><strong>Health Check Tuning:</strong> Set appropriate intervals and timeouts</li>
+                        <li><strong>Session Affinity:</strong> Use sticky sessions only when necessary</li>
+                        <li><strong>Graceful Shutdowns:</strong> Implement proper connection draining</li>
+                        <li><strong>SSL Termination:</strong> Terminate SSL at load balancer for performance</li>
+                    </ul>
+
+                    <h3>Operational Guidelines</h3>
+                    <ul>
+                        <li><strong>Monitoring:</strong> Monitor load distribution and health status</li>
+                        <li><strong>Capacity Planning:</strong> Plan for peak traffic scenarios</li>
+                        <li><strong>Disaster Recovery:</strong> Test failover scenarios regularly</li>
+                        <li><strong>Security:</strong> Implement rate limiting and DDoS protection</li>
+                    </ul>
+                </section>
+
+                <section class="next-steps">
+                    <h2>Next Steps</h2>
+                    <p>To learn more about related scaling and performance topics:</p>
+                    <ol>
+                        <li><strong><a href="scaling-strategies.html">Scaling Strategies</a>:</strong> Comprehensive scaling approaches</li>
+                        <li><strong><a href="performance-optimization.html">Performance Optimization</a>:</strong> System performance tuning</li>
+                        <li><strong><a href="queue-management.html">Queue Management</a>:</strong> Background task processing</li>
+                        <li><strong><a href="retry-logic.html">Retry Logic</a>:</strong> Resilience and fault tolerance</li>
+                    </ol>
+                </section>
+            </div>
+
+            <div class="docs-footer">
+                <div class="docs-navigation">
+                    <h3>Navigation</h3>
+                    <div class="nav-links">
+                        <a href="system-overview.html" class="nav-link">← System Overview</a>
+                        <a href="migration-strategy.html" class="nav-link">Migration Strategy →</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <footer class="site-footer">
+        <div class="container">
+            <div class="footer-bottom">
+                <p>&copy; 2024 SysManage. All rights reserved.</p>
+            </div>
+        </div>
+    </footer>
+
+    <script src="../../assets/js/main.js"></script>
+    <script src="../../assets/js/i18n.js"></script>
+</body>
+</html>

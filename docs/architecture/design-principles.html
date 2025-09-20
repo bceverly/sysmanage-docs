@@ -1,0 +1,776 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Design Principles - SysManage Architecture</title>
+    <meta name="description" content="Core design principles, architectural patterns, and engineering decisions that guide SysManage development.">
+    <link rel="stylesheet" href="../../assets/css/style.css">
+    <link rel="icon" type="image/svg+xml" href="../../assets/images/favicon.svg">
+</head>
+<body>
+    <header class="site-header">
+        <nav class="navbar">
+            <div class="container">
+                <div class="nav-brand">
+                    <a href="../../">
+                        <img src="../../assets/images/sysmanage-logo.svg" alt="SysManage" class="logo">
+                    </a>
+                </div>
+                <div class="nav-menu">
+                    <a href="../../#features" class="nav-link">Features</a>
+                    <a href="../../#getting-started" class="nav-link">Getting Started</a>
+                    <a href="../" class="nav-link active">Documentation</a>
+                    <a href="https://github.com/bceverly/sysmanage" class="nav-link" target="_blank">GitHub</a>
+                </div>
+            </div>
+        </nav>
+    </header>
+
+    <main class="docs-main">
+        <div class="container">
+            <div class="docs-breadcrumb">
+                <a href="../">Documentation</a> > <a href="./">Architecture</a> > <span>Design Principles</span>
+            </div>
+
+            <div class="docs-header">
+                <h1>Design Principles</h1>
+                <p>Core design principles, architectural patterns, and engineering decisions that guide SysManage development.</p>
+            </div>
+
+            <div class="docs-content">
+                <section class="overview">
+                    <h2>Design Philosophy</h2>
+                    <p>SysManage is built on a foundation of proven software engineering principles that prioritize security, scalability, maintainability, and operational excellence. Every architectural decision is guided by real-world operational requirements and enterprise-grade reliability standards.</p>
+
+                    <div class="philosophy-grid">
+                        <div class="philosophy-card">
+                            <h3>🔒 Security First</h3>
+                            <p>Security is not an afterthought but a fundamental design constraint that influences every component and interaction.</p>
+                        </div>
+                        <div class="philosophy-card">
+                            <h3>📈 Scale by Design</h3>
+                            <p>Architecture anticipates growth from small deployments to enterprise-scale, with clear scaling paths at every layer.</p>
+                        </div>
+                        <div class="philosophy-card">
+                            <h3>🔧 Operational Excellence</h3>
+                            <p>Every feature considers the operational burden on administrators, prioritizing automation and self-healing capabilities.</p>
+                        </div>
+                        <div class="philosophy-card">
+                            <h3>🌐 Universal Compatibility</h3>
+                            <p>Cross-platform design ensures consistent functionality across diverse operating systems and environments.</p>
+                        </div>
+                    </div>
+                </section>
+
+                <section class="core-principles">
+                    <h2>Core Architectural Principles</h2>
+
+                    <div class="principle">
+                        <h3>1. Zero Trust Security Model</h3>
+                        <p>SysManage operates under the assumption that no component, network, or user can be inherently trusted.</p>
+
+                        <h4>Implementation:</h4>
+                        <ul>
+                            <li><strong>Mutual TLS (mTLS):</strong> Every agent-server communication is authenticated and encrypted using client certificates</li>
+                            <li><strong>Certificate Rotation:</strong> Automatic certificate renewal with configurable expiration periods</li>
+                            <li><strong>Least Privilege:</strong> Role-based access control with granular permissions and time-limited tokens</li>
+                            <li><strong>Defense in Depth:</strong> Multiple security layers from network to application to data</li>
+                        </ul>
+
+                        <div class="security-layers">
+                            <h4>Security Layer Implementation</h4>
+                            <pre class="ascii-diagram">
+Network Layer:    [mTLS] → [Certificate Validation] → [IP Filtering]
+                     ↓
+Transport Layer:  [TLS 1.3] → [Perfect Forward Secrecy] → [Cipher Suites]
+                     ↓
+Application Layer: [JWT Auth] → [RBAC] → [API Rate Limiting]
+                     ↓
+Data Layer:       [Encrypted Storage] → [Audit Logging] → [Field-level Encryption]
+                     ↓
+Infrastructure:   [Container Security] → [Network Policies] → [Resource Limits]
+                            </pre>
+                        </div>
+
+                        <h4>Trade-offs:</h4>
+                        <ul>
+                            <li><strong>Performance Impact:</strong> Encryption overhead vs. security assurance</li>
+                            <li><strong>Complexity:</strong> Certificate management complexity vs. authentication strength</li>
+                            <li><strong>Usability:</strong> Security barriers vs. ease of deployment</li>
+                        </ul>
+                    </div>
+
+                    <div class="principle">
+                        <h3>2. Event-Driven Architecture</h3>
+                        <p>System components communicate through events and message queues, enabling loose coupling and asynchronous processing.</p>
+
+                        <h4>Event Flow Pattern:</h4>
+                        <pre class="ascii-diagram">
+┌─────────────┐    Event    ┌─────────────┐    Process    ┌─────────────┐
+│   Source    │────────────▶│   Queue     │─────────────▶│  Handler    │
+│             │             │             │              │             │
+│ • API Call  │             │ • Redis     │              │ • Business  │
+│ • Agent Msg │             │ • PostgreSQL│              │   Logic     │
+│ • Timer     │             │ • Memory    │              │ • Database  │
+│ • Webhook   │             │             │              │ • External  │
+└─────────────┘             └─────────────┘              └─────────────┘
+                                   │                             │
+                                   ▼                             ▼
+                            ┌─────────────┐              ┌─────────────┐
+                            │ Dead Letter │              │   Result    │
+                            │   Queue     │              │   Event     │
+                            └─────────────┘              └─────────────┘
+                        </pre>
+
+                        <h4>Benefits:</h4>
+                        <ul>
+                            <li><strong>Scalability:</strong> Independent scaling of event producers and consumers</li>
+                            <li><strong>Resilience:</strong> Automatic retry and dead letter handling for failed events</li>
+                            <li><strong>Observability:</strong> Complete audit trail of all system events</li>
+                            <li><strong>Flexibility:</strong> Easy addition of new event handlers without code changes</li>
+                        </ul>
+
+                        <h4>Event Categories:</h4>
+                        <div class="event-categories">
+                            <div class="event-category">
+                                <strong>System Events:</strong>
+                                <ul>
+                                    <li>Agent connect/disconnect</li>
+                                    <li>Certificate expiration</li>
+                                    <li>Service status changes</li>
+                                </ul>
+                            </div>
+                            <div class="event-category">
+                                <strong>User Events:</strong>
+                                <ul>
+                                    <li>Task creation/completion</li>
+                                    <li>Configuration changes</li>
+                                    <li>Authentication events</li>
+                                </ul>
+                            </div>
+                            <div class="event-category">
+                                <strong>Data Events:</strong>
+                                <ul>
+                                    <li>Inventory updates</li>
+                                    <li>Metric collection</li>
+                                    <li>Alert generation</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="principle">
+                        <h3>3. Immutable Infrastructure Mindset</h3>
+                        <p>Configuration and state changes are treated as immutable events with full audit trails and rollback capabilities.</p>
+
+                        <h4>Implementation Patterns:</h4>
+                        <ul>
+                            <li><strong>Configuration as Code:</strong> All configuration stored in version-controlled files</li>
+                            <li><strong>Audit Trails:</strong> Every change recorded with who, what, when, and why</li>
+                            <li><strong>Rollback Capability:</strong> Point-in-time recovery for configuration and data</li>
+                            <li><strong>Validation Gates:</strong> Automated testing before configuration deployment</li>
+                        </ul>
+
+                        <h4>Configuration Management Flow:</h4>
+                        <pre class="ascii-diagram">
+Developer   Git Repo    Validation   Staging    Production
+    │          │           │           │           │
+    │ 1. Edit  │           │           │           │
+    ├─────────▶│           │           │           │
+    │          │ 2. CI/CD  │           │           │
+    │          ├──────────▶│           │           │
+    │          │           │ 3. Test   │           │
+    │          │           ├──────────▶│           │
+    │          │           │           │ 4. Deploy │
+    │          │           │           ├──────────▶│
+    │          │           │           │           │
+    │          │ ← ← ← ← ← 5. Audit Log ← ← ← ← ← │
+                        </pre>
+                    </div>
+
+                    <div class="principle">
+                        <h3>4. API-First Design</h3>
+                        <p>Every feature is accessible through well-designed APIs before UI implementation, ensuring programmatic access and integration capabilities.</p>
+
+                        <h4>API Design Standards:</h4>
+                        <ul>
+                            <li><strong>RESTful Principles:</strong> Consistent resource-oriented design with standard HTTP methods</li>
+                            <li><strong>OpenAPI Specification:</strong> Machine-readable API documentation with code generation</li>
+                            <li><strong>Versioning Strategy:</strong> Backward-compatible evolution with deprecation policies</li>
+                            <li><strong>Error Handling:</strong> Standardized error responses with actionable information</li>
+                        </ul>
+
+                        <h4>API Layer Architecture:</h4>
+                        <pre class="ascii-diagram">
+┌─────────────────────────────────────────────────────────────────┐
+│                        API Gateway                             │
+├─────────────────────────────────────────────────────────────────┤
+│  Authentication  │  Rate Limiting  │  Request Validation        │
+├─────────────────────────────────────────────────────────────────┤
+│  ┌─────────────┐  ┌─────────────┐  ┌─────────────────────────┐ │
+│  │   Auth      │  │   Agents    │  │   Tasks & Workflows     │ │
+│  │   /auth/*   │  │   /agents/* │  │   /tasks/*              │ │
+│  └─────────────┘  └─────────────┘  └─────────────────────────┘ │
+│  ┌─────────────┐  ┌─────────────┐  ┌─────────────────────────┐ │
+│  │  Inventory  │  │   Metrics   │  │   Configuration         │ │
+│  │  /hosts/*   │  │ /metrics/*  │  │   /config/*             │ │
+│  └─────────────┘  └─────────────┘  └─────────────────────────┘ │
+└─────────────────────────────────────────────────────────────────┘
+                        </pre>
+
+                        <h4>API Evolution Strategy:</h4>
+                        <ul>
+                            <li><strong>Semantic Versioning:</strong> Major.Minor.Patch version scheme</li>
+                            <li><strong>Deprecation Process:</strong> 6-month notice period for breaking changes</li>
+                            <li><strong>Backward Compatibility:</strong> Support for N-1 API versions</li>
+                            <li><strong>Feature Flags:</strong> Gradual rollout of new API features</li>
+                        </ul>
+                    </div>
+
+                    <div class="principle">
+                        <h3>5. Observability by Design</h3>
+                        <p>Every component produces structured logs, metrics, and traces to enable comprehensive monitoring and debugging.</p>
+
+                        <h4>Three Pillars of Observability:</h4>
+                        <div class="observability-pillars">
+                            <div class="pillar">
+                                <h5>Metrics</h5>
+                                <ul>
+                                    <li>Performance counters</li>
+                                    <li>Business KPIs</li>
+                                    <li>Resource utilization</li>
+                                    <li>Error rates</li>
+                                </ul>
+                            </div>
+                            <div class="pillar">
+                                <h5>Logs</h5>
+                                <ul>
+                                    <li>Structured JSON format</li>
+                                    <li>Correlation IDs</li>
+                                    <li>Contextual information</li>
+                                    <li>Security events</li>
+                                </ul>
+                            </div>
+                            <div class="pillar">
+                                <h5>Traces</h5>
+                                <ul>
+                                    <li>Distributed tracing</li>
+                                    <li>Request flows</li>
+                                    <li>Performance bottlenecks</li>
+                                    <li>Dependency mapping</li>
+                                </ul>
+                            </div>
+                        </div>
+
+                        <h4>Monitoring Stack Integration:</h4>
+                        <pre class="ascii-diagram">
+Application    Metrics       Logs         Traces
+     │            │            │            │
+     ▼            ▼            ▼            ▼
+┌─────────────────────────────────────────────────────┐
+│             Observability Platform                 │
+├─────────────────────────────────────────────────────┤
+│ Prometheus  │  Grafana   │  Loki      │  Jaeger    │
+│ (Metrics)   │ (Dashboards│  (Logs)    │ (Traces)   │
+└─────────────────────────────────────────────────────┘
+                           │
+                           ▼
+                   ┌─────────────────┐
+                   │    Alerting     │
+                   │   (Alert Mgr)   │
+                   └─────────────────┘
+                        </pre>
+                    </div>
+                </section>
+
+                <section class="architectural-patterns">
+                    <h2>Architectural Patterns</h2>
+
+                    <div class="pattern">
+                        <h3>Command Query Responsibility Segregation (CQRS)</h3>
+                        <p>Separation of read and write operations for optimized performance and scalability.</p>
+
+                        <h4>Implementation in SysManage:</h4>
+                        <pre class="ascii-diagram">
+Commands (Write)              Queries (Read)
+      │                            │
+      ▼                            ▼
+┌─────────────┐              ┌─────────────┐
+│ Write Model │              │ Read Model  │
+│             │              │             │
+│ • Validation│              │ • Optimized │
+│ • Business  │              │   for Query │
+│   Rules     │              │ • Denormal- │
+│ • Events    │              │   ized Data │
+└─────────────┘              └─────────────┘
+      │                            ▲
+      ▼                            │
+┌─────────────┐              ┌─────────────┐
+│ Event Store │──────────────▶│ Projections │
+│             │   Events      │             │
+└─────────────┘              └─────────────┘
+                        </pre>
+
+                        <h4>Benefits:</h4>
+                        <ul>
+                            <li><strong>Performance:</strong> Optimized read and write models</li>
+                            <li><strong>Scalability:</strong> Independent scaling of read/write workloads</li>
+                            <li><strong>Flexibility:</strong> Multiple read models for different use cases</li>
+                            <li><strong>Event Sourcing:</strong> Complete audit trail and replay capability</li>
+                        </ul>
+
+                        <h4>Use Cases in SysManage:</h4>
+                        <ul>
+                            <li><strong>Agent Inventory:</strong> Write to normalized schema, read from denormalized views</li>
+                            <li><strong>Task Management:</strong> Commands for task operations, optimized queries for dashboards</li>
+                            <li><strong>Metrics Collection:</strong> High-throughput writes, aggregated reads</li>
+                        </ul>
+                    </div>
+
+                    <div class="pattern">
+                        <h3>Circuit Breaker Pattern</h3>
+                        <p>Automatic failure detection and recovery for external dependencies and agent communication.</p>
+
+                        <h4>Circuit States:</h4>
+                        <pre class="ascii-diagram">
+     ┌─────────────┐    Failure Threshold    ┌─────────────┐
+     │   CLOSED    │────────────────────────▶│    OPEN     │
+     │             │                         │             │
+     │ • Normal    │                         │ • Fail Fast │
+     │   Operation │                         │ • Return    │
+     │ • Monitor   │◀────────────────────────│   Error     │
+     │   Failures  │    Timeout Expires     │             │
+     └─────────────┘                         └─────────────┘
+            ▲                                       │
+            │                                       │
+            │ Success Rate OK                       │ Timeout
+            │                                       │
+            │                               ┌─────────────┐
+            └───────────────────────────────│ HALF-OPEN   │
+                                            │             │
+                                            │ • Limited   │
+                                            │   Requests  │
+                                            │ • Test      │
+                                            │   Recovery  │
+                                            └─────────────┘
+                        </pre>
+
+                        <h4>Implementation Areas:</h4>
+                        <ul>
+                            <li><strong>Agent Communication:</strong> Prevent cascading failures when agents are unreachable</li>
+                            <li><strong>Database Connections:</strong> Handle database unavailability gracefully</li>
+                            <li><strong>External APIs:</strong> Protect against third-party service failures</li>
+                            <li><strong>Package Repositories:</strong> Fail fast when repositories are unavailable</li>
+                        </ul>
+                    </div>
+
+                    <div class="pattern">
+                        <h3>Saga Pattern for Distributed Transactions</h3>
+                        <p>Manage complex workflows across multiple agents and services with compensation logic.</p>
+
+                        <h4>Choreography-based Saga Example:</h4>
+                        <pre class="ascii-diagram">
+Multi-Agent Package Update Workflow:
+
+Step 1: Validate Package    Step 2: Download Package    Step 3: Install Package
+        on All Agents             on All Agents              on All Agents
+              │                         │                         │
+              ▼                         ▼                         ▼
+     ┌─────────────────┐       ┌─────────────────┐       ┌─────────────────┐
+     │ Validation OK   │──────▶│  Download OK    │──────▶│  Install OK     │
+     │ on All Agents   │       │  on All Agents  │       │  on All Agents  │
+     └─────────────────┘       └─────────────────┘       └─────────────────┘
+              │                         │                         │
+              ▼ Failure                 ▼ Failure                 ▼ Failure
+     ┌─────────────────┐       ┌─────────────────┐       ┌─────────────────┐
+     │    Abort All    │       │  Cleanup Files  │       │  Rollback All   │
+     │   Operations    │       │  on All Agents  │       │   Installations │
+     └─────────────────┘       └─────────────────┘       └─────────────────┘
+                        </pre>
+
+                        <h4>Compensation Strategies:</h4>
+                        <ul>
+                            <li><strong>Rollback:</strong> Undo changes in reverse order</li>
+                            <li><strong>Retry:</strong> Automatic retry with exponential backoff</li>
+                            <li><strong>Manual Intervention:</strong> Flag for administrator attention</li>
+                            <li><strong>Partial Success:</strong> Continue with successful subset</li>
+                        </ul>
+                    </div>
+                </section>
+
+                <section class="design-decisions">
+                    <h2>Key Design Decisions</h2>
+
+                    <div class="decision">
+                        <h3>Technology Stack Choices</h3>
+
+                        <h4>Backend: Python + FastAPI</h4>
+                        <div class="decision-rationale">
+                            <div class="pros-cons">
+                                <div class="pros">
+                                    <strong>Rationale:</strong>
+                                    <ul>
+                                        <li>Rapid development with strong typing</li>
+                                        <li>Excellent async/await support</li>
+                                        <li>Rich ecosystem for system administration</li>
+                                        <li>Automatic API documentation</li>
+                                        <li>Strong security framework integration</li>
+                                    </ul>
+                                </div>
+                                <div class="cons">
+                                    <strong>Trade-offs:</strong>
+                                    <ul>
+                                        <li>Memory usage vs. Java/Go</li>
+                                        <li>Runtime errors vs. compiled languages</li>
+                                        <li>GIL limitations for CPU-bound tasks</li>
+                                    </ul>
+                                </div>
+                            </div>
+                            <p><strong>Alternative Considered:</strong> Go (chosen Python for rapid development and library ecosystem)</p>
+                        </div>
+
+                        <h4>Frontend: React + TypeScript</h4>
+                        <div class="decision-rationale">
+                            <div class="pros-cons">
+                                <div class="pros">
+                                    <strong>Rationale:</strong>
+                                    <ul>
+                                        <li>Component-based architecture</li>
+                                        <li>Strong typing with TypeScript</li>
+                                        <li>Excellent developer experience</li>
+                                        <li>Rich ecosystem and community</li>
+                                        <li>Real-time capabilities with WebSocket</li>
+                                    </ul>
+                                </div>
+                                <div class="cons">
+                                    <strong>Trade-offs:</strong>
+                                    <ul>
+                                        <li>Bundle size vs. performance</li>
+                                        <li>Complexity vs. simpler frameworks</li>
+                                        <li>Learning curve for administrators</li>
+                                    </ul>
+                                </div>
+                            </div>
+                            <p><strong>Alternative Considered:</strong> Vue.js (chosen React for ecosystem maturity)</p>
+                        </div>
+
+                        <h4>Database: PostgreSQL</h4>
+                        <div class="decision-rationale">
+                            <div class="pros-cons">
+                                <div class="pros">
+                                    <strong>Rationale:</strong>
+                                    <ul>
+                                        <li>ACID compliance and reliability</li>
+                                        <li>Advanced JSON support (JSONB)</li>
+                                        <li>Excellent performance characteristics</li>
+                                        <li>Rich extension ecosystem</li>
+                                        <li>Strong security features</li>
+                                    </ul>
+                                </div>
+                                <div class="cons">
+                                    <strong>Trade-offs:</strong>
+                                    <ul>
+                                        <li>Operational complexity vs. SQLite</li>
+                                        <li>Resource usage vs. simpler databases</li>
+                                        <li>Learning curve for optimization</li>
+                                    </ul>
+                                </div>
+                            </div>
+                            <p><strong>Alternative Considered:</strong> MongoDB (chosen PostgreSQL for consistency and ACID guarantees)</p>
+                        </div>
+                    </div>
+
+                    <div class="decision">
+                        <h3>Communication Patterns</h3>
+
+                        <h4>mTLS for Agent-Server Communication</h4>
+                        <div class="decision-rationale">
+                            <strong>Rationale:</strong>
+                            <ul>
+                                <li>Strong authentication without passwords</li>
+                                <li>Encrypted communication by default</li>
+                                <li>Certificate-based identity management</li>
+                                <li>Protection against man-in-the-middle attacks</li>
+                            </ul>
+                            <strong>Implementation Challenges:</strong>
+                            <ul>
+                                <li>Certificate lifecycle management</li>
+                                <li>Initial agent enrollment complexity</li>
+                                <li>Certificate rotation procedures</li>
+                            </ul>
+                        </div>
+
+                        <h4>WebSocket for Real-time Updates</h4>
+                        <div class="decision-rationale">
+                            <strong>Rationale:</strong>
+                            <ul>
+                                <li>Low-latency bidirectional communication</li>
+                                <li>Efficient for frequent updates</li>
+                                <li>Better user experience than polling</li>
+                                <li>Reduced server load compared to HTTP polling</li>
+                            </ul>
+                            <strong>Considerations:</strong>
+                            <ul>
+                                <li>Connection management complexity</li>
+                                <li>Load balancer configuration requirements</li>
+                                <li>Fallback to HTTP for unreliable connections</li>
+                            </ul>
+                        </div>
+                    </div>
+
+                    <div class="decision">
+                        <h3>Data Architecture Decisions</h3>
+
+                        <h4>Event Sourcing for Critical Operations</h4>
+                        <div class="decision-rationale">
+                            <strong>Benefits:</strong>
+                            <ul>
+                                <li>Complete audit trail for compliance</li>
+                                <li>Ability to replay and debug issues</li>
+                                <li>Support for temporal queries</li>
+                                <li>Natural integration with CQRS</li>
+                            </ul>
+                            <strong>Scope Limitation:</strong>
+                            <p>Applied only to critical operations (task execution, configuration changes, security events) to avoid complexity and storage overhead for routine data.</p>
+                        </div>
+
+                        <h4>JSONB for Flexible Schema</h4>
+                        <div class="decision-rationale">
+                            <strong>Use Cases:</strong>
+                            <ul>
+                                <li>Agent metadata (platform-specific data)</li>
+                                <li>Task parameters (dynamic configuration)</li>
+                                <li>System inventory (varying hardware information)</li>
+                                <li>Metric labels (dimensional data)</li>
+                            </ul>
+                            <strong>Guidelines:</strong>
+                            <ul>
+                                <li>Use for truly dynamic data only</li>
+                                <li>Define clear schemas in application code</li>
+                                <li>Index frequently queried JSON fields</li>
+                                <li>Validate JSON structure at application layer</li>
+                            </ul>
+                        </div>
+                    </div>
+                </section>
+
+                <section class="quality-attributes">
+                    <h2>Quality Attributes</h2>
+
+                    <div class="quality-grid">
+                        <div class="quality-attribute">
+                            <h3>Performance</h3>
+                            <h4>Requirements:</h4>
+                            <ul>
+                                <li>API response time: &lt; 100ms (95th percentile)</li>
+                                <li>Agent command delivery: &lt; 5 seconds</li>
+                                <li>Real-time update latency: &lt; 1 second</li>
+                                <li>Support for 10,000+ concurrent agents</li>
+                            </ul>
+                            <h4>Design Strategies:</h4>
+                            <ul>
+                                <li>Asynchronous processing for I/O operations</li>
+                                <li>Database query optimization and indexing</li>
+                                <li>Caching layers for frequently accessed data</li>
+                                <li>Connection pooling and resource management</li>
+                            </ul>
+                        </div>
+
+                        <div class="quality-attribute">
+                            <h3>Scalability</h3>
+                            <h4>Horizontal Scaling:</h4>
+                            <ul>
+                                <li>Stateless application design</li>
+                                <li>Database read replicas</li>
+                                <li>Message queue clustering</li>
+                                <li>Load balancer distribution</li>
+                            </ul>
+                            <h4>Vertical Scaling:</h4>
+                            <ul>
+                                <li>Multi-threaded processing</li>
+                                <li>Efficient memory usage</li>
+                                <li>CPU optimization for hot paths</li>
+                                <li>Database connection pooling</li>
+                            </ul>
+                        </div>
+
+                        <div class="quality-attribute">
+                            <h3>Reliability</h3>
+                            <h4>Fault Tolerance:</h4>
+                            <ul>
+                                <li>Circuit breaker patterns</li>
+                                <li>Automatic retry mechanisms</li>
+                                <li>Graceful degradation</li>
+                                <li>Dead letter queue handling</li>
+                            </ul>
+                            <h4>Data Integrity:</h4>
+                            <ul>
+                                <li>ACID transaction guarantees</li>
+                                <li>Database constraint enforcement</li>
+                                <li>Application-level validation</li>
+                                <li>Backup and recovery procedures</li>
+                            </ul>
+                        </div>
+
+                        <div class="quality-attribute">
+                            <h3>Security</h3>
+                            <h4>Authentication & Authorization:</h4>
+                            <ul>
+                                <li>Multi-factor authentication support</li>
+                                <li>Role-based access control (RBAC)</li>
+                                <li>JWT token management</li>
+                                <li>Session security and timeout</li>
+                            </ul>
+                            <h4>Data Protection:</h4>
+                            <ul>
+                                <li>Encryption at rest and in transit</li>
+                                <li>Secure key management</li>
+                                <li>Data anonymization for logs</li>
+                                <li>Compliance with security standards</li>
+                            </ul>
+                        </div>
+
+                        <div class="quality-attribute">
+                            <h3>Maintainability</h3>
+                            <h4>Code Quality:</h4>
+                            <ul>
+                                <li>Comprehensive test coverage</li>
+                                <li>Static code analysis</li>
+                                <li>Consistent coding standards</li>
+                                <li>Documentation and commenting</li>
+                            </ul>
+                            <h4>Operational Support:</h4>
+                            <ul>
+                                <li>Comprehensive logging and monitoring</li>
+                                <li>Health check endpoints</li>
+                                <li>Configuration management</li>
+                                <li>Deployment automation</li>
+                            </ul>
+                        </div>
+
+                        <div class="quality-attribute">
+                            <h3>Usability</h3>
+                            <h4>User Experience:</h4>
+                            <ul>
+                                <li>Intuitive web interface design</li>
+                                <li>Responsive mobile-friendly layout</li>
+                                <li>Accessibility compliance (WCAG)</li>
+                                <li>Internationalization support</li>
+                            </ul>
+                            <h4>Administrator Experience:</h4>
+                            <ul>
+                                <li>Clear deployment documentation</li>
+                                <li>Automated configuration validation</li>
+                                <li>Self-diagnostic capabilities</li>
+                                <li>Comprehensive API documentation</li>
+                            </ul>
+                        </div>
+                    </div>
+                </section>
+
+                <section class="evolution-strategy">
+                    <h2>Architecture Evolution Strategy</h2>
+
+                    <div class="evolution-timeline">
+                        <h3>Planned Evolution Path</h3>
+
+                        <div class="evolution-phase">
+                            <h4>Phase 1: Foundation (Current)</h4>
+                            <ul>
+                                <li>Core agent-server communication</li>
+                                <li>Basic inventory and package management</li>
+                                <li>Web UI with essential features</li>
+                                <li>PostgreSQL for data persistence</li>
+                            </ul>
+                        </div>
+
+                        <div class="evolution-phase">
+                            <h4>Phase 2: Scale & Performance</h4>
+                            <ul>
+                                <li>Microservices decomposition</li>
+                                <li>Caching layer implementation</li>
+                                <li>Message queue clustering</li>
+                                <li>Advanced monitoring and alerting</li>
+                            </ul>
+                        </div>
+
+                        <div class="evolution-phase">
+                            <h4>Phase 3: Advanced Features</h4>
+                            <ul>
+                                <li>Machine learning for predictive maintenance</li>
+                                <li>Advanced workflow orchestration</li>
+                                <li>Multi-tenant architecture</li>
+                                <li>Edge computing capabilities</li>
+                            </ul>
+                        </div>
+
+                        <div class="evolution-phase">
+                            <h4>Phase 4: Enterprise Integration</h4>
+                            <ul>
+                                <li>Advanced compliance and governance</li>
+                                <li>Integration platform capabilities</li>
+                                <li>Advanced analytics and reporting</li>
+                                <li>Hybrid cloud management</li>
+                            </ul>
+                        </div>
+                    </div>
+
+                    <h3>Architectural Flexibility</h3>
+                    <div class="flexibility-strategies">
+                        <div class="strategy">
+                            <h4>Plugin Architecture</h4>
+                            <p>Extensible plugin system for custom functionality without core modifications.</p>
+                        </div>
+                        <div class="strategy">
+                            <h4>Configuration-Driven Behavior</h4>
+                            <p>Extensive configuration options to adapt behavior without code changes.</p>
+                        </div>
+                        <div class="strategy">
+                            <h4>API Versioning</h4>
+                            <p>Structured approach to API evolution maintaining backward compatibility.</p>
+                        </div>
+                        <div class="strategy">
+                            <h4>Modular Deployment</h4>
+                            <p>Optional components that can be enabled/disabled based on requirements.</p>
+                        </div>
+                    </div>
+                </section>
+
+                <section class="next-steps">
+                    <h2>Next Steps</h2>
+                    <p>To understand how these principles are implemented:</p>
+                    <ol>
+                        <li><strong><a href="rest-api-design.html">REST API Design</a>:</strong> See API-first principles in action</li>
+                        <li><strong><a href="database-schema.html">Database Schema</a>:</strong> Explore data architecture decisions</li>
+                        <li><strong><a href="websocket-protocol.html">WebSocket Protocol</a>:</strong> Real-time communication implementation</li>
+                        <li><strong><a href="performance-metrics.html">Performance Metrics</a>:</strong> Observability and monitoring practices</li>
+                        <li><strong><a href="scaling-strategies.html">Scaling Strategies</a>:</strong> How to scale the system effectively</li>
+                    </ol>
+                </section>
+            </div>
+
+            <div class="docs-footer">
+                <div class="docs-navigation">
+                    <h3>Navigation</h3>
+                    <div class="nav-links">
+                        <a href="database-schema.html" class="nav-link">← Database Schema</a>
+                        <a href="rest-api-design.html" class="nav-link">REST API Design →</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <footer class="site-footer">
+        <div class="container">
+            <div class="footer-bottom">
+                <p>&copy; 2024 SysManage. All rights reserved.</p>
+            </div>
+        </div>
+    </footer>
+
+    <script src="../../assets/js/main.js"></script>
+    <script src="../../assets/js/i18n.js"></script>
+</body>
+</html>

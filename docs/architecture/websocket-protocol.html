@@ -1,0 +1,1040 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WebSocket Protocol - SysManage Architecture</title>
+    <meta name="description" content="Real-time communication protocol, message types, connection management, and WebSocket implementation in SysManage.">
+    <link rel="stylesheet" href="../../assets/css/style.css">
+    <link rel="icon" type="image/svg+xml" href="../../assets/images/favicon.svg">
+</head>
+<body>
+    <header class="site-header">
+        <nav class="navbar">
+            <div class="container">
+                <div class="nav-brand">
+                    <a href="../../">
+                        <img src="../../assets/images/sysmanage-logo.svg" alt="SysManage" class="logo">
+                    </a>
+                </div>
+                <div class="nav-menu">
+                    <a href="../../#features" class="nav-link">Features</a>
+                    <a href="../../#getting-started" class="nav-link">Getting Started</a>
+                    <a href="../" class="nav-link active">Documentation</a>
+                    <a href="https://github.com/bceverly/sysmanage" class="nav-link" target="_blank">GitHub</a>
+                </div>
+            </div>
+        </nav>
+    </header>
+
+    <main class="docs-main">
+        <div class="container">
+            <div class="docs-breadcrumb">
+                <a href="../">Documentation</a> > <a href="./">Architecture</a> > <span>WebSocket Protocol</span>
+            </div>
+
+            <div class="docs-header">
+                <h1>WebSocket Protocol</h1>
+                <p>Real-time communication protocol, message types, connection management, and WebSocket implementation in SysManage.</p>
+            </div>
+
+            <div class="docs-content">
+                <section class="overview">
+                    <h2>Protocol Overview</h2>
+                    <p>SysManage uses WebSocket connections to provide real-time communication between the web interface and server, enabling instant updates for system status, task progress, agent connectivity, and alerts without polling.</p>
+
+                    <div class="architecture-diagram">
+                        <h3>WebSocket Communication Flow</h3>
+                        <pre class="ascii-diagram">
+┌─────────────┐         ┌─────────────┐         ┌─────────────┐
+│   Browser   │◀───────▶│  WebSocket  │◀───────▶│   Server    │
+│   Client    │  Events │   Gateway   │ Events  │  Backend    │
+└─────────────┘         └─────────────┘         └─────────────┘
+       │                       │                       │
+       │ HTTP Upgrade          │ Connection Pool       │ Event Bus
+       │                       │                       │
+       ▼                       ▼                       ▼
+┌─────────────┐         ┌─────────────┐         ┌─────────────┐
+│ Connection  │         │ Message     │         │ Business    │
+│ Management  │         │ Routing     │         │ Logic       │
+│             │         │             │         │ Events      │
+│ • Auth      │         │ • Broadcast │         │             │
+│ • Heartbeat │         │ • Unicast   │         │ • Tasks     │
+│ • Reconnect │         │ • Room Mgmt │         │ • Agents    │
+└─────────────┘         └─────────────┘         └─────────────┘
+                        </pre>
+                    </div>
+
+                    <h3>Key Features</h3>
+                    <ul>
+                        <li><strong>Real-time Updates:</strong> Instant propagation of system changes</li>
+                        <li><strong>Bi-directional Communication:</strong> Client can send commands and receive events</li>
+                        <li><strong>Connection Management:</strong> Automatic reconnection and heartbeat monitoring</li>
+                        <li><strong>Room-based Broadcasting:</strong> Targeted message delivery based on user permissions</li>
+                        <li><strong>Message Queuing:</strong> Reliable delivery with offline message storage</li>
+                    </ul>
+                </section>
+
+                <section class="connection-lifecycle">
+                    <h2>Connection Lifecycle</h2>
+
+                    <div class="lifecycle-diagram">
+                        <h3>Connection State Machine</h3>
+                        <pre class="ascii-diagram">
+                    ┌─────────────────┐
+                    │   DISCONNECTED  │
+                    │                 │
+                    └─────────┬───────┘
+                              │ connect()
+                              ▼
+                    ┌─────────────────┐
+                    │   CONNECTING    │
+                    │                 │
+                    └─────┬─────┬─────┘
+                          │     │
+               success    │     │ failure
+                          ▼     ▼
+               ┌─────────────┐ ┌─────────────┐
+               │ CONNECTED   │ │ FAILED      │
+               │             │ │             │
+               └─────┬─┬─────┘ └─────┬───────┘
+                     │ │             │
+          heartbeat  │ │ disconnect  │ retry
+          timeout    │ │             │
+                     ▼ ▼             ▼
+               ┌─────────────┐ ┌─────────────┐
+               │ RECONNECTING│ │ RETRYING    │
+               │             │ │             │
+               └─────────────┘ └─────────────┘
+                        </pre>
+                    </div>
+
+                    <div class="lifecycle-phases">
+                        <div class="phase">
+                            <h4>1. Connection Establishment</h4>
+                            <pre class="code-example">
+// Client-side connection establishment
+const ws = new WebSocket('wss://sysmanage.example.com/ws');
+
+// Authentication via query parameter or message
+const authToken = getJWTToken();
+const wsUrl = `wss://sysmanage.example.com/ws?token=${authToken}`;
+
+// Connection events
+ws.onopen = (event) => {
+    console.log('WebSocket connected');
+    sendMessage({
+        type: 'auth',
+        token: authToken
+    });
+};
+                            </pre>
+                        </div>
+
+                        <div class="phase">
+                            <h4>2. Authentication & Authorization</h4>
+                            <pre class="code-example">
+// Server-side authentication flow
+async def handle_connection(websocket, path):
+    try:
+        # Extract token from query params or first message
+        token = get_auth_token(websocket)
+
+        # Validate JWT token
+        user = await authenticate_token(token)
+        if not user:
+            await websocket.close(code=4001, reason="Unauthorized")
+            return
+
+        # Store user context
+        websocket.user = user
+        websocket.permissions = await get_user_permissions(user)
+
+        # Join appropriate rooms based on permissions
+        await join_user_rooms(websocket, user)
+
+        # Send welcome message
+        await send_message(websocket, {
+            'type': 'welcome',
+            'user_id': user.id,
+            'permissions': websocket.permissions
+        })
+
+    except Exception as e:
+        await websocket.close(code=4000, reason="Authentication failed")
+                            </pre>
+                        </div>
+
+                        <div class="phase">
+                            <h4>3. Heartbeat & Keep-alive</h4>
+                            <pre class="code-example">
+// Client-side heartbeat implementation
+class WebSocketManager {
+    constructor(url) {
+        this.url = url;
+        this.heartbeatInterval = 30000; // 30 seconds
+        this.reconnectDelay = 5000;     // 5 seconds
+        this.maxReconnectAttempts = 10;
+    }
+
+    startHeartbeat() {
+        this.heartbeatTimer = setInterval(() => {
+            if (this.ws.readyState === WebSocket.OPEN) {
+                this.send({
+                    type: 'ping',
+                    timestamp: Date.now()
+                });
+            }
+        }, this.heartbeatInterval);
+    }
+
+    handlePong(message) {
+        const latency = Date.now() - message.timestamp;
+        console.log(`Heartbeat latency: ${latency}ms`);
+    }
+}
+                            </pre>
+                        </div>
+
+                        <div class="phase">
+                            <h4>4. Graceful Disconnection</h4>
+                            <pre class="code-example">
+// Server-side cleanup
+async def handle_disconnect(websocket):
+    try:
+        # Remove from all rooms
+        await leave_all_rooms(websocket)
+
+        # Clean up user session
+        await cleanup_user_session(websocket.user)
+
+        # Log disconnection
+        logger.info(f"User {websocket.user.id} disconnected")
+
+    except Exception as e:
+        logger.error(f"Error during disconnect cleanup: {e}")
+                            </pre>
+                        </div>
+                    </div>
+                </section>
+
+                <section class="message-protocol">
+                    <h2>Message Protocol</h2>
+
+                    <div class="message-structure">
+                        <h3>Message Format</h3>
+                        <p>All WebSocket messages use JSON format with a standardized envelope:</p>
+
+                        <pre class="json-schema">
+{
+    "id": "uuid-v4",                    // Unique message ID
+    "type": "message_type",             // Message type identifier
+    "timestamp": "2024-01-15T10:30:00Z", // ISO 8601 timestamp
+    "sender": "user_id",                // Sender identifier
+    "room": "room_name",                // Target room (optional)
+    "data": {                           // Message payload
+        // Type-specific data
+    },
+    "metadata": {                       // Optional metadata
+        "correlation_id": "uuid",       // For request/response correlation
+        "priority": "high|normal|low",  // Message priority
+        "ttl": 300                      // Time to live in seconds
+    }
+}
+                        </pre>
+
+                        <h3>Message Types</h3>
+                        <div class="message-types">
+                            <div class="message-category">
+                                <h4>System Messages</h4>
+                                <ul>
+                                    <li><strong>ping/pong:</strong> Heartbeat mechanism</li>
+                                    <li><strong>auth:</strong> Authentication credentials</li>
+                                    <li><strong>welcome:</strong> Connection confirmation</li>
+                                    <li><strong>error:</strong> Error notifications</li>
+                                    <li><strong>subscribe/unsubscribe:</strong> Room management</li>
+                                </ul>
+                            </div>
+
+                            <div class="message-category">
+                                <h4>Agent Messages</h4>
+                                <ul>
+                                    <li><strong>agent_connected:</strong> Agent comes online</li>
+                                    <li><strong>agent_disconnected:</strong> Agent goes offline</li>
+                                    <li><strong>agent_updated:</strong> Agent information changed</li>
+                                    <li><strong>agent_status:</strong> Status update from agent</li>
+                                </ul>
+                            </div>
+
+                            <div class="message-category">
+                                <h4>Task Messages</h4>
+                                <ul>
+                                    <li><strong>task_created:</strong> New task scheduled</li>
+                                    <li><strong>task_started:</strong> Task execution began</li>
+                                    <li><strong>task_progress:</strong> Task progress update</li>
+                                    <li><strong>task_completed:</strong> Task finished</li>
+                                    <li><strong>task_failed:</strong> Task execution failed</li>
+                                </ul>
+                            </div>
+
+                            <div class="message-category">
+                                <h4>Alert Messages</h4>
+                                <ul>
+                                    <li><strong>alert_triggered:</strong> New alert generated</li>
+                                    <li><strong>alert_acknowledged:</strong> Alert acknowledged</li>
+                                    <li><strong>alert_resolved:</strong> Alert resolved</li>
+                                    <li><strong>alert_escalated:</strong> Alert escalated</li>
+                                </ul>
+                            </div>
+
+                            <div class="message-category">
+                                <h4>Inventory Messages</h4>
+                                <ul>
+                                    <li><strong>package_updated:</strong> Package inventory changed</li>
+                                    <li><strong>service_status:</strong> Service status changed</li>
+                                    <li><strong>metrics_update:</strong> New metrics available</li>
+                                    <li><strong>inventory_refresh:</strong> Full inventory update</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="message-examples">
+                        <h3>Message Examples</h3>
+
+                        <h4>Agent Status Update</h4>
+                        <pre class="json-example">
+{
+    "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+    "type": "agent_status",
+    "timestamp": "2024-01-15T10:30:00Z",
+    "sender": "agent-001",
+    "room": "agents",
+    "data": {
+        "agent_id": 123,
+        "hostname": "web-server-01",
+        "status": "online",
+        "last_seen": "2024-01-15T10:29:45Z",
+        "cpu_usage": 15.2,
+        "memory_usage": 68.7,
+        "disk_usage": 45.1,
+        "network_io": {
+            "bytes_sent": 1048576,
+            "bytes_received": 2097152
+        }
+    },
+    "metadata": {
+        "priority": "normal"
+    }
+}
+                        </pre>
+
+                        <h4>Task Progress Update</h4>
+                        <pre class="json-example">
+{
+    "id": "b2c3d4e5-f6g7-8901-bcde-f12345678901",
+    "type": "task_progress",
+    "timestamp": "2024-01-15T10:35:00Z",
+    "sender": "task-executor",
+    "room": "tasks",
+    "data": {
+        "task_id": 456,
+        "title": "Update packages on web servers",
+        "progress": 65,
+        "status": "running",
+        "current_step": "Installing nginx update",
+        "completed_agents": 13,
+        "total_agents": 20,
+        "estimated_completion": "2024-01-15T10:42:00Z",
+        "logs": [
+            {
+                "timestamp": "2024-01-15T10:34:30Z",
+                "level": "info",
+                "message": "Package nginx updated successfully on web-server-03"
+            }
+        ]
+    },
+    "metadata": {
+        "correlation_id": "task-456-progress",
+        "priority": "high"
+    }
+}
+                        </pre>
+
+                        <h4>Alert Notification</h4>
+                        <pre class="json-example">
+{
+    "id": "c3d4e5f6-g7h8-9012-cdef-123456789012",
+    "type": "alert_triggered",
+    "timestamp": "2024-01-15T10:40:00Z",
+    "sender": "alert-manager",
+    "room": "alerts",
+    "data": {
+        "alert_id": 789,
+        "severity": "critical",
+        "title": "High CPU usage detected",
+        "description": "CPU usage exceeded 90% threshold",
+        "agent_id": 123,
+        "hostname": "web-server-01",
+        "metric": {
+            "name": "cpu_usage",
+            "current_value": 94.7,
+            "threshold": 90.0,
+            "unit": "percent"
+        },
+        "actions": [
+            {
+                "type": "escalate",
+                "delay": 300,
+                "target": "ops-team"
+            }
+        ]
+    },
+    "metadata": {
+        "priority": "high",
+        "ttl": 3600
+    }
+}
+                        </pre>
+                    </div>
+                </section>
+
+                <section class="room-management">
+                    <h2>Room Management</h2>
+
+                    <div class="room-system">
+                        <h3>Room-based Broadcasting</h3>
+                        <p>SysManage uses a room-based system to efficiently deliver messages to relevant users based on their permissions and interests.</p>
+
+                        <h4>Room Types</h4>
+                        <div class="room-types">
+                            <div class="room-type">
+                                <h5>Global Rooms</h5>
+                                <ul>
+                                    <li><strong>system:</strong> System-wide notifications</li>
+                                    <li><strong>alerts:</strong> All alert notifications</li>
+                                    <li><strong>maintenance:</strong> Maintenance announcements</li>
+                                </ul>
+                            </div>
+
+                            <div class="room-type">
+                                <h5>Entity-based Rooms</h5>
+                                <ul>
+                                    <li><strong>agents:</strong> All agent status updates</li>
+                                    <li><strong>agent-{id}:</strong> Specific agent updates</li>
+                                    <li><strong>tasks:</strong> All task updates</li>
+                                    <li><strong>task-{id}:</strong> Specific task progress</li>
+                                </ul>
+                            </div>
+
+                            <div class="room-type">
+                                <h5>Group-based Rooms</h5>
+                                <ul>
+                                    <li><strong>group-{id}:</strong> Agent group updates</li>
+                                    <li><strong>team-{id}:</strong> Team-specific notifications</li>
+                                    <li><strong>role-{name}:</strong> Role-based announcements</li>
+                                </ul>
+                            </div>
+
+                            <div class="room-type">
+                                <h5>User Rooms</h5>
+                                <ul>
+                                    <li><strong>user-{id}:</strong> Personal notifications</li>
+                                    <li><strong>session-{id}:</strong> Session-specific messages</li>
+                                </ul>
+                            </div>
+                        </div>
+
+                        <h4>Room Subscription Management</h4>
+                        <pre class="code-example">
+// Client-side room subscription
+class RoomManager {
+    constructor(wsManager) {
+        this.wsManager = wsManager;
+        this.subscribedRooms = new Set();
+    }
+
+    subscribe(roomName) {
+        if (!this.subscribedRooms.has(roomName)) {
+            this.wsManager.send({
+                type: 'subscribe',
+                data: { room: roomName }
+            });
+            this.subscribedRooms.add(roomName);
+        }
+    }
+
+    unsubscribe(roomName) {
+        if (this.subscribedRooms.has(roomName)) {
+            this.wsManager.send({
+                type: 'unsubscribe',
+                data: { room: roomName }
+            });
+            this.subscribedRooms.delete(roomName);
+        }
+    }
+
+    // Automatically subscribe based on current page
+    subscribeForPage(page) {
+        switch (page) {
+            case 'dashboard':
+                this.subscribe('system');
+                this.subscribe('alerts');
+                this.subscribe('agents');
+                break;
+            case 'agent-detail':
+                const agentId = getCurrentAgentId();
+                this.subscribe(`agent-${agentId}`);
+                break;
+            case 'tasks':
+                this.subscribe('tasks');
+                break;
+        }
+    }
+}
+                        </pre>
+
+                        <h4>Server-side Room Management</h4>
+                        <pre class="code-example">
+# Python server-side room management
+class WebSocketRoomManager:
+    def __init__(self):
+        self.rooms = defaultdict(set)  # room_name -> set of websockets
+        self.user_rooms = defaultdict(set)  # user_id -> set of room_names
+
+    async def join_room(self, websocket, room_name):
+        # Check permissions
+        if not await self.can_join_room(websocket.user, room_name):
+            await self.send_error(websocket, "Permission denied")
+            return False
+
+        # Add to room
+        self.rooms[room_name].add(websocket)
+        self.user_rooms[websocket.user.id].add(room_name)
+
+        logger.info(f"User {websocket.user.id} joined room {room_name}")
+        return True
+
+    async def leave_room(self, websocket, room_name):
+        self.rooms[room_name].discard(websocket)
+        self.user_rooms[websocket.user.id].discard(room_name)
+
+    async def broadcast_to_room(self, room_name, message):
+        if room_name in self.rooms:
+            websockets = self.rooms[room_name].copy()
+            await asyncio.gather(
+                *[self.send_message(ws, message) for ws in websockets],
+                return_exceptions=True
+            )
+
+    async def can_join_room(self, user, room_name):
+        # Implement permission logic
+        if room_name.startswith('agent-'):
+            agent_id = int(room_name.split('-')[1])
+            return await user.can_view_agent(agent_id)
+        elif room_name.startswith('group-'):
+            group_id = int(room_name.split('-')[1])
+            return await user.can_view_group(group_id)
+        elif room_name in ['system', 'alerts']:
+            return user.has_permission('view_system')
+        return False
+                        </pre>
+                    </div>
+                </section>
+
+                <section class="connection-scaling">
+                    <h2>Connection Scaling & Load Balancing</h2>
+
+                    <div class="scaling-architecture">
+                        <h3>Horizontal Scaling Architecture</h3>
+                        <pre class="ascii-diagram">
+                    Load Balancer
+                    (Sticky Sessions)
+                           │
+        ┌──────────────────┼──────────────────┐
+        │                  │                  │
+        ▼                  ▼                  ▼
+┌──────────────┐ ┌──────────────┐ ┌──────────────┐
+│ WebSocket    │ │ WebSocket    │ │ WebSocket    │
+│ Server 1     │ │ Server 2     │ │ Server 3     │
+│              │ │              │ │              │
+│ • 10k conns  │ │ • 10k conns  │ │ • 10k conns  │
+└──────┬───────┘ └──────┬───────┘ └──────┬───────┘
+       │                │                │
+       └────────────────┼────────────────┘
+                        │
+                        ▼
+                ┌──────────────┐
+                │    Redis     │
+                │   Message    │
+                │    Bus       │
+                └──────────────┘
+                        │
+                        ▼
+                ┌──────────────┐
+                │  Application │
+                │   Servers    │
+                │              │
+                └──────────────┘
+                        </pre>
+
+                        <h4>Scaling Strategies</h4>
+                        <div class="scaling-strategies">
+                            <div class="strategy">
+                                <h5>Session Affinity</h5>
+                                <ul>
+                                    <li>Load balancer routes users to same server</li>
+                                    <li>Maintains WebSocket connection state</li>
+                                    <li>Reduces cross-server message routing</li>
+                                </ul>
+                            </div>
+
+                            <div class="strategy">
+                                <h5>Redis Message Bus</h5>
+                                <ul>
+                                    <li>Pub/Sub for cross-server communication</li>
+                                    <li>Room state synchronization</li>
+                                    <li>Message persistence for offline users</li>
+                                </ul>
+                            </div>
+
+                            <div class="strategy">
+                                <h5>Connection Pooling</h5>
+                                <ul>
+                                    <li>Efficient memory usage per connection</li>
+                                    <li>Connection lifecycle management</li>
+                                    <li>Automatic cleanup of stale connections</li>
+                                </ul>
+                            </div>
+                        </div>
+
+                        <h4>Redis Integration</h4>
+                        <pre class="code-example">
+# Redis-based cross-server message routing
+class RedisMessageBus:
+    def __init__(self, redis_client):
+        self.redis = redis_client
+        self.local_rooms = {}
+
+    async def publish_to_room(self, room_name, message):
+        # Publish to Redis for all servers
+        await self.redis.publish(f"room:{room_name}", json.dumps(message))
+
+    async def subscribe_to_rooms(self):
+        # Subscribe to Redis room channels
+        pubsub = self.redis.pubsub()
+        await pubsub.psubscribe("room:*")
+
+        async for message in pubsub.listen():
+            if message['type'] == 'pmessage':
+                room_name = message['channel'].decode('utf-8').split(':', 1)[1]
+                data = json.loads(message['data'])
+                await self.deliver_to_local_room(room_name, data)
+
+    async def deliver_to_local_room(self, room_name, message):
+        # Deliver to local WebSocket connections
+        if room_name in self.local_rooms:
+            websockets = self.local_rooms[room_name]
+            await asyncio.gather(
+                *[ws.send(json.dumps(message)) for ws in websockets],
+                return_exceptions=True
+            )
+                        </pre>
+                    </div>
+
+                    <div class="performance-optimization">
+                        <h3>Performance Optimization</h3>
+
+                        <h4>Connection Optimization</h4>
+                        <ul>
+                            <li><strong>Connection Limits:</strong> Per-user and per-IP connection limits</li>
+                            <li><strong>Memory Management:</strong> Efficient message buffering and cleanup</li>
+                            <li><strong>CPU Optimization:</strong> Async processing for all I/O operations</li>
+                            <li><strong>Network Optimization:</strong> Message compression for large payloads</li>
+                        </ul>
+
+                        <h4>Message Optimization</h4>
+                        <pre class="code-example">
+// Client-side message optimization
+class MessageOptimizer {
+    constructor() {
+        this.messageQueue = [];
+        this.batchSize = 10;
+        this.batchTimeout = 100; // 100ms
+    }
+
+    // Batch multiple messages for efficiency
+    queueMessage(message) {
+        this.messageQueue.push(message);
+
+        if (this.messageQueue.length >= this.batchSize) {
+            this.flushQueue();
+        } else if (this.messageQueue.length === 1) {
+            // Start timeout for first message in queue
+            setTimeout(() => this.flushQueue(), this.batchTimeout);
+        }
+    }
+
+    flushQueue() {
+        if (this.messageQueue.length > 0) {
+            const batch = {
+                type: 'batch',
+                messages: this.messageQueue.splice(0)
+            };
+            this.wsManager.send(batch);
+        }
+    }
+
+    // Compress large messages
+    compressMessage(message) {
+        const serialized = JSON.stringify(message);
+        if (serialized.length > 1024) { // 1KB threshold
+            return {
+                type: 'compressed',
+                data: pako.deflate(serialized, { to: 'string' })
+            };
+        }
+        return message;
+    }
+}
+                        </pre>
+
+                        <h4>Monitoring & Metrics</h4>
+                        <div class="metrics-grid">
+                            <div class="metric-category">
+                                <h5>Connection Metrics</h5>
+                                <ul>
+                                    <li>Active connections per server</li>
+                                    <li>Connection establishment rate</li>
+                                    <li>Connection duration distribution</li>
+                                    <li>Reconnection frequency</li>
+                                </ul>
+                            </div>
+
+                            <div class="metric-category">
+                                <h5>Message Metrics</h5>
+                                <ul>
+                                    <li>Messages per second throughput</li>
+                                    <li>Message delivery latency</li>
+                                    <li>Message queue depth</li>
+                                    <li>Failed message delivery rate</li>
+                                </ul>
+                            </div>
+
+                            <div class="metric-category">
+                                <h5>Resource Metrics</h5>
+                                <ul>
+                                    <li>Memory usage per connection</li>
+                                    <li>CPU usage for WebSocket handling</li>
+                                    <li>Network bandwidth utilization</li>
+                                    <li>Redis memory usage</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <section class="error-handling">
+                    <h2>Error Handling & Resilience</h2>
+
+                    <div class="error-strategies">
+                        <h3>Client-side Error Handling</h3>
+
+                        <h4>Automatic Reconnection</h4>
+                        <pre class="code-example">
+class ResilientWebSocket {
+    constructor(url, options = {}) {
+        this.url = url;
+        this.options = {
+            maxReconnectAttempts: 10,
+            reconnectDelay: 1000,
+            maxReconnectDelay: 30000,
+            backoffFactor: 1.5,
+            ...options
+        };
+
+        this.reconnectAttempts = 0;
+        this.connectionState = 'disconnected';
+        this.messageQueue = [];
+    }
+
+    connect() {
+        return new Promise((resolve, reject) => {
+            this.ws = new WebSocket(this.url);
+            this.connectionState = 'connecting';
+
+            this.ws.onopen = (event) => {
+                this.connectionState = 'connected';
+                this.reconnectAttempts = 0;
+                this.flushMessageQueue();
+                resolve(event);
+            };
+
+            this.ws.onerror = (error) => {
+                console.error('WebSocket error:', error);
+                this.handleConnectionError();
+            };
+
+            this.ws.onclose = (event) => {
+                this.connectionState = 'disconnected';
+                if (!event.wasClean) {
+                    this.scheduleReconnect();
+                }
+            };
+        });
+    }
+
+    handleConnectionError() {
+        if (this.reconnectAttempts < this.options.maxReconnectAttempts) {
+            this.scheduleReconnect();
+        } else {
+            this.emit('max_reconnect_attempts_reached');
+        }
+    }
+
+    scheduleReconnect() {
+        const delay = Math.min(
+            this.options.reconnectDelay * Math.pow(this.options.backoffFactor, this.reconnectAttempts),
+            this.options.maxReconnectDelay
+        );
+
+        setTimeout(() => {
+            this.reconnectAttempts++;
+            this.connect();
+        }, delay);
+    }
+
+    send(message) {
+        if (this.connectionState === 'connected') {
+            this.ws.send(JSON.stringify(message));
+        } else {
+            // Queue messages while disconnected
+            this.messageQueue.push(message);
+        }
+    }
+
+    flushMessageQueue() {
+        while (this.messageQueue.length > 0) {
+            const message = this.messageQueue.shift();
+            this.ws.send(JSON.stringify(message));
+        }
+    }
+}
+                        </pre>
+
+                        <h4>Message Acknowledgment</h4>
+                        <pre class="code-example">
+class ReliableMessageSender {
+    constructor(wsManager) {
+        this.wsManager = wsManager;
+        this.pendingMessages = new Map();
+        this.ackTimeout = 5000; // 5 seconds
+    }
+
+    sendReliable(message) {
+        const messageId = this.generateMessageId();
+        message.id = messageId;
+        message.requiresAck = true;
+
+        // Store for potential retry
+        this.pendingMessages.set(messageId, {
+            message,
+            timestamp: Date.now(),
+            retryCount: 0
+        });
+
+        // Send message
+        this.wsManager.send(message);
+
+        // Set timeout for acknowledgment
+        setTimeout(() => {
+            this.handleAckTimeout(messageId);
+        }, this.ackTimeout);
+
+        return messageId;
+    }
+
+    handleAck(ackMessage) {
+        const messageId = ackMessage.ackId;
+        if (this.pendingMessages.has(messageId)) {
+            this.pendingMessages.delete(messageId);
+        }
+    }
+
+    handleAckTimeout(messageId) {
+        const pending = this.pendingMessages.get(messageId);
+        if (pending && pending.retryCount < 3) {
+            pending.retryCount++;
+            this.wsManager.send(pending.message);
+
+            // Reschedule timeout
+            setTimeout(() => {
+                this.handleAckTimeout(messageId);
+            }, this.ackTimeout);
+        } else {
+            // Give up after 3 retries
+            this.pendingMessages.delete(messageId);
+            this.handleMessageFailed(messageId);
+        }
+    }
+}
+                        </pre>
+
+                        <h3>Server-side Error Handling</h3>
+
+                        <h4>Circuit Breaker for External Dependencies</h4>
+                        <pre class="code-example">
+class WebSocketCircuitBreaker:
+    def __init__(self, failure_threshold=5, recovery_timeout=60):
+        self.failure_threshold = failure_threshold
+        self.recovery_timeout = recovery_timeout
+        self.failure_count = 0
+        self.last_failure_time = None
+        self.state = 'closed'  # closed, open, half-open
+
+    async def call_protected(self, func, *args, **kwargs):
+        if self.state == 'open':
+            if self.should_attempt_reset():
+                self.state = 'half-open'
+            else:
+                raise CircuitBreakerOpenError("Circuit breaker is open")
+
+        try:
+            result = await func(*args, **kwargs)
+            self.on_success()
+            return result
+        except Exception as e:
+            self.on_failure()
+            raise
+
+    def on_success(self):
+        self.failure_count = 0
+        self.state = 'closed'
+
+    def on_failure(self):
+        self.failure_count += 1
+        self.last_failure_time = time.time()
+
+        if self.failure_count >= self.failure_threshold:
+            self.state = 'open'
+
+    def should_attempt_reset(self):
+        return (time.time() - self.last_failure_time) >= self.recovery_timeout
+
+# Usage in WebSocket handler
+breaker = WebSocketCircuitBreaker()
+
+async def send_to_external_service(data):
+    try:
+        await breaker.call_protected(external_api_call, data)
+    except CircuitBreakerOpenError:
+        # Use cached data or alternative approach
+        await send_cached_response(data)
+                        </pre>
+
+                        <h4>Graceful Degradation</h4>
+                        <ul>
+                            <li><strong>Fallback to HTTP:</strong> When WebSocket fails, fall back to HTTP polling</li>
+                            <li><strong>Reduced Functionality:</strong> Disable real-time features during high load</li>
+                            <li><strong>Cached Responses:</strong> Serve cached data when live data unavailable</li>
+                            <li><strong>Queue Overflow Handling:</strong> Drop low-priority messages when queues full</li>
+                        </ul>
+                    </div>
+                </section>
+
+                <section class="security-considerations">
+                    <h2>Security Considerations</h2>
+
+                    <div class="security-measures">
+                        <h3>Authentication & Authorization</h3>
+                        <ul>
+                            <li><strong>JWT Token Validation:</strong> Every WebSocket connection validates JWT tokens</li>
+                            <li><strong>Permission-based Rooms:</strong> Users can only join rooms they have permission for</li>
+                            <li><strong>Token Refresh:</strong> Automatic token refresh for long-lived connections</li>
+                            <li><strong>Session Management:</strong> Tracking and management of active WebSocket sessions</li>
+                        </ul>
+
+                        <h3>Rate Limiting & Abuse Prevention</h3>
+                        <pre class="code-example">
+class WebSocketRateLimiter:
+    def __init__(self):
+        self.connections_per_ip = defaultdict(int)
+        self.messages_per_user = defaultdict(list)
+        self.max_connections_per_ip = 10
+        self.max_messages_per_minute = 100
+
+    def check_connection_limit(self, ip_address):
+        if self.connections_per_ip[ip_address] >= self.max_connections_per_ip:
+            raise ConnectionLimitExceeded(f"Too many connections from {ip_address}")
+        return True
+
+    def check_message_rate(self, user_id):
+        now = time.time()
+        user_messages = self.messages_per_user[user_id]
+
+        # Remove messages older than 1 minute
+        user_messages[:] = [msg_time for msg_time in user_messages
+                           if now - msg_time < 60]
+
+        if len(user_messages) >= self.max_messages_per_minute:
+            raise RateLimitExceeded(f"Message rate limit exceeded for user {user_id}")
+
+        user_messages.append(now)
+        return True
+                        </pre>
+
+                        <h3>Data Validation & Sanitization</h3>
+                        <ul>
+                            <li><strong>Message Schema Validation:</strong> All incoming messages validated against schemas</li>
+                            <li><strong>Input Sanitization:</strong> User input sanitized to prevent injection attacks</li>
+                            <li><strong>Size Limits:</strong> Maximum message size limits to prevent DoS</li>
+                            <li><strong>Content Filtering:</strong> Filtering of potentially malicious content</li>
+                        </ul>
+
+                        <h3>Monitoring & Alerting</h3>
+                        <ul>
+                            <li><strong>Anomaly Detection:</strong> Detection of unusual connection patterns</li>
+                            <li><strong>Security Event Logging:</strong> Comprehensive logging of security events</li>
+                            <li><strong>Real-time Alerts:</strong> Immediate alerts for security violations</li>
+                            <li><strong>Forensic Capabilities:</strong> Message history for security investigations</li>
+                        </ul>
+                    </div>
+                </section>
+
+                <section class="next-steps">
+                    <h2>Next Steps</h2>
+                    <p>To explore related WebSocket implementation topics:</p>
+                    <ol>
+                        <li><strong><a href="rest-api-design.html">REST API Design</a>:</strong> Understand how WebSocket complements the REST API</li>
+                        <li><strong><a href="performance-metrics.html">Performance Metrics</a>:</strong> Learn about WebSocket performance monitoring</li>
+                        <li><strong><a href="design-principles.html">Design Principles</a>:</strong> See how real-time communication fits the overall architecture</li>
+                        <li><strong><a href="database-schema.html">Database Schema</a>:</strong> Understand data flow from database to WebSocket</li>
+                        <li><strong><a href="scaling-strategies.html">Scaling Strategies</a>:</strong> Scale WebSocket infrastructure effectively</li>
+                    </ol>
+                </section>
+            </div>
+
+            <div class="docs-footer">
+                <div class="docs-navigation">
+                    <h3>Navigation</h3>
+                    <div class="nav-links">
+                        <a href="design-principles.html" class="nav-link">← Design Principles</a>
+                        <a href="performance-metrics.html" class="nav-link">Performance Metrics →</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <footer class="site-footer">
+        <div class="container">
+            <div class="footer-bottom">
+                <p>&copy; 2024 SysManage. All rights reserved.</p>
+            </div>
+        </div>
+    </footer>
+
+    <script src="../../assets/js/main.js"></script>
+    <script src="../../assets/js/i18n.js"></script>
+</body>
+</html>

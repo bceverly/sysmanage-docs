@@ -1,0 +1,583 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>First Deployment - SysManage</title>
+    <meta name="description" content="Complete guide for deploying SysManage in production environments with proper security, scalability, and high availability.">
+    <link rel="stylesheet" href="../../assets/css/style.css">
+    <link rel="icon" type="image/svg+xml" href="../../assets/images/favicon.svg">
+</head>
+<body>
+    <header class="site-header">
+        <nav class="navbar">
+            <div class="container">
+                <div class="nav-brand">
+                    <a href="../../">
+                        <img src="../../assets/images/sysmanage-logo.svg" alt="SysManage" class="logo">
+                    </a>
+                </div>
+                <div class="nav-menu">
+                    <a href="../../#features" class="nav-link">Features</a>
+                    <a href="../../#getting-started" class="nav-link">Getting Started</a>
+                    <a href="../" class="nav-link active">Documentation</a>
+                    <a href="https://github.com/bceverly/sysmanage" class="nav-link" target="_blank">GitHub</a>
+                </div>
+            </div>
+        </nav>
+    </header>
+
+    <main class="docs-main">
+        <div class="container">
+            <div class="docs-breadcrumb">
+                <a href="../">Documentation</a> > <a href="./">Getting Started</a> > <span>First Deployment</span>
+            </div>
+
+            <div class="docs-header">
+                <h1>First Deployment</h1>
+                <p>Step-by-step guide for deploying SysManage in production environments with proper security and scalability.</p>
+            </div>
+
+            <div class="docs-content">
+                <section class="overview">
+                    <h2>Production Deployment Overview</h2>
+                    <p>This guide covers deploying SysManage for production use, including proper security configuration, database setup, SSL/TLS certificates, and scalability considerations. Follow these steps to ensure a robust, secure deployment.</p>
+
+                    <div class="alert alert-info">
+                        <strong>Prerequisites:</strong> Complete the <a href="quick-start.html">Quick Start Guide</a> first to understand basic SysManage concepts and functionality.
+                    </div>
+                </section>
+
+                <section class="deployment-planning">
+                    <h2>1. Deployment Planning</h2>
+
+                    <h3>Infrastructure Requirements</h3>
+                    <div class="requirements-grid">
+                        <div class="requirement-item">
+                            <h4>Production Server Specifications</h4>
+                            <ul>
+                                <li><strong>CPU:</strong> 4+ cores (8+ for large deployments)</li>
+                                <li><strong>Memory:</strong> 8GB RAM minimum (16GB+ recommended)</li>
+                                <li><strong>Storage:</strong> 100GB minimum (SSD preferred)</li>
+                                <li><strong>Network:</strong> Dedicated IP, firewall access</li>
+                            </ul>
+                        </div>
+                        <div class="requirement-item">
+                            <h4>Database Requirements</h4>
+                            <ul>
+                                <li><strong>PostgreSQL:</strong> Version 12 or newer</li>
+                                <li><strong>Storage:</strong> Fast SSD with adequate IOPS</li>
+                                <li><strong>Backup:</strong> Automated backup solution</li>
+                                <li><strong>High Availability:</strong> Consider clustering for critical deployments</li>
+                            </ul>
+                        </div>
+                    </div>
+
+                    <h3>Network Architecture</h3>
+                    <p>Plan your network architecture considering these components:</p>
+                    <ul>
+                        <li><strong>Web Interface:</strong> HTTPS/443 (public or internal access)</li>
+                        <li><strong>Agent Communication:</strong> Custom port (default 8444) with mTLS</li>
+                        <li><strong>Database:</strong> Internal network only (port 5432)</li>
+                        <li><strong>Load Balancer:</strong> For high availability deployments</li>
+                    </ul>
+                </section>
+
+                <section class="database-setup">
+                    <h2>2. Database Setup</h2>
+
+                    <h3>PostgreSQL Installation</h3>
+                    <div class="code-section">
+                        <h4>Ubuntu/Debian</h4>
+                        <pre><code class="language-bash"># Install PostgreSQL
+sudo apt update
+sudo apt install postgresql postgresql-contrib
+
+# Create database and user
+sudo -u postgres createdb sysmanage
+sudo -u postgres createuser sysmanage
+sudo -u postgres psql -c "ALTER USER sysmanage WITH PASSWORD 'your-secure-password';"
+sudo -u postgres psql -c "GRANT ALL PRIVILEGES ON DATABASE sysmanage TO sysmanage;"</code></pre>
+                    </div>
+
+                    <div class="code-section">
+                        <h4>RHEL/CentOS/Fedora</h4>
+                        <pre><code class="language-bash"># Install PostgreSQL
+sudo dnf install postgresql postgresql-server postgresql-contrib
+
+# Initialize database
+sudo postgresql-setup --initdb
+sudo systemctl enable postgresql
+sudo systemctl start postgresql
+
+# Create database and user
+sudo -u postgres createdb sysmanage
+sudo -u postgres createuser sysmanage
+sudo -u postgres psql -c "ALTER USER sysmanage WITH PASSWORD 'your-secure-password';"
+sudo -u postgres psql -c "GRANT ALL PRIVILEGES ON DATABASE sysmanage TO sysmanage;"</code></pre>
+                    </div>
+
+                    <h3>Database Configuration</h3>
+                    <p>Configure PostgreSQL for production use by editing <code>/etc/postgresql/*/main/postgresql.conf</code>:</p>
+                    <pre><code class="language-text"># Memory settings
+shared_buffers = 256MB
+effective_cache_size = 1GB
+work_mem = 4MB
+
+# Connection settings
+max_connections = 100
+listen_addresses = 'localhost'
+
+# WAL settings for backups
+wal_level = replica
+max_wal_senders = 3</code></pre>
+
+                    <h3>Database Security</h3>
+                    <p>Configure authentication in <code>/etc/postgresql/*/main/pg_hba.conf</code>:</p>
+                    <pre><code class="language-text"># Local connections
+local   sysmanage    sysmanage                     md5
+host    sysmanage    sysmanage    127.0.0.1/32     md5
+host    sysmanage    sysmanage    ::1/128          md5</code></pre>
+                </section>
+
+                <section class="ssl-configuration">
+                    <h2>3. SSL/TLS Certificate Configuration</h2>
+
+                    <h3>Option 1: Let's Encrypt (Recommended)</h3>
+                    <div class="code-section">
+                        <pre><code class="language-bash"># Install Certbot
+sudo apt install certbot  # Ubuntu/Debian
+sudo dnf install certbot  # RHEL/CentOS/Fedora
+
+# Obtain certificate (DNS challenge recommended for servers)
+sudo certbot certonly --standalone -d sysmanage.yourdomain.com
+
+# Certificate files will be created at:
+# /etc/letsencrypt/live/sysmanage.yourdomain.com/fullchain.pem
+# /etc/letsencrypt/live/sysmanage.yourdomain.com/privkey.pem</code></pre>
+                    </div>
+
+                    <h3>Option 2: Self-Signed Certificate (Testing Only)</h3>
+                    <div class="code-section">
+                        <pre><code class="language-bash"># Generate self-signed certificate
+openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
+    -keyout /etc/ssl/private/sysmanage.key \
+    -out /etc/ssl/certs/sysmanage.crt \
+    -subj "/C=US/ST=State/L=City/O=Organization/CN=sysmanage.yourdomain.com"
+
+# Set proper permissions
+sudo chmod 600 /etc/ssl/private/sysmanage.key
+sudo chmod 644 /etc/ssl/certs/sysmanage.crt</code></pre>
+                    </div>
+
+                    <h3>Certificate Renewal Automation</h3>
+                    <p>For Let's Encrypt certificates, set up automatic renewal:</p>
+                    <pre><code class="language-bash"># Add to crontab
+sudo crontab -e
+
+# Add this line for automatic renewal at 2 AM daily
+0 2 * * * /usr/bin/certbot renew --quiet --deploy-hook "systemctl restart sysmanage"</code></pre>
+                </section>
+
+                <section class="sysmanage-deployment">
+                    <h2>4. SysManage Server Deployment</h2>
+
+                    <h3>Production Installation</h3>
+                    <div class="code-section">
+                        <pre><code class="language-bash"># Create dedicated user
+sudo useradd -r -m -s /bin/bash sysmanage
+sudo usermod -aG ssl-cert sysmanage  # For certificate access
+
+# Clone repository
+sudo -u sysmanage git clone https://github.com/bceverly/sysmanage.git /opt/sysmanage
+cd /opt/sysmanage
+
+# Install dependencies
+sudo -u sysmanage python3 -m pip install --user -r requirements.txt</code></pre>
+                    </div>
+
+                    <h3>Production Configuration</h3>
+                    <p>Create production configuration file at <code>/opt/sysmanage/config/production.yaml</code>:</p>
+                    <pre><code class="language-yaml"># SysManage Production Configuration
+server:
+  host: "0.0.0.0"
+  port: 8443
+  ssl_enabled: true
+  ssl_cert_file: "/etc/letsencrypt/live/sysmanage.yourdomain.com/fullchain.pem"
+  ssl_key_file: "/etc/letsencrypt/live/sysmanage.yourdomain.com/privkey.pem"
+
+database:
+  type: "postgresql"
+  host: "localhost"
+  port: 5432
+  name: "sysmanage"
+  username: "sysmanage"
+  password: "your-secure-password"
+  pool_size: 20
+  max_overflow: 30
+
+security:
+  secret_key: "your-256-bit-secret-key-here"
+  jwt_expiration_hours: 24
+  password_policy:
+    min_length: 12
+    require_uppercase: true
+    require_lowercase: true
+    require_numbers: true
+    require_symbols: true
+
+agent_communication:
+  port: 8444
+  ssl_enabled: true
+  ssl_cert_file: "/etc/letsencrypt/live/sysmanage.yourdomain.com/fullchain.pem"
+  ssl_key_file: "/etc/letsencrypt/live/sysmanage.yourdomain.com/privkey.pem"
+
+logging:
+  level: "INFO"
+  file: "/var/log/sysmanage/sysmanage.log"
+  max_size_mb: 100
+  backup_count: 10
+
+monitoring:
+  metrics_enabled: true
+  health_check_interval: 60</code></pre>
+
+                    <h3>Directory Structure</h3>
+                    <pre><code class="language-bash"># Create necessary directories
+sudo mkdir -p /var/log/sysmanage
+sudo mkdir -p /var/lib/sysmanage
+sudo mkdir -p /etc/sysmanage
+
+# Set ownership
+sudo chown -R sysmanage:sysmanage /var/log/sysmanage /var/lib/sysmanage /opt/sysmanage
+sudo chown root:sysmanage /etc/sysmanage
+sudo chmod 750 /etc/sysmanage</code></pre>
+                </section>
+
+                <section class="systemd-service">
+                    <h2>5. Systemd Service Configuration</h2>
+
+                    <h3>Create Service File</h3>
+                    <p>Create <code>/etc/systemd/system/sysmanage.service</code>:</p>
+                    <pre><code class="language-ini">[Unit]
+Description=SysManage Infrastructure Management Server
+After=network.target postgresql.service
+Requires=postgresql.service
+
+[Service]
+Type=simple
+User=sysmanage
+Group=sysmanage
+WorkingDirectory=/opt/sysmanage
+Environment=PATH=/opt/sysmanage/venv/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+Environment=SYSMANAGE_CONFIG=/opt/sysmanage/config/production.yaml
+ExecStart=/opt/sysmanage/venv/bin/python -m sysmanage.server
+ExecReload=/bin/kill -HUP $MAINPID
+Restart=always
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=sysmanage
+
+# Security settings
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/log/sysmanage /var/lib/sysmanage
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+
+[Install]
+WantedBy=multi-user.target</code></pre>
+
+                    <h3>Enable and Start Service</h3>
+                    <pre><code class="language-bash"># Reload systemd and enable service
+sudo systemctl daemon-reload
+sudo systemctl enable sysmanage
+sudo systemctl start sysmanage
+
+# Check service status
+sudo systemctl status sysmanage
+
+# View logs
+sudo journalctl -u sysmanage -f</code></pre>
+                </section>
+
+                <section class="reverse-proxy">
+                    <h2>6. Reverse Proxy Setup (Optional)</h2>
+
+                    <h3>Nginx Configuration</h3>
+                    <p>For additional security and features, configure Nginx as a reverse proxy:</p>
+                    <pre><code class="language-nginx">server {
+    listen 80;
+    server_name sysmanage.yourdomain.com;
+    return 301 https://$server_name$request_uri;
+}
+
+server {
+    listen 443 ssl http2;
+    server_name sysmanage.yourdomain.com;
+
+    ssl_certificate /etc/letsencrypt/live/sysmanage.yourdomain.com/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/sysmanage.yourdomain.com/privkey.pem;
+
+    # SSL configuration
+    ssl_protocols TLSv1.2 TLSv1.3;
+    ssl_ciphers ECDHE-RSA-AES256-GCM-SHA512:DHE-RSA-AES256-GCM-SHA512;
+    ssl_prefer_server_ciphers off;
+
+    # Security headers
+    add_header Strict-Transport-Security "max-age=63072000" always;
+    add_header X-Frame-Options DENY;
+    add_header X-Content-Type-Options nosniff;
+
+    location / {
+        proxy_pass https://127.0.0.1:8443;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+
+        # WebSocket support
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+    }
+}</code></pre>
+                </section>
+
+                <section class="firewall-setup">
+                    <h2>7. Firewall Configuration</h2>
+
+                    <h3>UFW (Ubuntu/Debian)</h3>
+                    <pre><code class="language-bash"># Enable firewall
+sudo ufw enable
+
+# Allow SSH (adjust port as needed)
+sudo ufw allow 22/tcp
+
+# Allow HTTP and HTTPS
+sudo ufw allow 80/tcp
+sudo ufw allow 443/tcp
+
+# Allow SysManage agent communication
+sudo ufw allow 8444/tcp
+
+# Check status
+sudo ufw status verbose</code></pre>
+
+                    <h3>Firewalld (RHEL/CentOS/Fedora)</h3>
+                    <pre><code class="language-bash"># Enable firewall
+sudo systemctl enable firewalld
+sudo systemctl start firewalld
+
+# Allow services
+sudo firewall-cmd --permanent --add-service=ssh
+sudo firewall-cmd --permanent --add-service=http
+sudo firewall-cmd --permanent --add-service=https
+sudo firewall-cmd --permanent --add-port=8444/tcp
+
+# Reload configuration
+sudo firewall-cmd --reload
+
+# Check status
+sudo firewall-cmd --list-all</code></pre>
+                </section>
+
+                <section class="monitoring-setup">
+                    <h2>8. Monitoring and Logging</h2>
+
+                    <h3>Log Rotation</h3>
+                    <p>Configure log rotation by creating <code>/etc/logrotate.d/sysmanage</code>:</p>
+                    <pre><code class="language-text">/var/log/sysmanage/*.log {
+    daily
+    missingok
+    rotate 30
+    compress
+    delaycompress
+    notifempty
+    create 644 sysmanage sysmanage
+    postrotate
+        systemctl reload sysmanage
+    endscript
+}</code></pre>
+
+                    <h3>Health Monitoring</h3>
+                    <p>Create a simple health check script at <code>/opt/sysmanage/scripts/health-check.sh</code>:</p>
+                    <pre><code class="language-bash">#!/bin/bash
+# SysManage Health Check
+
+URL="https://localhost:8443/api/health"
+RESPONSE=$(curl -s -k -o /dev/null -w "%{http_code}" $URL)
+
+if [ "$RESPONSE" = "200" ]; then
+    echo "SysManage is healthy"
+    exit 0
+else
+    echo "SysManage health check failed (HTTP $RESPONSE)"
+    exit 1
+fi</code></pre>
+
+                    <h3>Performance Monitoring</h3>
+                    <p>Monitor these key metrics:</p>
+                    <ul>
+                        <li><strong>System Resources:</strong> CPU, memory, disk usage</li>
+                        <li><strong>Database Performance:</strong> Connection count, query performance</li>
+                        <li><strong>Application Metrics:</strong> Response times, error rates</li>
+                        <li><strong>Agent Connectivity:</strong> Connected agents, communication errors</li>
+                    </ul>
+                </section>
+
+                <section class="backup-strategy">
+                    <h2>9. Backup Strategy</h2>
+
+                    <h3>Database Backup</h3>
+                    <p>Create automated database backup script:</p>
+                    <pre><code class="language-bash">#!/bin/bash
+# Database backup script
+
+BACKUP_DIR="/var/backups/sysmanage"
+DATE=$(date +%Y%m%d_%H%M%S)
+BACKUP_FILE="sysmanage_backup_$DATE.sql"
+
+mkdir -p $BACKUP_DIR
+pg_dump -h localhost -U sysmanage sysmanage > $BACKUP_DIR/$BACKUP_FILE
+gzip $BACKUP_DIR/$BACKUP_FILE
+
+# Keep only last 30 days of backups
+find $BACKUP_DIR -name "*.gz" -mtime +30 -delete</code></pre>
+
+                    <h3>Configuration Backup</h3>
+                    <p>Backup configuration files and certificates:</p>
+                    <pre><code class="language-bash"># Configuration backup
+tar -czf /var/backups/sysmanage/config_$(date +%Y%m%d).tar.gz \
+    /opt/sysmanage/config/ \
+    /etc/letsencrypt/ \
+    /etc/systemd/system/sysmanage.service</code></pre>
+                </section>
+
+                <section class="high-availability">
+                    <h2>10. High Availability (Advanced)</h2>
+
+                    <h3>Load Balancer Setup</h3>
+                    <p>For high availability, deploy multiple SysManage instances behind a load balancer:</p>
+                    <ul>
+                        <li>Deploy 2+ SysManage server instances</li>
+                        <li>Use shared PostgreSQL database with clustering</li>
+                        <li>Configure load balancer (HAProxy, Nginx, or cloud LB)</li>
+                        <li>Implement session affinity for WebSocket connections</li>
+                    </ul>
+
+                    <h3>Database Clustering</h3>
+                    <p>Consider PostgreSQL clustering solutions:</p>
+                    <ul>
+                        <li><strong>Patroni:</strong> Automatic failover and leader election</li>
+                        <li><strong>PostgreSQL Streaming Replication:</strong> Built-in replication</li>
+                        <li><strong>Cloud Solutions:</strong> AWS RDS, Azure Database, Google Cloud SQL</li>
+                    </ul>
+                </section>
+
+                <section class="security-hardening">
+                    <h2>11. Security Hardening</h2>
+
+                    <h3>System Security</h3>
+                    <ul>
+                        <li>Keep system packages updated</li>
+                        <li>Disable unnecessary services</li>
+                        <li>Configure fail2ban for SSH protection</li>
+                        <li>Use strong passwords and SSH keys</li>
+                        <li>Regular security audits</li>
+                    </ul>
+
+                    <h3>Application Security</h3>
+                    <ul>
+                        <li>Regular SysManage updates</li>
+                        <li>Strong JWT secret keys</li>
+                        <li>Database connection encryption</li>
+                        <li>Proper certificate management</li>
+                        <li>Network segmentation</li>
+                    </ul>
+                </section>
+
+                <section class="troubleshooting">
+                    <h2>12. Troubleshooting</h2>
+
+                    <h3>Common Issues</h3>
+                    <div class="troubleshooting-grid">
+                        <div class="issue-item">
+                            <h4>Service Won't Start</h4>
+                            <ul>
+                                <li>Check systemd logs: <code>journalctl -u sysmanage</code></li>
+                                <li>Verify configuration file syntax</li>
+                                <li>Check file permissions</li>
+                                <li>Ensure database is accessible</li>
+                            </ul>
+                        </div>
+                        <div class="issue-item">
+                            <h4>SSL Certificate Issues</h4>
+                            <ul>
+                                <li>Verify certificate file paths</li>
+                                <li>Check certificate expiration</li>
+                                <li>Ensure proper file permissions</li>
+                                <li>Test certificate with openssl</li>
+                            </ul>
+                        </div>
+                        <div class="issue-item">
+                            <h4>Database Connection Issues</h4>
+                            <ul>
+                                <li>Test database connectivity</li>
+                                <li>Check PostgreSQL configuration</li>
+                                <li>Verify authentication settings</li>
+                                <li>Monitor connection pool usage</li>
+                            </ul>
+                        </div>
+                        <div class="issue-item">
+                            <h4>Performance Issues</h4>
+                            <ul>
+                                <li>Monitor system resources</li>
+                                <li>Check database query performance</li>
+                                <li>Review application logs</li>
+                                <li>Optimize configuration settings</li>
+                            </ul>
+                        </div>
+                    </div>
+                </section>
+
+                <section class="next-steps">
+                    <h2>Next Steps</h2>
+                    <p>After completing your production deployment:</p>
+                    <ol>
+                        <li><strong><a href="agent-approval.html">Set up agents</a>:</strong> Install and approve agents on your hosts</li>
+                        <li><strong><a href="basic-management.html">Learn management tasks</a>:</strong> Master day-to-day operations</li>
+                        <li><strong><a href="../administration/">Administration</a>:</strong> Configure users, permissions, and advanced features</li>
+                        <li><strong><a href="../security/">Security</a>:</strong> Implement security best practices</li>
+                    </ol>
+                </section>
+            </div>
+
+            <div class="docs-footer">
+                <div class="docs-navigation">
+                    <h3>Navigation</h3>
+                    <div class="nav-links">
+                        <a href="quick-start.html" class="nav-link">← Quick Start</a>
+                        <a href="agent-approval.html" class="nav-link">Agent Setup →</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <footer class="site-footer">
+        <div class="container">
+            <div class="footer-bottom">
+                <p>&copy; 2024 SysManage. All rights reserved.</p>
+            </div>
+        </div>
+    </footer>
+
+    <script src="../../assets/js/main.js"></script>
+    <script src="../../assets/js/i18n.js"></script>
+</body>
+</html>
