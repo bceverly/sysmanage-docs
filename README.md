@@ -9,7 +9,7 @@ This repository contains the complete documentation for SysManage, an open-sourc
 [![GitHub Pages](https://img.shields.io/github/deployments/bceverly/sysmanage-docs/github-pages?label=docs)](https://bceverly.github.io/sysmanage-docs/)
 [![Link Check](https://github.com/bceverly/sysmanage-docs/workflows/Link%20Check/badge.svg)](https://github.com/bceverly/sysmanage-docs/actions)
 [![Accessibility](https://github.com/bceverly/sysmanage-docs/workflows/Accessibility%20Check/badge.svg)](https://github.com/bceverly/sysmanage-docs/actions)
-[![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![License](https://img.shields.io/badge/license-AGPLv3-blue.svg)](LICENSE)
 
 ## 📚 Documentation
 
@@ -168,7 +168,7 @@ sysmanage-docs/
 
 ## 📜 License
 
-This documentation is released under the [MIT License](LICENSE).
+This documentation is released under the [GNU Affero General Public License Version 3](LICENSE).
 
 ## 🆘 Support
 
