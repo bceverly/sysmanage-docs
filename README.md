@@ -78,12 +78,14 @@ The SysManage documentation site provides comprehensive guides, tutorials, and r
 To work on the documentation site locally:
 
 1. **Clone the repository:**
+
    ```bash
    git clone https://github.com/bceverly/sysmanage-docs.git
    cd sysmanage-docs
    ```
 
 2. **Serve locally with Jekyll (optional):**
+
    ```bash
    # Install Jekyll (if not already installed)
    gem install bundler jekyll
@@ -97,6 +99,7 @@ To work on the documentation site locally:
    ```
 
 3. **Or serve with Python (simple HTTP server):**
+
    ```bash
    # Python 3
    python -m http.server 8000
@@ -129,6 +132,7 @@ The site is automatically deployed to GitHub Pages when changes are pushed to th
 ### DNS Configuration
 
 The domain should be configured with:
+
 - **A records** pointing to GitHub Pages IPs
 - **CNAME record** for `www` subdomain
 - See the main documentation for complete DNS setup

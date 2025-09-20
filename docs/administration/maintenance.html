@@ -1,0 +1,799 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Maintenance - Administration - SysManage</title>
+    <meta name="description" content="Regular maintenance procedures, system updates, performance optimization, and capacity planning for SysManage.">
+    <link rel="stylesheet" href="../../assets/css/style.css">
+    <link rel="icon" type="image/svg+xml" href="../../assets/images/favicon.svg">
+</head>
+<body>
+    <header class="site-header">
+        <nav class="navbar">
+            <div class="container">
+                <div class="nav-brand">
+                    <a href="../../">
+                        <img src="../../assets/images/sysmanage-logo.svg" alt="SysManage" class="logo">
+                    </a>
+                </div>
+                <div class="nav-menu">
+                    <a href="../../#features" class="nav-link">Features</a>
+                    <a href="../../#getting-started" class="nav-link">Getting Started</a>
+                    <a href="../" class="nav-link active">Documentation</a>
+                    <a href="https://github.com/bceverly/sysmanage" class="nav-link" target="_blank">GitHub</a>
+                </div>
+            </div>
+        </nav>
+    </header>
+
+    <main class="docs-main">
+        <div class="container">
+            <div class="docs-breadcrumb">
+                <a href="../">Documentation</a> > <a href="./">Administration</a> > <span>Maintenance</span>
+            </div>
+
+            <div class="docs-header">
+                <h1>Maintenance</h1>
+                <p>Regular maintenance procedures, system updates, performance optimization, and capacity planning to ensure optimal SysManage performance and reliability.</p>
+            </div>
+
+            <div class="docs-content">
+                <section class="docs-overview">
+                    <h2>Overview</h2>
+                    <p>Regular maintenance is essential for keeping SysManage running optimally and preventing issues before they impact operations. This includes routine system updates, performance monitoring, database maintenance, log management, and capacity planning to ensure the system scales effectively with your infrastructure growth.</p>
+
+                    <div class="maintenance-types">
+                        <h3>Types of Maintenance</h3>
+                        <ul>
+                            <li><strong>Preventive Maintenance:</strong> Scheduled tasks to prevent problems</li>
+                            <li><strong>Corrective Maintenance:</strong> Fixes for identified issues</li>
+                            <li><strong>Adaptive Maintenance:</strong> Updates for changing requirements</li>
+                            <li><strong>Perfective Maintenance:</strong> Performance and efficiency improvements</li>
+                            <li><strong>Emergency Maintenance:</strong> Critical issues requiring immediate attention</li>
+                        </ul>
+                    </div>
+                </section>
+
+                <section class="maintenance-schedules">
+                    <h2>Maintenance Schedules</h2>
+
+                    <div class="daily-maintenance">
+                        <h3>Daily Maintenance Tasks</h3>
+
+                        <h4>Automated Daily Tasks</h4>
+                        <ul>
+                            <li><strong>System Health Check:</strong> Verify all services are running</li>
+                            <li><strong>Database Backup:</strong> Automated daily backup verification</li>
+                            <li><strong>Log Rotation:</strong> Rotate and compress log files</li>
+                            <li><strong>Disk Space Monitoring:</strong> Check available disk space</li>
+                            <li><strong>Certificate Monitoring:</strong> Check SSL certificate expiration</li>
+                            <li><strong>Performance Metrics:</strong> Collect and analyze performance data</li>
+                        </ul>
+
+                        <h4>Daily Health Check Script</h4>
+                        <pre><code>#!/bin/bash
+# Daily SysManage health check
+
+LOG_FILE="/var/log/sysmanage_health_check.log"
+DATE=$(date)
+
+echo "=== SysManage Health Check - $DATE ===" >> $LOG_FILE
+
+# Check service status
+services=("sysmanage-backend" "sysmanage-worker" "postgresql" "nginx")
+for service in "${services[@]}"; do
+    if systemctl is-active --quiet $service; then
+        echo "✓ $service is running" >> $LOG_FILE
+    else
+        echo "✗ $service is not running" >> $LOG_FILE
+        # Send alert
+        mail -s "Service Down: $service" admin@example.com <<< "Service $service is not running on $(hostname)"
+    fi
+done
+
+# Check database connectivity
+if pg_isready -h localhost -p 5432 -U sysmanage; then
+    echo "✓ Database is accessible" >> $LOG_FILE
+else
+    echo "✗ Database is not accessible" >> $LOG_FILE
+    mail -s "Database Connection Failed" admin@example.com <<< "Database connection failed on $(hostname)"
+fi
+
+# Check disk space
+df -h | awk '$5 > 85 {print "✗ Disk space warning: " $0}' >> $LOG_FILE
+
+# Check memory usage
+memory_usage=$(free | awk 'NR==2{printf "%.2f", $3*100/$2}')
+if (( $(echo "$memory_usage > 90" | bc -l) )); then
+    echo "✗ Memory usage high: ${memory_usage}%" >> $LOG_FILE
+fi
+
+echo "=== Health Check Complete ===" >> $LOG_FILE</code></pre>
+                    </div>
+
+                    <div class="weekly-maintenance">
+                        <h3>Weekly Maintenance Tasks</h3>
+
+                        <h4>Scheduled Weekly Tasks</h4>
+                        <ul>
+                            <li><strong>System Updates:</strong> Apply security patches and updates</li>
+                            <li><strong>Database Maintenance:</strong> VACUUM, ANALYZE, and index optimization</li>
+                            <li><strong>Log Analysis:</strong> Review system and application logs</li>
+                            <li><strong>Performance Review:</strong> Analyze performance trends</li>
+                            <li><strong>Backup Verification:</strong> Test backup integrity</li>
+                            <li><strong>Security Audit:</strong> Review security logs and access patterns</li>
+                        </ul>
+
+                        <h4>Database Maintenance Script</h4>
+                        <pre><code>#!/bin/bash
+# Weekly database maintenance
+
+DB_NAME="sysmanage"
+MAINTENANCE_LOG="/var/log/db_maintenance.log"
+
+echo "$(date): Starting database maintenance" >> $MAINTENANCE_LOG
+
+# Vacuum and analyze all tables
+psql -U sysmanage -d $DB_NAME -c "VACUUM ANALYZE;" >> $MAINTENANCE_LOG 2>&1
+
+# Reindex tables if needed
+psql -U sysmanage -d $DB_NAME -c "REINDEX DATABASE $DB_NAME;" >> $MAINTENANCE_LOG 2>&1
+
+# Update table statistics
+psql -U sysmanage -d $DB_NAME -c "ANALYZE;" >> $MAINTENANCE_LOG 2>&1
+
+# Check for bloated tables
+psql -U sysmanage -d $DB_NAME -c "
+    SELECT schemaname, tablename,
+           pg_size_pretty(pg_total_relation_size(schemaname||'.'||tablename)) as size
+    FROM pg_tables
+    WHERE schemaname = 'public'
+    ORDER BY pg_total_relation_size(schemaname||'.'||tablename) DESC
+    LIMIT 10;
+" >> $MAINTENANCE_LOG 2>&1
+
+echo "$(date): Database maintenance completed" >> $MAINTENANCE_LOG</code></pre>
+                    </div>
+
+                    <div class="monthly-maintenance">
+                        <h3>Monthly Maintenance Tasks</h3>
+
+                        <h4>Comprehensive Monthly Tasks</h4>
+                        <ul>
+                            <li><strong>System Audit:</strong> Complete system configuration review</li>
+                            <li><strong>Capacity Planning:</strong> Analyze growth trends and capacity needs</li>
+                            <li><strong>Performance Optimization:</strong> Identify and address performance bottlenecks</li>
+                            <li><strong>Security Review:</strong> Comprehensive security assessment</li>
+                            <li><strong>Documentation Update:</strong> Update system documentation</li>
+                            <li><strong>Disaster Recovery Test:</strong> Test backup and recovery procedures</li>
+                            <li><strong>User Access Review:</strong> Audit user accounts and permissions</li>
+                        </ul>
+
+                        <h4>Monthly Report Generation</h4>
+                        <pre><code>#!/bin/bash
+# Generate monthly maintenance report
+
+REPORT_DIR="/opt/sysmanage/reports"
+MONTH=$(date +%Y-%m)
+REPORT_FILE="$REPORT_DIR/monthly_report_$MONTH.html"
+
+mkdir -p $REPORT_DIR
+
+cat > $REPORT_FILE << EOF
+<!DOCTYPE html>
+<html>
+<head>
+    <title>SysManage Monthly Report - $MONTH</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        table { border-collapse: collapse; width: 100%; }
+        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+        th { background-color: #f2f2f2; }
+        .metric { margin: 10px 0; }
+        .warning { color: orange; }
+        .error { color: red; }
+        .success { color: green; }
+    </style>
+</head>
+<body>
+    <h1>SysManage Monthly Report - $MONTH</h1>
+    <p>Generated on: $(date)</p>
+
+    <h2>System Overview</h2>
+    <div class="metric">
+        <strong>Total Hosts:</strong> $(psql -U sysmanage -d sysmanage -t -c "SELECT COUNT(*) FROM hosts WHERE active=true;")
+    </div>
+    <div class="metric">
+        <strong>Active Users:</strong> $(psql -U sysmanage -d sysmanage -t -c "SELECT COUNT(*) FROM users WHERE active=true;")
+    </div>
+    <div class="metric">
+        <strong>Database Size:</strong> $(psql -U sysmanage -d sysmanage -t -c "SELECT pg_size_pretty(pg_database_size('sysmanage'));")
+    </div>
+
+    <h2>Performance Metrics</h2>
+    <table>
+        <tr><th>Metric</th><th>Average</th><th>Peak</th><th>Status</th></tr>
+EOF
+
+# Add performance data to report
+echo "    </table>" >> $REPORT_FILE
+echo "</body></html>" >> $REPORT_FILE
+
+echo "Monthly report generated: $REPORT_FILE"</code></pre>
+                    </div>
+                </section>
+
+                <section class="system-updates">
+                    <h2>System Updates and Patches</h2>
+
+                    <div class="update-strategy">
+                        <h3>Update Strategy</h3>
+
+                        <h4>Update Categories</h4>
+                        <ul>
+                            <li><strong>Security Updates:</strong> Critical security patches (immediate)</li>
+                            <li><strong>Bug Fixes:</strong> Application and system bug fixes (weekly)</li>
+                            <li><strong>Feature Updates:</strong> New features and improvements (monthly)</li>
+                            <li><strong>Major Releases:</strong> Major version upgrades (quarterly)</li>
+                        </ul>
+
+                        <h4>Update Process</h4>
+                        <ol>
+                            <li>Review available updates and release notes</li>
+                            <li>Test updates in staging environment</li>
+                            <li>Schedule maintenance window</li>
+                            <li>Create system backup before updates</li>
+                            <li>Apply updates in controlled manner</li>
+                            <li>Verify system functionality post-update</li>
+                            <li>Monitor for any issues or regressions</li>
+                            <li>Document update process and results</li>
+                        </ol>
+
+                        <h4>Update Automation Script</h4>
+                        <pre><code>#!/bin/bash
+# System update automation
+
+UPDATE_LOG="/var/log/system_updates.log"
+BACKUP_DIR="/opt/sysmanage/backups/pre_update"
+
+echo "$(date): Starting system updates" >> $UPDATE_LOG
+
+# Create pre-update backup
+mkdir -p $BACKUP_DIR
+DATE=$(date +%Y%m%d_%H%M%S)
+
+# Backup configuration
+tar -czf "$BACKUP_DIR/config_backup_$DATE.tar.gz" /opt/sysmanage/config/
+
+# Update system packages
+apt update >> $UPDATE_LOG 2>&1
+DEBIAN_FRONTEND=noninteractive apt upgrade -y >> $UPDATE_LOG 2>&1
+
+# Update SysManage application
+if [ -f "/opt/sysmanage/scripts/update.sh" ]; then
+    /opt/sysmanage/scripts/update.sh >> $UPDATE_LOG 2>&1
+fi
+
+# Restart services if needed
+if [ -f "/var/run/reboot-required" ]; then
+    echo "$(date): System reboot required after updates" >> $UPDATE_LOG
+    # Schedule reboot or notify administrators
+    mail -s "Reboot Required After Updates" admin@example.com <<< "System reboot required on $(hostname) after applying updates"
+fi
+
+echo "$(date): System updates completed" >> $UPDATE_LOG</code></pre>
+                    </div>
+
+                    <div class="rollback-procedures">
+                        <h3>Rollback Procedures</h3>
+
+                        <h4>Application Rollback</h4>
+                        <pre><code>#!/bin/bash
+# Application rollback script
+
+BACKUP_VERSION="$1"
+APP_DIR="/opt/sysmanage"
+BACKUP_DIR="/opt/sysmanage/backups"
+
+if [ -z "$BACKUP_VERSION" ]; then
+    echo "Usage: $0 <backup_version>"
+    echo "Available backups:"
+    ls -la $BACKUP_DIR/app_backup_*
+    exit 1
+fi
+
+# Stop services
+systemctl stop sysmanage-backend
+systemctl stop sysmanage-worker
+
+# Backup current version
+cp -r $APP_DIR "$BACKUP_DIR/rollback_backup_$(date +%Y%m%d_%H%M%S)"
+
+# Restore previous version
+tar -xzf "$BACKUP_DIR/app_backup_$BACKUP_VERSION.tar.gz" -C /opt/
+
+# Restore configuration if needed
+if [ -f "$BACKUP_DIR/config_backup_$BACKUP_VERSION.tar.gz" ]; then
+    tar -xzf "$BACKUP_DIR/config_backup_$BACKUP_VERSION.tar.gz" -C /
+fi
+
+# Restart services
+systemctl start sysmanage-backend
+systemctl start sysmanage-worker
+
+echo "Rollback to version $BACKUP_VERSION completed"</code></pre>
+                    </div>
+                </section>
+
+                <section class="performance-optimization">
+                    <h2>Performance Optimization</h2>
+
+                    <div class="database-optimization">
+                        <h3>Database Performance Optimization</h3>
+
+                        <h4>Query Performance Analysis</h4>
+                        <pre><code>-- Identify slow queries
+SELECT query, mean_time, calls, total_time
+FROM pg_stat_statements
+ORDER BY mean_time DESC
+LIMIT 10;
+
+-- Find missing indexes
+SELECT schemaname, tablename, attname, n_distinct, correlation
+FROM pg_stats
+WHERE schemaname = 'public'
+  AND n_distinct > 100
+  AND correlation < 0.1;
+
+-- Check table bloat
+SELECT schemaname, tablename,
+       pg_size_pretty(pg_total_relation_size(schemaname||'.'||tablename)) as size,
+       pg_size_pretty(pg_relation_size(schemaname||'.'||tablename)) as table_size
+FROM pg_tables
+WHERE schemaname = 'public'
+ORDER BY pg_total_relation_size(schemaname||'.'||tablename) DESC;</code></pre>
+
+                        <h4>Index Optimization</h4>
+                        <pre><code>-- Create indexes for common queries
+CREATE INDEX CONCURRENTLY idx_metrics_timestamp
+ON metrics (timestamp)
+WHERE timestamp > NOW() - INTERVAL '30 days';
+
+CREATE INDEX CONCURRENTLY idx_hosts_active
+ON hosts (active, hostname)
+WHERE active = true;
+
+CREATE INDEX CONCURRENTLY idx_alerts_severity
+ON alerts (severity, created_at)
+WHERE resolved_at IS NULL;</code></pre>
+
+                        <h4>Connection Pool Optimization</h4>
+                        <pre><code># PostgreSQL connection settings (postgresql.conf)
+
+max_connections = 200
+shared_buffers = 256MB
+effective_cache_size = 1GB
+work_mem = 4MB
+maintenance_work_mem = 64MB
+
+# Connection pooling with pgbouncer
+[databases]
+sysmanage = host=localhost port=5432 dbname=sysmanage
+
+[pgbouncer]
+listen_port = 6432
+listen_addr = 127.0.0.1
+auth_type = md5
+auth_file = /etc/pgbouncer/userlist.txt
+pool_mode = transaction
+default_pool_size = 25
+max_client_conn = 200
+reserve_pool_size = 5</code></pre>
+                    </div>
+
+                    <div class="application-optimization">
+                        <h3>Application Performance Optimization</h3>
+
+                        <h4>Caching Strategy</h4>
+                        <pre><code># Redis configuration for caching
+maxmemory 512mb
+maxmemory-policy allkeys-lru
+
+# Application caching configuration
+CACHE_BACKEND = 'redis://localhost:6379/0'
+CACHE_TIMEOUT = 300  # 5 minutes
+CACHE_KEY_PREFIX = 'sysmanage:'
+
+# Cache frequently accessed data
+- Host information: 15 minutes
+- User sessions: 1 hour
+- System metrics: 5 minutes
+- Configuration data: 30 minutes</code></pre>
+
+                        <h4>Resource Optimization</h4>
+                        <ul>
+                            <li><strong>Memory Management:</strong> Monitor memory usage and implement pagination</li>
+                            <li><strong>CPU Optimization:</strong> Profile CPU usage and optimize algorithms</li>
+                            <li><strong>I/O Optimization:</strong> Minimize disk I/O and use asynchronous operations</li>
+                            <li><strong>Network Optimization:</strong> Implement compression and connection pooling</li>
+                        </ul>
+                    </div>
+
+                    <div name="monitoring-optimization">
+                        <h3>Monitoring System Optimization</h3>
+
+                        <h4>Data Collection Optimization</h4>
+                        <ul>
+                            <li><strong>Collection Intervals:</strong> Adjust based on criticality and change frequency</li>
+                            <li><strong>Metric Granularity:</strong> Balance detail with storage requirements</li>
+                            <li><strong>Batch Processing:</strong> Collect multiple metrics in single operations</li>
+                            <li><strong>Data Compression:</strong> Compress data before storage and transmission</li>
+                        </ul>
+
+                        <h4>Storage Optimization</h4>
+                        <pre><code># Data retention configuration
+retention_policies:
+  high_resolution:    # 1-minute data
+    duration: 24h
+  medium_resolution:  # 5-minute data
+    duration: 7d
+  low_resolution:     # 1-hour data
+    duration: 90d
+  archive:           # Daily summaries
+    duration: 1y
+
+# Compression settings
+compression:
+  algorithm: lz4
+  level: 1
+  batch_size: 1000</code></pre>
+                    </div>
+                </section>
+
+                <section class="capacity-planning">
+                    <h2>Capacity Planning</h2>
+
+                    <div class="growth-analysis">
+                        <h3>Growth Trend Analysis</h3>
+
+                        <h4>Capacity Metrics</h4>
+                        <ul>
+                            <li><strong>Host Growth:</strong> Rate of new host additions</li>
+                            <li><strong>Data Volume:</strong> Database and storage growth rates</li>
+                            <li><strong>User Growth:</strong> Number of active users and sessions</li>
+                            <li><strong>Performance Trends:</strong> Response times and throughput changes</li>
+                            <li><strong>Resource Utilization:</strong> CPU, memory, and storage trends</li>
+                        </ul>
+
+                        <h4>Capacity Analysis Script</h4>
+                        <pre><code>#!/bin/bash
+# Capacity analysis and reporting
+
+REPORT_FILE="/opt/sysmanage/reports/capacity_analysis.txt"
+
+echo "=== SysManage Capacity Analysis - $(date) ===" > $REPORT_FILE
+
+# Database size growth
+echo "Database Growth:" >> $REPORT_FILE
+psql -U sysmanage -d sysmanage -c "
+    SELECT
+        date_trunc('month', created_at) as month,
+        COUNT(*) as new_hosts,
+        pg_size_pretty(SUM(pg_column_size(ROW(*)))) as data_size
+    FROM hosts
+    WHERE created_at > NOW() - INTERVAL '12 months'
+    GROUP BY date_trunc('month', created_at)
+    ORDER BY month;
+" >> $REPORT_FILE
+
+# Storage utilization
+echo -e "\nStorage Utilization:" >> $REPORT_FILE
+df -h /opt/sysmanage >> $REPORT_FILE
+
+# Memory usage trends
+echo -e "\nMemory Usage:" >> $REPORT_FILE
+free -h >> $REPORT_FILE
+
+# Performance metrics
+echo -e "\nPerformance Metrics:" >> $REPORT_FILE
+psql -U sysmanage -d sysmanage -c "
+    SELECT
+        AVG(response_time) as avg_response_time,
+        MAX(response_time) as max_response_time,
+        COUNT(*) as total_requests
+    FROM api_logs
+    WHERE timestamp > NOW() - INTERVAL '24 hours';
+" >> $REPORT_FILE
+
+echo "Capacity analysis completed: $REPORT_FILE"</code></pre>
+                    </div>
+
+                    <div class="scaling-strategies">
+                        <h3>Scaling Strategies</h3>
+
+                        <h4>Vertical Scaling (Scale Up)</h4>
+                        <ul>
+                            <li><strong>CPU Upgrade:</strong> Increase CPU cores for better processing</li>
+                            <li><strong>Memory Expansion:</strong> Add RAM for better caching and performance</li>
+                            <li><strong>Storage Upgrade:</strong> Faster SSD storage for database performance</li>
+                            <li><strong>Network Upgrade:</strong> Higher bandwidth for large deployments</li>
+                        </ul>
+
+                        <h4>Horizontal Scaling (Scale Out)</h4>
+                        <ul>
+                            <li><strong>Load Balancing:</strong> Distribute traffic across multiple servers</li>
+                            <li><strong>Database Clustering:</strong> PostgreSQL read replicas and clustering</li>
+                            <li><strong>Microservices:</strong> Split application into smaller, scalable services</li>
+                            <li><strong>Caching Layer:</strong> Distributed caching with Redis cluster</li>
+                        </ul>
+
+                        <h4>Scaling Thresholds</h4>
+                        <ul>
+                            <li><strong>Host Count:</strong> Scale when approaching 1000+ hosts per server</li>
+                            <li><strong>CPU Usage:</strong> Scale when average CPU > 70% for extended periods</li>
+                            <li><strong>Memory Usage:</strong> Scale when memory > 80% consistently</li>
+                            <li><strong>Storage:</strong> Scale when storage > 85% full</li>
+                            <li><strong>Response Time:</strong> Scale when response times > 2 seconds</li>
+                        </ul>
+                    </div>
+                </section>
+
+                <section class="log-management">
+                    <h2>Log Management</h2>
+
+                    <div class="log-rotation">
+                        <h3>Log Rotation and Archival</h3>
+
+                        <h4>Log Rotation Configuration</h4>
+                        <pre><code># /etc/logrotate.d/sysmanage
+
+/opt/sysmanage/logs/*.log {
+    daily
+    missingok
+    rotate 30
+    compress
+    delaycompress
+    notifempty
+    create 644 sysmanage sysmanage
+    postrotate
+        systemctl reload sysmanage-backend
+    endscript
+}
+
+/var/log/postgresql/*.log {
+    weekly
+    missingok
+    rotate 12
+    compress
+    delaycompress
+    notifempty
+    create 640 postgres postgres
+}</code></pre>
+
+                        <h4>Log Cleanup Script</h4>
+                        <pre><code>#!/bin/bash
+# Log cleanup and archival
+
+LOG_DIR="/opt/sysmanage/logs"
+ARCHIVE_DIR="/opt/sysmanage/archive"
+RETENTION_DAYS=90
+
+# Create archive directory
+mkdir -p $ARCHIVE_DIR
+
+# Archive logs older than 30 days
+find $LOG_DIR -name "*.log.*" -mtime +30 -exec mv {} $ARCHIVE_DIR/ \;
+
+# Compress archived logs
+find $ARCHIVE_DIR -name "*.log.*" ! -name "*.gz" -exec gzip {} \;
+
+# Remove logs older than retention period
+find $ARCHIVE_DIR -name "*.gz" -mtime +$RETENTION_DAYS -delete
+
+# Clean up empty directories
+find $ARCHIVE_DIR -type d -empty -delete
+
+echo "Log cleanup completed"</code></pre>
+                    </div>
+
+                    <div class="log-analysis">
+                        <h3>Log Analysis and Monitoring</h3>
+
+                        <h4>Error Detection Script</h4>
+                        <pre><code>#!/bin/bash
+# Automated log analysis for errors
+
+LOG_FILE="/opt/sysmanage/logs/backend.log"
+ERROR_REPORT="/tmp/error_report.txt"
+YESTERDAY=$(date -d "yesterday" +%Y-%m-%d)
+
+# Search for errors in yesterday's logs
+grep "$YESTERDAY" $LOG_FILE | grep -i "error\|exception\|critical" > $ERROR_REPORT
+
+if [ -s $ERROR_REPORT ]; then
+    ERROR_COUNT=$(wc -l < $ERROR_REPORT)
+    echo "Found $ERROR_COUNT errors in yesterday's logs"
+
+    # Send error report
+    mail -s "SysManage Error Report - $YESTERDAY" admin@example.com < $ERROR_REPORT
+fi
+
+# Clean up
+rm -f $ERROR_REPORT</code></pre>
+                    </div>
+                </section>
+
+                <section class="troubleshooting">
+                    <h2>Troubleshooting Procedures</h2>
+
+                    <div class="common-issues">
+                        <h3>Common Issues and Solutions</h3>
+
+                        <h4>High CPU Usage</h4>
+                        <div class="troubleshooting-steps">
+                            <h5>Diagnosis:</h5>
+                            <pre><code># Check top processes
+top -p $(pgrep -d',' sysmanage)
+
+# Check CPU usage by process
+ps aux | grep sysmanage | sort -k3 -nr
+
+# Monitor system load
+uptime
+iostat 1 5</code></pre>
+
+                            <h5>Solutions:</h5>
+                            <ul>
+                                <li>Optimize database queries</li>
+                                <li>Reduce data collection frequency</li>
+                                <li>Scale up CPU resources</li>
+                                <li>Implement caching</li>
+                            </ul>
+                        </div>
+
+                        <h4>Memory Issues</h4>
+                        <div class="troubleshooting-steps">
+                            <h5>Diagnosis:</h5>
+                            <pre><code># Check memory usage
+free -h
+cat /proc/meminfo
+
+# Check for memory leaks
+ps aux --sort=-%mem | head -20
+
+# Monitor memory over time
+sar -r 1 10</code></pre>
+
+                            <h5>Solutions:</h5>
+                            <ul>
+                                <li>Restart affected services</li>
+                                <li>Optimize data structures</li>
+                                <li>Implement pagination</li>
+                                <li>Add more RAM</li>
+                            </ul>
+                        </div>
+
+                        <h4>Database Performance Issues</h4>
+                        <div class="troubleshooting-steps">
+                            <h5>Diagnosis:</h5>
+                            <pre><code>-- Check slow queries
+SELECT query, mean_time, calls
+FROM pg_stat_statements
+ORDER BY mean_time DESC;
+
+-- Check connection count
+SELECT count(*) FROM pg_stat_activity;
+
+-- Check locks
+SELECT * FROM pg_locks
+WHERE NOT granted;</code></pre>
+
+                            <h5>Solutions:</h5>
+                            <ul>
+                                <li>Optimize slow queries</li>
+                                <li>Add missing indexes</li>
+                                <li>Run VACUUM ANALYZE</li>
+                                <li>Increase connection pool size</li>
+                            </ul>
+                        </div>
+                    </div>
+
+                    <div class="diagnostic-tools">
+                        <h3>Diagnostic Tools and Commands</h3>
+
+                        <h4>System Diagnostics</h4>
+                        <pre><code># System information
+uname -a
+lscpu
+free -h
+df -h
+
+# Process monitoring
+ps aux | grep sysmanage
+netstat -tulpn | grep :8443
+ss -tulpn | grep :5432
+
+# Performance monitoring
+vmstat 1 5
+iostat -x 1 5
+sar -u 1 5</code></pre>
+
+                        <h4>Application Diagnostics</h4>
+                        <pre><code># Check service status
+systemctl status sysmanage-backend
+systemctl status sysmanage-worker
+systemctl status postgresql
+
+# View recent logs
+journalctl -u sysmanage-backend -f
+tail -f /opt/sysmanage/logs/backend.log
+
+# Test connectivity
+curl -k https://localhost:8443/api/health
+pg_isready -h localhost -p 5432</code></pre>
+                    </div>
+                </section>
+
+                <section class="maintenance-best-practices">
+                    <h2>Maintenance Best Practices</h2>
+
+                    <div class="planning-best-practices">
+                        <h3>Planning and Scheduling</h3>
+                        <ul>
+                            <li><strong>Maintenance Windows:</strong> Schedule during low-traffic periods</li>
+                            <li><strong>Change Management:</strong> Document all changes and approvals</li>
+                            <li><strong>Communication:</strong> Notify stakeholders of maintenance schedules</li>
+                            <li><strong>Rollback Plans:</strong> Always have rollback procedures ready</li>
+                            <li><strong>Testing:</strong> Test changes in staging before production</li>
+                        </ul>
+                    </div>
+
+                    <div class="execution-best-practices">
+                        <h3>Execution Best Practices</h3>
+                        <ul>
+                            <li><strong>Backup First:</strong> Always backup before making changes</li>
+                            <li><strong>Incremental Changes:</strong> Make small, manageable changes</li>
+                            <li><strong>Monitoring:</strong> Monitor systems during and after maintenance</li>
+                            <li><strong>Documentation:</strong> Document all procedures and results</li>
+                            <li><strong>Verification:</strong> Verify changes work as expected</li>
+                        </ul>
+                    </div>
+
+                    <div class="automation-best-practices">
+                        <h3>Automation Best Practices</h3>
+                        <ul>
+                            <li><strong>Script Testing:</strong> Test automation scripts thoroughly</li>
+                            <li><strong>Error Handling:</strong> Implement proper error handling and logging</li>
+                            <li><strong>Monitoring:</strong> Monitor automated processes</li>
+                            <li><strong>Alerting:</strong> Alert on automation failures</li>
+                            <li><strong>Regular Review:</strong> Review and update automation regularly</li>
+                        </ul>
+                    </div>
+                </section>
+            </div>
+
+            <div class="docs-footer">
+                <div class="docs-navigation">
+                    <h3>Quick Navigation</h3>
+                    <div class="nav-links">
+                        <a href="backup.html" class="nav-link">← Backup & Recovery</a>
+                        <a href="../security/" class="nav-link">Security →</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <footer class="site-footer">
+        <div class="container">
+            <div class="footer-bottom">
+                <p>&copy; 2024 SysManage. All rights reserved.</p>
+            </div>
+        </div>
+    </footer>
+
+    <script src="../../assets/js/main.js"></script>
+    <script src="../../assets/js/i18n.js"></script>
+</body>
+</html>
