@@ -1,159 +1,190 @@
-# SysManage Documentation Site
+# typos
 
-This repository contains the GitHub Pages documentation website for SysManage at [sysmanage.org](https://sysmanage.org).
+> **Source code spell checker**
 
-## Overview
+Finds and corrects spelling mistakes among source code:
+- Fast enough to run on monorepos
+- Low false positives so you can run on PRs
 
-The SysManage documentation site provides comprehensive guides, tutorials, and reference materials for both the SysManage server and agent components. The site is built with static HTML/CSS/JavaScript and hosted on GitHub Pages.
+![Screenshot](./docs/screenshot.png)
 
-## Structure
 
-```text
-/
-├── index.html              # Homepage
-├── CNAME                   # Custom domain configuration
-├── _config.yml             # Jekyll configuration
-├── docs/                   # Documentation sections
-│   ├── index.html          # Documentation landing page
-│   ├── server/             # Server documentation
-│   ├── agent/              # Agent documentation
-│   ├── api/                # API reference
-│   ├── security/           # Security documentation
-│   ├── getting-started/    # Quick start guides
-│   └── administration/     # Admin guides
-├── assets/                 # Static assets
-│   ├── css/style.css       # Main stylesheet
-│   ├── js/main.js          # JavaScript functionality
-│   └── images/             # Images and graphics
-└── README.md               # This file
+[![Downloads](https://img.shields.io/github/downloads/crate-ci/typos/total.svg)](https://github.com/crate-ci/typos/releases)
+[![codecov](https://codecov.io/gh/crate-ci/typos/branch/master/graph/badge.svg)](https://codecov.io/gh/crate-ci/typos)
+[![Documentation](https://img.shields.io/badge/docs-master-blue.svg)][Documentation]
+![License](https://img.shields.io/crates/l/typos.svg)
+[![Crates Status](https://img.shields.io/crates/v/typos.svg)][Crates.io]
+
+Dual-licensed under [MIT](LICENSE-MIT) or [Apache 2.0](LICENSE-APACHE)
+
+## Documentation
+
+- [Installation](#install)
+- [Getting Started](#getting-started)
+  - [False Positives](#false-positives)
+  - [Integrations](#integrations)
+    - [GitHub Action](docs/github-action.md)
+    - [pre-commit](docs/pre-commit.md)
+    - [Custom](#custom)
+  - [Debugging](#debugging)
+- [Reference](docs/reference.md)
+- [FAQ](#faq)
+- [Comparison with other spell checkers](docs/comparison.md)
+- [Projects using typos](https://github.com/crate-ci/typos/wiki)
+- [Benchmarks](benchsuite/runs)
+- [Design](docs/design.md)
+- [Contribute](CONTRIBUTING.md)
+- [CHANGELOG](CHANGELOG.md)
+
+## Install
+
+[Download](https://github.com/crate-ci/typos/releases) a pre-built binary
+(installable via [gh-install](https://github.com/crate-ci/gh-install)).
+
+Or use rust to install:
+```console
+$ cargo install typos-cli
 ```
 
-## Documentation Sections
+Or use [Homebrew](https://brew.sh/) to install:
+```console
+$ brew install typos-cli
+```
 
-### Server Documentation (`/docs/server/`)
+Or use [Conda](https://conda.io/) to install:
+```console
+$ conda install typos
+```
 
-- Installation and setup guides
-- Configuration options
-- Deployment strategies
-- Feature overviews
-- Troubleshooting guides
+Or use [Pacman](https://wiki.archlinux.org/title/pacman) to install:
+```console
+$ sudo pacman -S typos
+```
 
-### Agent Documentation (`/docs/agent/`)
+## Getting Started
 
-- Cross-platform installation
-- Configuration and auto-discovery
-- Privileged execution setup
-- Platform-specific guides
-- Security and mTLS setup
+Most commonly, you'll either want to see what typos are available with
+```console
+$ typos
+```
 
-### API Reference (`/docs/api/`)
+Or have them fixed
+```console
+$ typos --write-changes
+$ typos -w
+```
+If there is any ambiguity (multiple possible corrections), `typos` will just report it to the user and move on.
 
-- REST API documentation
-- WebSocket API reference
-- Authentication guides
-- Integration examples
+### False Positives
 
-### Security (`/docs/security/`)
+Sometimes, what looks like a typo is intentional, like with people's names, acronyms, or localized content.
 
-- Security features overview
-- mTLS configuration
-- Security best practices
-- Vulnerability reporting
+To mark a word or an identifier (grouping of words) as valid, add it to your [`_typos.toml`](docs/reference.md) by declaring itself as the valid spelling:
+```toml
+[default]
+extend-ignore-identifiers-re = [
+    # *sigh* this just isn't worth the cost of fixing
+    "AttributeID.*Supress.*",
+]
 
-### Getting Started (`/docs/getting-started/`)
+[default.extend-identifiers]
+# *sigh* this just isn't worth the cost of fixing
+AttributeIDSupressMenu = "AttributeIDSupressMenu"
 
-- Quick start guides
-- First deployment tutorials
-- Basic management tasks
+[default.extend-words]
+# Don't correct the surname "Teh"
+teh = "teh"
+```
+For more ways to ignore or extend the dictionary with examples, see the [config reference](docs/reference.md).
 
-### Administration (`/docs/administration/`)
+For cases like localized content, you can disable spell checking of file contents while still checking the file name:
+```toml
+[type.po]
+extend-glob = ["*.po"]
+check-file = false
+```
+(run `typos --type-list` to see configured file types)
 
-- User management
-- Host administration
-- Monitoring and alerts
-- Backup and maintenance
+If you need some more flexibility, you can completely exclude some files from consideration:
+```toml
+[files]
+extend-exclude = ["localized/*.po"]
+```
 
-## Local Development
+### Integrations
 
-To work on the documentation site locally:
+- [GitHub Actions](docs/github-action.md)
+- [pre-commit](docs/pre-commit.md)
+- [🐊Putout Processor](https://github.com/putoutjs/putout-processor-typos)
+- [Visual Studio Code](https://github.com/tekumara/typos-vscode)
+- [typos-lsp (Language Server Protocol server)](https://github.com/tekumara/typos-vscode)
 
-1. **Clone the repository:**
+#### Custom
 
-   ```bash
-   git clone https://github.com/bceverly/sysmanage-docs.git
-   cd sysmanage-docs
-   ```
+`typos` provides several building blocks for custom native integrations
+- `-` reads from `stdin`, `--write-changes` will be written to `stdout`
+- `--diff` to provide a diff
+- `--format json` to get jsonlines with exit code 0 on no errors, code 2 on typos, anything else is an error.
 
-2. **Serve locally with Jekyll (optional):**
+Examples:
+```console
+$ # Read file from stdin, write corrected version to stdout
+$ typos - --write-changes
+$ # Creates a diff of what would change
+$ typos dir/file --diff
+$ # Fully programmatic control
+$ typos dir/file --format json
+```
 
-   ```bash
-   # Install Jekyll (if not already installed)
-   gem install bundler jekyll
+### Debugging
 
-   # Create Gemfile if needed
-   bundle init
-   bundle add jekyll
+You can see what the effective config looks like by running
+```console
+$ typos --dump-config -
+```
 
-   # Serve the site
-   bundle exec jekyll serve
-   ```
+You can then see how typos is processing your project with
+```console
+$ typos --files
+$ typos --identifiers
+$ typos --words
+```
 
-3. **Or serve with Python (simple HTTP server):**
+If you need to dig in more, you can enable debug logging with `-v`
 
-   ```bash
-   # Python 3
-   python -m http.server 8000
+## FAQ
 
-   # Python 2
-   python -m SimpleHTTPServer 8000
-   ```
+### Why was ... not corrected?
 
-4. **View the site at:** `http://localhost:8000`
+**Does the file show up in `typos --files`?**
+If not, check your config with `typos --dump-config -`.
+The `[files]` table controls how we walk files.
+If you are using `files.extend-exclude`,
+are you running into [#593](https://github.com/crate-ci/typos/issues/593)?
+If you are using `files.ignore-vcs = true`,
+is the file in your `.gitignore` but git tracks it anyways?
+Prefer allowing the file explicitly (see [#909](https://github.com/crate-ci/typos/issues/909)).
 
-## Contributing
+**Does the identifier show up in `typos --identifiers` or the word show up in `typos --words`?**
+If not, it might be subject to one of typos' heuristics for
+detecting non-words (like hashes) or
+unambiguous words (like words after a `\` escape).
 
-When contributing to the documentation:
+If it is showing up, likely `typos` doesn't know about it yet.
 
-1. **Content Updates**: Update the relevant HTML files in the appropriate sections
-2. **Styling**: Modify `assets/css/style.css` for visual changes
-3. **JavaScript**: Update `assets/js/main.js` for interactive features
-4. **New Sections**: Add new directories under `docs/` and update navigation
+`typos` maintains a list of known typo corrections to keep the false positive
+count low so it can safely run unassisted.
 
-## Deployment
+This is in contrast to most spell checking UIs people use where there is a
+known list of valid words.  In this case, the spell checker tries to guess your
+intent by finding the closest-looking word.  It then has a gauge for when a
+word isn't close enough and assumes you know best.  The user has the
+opportunity to verify these corrections and explicitly allow or reject them.
 
-The site is automatically deployed to GitHub Pages when changes are pushed to the main branch. The custom domain `sysmanage.org` is configured via the `CNAME` file.
+For more on the trade offs of these approaches, see [Design](docs/design.md).
 
-### GitHub Pages Settings
+- To correct it locally, see also our [False Positives documentation](#false-positives).
+- To contribute your correction, see [Contribute](CONTRIBUTING.md)
 
-- **Source**: Deploy from `main` branch
-- **Custom domain**: `sysmanage.org`
-- **Enforce HTTPS**: Enabled
-
-### DNS Configuration
-
-The domain should be configured with:
-
-- **A records** pointing to GitHub Pages IPs
-- **CNAME record** for `www` subdomain
-- See the main documentation for complete DNS setup
-
-## Features
-
-- **Responsive Design**: Mobile-friendly layout
-- **Modern UI**: Clean, professional appearance
-- **Search Functionality**: Basic search capabilities
-- **Smooth Navigation**: Animated scrolling and transitions
-- **External Link Indicators**: Visual cues for external links
-- **Copy Code Blocks**: One-click code copying
-- **Scroll to Top**: Easy navigation for long pages
-
-## License
-
-This documentation site is part of the SysManage project and is licensed under the GNU Affero General Public License v3.0.
-
-## Links
-
-- **Main Project**: [SysManage Server](https://github.com/bceverly/sysmanage)
-- **Agent Project**: [SysManage Agent](https://github.com/bceverly/sysmanage-agent)
-- **Live Site**: [sysmanage.org](https://sysmanage.org)
-- **Issues**: [GitHub Issues](https://github.com/bceverly/sysmanage-docs/issues)
+[Crates.io]: https://crates.io/crates/typos-cli
+[Documentation]: https://docs.rs/typos
