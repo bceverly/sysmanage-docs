@@ -1,0 +1,409 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Agent Deployment Guide - SysManage</title>
+    <meta name="description" content="Automated deployment strategies and best practices for SysManage agents in production environments.">
+    <link rel="stylesheet" href="../../assets/css/style.css">
+    <link rel="icon" type="image/svg+xml" href="../../assets/images/favicon.svg">
+</head>
+<body>
+    <header class="site-header">
+        <nav class="navbar">
+            <div class="container">
+                <div class="nav-brand">
+                    <a href="../../">
+                        <img src="../../assets/images/sysmanage-logo.svg" alt="SysManage" class="logo">
+                    </a>
+                </div>
+                <div class="nav-menu">
+                    <a href="../../#features" class="nav-link">Features</a>
+                    <a href="../../#getting-started" class="nav-link">Getting Started</a>
+                    <a href="../" class="nav-link active">Documentation</a>
+                    <a href="https://github.com/bceverly/sysmanage-agent" class="nav-link" target="_blank">GitHub</a>
+                </div>
+            </div>
+        </nav>
+    </header>
+
+    <main class="docs-main">
+        <div class="container">
+            <div class="docs-breadcrumb">
+                <a href="../">Documentation</a> > <a href="./">Agent</a> > <span>Deployment</span>
+            </div>
+
+            <div class="docs-header">
+                <h1>Agent Deployment Guide</h1>
+                <p>Automated deployment strategies and best practices for scaling SysManage agent deployment across your infrastructure.</p>
+            </div>
+
+            <div class="docs-content">
+                <section class="deployment-overview">
+                    <h2>Deployment Overview</h2>
+                    <p>SysManage agents can be deployed using various automation tools and strategies depending on your infrastructure size and management preferences.</p>
+
+                    <div class="deployment-methods">
+                        <div class="method-card">
+                            <h3>🔧 Configuration Management</h3>
+                            <p>Deploy agents using infrastructure automation tools</p>
+                            <ul>
+                                <li>Ansible playbooks</li>
+                                <li>Puppet manifests</li>
+                                <li>Chef cookbooks</li>
+                                <li>SaltStack states</li>
+                            </ul>
+                        </div>
+
+                        <div class="method-card">
+                            <h3>📦 Package Managers</h3>
+                            <p>Use system package managers for standardized deployment</p>
+                            <ul>
+                                <li>APT repositories (Debian/Ubuntu)</li>
+                                <li>YUM/DNF repositories (RHEL/CentOS/Fedora)</li>
+                                <li>Chocolatey (Windows)</li>
+                                <li>Homebrew (macOS)</li>
+                            </ul>
+                        </div>
+
+                        <div class="method-card">
+                            <h3>🐳 Containerized Deployment</h3>
+                            <p>Deploy agents as containers for modern infrastructure</p>
+                            <ul>
+                                <li>Docker containers</li>
+                                <li>Kubernetes DaemonSets</li>
+                                <li>Docker Swarm services</li>
+                                <li>Podman deployments</li>
+                            </ul>
+                        </div>
+                    </div>
+                </section>
+
+                <section class="ansible-deployment">
+                    <h2>Ansible Deployment</h2>
+                    <p>Ansible is the recommended tool for automated agent deployment. Here's a sample playbook:</p>
+
+                    <div class="code-example">
+                        <h3>Basic Ansible Playbook</h3>
+                        <pre><code>---
+- name: Deploy SysManage Agent
+  hosts: all
+  become: yes
+  vars:
+    sysmanage_server: "sysmanage.example.com"
+    sysmanage_port: 8443
+    agent_version: "latest"
+
+  tasks:
+    - name: Download SysManage agent
+      get_url:
+        url: "https://releases.sysmanage.org/{{ agent_version }}/sysmanage-agent-{{ ansible_system | lower }}-{{ ansible_architecture }}"
+        dest: "/tmp/sysmanage-agent"
+        mode: '0755'
+
+    - name: Install agent
+      command: /tmp/sysmanage-agent install --server {{ sysmanage_server }} --port {{ sysmanage_port }}
+      creates: /etc/sysmanage-agent/config.toml
+
+    - name: Start and enable agent service
+      systemd:
+        name: sysmanage-agent
+        state: started
+        enabled: yes</code></pre>
+                    </div>
+
+                    <div class="code-example">
+                        <h3>Advanced Playbook with Certificate Management</h3>
+                        <pre><code>---
+- name: Deploy SysManage Agent with mTLS
+  hosts: all
+  become: yes
+  vars:
+    sysmanage_server: "sysmanage.example.com"
+    ca_cert_path: "/etc/sysmanage/ca.crt"
+
+  tasks:
+    - name: Create sysmanage directories
+      file:
+        path: "{{ item }}"
+        state: directory
+        mode: '0755'
+      loop:
+        - /etc/sysmanage
+        - /var/log/sysmanage-agent
+
+    - name: Copy CA certificate
+      copy:
+        src: "{{ ca_cert_path }}"
+        dest: /etc/sysmanage/ca.crt
+        mode: '0644'
+
+    - name: Generate agent certificate request
+      command: sysmanage-agent cert-request --output /tmp/agent.csr
+      creates: /tmp/agent.csr
+
+    - name: Install and configure agent
+      template:
+        src: agent-config.toml.j2
+        dest: /etc/sysmanage-agent/config.toml
+        mode: '0600'</code></pre>
+                    </div>
+                </section>
+
+                <section class="kubernetes-deployment">
+                    <h2>Kubernetes Deployment</h2>
+                    <p>Deploy agents as a DaemonSet to ensure one agent per node:</p>
+
+                    <div class="code-example">
+                        <h3>DaemonSet Configuration</h3>
+                        <pre><code>apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: sysmanage-agent
+  namespace: sysmanage
+spec:
+  selector:
+    matchLabels:
+      app: sysmanage-agent
+  template:
+    metadata:
+      labels:
+        app: sysmanage-agent
+    spec:
+      hostNetwork: true
+      hostPID: true
+      hostIPC: true
+      containers:
+      - name: sysmanage-agent
+        image: sysmanage/agent:latest
+        securityContext:
+          privileged: true
+        env:
+        - name: SYSMANAGE_SERVER
+          value: "sysmanage-server.sysmanage.svc.cluster.local"
+        - name: NODE_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: spec.nodeName
+        volumeMounts:
+        - name: host-root
+          mountPath: /host
+          readOnly: true
+        - name: agent-config
+          mountPath: /etc/sysmanage-agent
+      volumes:
+      - name: host-root
+        hostPath:
+          path: /
+      - name: agent-config
+        configMap:
+          name: sysmanage-agent-config</code></pre>
+                    </div>
+                </section>
+
+                <section class="docker-deployment">
+                    <h2>Docker Deployment</h2>
+                    <p>Run agents as Docker containers with proper host access:</p>
+
+                    <div class="code-example">
+                        <h3>Docker Run Command</h3>
+                        <pre><code>docker run -d \
+  --name sysmanage-agent \
+  --restart unless-stopped \
+  --privileged \
+  --network host \
+  --pid host \
+  --ipc host \
+  -v /:/host:ro \
+  -v /var/run/docker.sock:/var/run/docker.sock \
+  -e SYSMANAGE_SERVER=sysmanage.example.com \
+  -e SYSMANAGE_PORT=8443 \
+  sysmanage/agent:latest</code></pre>
+                    </div>
+
+                    <div class="code-example">
+                        <h3>Docker Compose</h3>
+                        <pre><code>version: '3.8'
+
+services:
+  sysmanage-agent:
+    image: sysmanage/agent:latest
+    container_name: sysmanage-agent
+    restart: unless-stopped
+    privileged: true
+    network_mode: host
+    pid: host
+    ipc: host
+    volumes:
+      - /:/host:ro
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./agent-config:/etc/sysmanage-agent
+    environment:
+      - SYSMANAGE_SERVER=sysmanage.example.com
+      - SYSMANAGE_PORT=8443
+      - LOG_LEVEL=info</code></pre>
+                    </div>
+                </section>
+
+                <section class="mass-deployment">
+                    <h2>Mass Deployment Strategies</h2>
+
+                    <div class="strategy-grid">
+                        <div class="strategy-card">
+                            <h3>Phased Rollout</h3>
+                            <ul>
+                                <li>Deploy to test environment first</li>
+                                <li>Gradual rollout by groups</li>
+                                <li>Monitor each phase before proceeding</li>
+                                <li>Rollback plan for issues</li>
+                            </ul>
+                        </div>
+
+                        <div class="strategy-card">
+                            <h3>Blue-Green Deployment</h3>
+                            <ul>
+                                <li>Maintain two identical environments</li>
+                                <li>Deploy to inactive environment</li>
+                                <li>Switch traffic after validation</li>
+                                <li>Quick rollback capability</li>
+                            </ul>
+                        </div>
+
+                        <div class="strategy-card">
+                            <h3>Canary Deployment</h3>
+                            <ul>
+                                <li>Deploy to small subset first</li>
+                                <li>Monitor metrics and performance</li>
+                                <li>Gradually increase deployment size</li>
+                                <li>Automated rollback on failures</li>
+                            </ul>
+                        </div>
+                    </div>
+                </section>
+
+                <section class="deployment-checklist">
+                    <h2>Deployment Checklist</h2>
+
+                    <div class="checklist-section">
+                        <h3>Pre-deployment</h3>
+                        <ul class="checklist">
+                            <li>Server connectivity verified</li>
+                            <li>Certificates prepared and distributed</li>
+                            <li>Network firewall rules configured</li>
+                            <li>Agent configuration templates ready</li>
+                            <li>Backup and rollback plan documented</li>
+                        </ul>
+                    </div>
+
+                    <div class="checklist-section">
+                        <h3>During Deployment</h3>
+                        <ul class="checklist">
+                            <li>Monitor deployment progress</li>
+                            <li>Verify agent connectivity</li>
+                            <li>Check service status on each host</li>
+                            <li>Validate certificate authentication</li>
+                            <li>Test basic agent functionality</li>
+                        </ul>
+                    </div>
+
+                    <div class="checklist-section">
+                        <h3>Post-deployment</h3>
+                        <ul class="checklist">
+                            <li>Confirm all agents are reporting</li>
+                            <li>Verify metric collection</li>
+                            <li>Test command execution</li>
+                            <li>Update monitoring dashboards</li>
+                            <li>Document deployment configuration</li>
+                        </ul>
+                    </div>
+                </section>
+
+                <section class="troubleshooting">
+                    <h2>Deployment Troubleshooting</h2>
+
+                    <div class="troubleshooting-grid">
+                        <div class="issue-card">
+                            <h3>Agent Not Connecting</h3>
+                            <ul>
+                                <li>Check network connectivity to server</li>
+                                <li>Verify server hostname and port</li>
+                                <li>Check certificate validity</li>
+                                <li>Review firewall rules</li>
+                                <li>Examine agent logs</li>
+                            </ul>
+                        </div>
+
+                        <div class="issue-card">
+                            <h3>Certificate Issues</h3>
+                            <ul>
+                                <li>Verify CA certificate installation</li>
+                                <li>Check certificate expiration</li>
+                                <li>Validate certificate chain</li>
+                                <li>Ensure proper permissions</li>
+                                <li>Test manual certificate validation</li>
+                            </ul>
+                        </div>
+
+                        <div class="issue-card">
+                            <h3>Service Startup Failures</h3>
+                            <ul>
+                                <li>Check system service logs</li>
+                                <li>Verify configuration file syntax</li>
+                                <li>Ensure proper file permissions</li>
+                                <li>Check available system resources</li>
+                                <li>Validate dependencies</li>
+                            </ul>
+                        </div>
+                    </div>
+                </section>
+            </div>
+
+            <nav class="docs-nav">
+                <div class="nav-section">
+                    <h4>Agent</h4>
+                    <ul>
+                        <li><a href="./" class="nav-link">Agent Overview</a></li>
+                        <li><a href="installation.html" class="nav-link">Installation</a></li>
+                        <li><a href="deployment.html" class="nav-link active">Deployment</a></li>
+                        <li><a href="configuration.html" class="nav-link">Configuration</a></li>
+                        <li><a href="cross-platform.html" class="nav-link">Cross-Platform</a></li>
+                        <li><a href="privileged-execution.html" class="nav-link">Privileged Execution</a></li>
+                    </ul>
+                </div>
+            </nav>
+        </div>
+    </main>
+
+    <footer class="site-footer">
+        <div class="container">
+            <div class="footer-content">
+                <div class="footer-section">
+                    <h4>SysManage</h4>
+                    <p>Modern infrastructure management made simple.</p>
+                </div>
+                <div class="footer-section">
+                    <h4>Documentation</h4>
+                    <ul>
+                        <li><a href="../getting-started/">Getting Started</a></li>
+                        <li><a href="../server/">Server</a></li>
+                        <li><a href="./">Agent</a></li>
+                        <li><a href="../api/">API Reference</a></li>
+                    </ul>
+                </div>
+                <div class="footer-section">
+                    <h4>Community</h4>
+                    <ul>
+                        <li><a href="https://github.com/bceverly/sysmanage-agent" target="_blank">GitHub</a></li>
+                        <li><a href="../security/reporting.html">Report Issues</a></li>
+                    </ul>
+                </div>
+            </div>
+            <div class="footer-bottom">
+                <p>&copy; 2024 SysManage. Open source infrastructure management.</p>
+            </div>
+        </div>
+    </footer>
+
+    <button class="scroll-to-top" onclick="window.scrollTo({top: 0, behavior: 'smooth'})">↑</button>
+</body>
+</html>
