@@ -173,7 +173,7 @@ This documentation is released under the [GNU Affero General Public License Vers
 ## 🆘 Support
 
 - **Documentation Issues** - [GitHub Issues](https://github.com/bceverly/sysmanage-docs/issues)
-- **General Support** - [GitHub Discussions](https://github.com/bceverly/sysmanage/discussions)
+- **General Support** - [GitHub Issues](https://github.com/bceverly/sysmanage/issues)
 - **Security Issues** - [Security Reporting](docs/security/reporting.html)
 
 ---
