@@ -1,0 +1,817 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Authentication & Authorization - SysManage Security</title>
+    <meta name="description" content="Comprehensive guide to SysManage authentication, authorization, JWT implementation, RBAC, multi-factor authentication, and session management.">
+    <link rel="stylesheet" href="../../assets/css/style.css">
+    <link rel="icon" type="image/svg+xml" href="../../assets/images/favicon.svg">
+</head>
+<body>
+    <header class="site-header">
+        <nav class="navbar">
+            <div class="container">
+                <div class="nav-brand">
+                    <a href="../../">
+                        <img src="../../assets/images/sysmanage-logo.svg" alt="SysManage" class="logo">
+                    </a>
+                </div>
+                <div class="nav-menu">
+                    <a href="../../#features" class="nav-link">Features</a>
+                    <a href="../../#getting-started" class="nav-link">Getting Started</a>
+                    <a href="../" class="nav-link active">Documentation</a>
+                    <a href="https://github.com/bceverly/sysmanage" class="nav-link" target="_blank">GitHub</a>
+                </div>
+            </div>
+        </nav>
+    </header>
+
+    <main class="docs-main">
+        <div class="container">
+            <div class="docs-breadcrumb">
+                <a href="../">Documentation</a> > <a href="./">Security</a> > <span>Authentication & Authorization</span>
+            </div>
+
+            <div class="docs-header">
+                <h1>Authentication & Authorization</h1>
+                <p>Comprehensive guide to SysManage's JWT-based authentication system, role-based access control, multi-factor authentication, and session management.</p>
+            </div>
+
+            <div class="docs-content">
+                <section class="overview">
+                    <h2>Authentication Overview</h2>
+                    <p>SysManage implements a robust multi-layered authentication and authorization system designed for enterprise environments. The system combines JWT-based stateless authentication with comprehensive role-based access control (RBAC) to ensure secure access to infrastructure management capabilities.</p>
+
+                    <div class="auth-architecture">
+                        <h3>Authentication Architecture</h3>
+                        <pre class="ascii-diagram">
+┌─────────────────────────────────────────────────────────────────┐
+│                      Authentication Flow                        │
+├─────────────────────────────────────────────────────────────────┤
+│  ┌─────────────┐  ┌──────────────┐  ┌─────────────────────────┐ │
+│  │ User Login  │  │ JWT Service  │  │ RBAC Authorization      │ │
+│  │ (Web/API)   │  │ (Token Gen)  │  │ (Role Validation)       │ │
+│  └─────────────┘  └──────────────┘  └─────────────────────────┘ │
+├─────────────────────────────────────────────────────────────────┤
+│  ┌─────────────┐  ┌──────────────┐  ┌─────────────────────────┐ │
+│  │ Password    │  │ Session      │  │ Multi-Factor Auth       │ │
+│  │ Validation  │  │ Management   │  │ (Optional MFA)          │ │
+│  └─────────────┘  └──────────────┘  └─────────────────────────┘ │
+├─────────────────────────────────────────────────────────────────┤
+│  ┌─────────────────────────────────────────────────────────────┐ │
+│  │                PostgreSQL User Store                       │ │
+│  └─────────────────────────────────────────────────────────────┘ │
+└─────────────────────────────────────────────────────────────────┘
+                        </pre>
+                    </div>
+                </section>
+
+                <section class="jwt-authentication">
+                    <h2>JWT Authentication</h2>
+
+                    <h3>JWT Implementation</h3>
+                    <p>SysManage uses JSON Web Tokens (JWT) for stateless authentication, providing scalability and security benefits for distributed deployments.</p>
+
+                    <h4>JWT Token Structure</h4>
+                    <div class="code-block">
+                        <pre><code># JWT Header
+{
+  "alg": "HS256",
+  "typ": "JWT"
+}
+
+# JWT Payload
+{
+  "sub": "user_id",
+  "username": "admin",
+  "email": "admin@company.com",
+  "roles": ["admin", "operator"],
+  "permissions": ["read:hosts", "write:hosts", "manage:users"],
+  "iat": 1634567890,
+  "exp": 1634571490,
+  "jti": "unique-token-id"
+}
+
+# JWT Signature
+HMACSHA256(
+  base64UrlEncode(header) + "." +
+  base64UrlEncode(payload),
+  secret
+)</code></pre>
+                    </div>
+
+                    <h4>Token Generation Process</h4>
+                    <div class="process-flow">
+                        <ol>
+                            <li><strong>User Authentication:</strong> Validate credentials against user database</li>
+                            <li><strong>Role Resolution:</strong> Query user roles and permissions from RBAC system</li>
+                            <li><strong>Token Creation:</strong> Generate JWT with user claims and permissions</li>
+                            <li><strong>Token Signing:</strong> Sign token with server secret key</li>
+                            <li><strong>Response:</strong> Return signed JWT to client with expiration information</li>
+                        </ol>
+                    </div>
+
+                    <h4>JWT Configuration</h4>
+                    <div class="code-block">
+                        <pre><code># JWT Settings in server configuration
+JWT_SECRET_KEY="your-secure-secret-key-here"
+JWT_ALGORITHM="HS256"
+JWT_ACCESS_TOKEN_EXPIRE_MINUTES=30
+JWT_REFRESH_TOKEN_EXPIRE_DAYS=7
+JWT_ISSUER="sysmanage-server"
+JWT_AUDIENCE="sysmanage-clients"
+
+# Token rotation settings
+JWT_ALLOW_REFRESH=true
+JWT_REFRESH_THRESHOLD_MINUTES=5
+JWT_BLACKLIST_ENABLED=true</code></pre>
+                    </div>
+
+                    <h3>Token Rotation & Security</h3>
+                    <p>SysManage implements automatic token rotation to enhance security:</p>
+
+                    <div class="security-features">
+                        <div class="feature-item">
+                            <h4>Automatic Rotation</h4>
+                            <ul>
+                                <li>Tokens automatically refreshed when 5 minutes from expiry</li>
+                                <li>Refresh tokens issued with longer validity periods</li>
+                                <li>Old tokens invalidated after successful refresh</li>
+                            </ul>
+                        </div>
+                        <div class="feature-item">
+                            <h4>Token Blacklisting</h4>
+                            <ul>
+                                <li>Revoked tokens stored in blacklist</li>
+                                <li>All API requests validate against blacklist</li>
+                                <li>Automatic cleanup of expired blacklist entries</li>
+                            </ul>
+                        </div>
+                    </div>
+
+                    <h4>Token Validation Flow</h4>
+                    <div class="code-block">
+                        <pre><code># FastAPI JWT validation middleware
+from fastapi import HTTPException, Depends
+from fastapi.security import HTTPBearer
+import jwt
+
+security = HTTPBearer()
+
+async def validate_token(token: str = Depends(security)):
+    try:
+        # Decode and validate JWT
+        payload = jwt.decode(
+            token.credentials,
+            JWT_SECRET_KEY,
+            algorithms=[JWT_ALGORITHM],
+            audience=JWT_AUDIENCE,
+            issuer=JWT_ISSUER
+        )
+
+        # Check token blacklist
+        if await is_token_blacklisted(payload.get('jti')):
+            raise HTTPException(401, "Token has been revoked")
+
+        # Validate token expiration
+        if payload.get('exp', 0) < time.time():
+            raise HTTPException(401, "Token has expired")
+
+        return payload
+
+    except jwt.InvalidTokenError:
+        raise HTTPException(401, "Invalid token")
+    except Exception as e:
+        raise HTTPException(401, f"Token validation failed: {str(e)}")</code></pre>
+                    </div>
+                </section>
+
+                <section class="rbac-system">
+                    <h2>Role-Based Access Control (RBAC)</h2>
+
+                    <h3>RBAC Architecture</h3>
+                    <p>SysManage implements a comprehensive RBAC system with hierarchical roles and granular permissions.</p>
+
+                    <div class="rbac-diagram">
+                        <h4>RBAC Data Model</h4>
+                        <pre class="ascii-diagram">
+┌─────────────┐     ┌─────────────┐     ┌─────────────┐
+│    Users    │────▶│    Roles    │────▶│ Permissions │
+└─────────────┘     └─────────────┘     └─────────────┘
+│                   │                   │
+│ - user_id         │ - role_id         │ - permission_id
+│ - username        │ - role_name       │ - resource
+│ - email           │ - description     │ - action
+│ - password_hash   │ - created_at      │ - scope
+│ - created_at      │ - updated_at      │ - description
+│ - is_active       │                   │
+└─────────────┘     └─────────────┘     └─────────────┘
+        │                   │                   │
+        └───────┬───────────┴───────┬───────────┘
+                │                   │
+        ┌───────▼────────┐  ┌───────▼────────┐
+        │  User_Roles    │  │ Role_Permissions│
+        │                │  │                 │
+        │ - user_id      │  │ - role_id       │
+        │ - role_id      │  │ - permission_id │
+        │ - granted_by   │  │ - granted_at    │
+        │ - granted_at   │  └─────────────────┘
+        └────────────────┘
+                        </pre>
+                    </div>
+
+                    <h3>Default Roles</h3>
+                    <div class="roles-grid">
+                        <div class="role-card">
+                            <h4>🔐 Admin</h4>
+                            <p><strong>Full system access</strong></p>
+                            <ul>
+                                <li>User management</li>
+                                <li>System configuration</li>
+                                <li>All host operations</li>
+                                <li>Security settings</li>
+                                <li>Audit log access</li>
+                            </ul>
+                        </div>
+                        <div class="role-card">
+                            <h4>⚙️ Operator</h4>
+                            <p><strong>Operations access</strong></p>
+                            <ul>
+                                <li>Host management</li>
+                                <li>Package operations</li>
+                                <li>System monitoring</li>
+                                <li>Task execution</li>
+                                <li>Limited user management</li>
+                            </ul>
+                        </div>
+                        <div class="role-card">
+                            <h4>👁️ Viewer</h4>
+                            <p><strong>Read-only access</strong></p>
+                            <ul>
+                                <li>View hosts and status</li>
+                                <li>Read package information</li>
+                                <li>Access monitoring data</li>
+                                <li>View task results</li>
+                                <li>Export reports</li>
+                            </ul>
+                        </div>
+                        <div class="role-card">
+                            <h4>📊 Auditor</h4>
+                            <p><strong>Audit and compliance</strong></p>
+                            <ul>
+                                <li>Access audit logs</li>
+                                <li>View security events</li>
+                                <li>Generate compliance reports</li>
+                                <li>Review user activities</li>
+                                <li>Monitor system changes</li>
+                            </ul>
+                        </div>
+                    </div>
+
+                    <h3>Permission System</h3>
+                    <p>Permissions follow a resource:action pattern for granular access control:</p>
+
+                    <div class="permissions-table">
+                        <h4>Permission Examples</h4>
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Resource</th>
+                                    <th>Actions</th>
+                                    <th>Description</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td>hosts</td>
+                                    <td>read, write, delete, approve</td>
+                                    <td>Host management operations</td>
+                                </tr>
+                                <tr>
+                                    <td>packages</td>
+                                    <td>read, install, update, remove</td>
+                                    <td>Package management operations</td>
+                                </tr>
+                                <tr>
+                                    <td>users</td>
+                                    <td>read, create, update, delete</td>
+                                    <td>User management operations</td>
+                                </tr>
+                                <tr>
+                                    <td>roles</td>
+                                    <td>read, create, update, delete, assign</td>
+                                    <td>Role management operations</td>
+                                </tr>
+                                <tr>
+                                    <td>security</td>
+                                    <td>read, configure, scan, audit</td>
+                                    <td>Security management operations</td>
+                                </tr>
+                                <tr>
+                                    <td>system</td>
+                                    <td>read, configure, backup, restore</td>
+                                    <td>System configuration operations</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <h4>RBAC Implementation</h4>
+                    <div class="code-block">
+                        <pre><code># Permission decorator for API endpoints
+from functools import wraps
+from fastapi import HTTPException
+
+def require_permission(resource: str, action: str):
+    def decorator(func):
+        @wraps(func)
+        async def wrapper(*args, **kwargs):
+            # Get current user from JWT token
+            current_user = kwargs.get('current_user')
+
+            # Check if user has required permission
+            if not await has_permission(current_user, resource, action):
+                raise HTTPException(
+                    status_code=403,
+                    detail=f"Permission denied: {resource}:{action}"
+                )
+
+            return await func(*args, **kwargs)
+        return wrapper
+    return decorator
+
+# Usage example
+@app.post("/api/hosts/{host_id}/approve")
+@require_permission("hosts", "approve")
+async def approve_host(host_id: int, current_user: User = Depends(get_current_user)):
+    # Approve host logic here
+    pass</code></pre>
+                    </div>
+                </section>
+
+                <section class="multi-factor-auth">
+                    <h2>Multi-Factor Authentication (MFA)</h2>
+
+                    <h3>MFA Implementation</h3>
+                    <p>SysManage supports Time-based One-Time Password (TOTP) multi-factor authentication for enhanced security.</p>
+
+                    <h4>Supported MFA Methods</h4>
+                    <div class="mfa-methods">
+                        <div class="method-item">
+                            <h4>📱 TOTP (Time-based OTP)</h4>
+                            <ul>
+                                <li>Compatible with Google Authenticator</li>
+                                <li>Microsoft Authenticator support</li>
+                                <li>Authy and other TOTP apps</li>
+                                <li>30-second token rotation</li>
+                            </ul>
+                        </div>
+                        <div class="method-item">
+                            <h4>📧 Email OTP</h4>
+                            <ul>
+                                <li>Email-based one-time passwords</li>
+                                <li>5-minute token validity</li>
+                                <li>Rate limiting for security</li>
+                                <li>Backup method for TOTP</li>
+                            </ul>
+                        </div>
+                        <div class="method-item">
+                            <h4>🔑 Recovery Codes</h4>
+                            <ul>
+                                <li>Single-use recovery codes</li>
+                                <li>10 codes generated per user</li>
+                                <li>Secure storage and hashing</li>
+                                <li>Emergency access capability</li>
+                            </ul>
+                        </div>
+                    </div>
+
+                    <h4>MFA Enrollment Process</h4>
+                    <div class="enrollment-flow">
+                        <ol>
+                            <li><strong>User Initiates:</strong> User requests MFA setup from profile settings</li>
+                            <li><strong>Secret Generation:</strong> Server generates unique TOTP secret key</li>
+                            <li><strong>QR Code Display:</strong> QR code presented for authenticator app setup</li>
+                            <li><strong>Verification:</strong> User enters TOTP code to verify setup</li>
+                            <li><strong>Recovery Codes:</strong> System generates and displays recovery codes</li>
+                            <li><strong>Activation:</strong> MFA becomes active after successful verification</li>
+                        </ol>
+                    </div>
+
+                    <h4>MFA Configuration</h4>
+                    <div class="code-block">
+                        <pre><code># MFA settings in server configuration
+MFA_ENABLED=true
+MFA_REQUIRED_FOR_ADMIN=true
+MFA_TOTP_ISSUER="SysManage"
+MFA_TOKEN_VALIDITY_SECONDS=30
+MFA_BACKUP_CODES_COUNT=10
+MFA_EMAIL_OTP_VALIDITY_MINUTES=5
+MFA_MAX_ATTEMPTS=3
+MFA_LOCKOUT_DURATION_MINUTES=15
+
+# TOTP implementation
+import pyotp
+import qrcode
+
+def generate_totp_secret():
+    return pyotp.random_base32()
+
+def generate_qr_code(user_email: str, secret: str):
+    totp_uri = pyotp.totp.TOTP(secret).provisioning_uri(
+        name=user_email,
+        issuer_name="SysManage"
+    )
+    qr = qrcode.QRCode(version=1, box_size=10, border=5)
+    qr.add_data(totp_uri)
+    qr.make(fit=True)
+    return qr.make_image(fill_color="black", back_color="white")</code></pre>
+                    </div>
+                </section>
+
+                <section class="session-management">
+                    <h2>Session Management</h2>
+
+                    <h3>Session Architecture</h3>
+                    <p>SysManage implements stateless session management using JWT tokens with additional security features.</p>
+
+                    <h4>Session Features</h4>
+                    <div class="session-features">
+                        <div class="feature-item">
+                            <h4>Token-Based Sessions</h4>
+                            <ul>
+                                <li>Stateless JWT-based sessions</li>
+                                <li>No server-side session storage</li>
+                                <li>Horizontal scaling friendly</li>
+                                <li>Cross-domain support</li>
+                            </ul>
+                        </div>
+                        <div class="feature-item">
+                            <h4>Session Security</h4>
+                            <ul>
+                                <li>Secure HTTP-only cookies</li>
+                                <li>CSRF protection tokens</li>
+                                <li>SameSite cookie attributes</li>
+                                <li>Automatic session timeout</li>
+                            </ul>
+                        </div>
+                        <div class="feature-item">
+                            <h4>Session Monitoring</h4>
+                            <ul>
+                                <li>Active session tracking</li>
+                                <li>Concurrent session limits</li>
+                                <li>Session activity logging</li>
+                                <li>Suspicious activity detection</li>
+                            </ul>
+                        </div>
+                    </div>
+
+                    <h4>Session Configuration</h4>
+                    <div class="code-block">
+                        <pre><code># Session configuration
+SESSION_SECURE_COOKIES=true
+SESSION_HTTPONLY_COOKIES=true
+SESSION_SAMESITE="Strict"
+SESSION_DOMAIN=".sysmanage.local"
+SESSION_MAX_AGE_HOURS=8
+SESSION_IDLE_TIMEOUT_MINUTES=30
+SESSION_MAX_CONCURRENT=5
+SESSION_TRACK_IP_CHANGES=true
+
+# Session cookie implementation
+from fastapi import Response
+
+def set_session_cookie(response: Response, token: str):
+    response.set_cookie(
+        key="sysmanage_session",
+        value=token,
+        httponly=True,
+        secure=True,
+        samesite="strict",
+        max_age=SESSION_MAX_AGE_HOURS * 3600,
+        domain=SESSION_DOMAIN
+    )</code></pre>
+                    </div>
+                </section>
+
+                <section class="password-policies">
+                    <h2>Password Policies</h2>
+
+                    <h3>Password Requirements</h3>
+                    <p>SysManage enforces configurable password policies to ensure strong authentication credentials.</p>
+
+                    <h4>Default Password Policy</h4>
+                    <div class="policy-requirements">
+                        <ul>
+                            <li><strong>Minimum Length:</strong> 12 characters</li>
+                            <li><strong>Character Classes:</strong> At least 3 of the following:
+                                <ul>
+                                    <li>Uppercase letters (A-Z)</li>
+                                    <li>Lowercase letters (a-z)</li>
+                                    <li>Numbers (0-9)</li>
+                                    <li>Special characters (!@#$%^&*)</li>
+                                </ul>
+                            </li>
+                            <li><strong>Dictionary Check:</strong> Not common dictionary words</li>
+                            <li><strong>History:</strong> Cannot reuse last 12 passwords</li>
+                            <li><strong>Expiration:</strong> 90 days (configurable)</li>
+                            <li><strong>Account Lockout:</strong> 5 failed attempts</li>
+                        </ul>
+                    </div>
+
+                    <h4>Password Policy Configuration</h4>
+                    <div class="code-block">
+                        <pre><code># Password policy settings
+PASSWORD_MIN_LENGTH=12
+PASSWORD_REQUIRE_UPPERCASE=true
+PASSWORD_REQUIRE_LOWERCASE=true
+PASSWORD_REQUIRE_NUMBERS=true
+PASSWORD_REQUIRE_SPECIAL=true
+PASSWORD_MIN_CHAR_CLASSES=3
+PASSWORD_CHECK_DICTIONARY=true
+PASSWORD_HISTORY_COUNT=12
+PASSWORD_EXPIRY_DAYS=90
+PASSWORD_WARN_DAYS=7
+
+# Account lockout settings
+ACCOUNT_LOCKOUT_ATTEMPTS=5
+ACCOUNT_LOCKOUT_DURATION_MINUTES=30
+ACCOUNT_LOCKOUT_RESET_TIME_MINUTES=60
+
+# Password validation implementation
+import re
+from passlib.hash import argon2
+
+class PasswordPolicy:
+    def __init__(self):
+        self.min_length = PASSWORD_MIN_LENGTH
+        self.require_classes = PASSWORD_MIN_CHAR_CLASSES
+
+    def validate(self, password: str, user_data: dict = None) -> tuple[bool, list]:
+        errors = []
+
+        # Length check
+        if len(password) < self.min_length:
+            errors.append(f"Password must be at least {self.min_length} characters")
+
+        # Character class checks
+        classes = 0
+        if re.search(r'[A-Z]', password):
+            classes += 1
+        if re.search(r'[a-z]', password):
+            classes += 1
+        if re.search(r'[0-9]', password):
+            classes += 1
+        if re.search(r'[!@#$%^&*(),.?":{}|<>]', password):
+            classes += 1
+
+        if classes < self.require_classes:
+            errors.append(f"Password must contain at least {self.require_classes} character classes")
+
+        # Dictionary check
+        if self.is_common_password(password):
+            errors.append("Password is too common")
+
+        return len(errors) == 0, errors</code></pre>
+                    </div>
+                </section>
+
+                <section class="security-monitoring">
+                    <h2>Authentication Security Monitoring</h2>
+
+                    <h3>Security Events</h3>
+                    <p>SysManage logs and monitors authentication-related security events for threat detection and compliance.</p>
+
+                    <h4>Monitored Events</h4>
+                    <div class="monitoring-grid">
+                        <div class="monitor-item">
+                            <h4>Authentication Events</h4>
+                            <ul>
+                                <li>Successful logins</li>
+                                <li>Failed login attempts</li>
+                                <li>Account lockouts</li>
+                                <li>Password changes</li>
+                                <li>MFA enrollment/changes</li>
+                            </ul>
+                        </div>
+                        <div class="monitor-item">
+                            <h4>Suspicious Activities</h4>
+                            <ul>
+                                <li>Multiple failed attempts</li>
+                                <li>Login from new locations</li>
+                                <li>Concurrent sessions</li>
+                                <li>Privilege escalation attempts</li>
+                                <li>Token manipulation</li>
+                            </ul>
+                        </div>
+                        <div class="monitor-item">
+                            <h4>Administrative Actions</h4>
+                            <ul>
+                                <li>User creation/deletion</li>
+                                <li>Role assignments</li>
+                                <li>Permission changes</li>
+                                <li>Security setting modifications</li>
+                                <li>Audit log access</li>
+                            </ul>
+                        </div>
+                    </div>
+
+                    <h4>Alert Configuration</h4>
+                    <div class="code-block">
+                        <pre><code># Security alert thresholds
+ALERT_FAILED_LOGINS_THRESHOLD=5
+ALERT_FAILED_LOGINS_WINDOW_MINUTES=10
+ALERT_NEW_LOCATION_LOGIN=true
+ALERT_CONCURRENT_SESSIONS_THRESHOLD=3
+ALERT_ADMIN_ACTIONS=true
+ALERT_MFA_BYPASS_ATTEMPTS=true
+
+# Event logging structure
+{
+  "timestamp": "2024-01-15T10:30:00Z",
+  "event_type": "authentication",
+  "event_subtype": "login_failed",
+  "user_id": "user123",
+  "username": "jdoe",
+  "ip_address": "192.168.1.100",
+  "user_agent": "Mozilla/5.0...",
+  "details": {
+    "reason": "invalid_password",
+    "attempt_count": 3,
+    "location": "New York, US"
+  },
+  "severity": "medium",
+  "source": "web_ui"
+}</code></pre>
+                    </div>
+                </section>
+
+                <section class="integration-examples">
+                    <h2>Integration Examples</h2>
+
+                    <h3>External Authentication Providers</h3>
+                    <p>SysManage can integrate with external authentication systems for enterprise environments.</p>
+
+                    <h4>LDAP/Active Directory Integration</h4>
+                    <div class="code-block">
+                        <pre><code># LDAP configuration
+LDAP_ENABLED=true
+LDAP_SERVER="ldap://dc.company.com:389"
+LDAP_BIND_DN="CN=sysmanage,OU=Service Accounts,DC=company,DC=com"
+LDAP_BIND_PASSWORD="secure-password"
+LDAP_USER_SEARCH_BASE="OU=Users,DC=company,DC=com"
+LDAP_USER_SEARCH_FILTER="(&(objectClass=user)(sAMAccountName={username}))"
+LDAP_GROUP_SEARCH_BASE="OU=Groups,DC=company,DC=com"
+LDAP_ROLE_MAPPING='{"CN=SysManage Admins,OU=Groups,DC=company,DC=com": "admin"}'
+
+# LDAP authentication implementation
+import ldap3
+
+async def authenticate_ldap(username: str, password: str):
+    try:
+        server = ldap3.Server(LDAP_SERVER)
+        user_dn = await find_user_dn(username)
+
+        conn = ldap3.Connection(server, user_dn, password)
+        if conn.bind():
+            user_groups = await get_user_groups(conn, user_dn)
+            roles = map_groups_to_roles(user_groups)
+            return create_user_session(username, roles)
+        else:
+            return None
+    except Exception as e:
+        logger.error(f"LDAP authentication failed: {e}")
+        return None</code></pre>
+                    </div>
+
+                    <h4>SAML 2.0 Integration</h4>
+                    <div class="code-block">
+                        <pre><code># SAML configuration
+SAML_ENABLED=true
+SAML_ENTITY_ID="https://sysmanage.company.com"
+SAML_SSO_URL="https://idp.company.com/sso"
+SAML_SLO_URL="https://idp.company.com/slo"
+SAML_X509_CERT="/path/to/idp-cert.pem"
+SAML_ATTRIBUTE_MAPPING='{"email": "EmailAddress", "roles": "Groups"}'
+
+# SAML response handling
+from onelogin.saml2.auth import OneLogin_Saml2_Auth
+
+@app.post("/auth/saml/acs")
+async def saml_acs(request: Request):
+    auth = OneLogin_Saml2_Auth(request, saml_settings)
+    auth.process_response()
+
+    if auth.is_authenticated():
+        attributes = auth.get_attributes()
+        email = attributes.get('EmailAddress', [None])[0]
+        groups = attributes.get('Groups', [])
+
+        user = await get_or_create_user(email, groups)
+        token = create_jwt_token(user)
+
+        return {"access_token": token, "token_type": "bearer"}
+    else:
+        raise HTTPException(401, "SAML authentication failed")</code></pre>
+                    </div>
+                </section>
+
+                <section class="troubleshooting">
+                    <h2>Troubleshooting Authentication</h2>
+
+                    <h3>Common Issues</h3>
+                    <div class="troubleshooting-grid">
+                        <div class="issue-item">
+                            <h4>Token Expired Errors</h4>
+                            <ul>
+                                <li>Check system clock synchronization</li>
+                                <li>Verify JWT expiration settings</li>
+                                <li>Ensure token refresh is working</li>
+                                <li>Check client token storage</li>
+                            </ul>
+                        </div>
+                        <div class="issue-item">
+                            <h4>MFA Setup Problems</h4>
+                            <ul>
+                                <li>Verify authenticator app time sync</li>
+                                <li>Check QR code generation</li>
+                                <li>Validate TOTP secret storage</li>
+                                <li>Test backup recovery codes</li>
+                            </ul>
+                        </div>
+                        <div class="issue-item">
+                            <h4>RBAC Permission Errors</h4>
+                            <ul>
+                                <li>Verify user role assignments</li>
+                                <li>Check permission definitions</li>
+                                <li>Validate JWT claims</li>
+                                <li>Review role hierarchy</li>
+                            </ul>
+                        </div>
+                        <div class="issue-item">
+                            <h4>External Auth Integration</h4>
+                            <ul>
+                                <li>Test LDAP connectivity</li>
+                                <li>Verify certificate validity</li>
+                                <li>Check attribute mappings</li>
+                                <li>Review firewall rules</li>
+                            </ul>
+                        </div>
+                    </div>
+
+                    <h4>Diagnostic Commands</h4>
+                    <div class="code-block">
+                        <pre><code># Test JWT token validation
+curl -H "Authorization: Bearer YOUR_TOKEN" \
+     http://localhost:8000/api/auth/validate
+
+# Check user permissions
+curl -H "Authorization: Bearer YOUR_TOKEN" \
+     http://localhost:8000/api/auth/permissions
+
+# Test LDAP connectivity
+ldapsearch -H ldap://your-server:389 -D "bind-dn" -w "password" \
+           -b "search-base" "(objectClass=user)"
+
+# View authentication logs
+tail -f /var/log/sysmanage/auth.log | grep "authentication"</code></pre>
+                    </div>
+                </section>
+
+                <section class="next-steps">
+                    <h2>Next Steps</h2>
+                    <p>After implementing authentication and authorization:</p>
+                    <ol>
+                        <li><strong><a href="mtls.html">Mutual TLS Configuration</a>:</strong> Set up certificate-based agent authentication</li>
+                        <li><strong><a href="network-security.html">Network Security</a>:</strong> Configure network-level protections</li>
+                        <li><strong><a href="best-practices.html">Security Best Practices</a>:</strong> Follow recommended security guidelines</li>
+                        <li><strong><a href="scanning.html">Security Scanning</a>:</strong> Implement comprehensive security scanning</li>
+                    </ol>
+                </section>
+            </div>
+
+            <div class="docs-footer">
+                <div class="docs-navigation">
+                    <h3>Navigation</h3>
+                    <div class="nav-links">
+                        <a href="./" class="nav-link">← Security Home</a>
+                        <a href="mtls.html" class="nav-link">Mutual TLS →</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <footer class="site-footer">
+        <div class="container">
+            <div class="footer-bottom">
+                <p>&copy; 2024 SysManage. All rights reserved.</p>
+            </div>
+        </div>
+    </footer>
+
+    <script src="../../assets/js/main.js"></script>
+    <script src="../../assets/js/i18n.js"></script>
+</body>
+</html>

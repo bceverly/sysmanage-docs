@@ -1,0 +1,1127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mutual TLS (mTLS) - SysManage Security</title>
+    <meta name="description" content="Comprehensive guide to SysManage mutual TLS implementation, certificate management, PKI infrastructure, auto-rotation, and secure agent communication.">
+    <link rel="stylesheet" href="../../assets/css/style.css">
+    <link rel="icon" type="image/svg+xml" href="../../assets/images/favicon.svg">
+</head>
+<body>
+    <header class="site-header">
+        <nav class="navbar">
+            <div class="container">
+                <div class="nav-brand">
+                    <a href="../../">
+                        <img src="../../assets/images/sysmanage-logo.svg" alt="SysManage" class="logo">
+                    </a>
+                </div>
+                <div class="nav-menu">
+                    <a href="../../#features" class="nav-link">Features</a>
+                    <a href="../../#getting-started" class="nav-link">Getting Started</a>
+                    <a href="../" class="nav-link active">Documentation</a>
+                    <a href="https://github.com/bceverly/sysmanage" class="nav-link" target="_blank">GitHub</a>
+                </div>
+            </div>
+        </nav>
+    </header>
+
+    <main class="docs-main">
+        <div class="container">
+            <div class="docs-breadcrumb">
+                <a href="../">Documentation</a> > <a href="./">Security</a> > <span>Mutual TLS (mTLS)</span>
+            </div>
+
+            <div class="docs-header">
+                <h1>Mutual TLS (mTLS)</h1>
+                <p>Comprehensive guide to SysManage's mutual TLS implementation, certificate management, PKI infrastructure, auto-rotation, and secure agent communication.</p>
+            </div>
+
+            <div class="docs-content">
+                <section class="overview">
+                    <h2>mTLS Overview</h2>
+                    <p>SysManage implements mutual TLS (mTLS) for secure agent-to-server communication. This provides strong authentication, encryption in transit, and protection against various attack vectors including man-in-the-middle attacks, agent spoofing, and unauthorized access.</p>
+
+                    <div class="mtls-architecture">
+                        <h3>mTLS Architecture</h3>
+                        <pre class="ascii-diagram">
+┌─────────────────────────────────────────────────────────────────┐
+│                        mTLS Infrastructure                      │
+├─────────────────────────────────────────────────────────────────┤
+│  ┌─────────────┐  ┌──────────────┐  ┌─────────────────────────┐ │
+│  │ Root CA     │  │ Intermediate │  │ Server Certificate      │ │
+│  │ (Offline)   │  │ CA (Online)  │  │ (TLS Server Auth)       │ │
+│  └─────────────┘  └──────────────┘  └─────────────────────────┘ │
+├─────────────────────────────────────────────────────────────────┤
+│  ┌─────────────┐  ┌──────────────┐  ┌─────────────────────────┐ │
+│  │ Certificate │  │ Certificate  │  │ Certificate Revocation  │ │
+│  │ Authority   │  │ Database     │  │ List (CRL)              │ │
+│  └─────────────┘  └──────────────┘  └─────────────────────────┘ │
+├─────────────────────────────────────────────────────────────────┤
+│  ┌─────────────────────────────────────────────────────────────┐ │
+│  │                Agent Certificates                           │ │
+│  │  ┌─────────┐ ┌─────────┐ ┌─────────┐ ┌─────────┐ ┌─────────┐ │ │
+│  │  │Agent #1 │ │Agent #2 │ │Agent #3 │ │Agent #4 │ │Agent #N │ │ │
+│  │  └─────────┘ └─────────┘ └─────────┘ └─────────┘ └─────────┘ │ │
+│  └─────────────────────────────────────────────────────────────┘ │
+└─────────────────────────────────────────────────────────────────┘
+                                  │
+                          mTLS Handshake
+                                  │
+┌─────────────────────────────────────────────────────────────────┐
+│                    Agent Communication                          │
+├─────────────────────────────────────────────────────────────────┤
+│  1. Agent presents client certificate                          │
+│  2. Server validates certificate against CA                    │
+│  3. Server presents server certificate                         │
+│  4. Agent validates server certificate                         │
+│  5. Establish encrypted communication channel                  │
+│  6. Continuous certificate status validation                   │
+└─────────────────────────────────────────────────────────────────┘
+                        </pre>
+                    </div>
+                </section>
+
+                <section class="pki-infrastructure">
+                    <h2>PKI Infrastructure</h2>
+
+                    <h3>Certificate Authority Hierarchy</h3>
+                    <p>SysManage implements a two-tier PKI with offline root CA and online intermediate CA for enhanced security.</p>
+
+                    <div class="ca-hierarchy">
+                        <h4>CA Structure</h4>
+                        <div class="ca-levels">
+                            <div class="ca-level">
+                                <h4>🔐 Root Certificate Authority</h4>
+                                <ul>
+                                    <li><strong>Offline Storage:</strong> Air-gapped secure environment</li>
+                                    <li><strong>Long Validity:</strong> 10-20 years certificate lifetime</li>
+                                    <li><strong>High Security:</strong> Hardware Security Module (HSM) protected</li>
+                                    <li><strong>Limited Use:</strong> Only signs intermediate CA certificates</li>
+                                    <li><strong>Key Length:</strong> 4096-bit RSA or P-384 ECC</li>
+                                </ul>
+                            </div>
+
+                            <div class="ca-level">
+                                <h4>🔑 Intermediate Certificate Authority</h4>
+                                <ul>
+                                    <li><strong>Online Operation:</strong> Integrated with SysManage server</li>
+                                    <li><strong>Medium Validity:</strong> 2-5 years certificate lifetime</li>
+                                    <li><strong>Automated Signing:</strong> Issues agent and server certificates</li>
+                                    <li><strong>CRL Management:</strong> Maintains certificate revocation lists</li>
+                                    <li><strong>Key Length:</strong> 2048-bit RSA or P-256 ECC</li>
+                                </ul>
+                            </div>
+
+                            <div class="ca-level">
+                                <h4>📜 End Entity Certificates</h4>
+                                <ul>
+                                    <li><strong>Agent Certificates:</strong> Unique per agent with hostname/UUID</li>
+                                    <li><strong>Server Certificates:</strong> TLS server authentication</li>
+                                    <li><strong>Short Validity:</strong> 90 days with automatic rotation</li>
+                                    <li><strong>Extended Validation:</strong> Enhanced subject validation</li>
+                                    <li><strong>Key Usage:</strong> Digital signature, key encipherment</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+
+                    <h4>PKI Configuration</h4>
+                    <div class="code-block">
+                        <pre><code># PKI configuration in SysManage
+PKI_CONFIG = {
+    "root_ca": {
+        "key_size": 4096,
+        "algorithm": "RSA",
+        "validity_years": 20,
+        "storage": "offline",
+        "subject": {
+            "CN": "SysManage Root CA",
+            "O": "Your Organization",
+            "OU": "IT Security",
+            "C": "US"
+        }
+    },
+    "intermediate_ca": {
+        "key_size": 2048,
+        "algorithm": "RSA",
+        "validity_years": 5,
+        "storage": "online",
+        "crl_distribution_points": ["https://sysmanage.company.com/crl"],
+        "subject": {
+            "CN": "SysManage Intermediate CA",
+            "O": "Your Organization",
+            "OU": "SysManage",
+            "C": "US"
+        }
+    },
+    "agent_certificates": {
+        "key_size": 2048,
+        "algorithm": "RSA",
+        "validity_days": 90,
+        "auto_renewal_days": 30,
+        "extended_key_usage": ["clientAuth"],
+        "key_usage": ["digitalSignature", "keyEncipherment"]
+    },
+    "server_certificates": {
+        "key_size": 2048,
+        "algorithm": "RSA",
+        "validity_days": 365,
+        "auto_renewal_days": 30,
+        "extended_key_usage": ["serverAuth"],
+        "key_usage": ["digitalSignature", "keyEncipherment"]
+    }
+}</code></pre>
+                    </div>
+                </section>
+
+                <section class="certificate-lifecycle">
+                    <h2>Certificate Lifecycle Management</h2>
+
+                    <h3>Certificate Generation Process</h3>
+                    <div class="cert-generation">
+                        <h4>Agent Certificate Generation</h4>
+                        <ol>
+                            <li><strong>Agent Registration:</strong> Agent submits registration request with host information</li>
+                            <li><strong>Administrator Approval:</strong> Manual approval process for new agents</li>
+                            <li><strong>CSR Generation:</strong> Server generates Certificate Signing Request</li>
+                            <li><strong>Certificate Issuance:</strong> Intermediate CA signs the certificate</li>
+                            <li><strong>Certificate Delivery:</strong> Secure delivery to approved agent</li>
+                            <li><strong>Certificate Installation:</strong> Agent installs certificate and private key</li>
+                        </ol>
+
+                        <h4>Certificate Subject Format</h4>
+                        <div class="code-block">
+                            <pre><code># Agent certificate subject format
+CN=agent-{hostname}-{uuid}
+OU=SysManage Agents
+O=Your Organization
+L=City
+ST=State
+C=US
+
+# Example agent certificate
+CN=agent-web01-a1b2c3d4-e5f6-7g8h-9i0j-k1l2m3n4o5p6
+OU=SysManage Agents
+O=Acme Corporation
+L=New York
+ST=NY
+C=US
+
+# Server certificate subject format
+CN=sysmanage.company.com
+OU=SysManage Server
+O=Your Organization
+L=City
+ST=State
+C=US
+
+# Subject Alternative Names (SAN) for server
+DNS:sysmanage.company.com
+DNS:*.sysmanage.company.com
+DNS:sysmanage-api.company.com
+IP:192.168.1.100</code></pre>
+                        </div>
+                    </div>
+
+                    <h3>Automatic Certificate Rotation</h3>
+                    <p>SysManage implements automatic certificate rotation to minimize security risks and operational overhead.</p>
+
+                    <div class="rotation-process">
+                        <h4>Rotation Workflow</h4>
+                        <ol>
+                            <li><strong>Monitoring:</strong> Continuous monitoring of certificate expiration dates</li>
+                            <li><strong>Pre-notification:</strong> Alerts sent 30 days before expiration</li>
+                            <li><strong>New Certificate Generation:</strong> Automatic generation of new certificate</li>
+                            <li><strong>Gradual Rollout:</strong> Phased deployment to agents</li>
+                            <li><strong>Validation:</strong> Confirmation of successful rotation</li>
+                            <li><strong>Old Certificate Revocation:</strong> Revocation of expired certificates</li>
+                        </ol>
+
+                        <h4>Rotation Implementation</h4>
+                        <div class="code-block">
+                            <pre><code># Certificate rotation service
+import asyncio
+from datetime import datetime, timedelta
+from cryptography import x509
+from cryptography.x509.oid import NameOID
+
+class CertificateRotationService:
+    def __init__(self, ca_manager, agent_manager):
+        self.ca_manager = ca_manager
+        self.agent_manager = agent_manager
+        self.rotation_threshold_days = 30
+
+    async def check_certificate_expiration(self):
+        """Check for certificates approaching expiration"""
+        expiring_certs = []
+        threshold_date = datetime.now() + timedelta(days=self.rotation_threshold_days)
+
+        # Get all active agent certificates
+        active_agents = await self.agent_manager.get_active_agents()
+
+        for agent in active_agents:
+            cert = await self.load_agent_certificate(agent.id)
+            if cert.not_valid_after <= threshold_date:
+                expiring_certs.append({
+                    'agent_id': agent.id,
+                    'hostname': agent.hostname,
+                    'certificate': cert,
+                    'expires_at': cert.not_valid_after
+                })
+
+        return expiring_certs
+
+    async def rotate_certificate(self, agent_id: str):
+        """Rotate certificate for specific agent"""
+        try:
+            # Generate new key pair
+            new_private_key = self.ca_manager.generate_private_key()
+
+            # Create certificate request
+            subject = x509.Name([
+                x509.NameAttribute(NameOID.COMMON_NAME, f"agent-{agent.hostname}-{agent.uuid}"),
+                x509.NameAttribute(NameOID.ORGANIZATIONAL_UNIT_NAME, "SysManage Agents"),
+                x509.NameAttribute(NameOID.ORGANIZATION_NAME, "Your Organization"),
+            ])
+
+            # Generate new certificate
+            new_cert = await self.ca_manager.issue_certificate(
+                subject=subject,
+                public_key=new_private_key.public_key(),
+                validity_days=90
+            )
+
+            # Deliver new certificate to agent
+            await self.deliver_certificate_to_agent(agent_id, new_cert, new_private_key)
+
+            # Update certificate database
+            await self.update_agent_certificate(agent_id, new_cert)
+
+            # Schedule old certificate revocation
+            await self.schedule_certificate_revocation(agent_id, delay_hours=24)
+
+            return True
+
+        except Exception as e:
+            await self.log_rotation_error(agent_id, str(e))
+            return False
+
+    async def automated_rotation_task(self):
+        """Background task for automatic certificate rotation"""
+        while True:
+            try:
+                expiring_certs = await self.check_certificate_expiration()
+
+                for cert_info in expiring_certs:
+                    await self.rotate_certificate(cert_info['agent_id'])
+                    # Small delay to avoid overwhelming the system
+                    await asyncio.sleep(1)
+
+                # Run check every 6 hours
+                await asyncio.sleep(6 * 3600)
+
+            except Exception as e:
+                await self.log_error(f"Certificate rotation task failed: {e}")
+                await asyncio.sleep(3600)  # Wait 1 hour before retry</code></pre>
+                        </div>
+                    </div>
+                </section>
+
+                <section class="mtls-handshake">
+                    <h2>mTLS Handshake Process</h2>
+
+                    <h3>Handshake Flow</h3>
+                    <p>The mTLS handshake provides mutual authentication between the SysManage server and agents.</p>
+
+                    <div class="handshake-diagram">
+                        <h4>Detailed Handshake Process</h4>
+                        <pre class="ascii-diagram">
+Agent                                    Server
+  │                                        │
+  │ 1. ClientHello                        │
+  ├──────────────────────────────────────→│
+  │   - TLS version                       │
+  │   - Cipher suites                     │
+  │   - Client random                     │
+  │                                        │
+  │ 2. ServerHello + Certificate          │
+  │←──────────────────────────────────────┤
+  │   - Selected TLS version              │
+  │   - Selected cipher suite             │
+  │   - Server certificate                │
+  │   - Certificate Request               │
+  │                                        │
+  │ 3. Client Certificate + Key Exchange  │
+  ├──────────────────────────────────────→│
+  │   - Client certificate                │
+  │   - Certificate Verify                │
+  │   - Change Cipher Spec                │
+  │   - Finished                          │
+  │                                        │
+  │ 4. Change Cipher Spec + Finished      │
+  │←──────────────────────────────────────┤
+  │                                        │
+  │ 5. Encrypted Application Data         │
+  │←─────────────────────────────────────→│
+  │                                        │
+                        </pre>
+                    </div>
+
+                    <h3>Certificate Validation Process</h3>
+                    <div class="validation-steps">
+                        <h4>Server-Side Validation (Agent Certificate)</h4>
+                        <ol>
+                            <li><strong>Certificate Chain Validation:</strong> Verify certificate chain to trusted root CA</li>
+                            <li><strong>Signature Verification:</strong> Validate certificate signature using CA public key</li>
+                            <li><strong>Validity Period Check:</strong> Ensure certificate is within valid time period</li>
+                            <li><strong>Revocation Status:</strong> Check Certificate Revocation List (CRL)</li>
+                            <li><strong>Subject Validation:</strong> Verify certificate subject matches agent identity</li>
+                            <li><strong>Key Usage Validation:</strong> Confirm appropriate key usage extensions</li>
+                            <li><strong>Hostname Verification:</strong> Validate hostname in certificate subject</li>
+                        </ol>
+
+                        <h4>Client-Side Validation (Server Certificate)</h4>
+                        <ol>
+                            <li><strong>Certificate Chain Validation:</strong> Verify server certificate chain</li>
+                            <li><strong>Hostname Verification:</strong> Match server hostname to certificate CN/SAN</li>
+                            <li><strong>Certificate Pinning:</strong> Validate against pinned certificate/public key</li>
+                            <li><strong>Expiration Check:</strong> Ensure server certificate is not expired</li>
+                            <li><strong>Revocation Check:</strong> Verify certificate has not been revoked</li>
+                        </ol>
+                    </div>
+
+                    <h4>mTLS Implementation</h4>
+                    <div class="code-block">
+                        <pre><code># Server-side mTLS configuration (FastAPI)
+import ssl
+from fastapi import FastAPI, HTTPException
+from cryptography import x509
+from cryptography.hazmat.primitives import hashes
+
+app = FastAPI()
+
+# Configure TLS context for mTLS
+def create_mtls_context():
+    context = ssl.create_default_context(ssl.Purpose.CLIENT_AUTH)
+    context.minimum_version = ssl.TLSVersion.TLSv1_2
+    context.check_hostname = False
+    context.verify_mode = ssl.CERT_REQUIRED
+
+    # Load server certificate and key
+    context.load_cert_chain(
+        certfile="/etc/ssl/certs/sysmanage-server.crt",
+        keyfile="/etc/ssl/private/sysmanage-server.key"
+    )
+
+    # Load CA certificates for client validation
+    context.load_verify_locations("/etc/ssl/certs/sysmanage-ca.crt")
+
+    return context
+
+# Certificate validation middleware
+async def validate_client_certificate(request):
+    """Validate client certificate from mTLS connection"""
+    try:
+        # Extract client certificate from TLS connection
+        cert_der = request.scope.get('client_cert')
+        if not cert_der:
+            raise HTTPException(401, "Client certificate required")
+
+        # Parse certificate
+        cert = x509.load_der_x509_certificate(cert_der)
+
+        # Validate certificate chain
+        if not await validate_certificate_chain(cert):
+            raise HTTPException(401, "Invalid certificate chain")
+
+        # Check certificate expiration
+        if cert.not_valid_after < datetime.now():
+            raise HTTPException(401, "Certificate has expired")
+
+        # Validate certificate subject
+        subject = cert.subject
+        cn = subject.get_attributes_for_oid(x509.NameOID.COMMON_NAME)[0].value
+
+        if not cn.startswith("agent-"):
+            raise HTTPException(401, "Invalid certificate subject")
+
+        # Check certificate revocation status
+        if await is_certificate_revoked(cert):
+            raise HTTPException(401, "Certificate has been revoked")
+
+        # Extract agent information from certificate
+        agent_info = parse_agent_certificate(cert)
+        return agent_info
+
+    except Exception as e:
+        raise HTTPException(401, f"Certificate validation failed: {str(e)}")
+
+# Agent-side mTLS configuration
+class AgentHTTPSConnection:
+    def __init__(self, server_host, server_port, cert_file, key_file, ca_file):
+        self.server_host = server_host
+        self.server_port = server_port
+        self.cert_file = cert_file
+        self.key_file = key_file
+        self.ca_file = ca_file
+        self.context = self._create_ssl_context()
+
+    def _create_ssl_context(self):
+        context = ssl.create_default_context(ssl.Purpose.SERVER_AUTH)
+        context.minimum_version = ssl.TLSVersion.TLSv1_2
+
+        # Load client certificate for mTLS
+        context.load_cert_chain(self.cert_file, self.key_file)
+
+        # Load CA certificates for server validation
+        context.load_verify_locations(self.ca_file)
+
+        # Enable certificate hostname checking
+        context.check_hostname = True
+        context.verify_mode = ssl.CERT_REQUIRED
+
+        return context
+
+    async def connect(self):
+        """Establish mTLS connection to server"""
+        try:
+            # Create SSL connection
+            reader, writer = await asyncio.open_connection(
+                self.server_host,
+                self.server_port,
+                ssl=self.context
+            )
+
+            # Verify server certificate
+            peer_cert = writer.get_extra_info('ssl_object').getpeercert_chain()[0]
+            if not self._verify_server_certificate(peer_cert):
+                raise Exception("Server certificate validation failed")
+
+            return reader, writer
+
+        except Exception as e:
+            raise Exception(f"mTLS connection failed: {str(e)}")
+
+    def _verify_server_certificate(self, cert):
+        """Additional server certificate validation"""
+        # Implement certificate pinning
+        expected_fingerprint = self._get_pinned_fingerprint()
+        cert_fingerprint = cert.fingerprint(hashes.SHA256())
+
+        return cert_fingerprint == expected_fingerprint</code></pre>
+                    </div>
+                </section>
+
+                <section class="certificate-storage">
+                    <h2>Certificate Storage & Security</h2>
+
+                    <h3>Secure Storage Implementation</h3>
+                    <p>Proper certificate storage is critical for maintaining the security of the mTLS infrastructure.</p>
+
+                    <div class="storage-requirements">
+                        <h4>Storage Security Requirements</h4>
+                        <div class="requirements-grid">
+                            <div class="requirement-item">
+                                <h4>🔐 Access Control</h4>
+                                <ul>
+                                    <li>Restrictive file permissions (600 for private keys)</li>
+                                    <li>Dedicated service accounts for certificate access</li>
+                                    <li>Role-based access control for certificate operations</li>
+                                    <li>Audit logging for all certificate access</li>
+                                </ul>
+                            </div>
+
+                            <div class="requirement-item">
+                                <h4>🛡️ Encryption at Rest</h4>
+                                <ul>
+                                    <li>Private key encryption with strong passphrases</li>
+                                    <li>Database encryption for certificate metadata</li>
+                                    <li>File system encryption (LUKS/BitLocker)</li>
+                                    <li>Hardware Security Module (HSM) integration</li>
+                                </ul>
+                            </div>
+
+                            <div class="requirement-item">
+                                <h4>🔄 Backup & Recovery</h4>
+                                <ul>
+                                    <li>Encrypted certificate backups</li>
+                                    <li>Geographically distributed storage</li>
+                                    <li>Recovery procedure documentation</li>
+                                    <li>Regular backup validation testing</li>
+                                </ul>
+                            </div>
+
+                            <div class="requirement-item">
+                                <h4>📊 Monitoring</h4>
+                                <ul>
+                                    <li>Certificate expiration monitoring</li>
+                                    <li>Access pattern analysis</li>
+                                    <li>Integrity verification checks</li>
+                                    <li>Anomaly detection and alerting</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+
+                    <h4>Certificate Storage Layout</h4>
+                    <div class="code-block">
+                        <pre><code># Recommended directory structure
+/etc/ssl/sysmanage/
+├── ca/
+│   ├── root-ca.crt              # Root CA certificate (public)
+│   ├── intermediate-ca.crt      # Intermediate CA certificate (public)
+│   ├── ca-chain.crt            # Full certificate chain (public)
+│   └── private/
+│       ├── intermediate-ca.key  # Intermediate CA private key (600)
+│       └── root-ca.key         # Root CA private key (offline storage)
+├── server/
+│   ├── server.crt              # Server certificate (644)
+│   ├── server.key              # Server private key (600)
+│   └── server-chain.crt        # Server certificate with chain (644)
+├── agents/
+│   ├── {agent-uuid}/
+│   │   ├── agent.crt           # Agent certificate (644)
+│   │   ├── agent.key           # Agent private key (600)
+│   │   └── metadata.json       # Certificate metadata (644)
+│   └── revoked/
+│       └── {agent-uuid}/       # Revoked certificates archive
+├── crl/
+│   ├── sysmanage.crl           # Certificate Revocation List (644)
+│   └── crl-history/            # Historical CRL versions
+└── backup/
+    ├── encrypted/              # Encrypted certificate backups
+    └── metadata/               # Backup metadata and checksums
+
+# File permissions example
+chown -R sysmanage:sysmanage /etc/ssl/sysmanage/
+chmod 755 /etc/ssl/sysmanage/
+chmod 700 /etc/ssl/sysmanage/*/private/
+chmod 600 /etc/ssl/sysmanage/*/private/*
+chmod 644 /etc/ssl/sysmanage/*/*.crt
+chmod 644 /etc/ssl/sysmanage/*/*.json</code></pre>
+                    </div>
+
+                    <h3>Hardware Security Module (HSM) Integration</h3>
+                    <p>For enterprise environments requiring the highest level of security, SysManage supports HSM integration.</p>
+
+                    <div class="hsm-benefits">
+                        <h4>HSM Benefits</h4>
+                        <ul>
+                            <li><strong>Hardware-based Security:</strong> Private keys never exist in software</li>
+                            <li><strong>Tamper Resistance:</strong> Physical security against attacks</li>
+                            <li><strong>Performance:</strong> Hardware-accelerated cryptographic operations</li>
+                            <li><strong>Compliance:</strong> FIPS 140-2 Level 3/4 certification</li>
+                            <li><strong>Audit Trail:</strong> Comprehensive logging of all operations</li>
+                        </ul>
+                    </div>
+
+                    <h4>HSM Configuration Example</h4>
+                    <div class="code-block">
+                        <pre><code># HSM configuration for SysManage
+HSM_CONFIG = {
+    "enabled": True,
+    "provider": "pkcs11",
+    "library_path": "/usr/lib/libpkcs11.so",
+    "slot_id": 0,
+    "pin": "secured-hsm-pin",
+    "key_label_prefix": "sysmanage-",
+    "ca_key_label": "sysmanage-intermediate-ca",
+    "key_attributes": {
+        "private": True,
+        "sensitive": True,
+        "extractable": False,
+        "key_type": "RSA",
+        "key_size": 2048
+    }
+}
+
+# HSM integration implementation
+import pkcs11
+from cryptography.hazmat.primitives import serialization
+
+class HSMCertificateManager:
+    def __init__(self, hsm_config):
+        self.config = hsm_config
+        self.lib = pkcs11.lib(hsm_config['library_path'])
+        self.token = None
+        self.session = None
+
+    async def initialize_hsm(self):
+        """Initialize HSM connection"""
+        try:
+            # Get token
+            self.token = self.lib.get_token(slot_id=self.config['slot_id'])
+
+            # Open session
+            self.session = self.token.open(user_pin=self.config['pin'])
+
+            return True
+        except Exception as e:
+            logger.error(f"HSM initialization failed: {e}")
+            return False
+
+    async def generate_key_pair(self, key_label: str):
+        """Generate key pair in HSM"""
+        try:
+            # Generate RSA key pair in HSM
+            public_key, private_key = self.session.generate_keypair(
+                pkcs11.KeyType.RSA,
+                self.config['key_size'],
+                label=key_label,
+                **self.config['key_attributes']
+            )
+
+            return public_key, private_key
+        except Exception as e:
+            logger.error(f"HSM key generation failed: {e}")
+            raise
+
+    async def sign_certificate(self, csr_data: bytes, ca_key_label: str):
+        """Sign certificate using HSM-stored CA key"""
+        try:
+            # Find CA private key in HSM
+            ca_private_key = self.session.get_key(
+                label=ca_key_label,
+                key_type=pkcs11.KeyType.RSA
+            )
+
+            # Sign the certificate request
+            signature = ca_private_key.sign(
+                csr_data,
+                mechanism=pkcs11.Mechanism.SHA256_RSA_PKCS
+            )
+
+            return signature
+        except Exception as e:
+            logger.error(f"HSM certificate signing failed: {e}")
+            raise</code></pre>
+                    </div>
+                </section>
+
+                <section class="certificate-revocation">
+                    <h2>Certificate Revocation</h2>
+
+                    <h3>Certificate Revocation List (CRL)</h3>
+                    <p>SysManage maintains a Certificate Revocation List to track and distribute information about revoked certificates.</p>
+
+                    <div class="crl-management">
+                        <h4>CRL Generation Process</h4>
+                        <ol>
+                            <li><strong>Revocation Request:</strong> Administrator revokes certificate through web interface</li>
+                            <li><strong>Database Update:</strong> Certificate status updated in certificate database</li>
+                            <li><strong>CRL Generation:</strong> New CRL generated with revoked certificate entry</li>
+                            <li><strong>CRL Signing:</strong> CRL signed by Intermediate CA private key</li>
+                            <li><strong>CRL Distribution:</strong> Updated CRL distributed to all agents</li>
+                            <li><strong>Cache Invalidation:</strong> Certificate validation caches cleared</li>
+                        </ol>
+
+                        <h4>CRL Implementation</h4>
+                        <div class="code-block">
+                            <pre><code># CRL generation and management
+from cryptography import x509
+from cryptography.x509.oid import CRLEntryExtensionOID
+from cryptography.hazmat.primitives import hashes
+import datetime
+
+class CRLManager:
+    def __init__(self, ca_manager):
+        self.ca_manager = ca_manager
+        self.crl_number = 0
+        self.crl_validity_hours = 24
+
+    async def generate_crl(self):
+        """Generate new Certificate Revocation List"""
+        try:
+            # Get all revoked certificates
+            revoked_certs = await self.get_revoked_certificates()
+
+            # Create CRL builder
+            crl_builder = x509.CertificateRevocationListBuilder()
+
+            # Set issuer (Intermediate CA)
+            ca_cert = await self.ca_manager.get_intermediate_ca_certificate()
+            crl_builder = crl_builder.issuer_name(ca_cert.subject)
+
+            # Set validity period
+            now = datetime.datetime.utcnow()
+            next_update = now + datetime.timedelta(hours=self.crl_validity_hours)
+            crl_builder = crl_builder.last_update(now)
+            crl_builder = crl_builder.next_update(next_update)
+
+            # Add revoked certificates
+            for revoked_cert in revoked_certs:
+                revoked_cert_builder = x509.RevokedCertificateBuilder()
+                revoked_cert_builder = revoked_cert_builder.serial_number(
+                    revoked_cert['serial_number']
+                )
+                revoked_cert_builder = revoked_cert_builder.revocation_date(
+                    revoked_cert['revocation_date']
+                )
+
+                # Add revocation reason
+                revoked_cert_builder = revoked_cert_builder.add_extension(
+                    x509.CRLReason(revoked_cert['reason']),
+                    critical=False
+                )
+
+                crl_builder = crl_builder.add_revoked_certificate(
+                    revoked_cert_builder.build()
+                )
+
+            # Add CRL extensions
+            crl_builder = crl_builder.add_extension(
+                x509.CRLNumber(self.crl_number),
+                critical=False
+            )
+
+            # Add Authority Key Identifier
+            ca_public_key = ca_cert.public_key()
+            aki = x509.AuthorityKeyIdentifier.from_issuer_public_key(ca_public_key)
+            crl_builder = crl_builder.add_extension(aki, critical=False)
+
+            # Sign CRL with CA private key
+            ca_private_key = await self.ca_manager.get_intermediate_ca_private_key()
+            crl = crl_builder.sign(ca_private_key, hashes.SHA256())
+
+            # Save CRL to file and database
+            await self.save_crl(crl)
+
+            # Increment CRL number for next generation
+            self.crl_number += 1
+
+            return crl
+
+        except Exception as e:
+            logger.error(f"CRL generation failed: {e}")
+            raise
+
+    async def revoke_certificate(self, serial_number: int, reason: x509.ReasonFlags):
+        """Revoke a certificate and update CRL"""
+        try:
+            # Update certificate status in database
+            await self.update_certificate_status(
+                serial_number=serial_number,
+                status='revoked',
+                revocation_date=datetime.datetime.utcnow(),
+                revocation_reason=reason
+            )
+
+            # Generate new CRL
+            await self.generate_crl()
+
+            # Notify all agents of CRL update
+            await self.notify_crl_update()
+
+            logger.info(f"Certificate {serial_number} revoked successfully")
+
+        except Exception as e:
+            logger.error(f"Certificate revocation failed: {e}")
+            raise
+
+    async def check_certificate_revocation(self, serial_number: int) -> bool:
+        """Check if certificate is revoked"""
+        try:
+            # Check local database first
+            cert_status = await self.get_certificate_status(serial_number)
+            if cert_status == 'revoked':
+                return True
+
+            # Download and check latest CRL if needed
+            latest_crl = await self.download_latest_crl()
+            for revoked_cert in latest_crl:
+                if revoked_cert.serial_number == serial_number:
+                    return True
+
+            return False
+
+        except Exception as e:
+            logger.error(f"Revocation check failed: {e}")
+            return True  # Fail secure - assume revoked if check fails</code></pre>
+                        </div>
+                    </div>
+
+                    <h3>Online Certificate Status Protocol (OCSP)</h3>
+                    <p>For real-time certificate validation, SysManage supports OCSP as an alternative to CRL.</p>
+
+                    <div class="ocsp-benefits">
+                        <h4>OCSP Advantages</h4>
+                        <ul>
+                            <li><strong>Real-time Status:</strong> Immediate certificate status information</li>
+                            <li><strong>Bandwidth Efficient:</strong> Query specific certificates only</li>
+                            <li><strong>Reduced Latency:</strong> No need to download entire CRL</li>
+                            <li><strong>Privacy:</strong> Responder doesn't know which certificates are being validated</li>
+                        </ul>
+                    </div>
+                </section>
+
+                <section class="monitoring-alerting">
+                    <h2>Certificate Monitoring & Alerting</h2>
+
+                    <h3>Monitoring Dashboard</h3>
+                    <p>SysManage provides comprehensive monitoring for certificate health and lifecycle management.</p>
+
+                    <div class="monitoring-features">
+                        <h4>Key Monitoring Metrics</h4>
+                        <div class="metrics-grid">
+                            <div class="metric-item">
+                                <h4>📊 Certificate Inventory</h4>
+                                <ul>
+                                    <li>Total active certificates</li>
+                                    <li>Certificates by type (agent/server)</li>
+                                    <li>Certificate age distribution</li>
+                                    <li>Expiration timeline</li>
+                                </ul>
+                            </div>
+
+                            <div class="metric-item">
+                                <h4>⏰ Expiration Tracking</h4>
+                                <ul>
+                                    <li>Certificates expiring in 30 days</li>
+                                    <li>Certificates expiring in 7 days</li>
+                                    <li>Expired certificates</li>
+                                    <li>Rotation success/failure rates</li>
+                                </ul>
+                            </div>
+
+                            <div class="metric-item">
+                                <h4>🔒 Security Events</h4>
+                                <ul>
+                                    <li>Certificate validation failures</li>
+                                    <li>Revocation events</li>
+                                    <li>Suspicious certificate usage</li>
+                                    <li>CRL update failures</li>
+                                </ul>
+                            </div>
+
+                            <div class="metric-item">
+                                <h4>🔧 Operational Health</h4>
+                                <ul>
+                                    <li>CA service availability</li>
+                                    <li>Certificate issuance latency</li>
+                                    <li>OCSP responder status</li>
+                                    <li>HSM connectivity (if applicable)</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+
+                    <h4>Alerting Configuration</h4>
+                    <div class="code-block">
+                        <pre><code># Certificate monitoring alerts
+CERTIFICATE_ALERTS = {
+    "expiration_warnings": {
+        "30_days": {
+            "enabled": True,
+            "recipients": ["admin@company.com"],
+            "severity": "warning"
+        },
+        "7_days": {
+            "enabled": True,
+            "recipients": ["admin@company.com", "security@company.com"],
+            "severity": "high"
+        },
+        "24_hours": {
+            "enabled": True,
+            "recipients": ["oncall@company.com"],
+            "severity": "critical"
+        }
+    },
+    "validation_failures": {
+        "threshold": 5,
+        "window_minutes": 5,
+        "recipients": ["security@company.com"],
+        "severity": "high"
+    },
+    "ca_service_down": {
+        "check_interval_seconds": 60,
+        "recipients": ["admin@company.com", "oncall@company.com"],
+        "severity": "critical"
+    },
+    "crl_update_failure": {
+        "max_age_hours": 25,
+        "recipients": ["security@company.com"],
+        "severity": "medium"
+    }
+}
+
+# Prometheus metrics for certificate monitoring
+from prometheus_client import Counter, Gauge, Histogram
+
+# Certificate counters
+certificates_issued_total = Counter(
+    'sysmanage_certificates_issued_total',
+    'Total number of certificates issued',
+    ['certificate_type']
+)
+
+certificates_revoked_total = Counter(
+    'sysmanage_certificates_revoked_total',
+    'Total number of certificates revoked',
+    ['revocation_reason']
+)
+
+# Certificate gauges
+certificates_active = Gauge(
+    'sysmanage_certificates_active',
+    'Number of active certificates',
+    ['certificate_type']
+)
+
+certificates_expiring_soon = Gauge(
+    'sysmanage_certificates_expiring_soon',
+    'Number of certificates expiring soon',
+    ['days_until_expiry']
+)
+
+# Performance metrics
+certificate_validation_duration = Histogram(
+    'sysmanage_certificate_validation_duration_seconds',
+    'Certificate validation duration'
+)
+
+# Example metric collection
+async def collect_certificate_metrics():
+    """Collect certificate metrics for monitoring"""
+    try:
+        # Count active certificates by type
+        agent_certs = await count_active_certificates('agent')
+        server_certs = await count_active_certificates('server')
+
+        certificates_active.labels(certificate_type='agent').set(agent_certs)
+        certificates_active.labels(certificate_type='server').set(server_certs)
+
+        # Count certificates expiring soon
+        expiring_30d = await count_expiring_certificates(30)
+        expiring_7d = await count_expiring_certificates(7)
+        expiring_24h = await count_expiring_certificates(1)
+
+        certificates_expiring_soon.labels(days_until_expiry='30').set(expiring_30d)
+        certificates_expiring_soon.labels(days_until_expiry='7').set(expiring_7d)
+        certificates_expiring_soon.labels(days_until_expiry='1').set(expiring_24h)
+
+    except Exception as e:
+        logger.error(f"Metric collection failed: {e}")</code></pre>
+                    </div>
+                </section>
+
+                <section class="troubleshooting">
+                    <h2>mTLS Troubleshooting</h2>
+
+                    <h3>Common Issues</h3>
+                    <div class="troubleshooting-grid">
+                        <div class="issue-item">
+                            <h4>🚫 Certificate Validation Failures</h4>
+                            <ul>
+                                <li><strong>Symptoms:</strong> Agents cannot connect, TLS handshake failures</li>
+                                <li><strong>Causes:</strong> Expired certificates, incorrect CA chain, clock skew</li>
+                                <li><strong>Solutions:</strong> Check certificate expiry, verify CA chain, sync time</li>
+                            </ul>
+                        </div>
+
+                        <div class="issue-item">
+                            <h4>🔗 Certificate Chain Issues</h4>
+                            <ul>
+                                <li><strong>Symptoms:</strong> "Certificate chain incomplete" errors</li>
+                                <li><strong>Causes:</strong> Missing intermediate certificates, incorrect order</li>
+                                <li><strong>Solutions:</strong> Rebuild certificate chain, verify CA order</li>
+                            </ul>
+                        </div>
+
+                        <div class="issue-item">
+                            <h4>⏰ Clock Synchronization</h4>
+                            <ul>
+                                <li><strong>Symptoms:</strong> "Certificate not yet valid" or "expired" errors</li>
+                                <li><strong>Causes:</strong> System clock drift, timezone issues</li>
+                                <li><strong>Solutions:</strong> Configure NTP, check timezone settings</li>
+                            </ul>
+                        </div>
+
+                        <div class="issue-item">
+                            <h4>🔐 Permission Problems</h4>
+                            <ul>
+                                <li><strong>Symptoms:</strong> "Permission denied" reading certificate files</li>
+                                <li><strong>Causes:</strong> Incorrect file permissions, SELinux policies</li>
+                                <li><strong>Solutions:</strong> Fix file permissions, update SELinux context</li>
+                            </ul>
+                        </div>
+                    </div>
+
+                    <h4>Diagnostic Commands</h4>
+                    <div class="code-block">
+                        <pre><code># Certificate verification commands
+
+# Verify certificate chain
+openssl verify -CAfile /etc/ssl/sysmanage/ca/ca-chain.crt \
+    /etc/ssl/sysmanage/agents/agent-web01/agent.crt
+
+# Check certificate details
+openssl x509 -in /etc/ssl/sysmanage/agents/agent-web01/agent.crt \
+    -text -noout
+
+# Test mTLS connection
+openssl s_client -connect sysmanage.company.com:443 \
+    -cert /etc/ssl/sysmanage/agents/agent-web01/agent.crt \
+    -key /etc/ssl/sysmanage/agents/agent-web01/agent.key \
+    -CAfile /etc/ssl/sysmanage/ca/ca-chain.crt \
+    -verify_return_error
+
+# Check certificate expiration
+openssl x509 -in /etc/ssl/sysmanage/agents/agent-web01/agent.crt \
+    -noout -dates
+
+# Validate CRL
+openssl crl -in /etc/ssl/sysmanage/crl/sysmanage.crl \
+    -text -noout
+
+# Test OCSP responder
+openssl ocsp -issuer /etc/ssl/sysmanage/ca/intermediate-ca.crt \
+    -cert /etc/ssl/sysmanage/agents/agent-web01/agent.crt \
+    -url http://ocsp.sysmanage.company.com \
+    -resp_text
+
+# Debug TLS handshake
+curl -v --cert /etc/ssl/sysmanage/agents/agent-web01/agent.crt \
+    --key /etc/ssl/sysmanage/agents/agent-web01/agent.key \
+    --cacert /etc/ssl/sysmanage/ca/ca-chain.crt \
+    https://sysmanage.company.com/api/health</code></pre>
+                    </div>
+                </section>
+
+                <section class="next-steps">
+                    <h2>Next Steps</h2>
+                    <p>After implementing mTLS:</p>
+                    <ol>
+                        <li><strong><a href="network-security.html">Network Security</a>:</strong> Configure network-level protections</li>
+                        <li><strong><a href="authentication.html">Authentication</a>:</strong> Set up user authentication systems</li>
+                        <li><strong><a href="scanning.html">Security Scanning</a>:</strong> Implement automated security scanning</li>
+                        <li><strong><a href="best-practices.html">Best Practices</a>:</strong> Follow comprehensive security guidelines</li>
+                    </ol>
+                </section>
+            </div>
+
+            <div class="docs-footer">
+                <div class="docs-navigation">
+                    <h3>Navigation</h3>
+                    <div class="nav-links">
+                        <a href="best-practices.html" class="nav-link">← Best Practices</a>
+                        <a href="network-security.html" class="nav-link">Network Security →</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <footer class="site-footer">
+        <div class="container">
+            <div class="footer-bottom">
+                <p>&copy; 2024 SysManage. All rights reserved.</p>
+            </div>
+        </div>
+    </footer>
+
+    <script src="../../assets/js/main.js"></script>
+    <script src="../../assets/js/i18n.js"></script>
+</body>
+</html>
