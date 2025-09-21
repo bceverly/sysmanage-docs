@@ -166,6 +166,32 @@
             width: auto;
         }
 
+        .input-with-button {
+            display: flex;
+            gap: 0.5rem;
+            align-items: center;
+        }
+
+        .input-with-button input {
+            flex: 1;
+        }
+
+        .generate-button {
+            background: #17a2b8;
+            color: white;
+            border: none;
+            padding: 0.75rem 1rem;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.8rem;
+            white-space: nowrap;
+            transition: background 0.3s ease;
+        }
+
+        .generate-button:hover {
+            background: #138496;
+        }
+
         .download-controls {
             text-align: center;
             margin-top: 2rem;
@@ -221,6 +247,28 @@
             display: none !important;
         }
 
+        .nav-menu {
+            display: flex;
+            gap: 1.5rem;
+            align-items: center;
+        }
+
+        .nav-menu .nav-link {
+            white-space: nowrap;
+            padding: 0.5rem 0.75rem;
+        }
+
+        @media (max-width: 1024px) {
+            .nav-menu {
+                gap: 1rem;
+            }
+
+            .nav-menu .nav-link {
+                font-size: 0.9rem;
+                padding: 0.5rem;
+            }
+        }
+
         @media (max-width: 768px) {
             .builder-main {
                 grid-template-columns: 1fr;
@@ -229,6 +277,11 @@
             .type-buttons {
                 flex-direction: column;
                 align-items: center;
+            }
+
+            .nav-menu {
+                flex-direction: column;
+                gap: 0.5rem;
             }
         }
     </style>
@@ -312,7 +365,10 @@
                         </div>
                         <div class="form-group">
                             <label for="db-password">Database Password</label>
-                            <input type="password" id="db-password" value="CHANGE_ME_PLEASE!" placeholder="Enter secure password">
+                            <div class="input-with-button">
+                                <input type="password" id="db-password" value="CHANGE_ME_PLEASE!" placeholder="Enter secure password">
+                                <button type="button" class="generate-button" onclick="generatePassword('db-password')">🎲 Generate</button>
+                            </div>
                             <div class="help-text">Use a strong, unique password for production</div>
                         </div>
                     </div>
@@ -325,7 +381,10 @@
                         </div>
                         <div class="form-group">
                             <label for="admin-password">Admin Password</label>
-                            <input type="password" id="admin-password" value="CHANGE_ME_PLEASE!" placeholder="Enter secure admin password">
+                            <div class="input-with-button">
+                                <input type="password" id="admin-password" value="CHANGE_ME_PLEASE!" placeholder="Enter secure admin password">
+                                <button type="button" class="generate-button" onclick="generatePassword('admin-password')">🎲 Generate</button>
+                            </div>
                         </div>
                         <div class="form-group">
                             <label for="jwt-timeout">JWT Auth Timeout (seconds)</label>
@@ -334,6 +393,22 @@
                         <div class="form-group">
                             <label for="jwt-refresh-timeout">JWT Refresh Timeout (seconds)</label>
                             <input type="number" id="jwt-refresh-timeout" value="60000" min="1800" max="604800">
+                        </div>
+                        <div class="form-group">
+                            <label for="jwt-secret">JWT Secret</label>
+                            <div class="input-with-button">
+                                <input type="password" id="jwt-secret" value="GENERATE_NEW_JWT_SECRET_FOR_PRODUCTION" placeholder="JWT secret key">
+                                <button type="button" class="generate-button" onclick="generateJwtSecret()">🔑 Generate</button>
+                            </div>
+                            <div class="help-text">Generate a new random JWT secret for production</div>
+                        </div>
+                        <div class="form-group">
+                            <label for="password-salt">Password Salt</label>
+                            <div class="input-with-button">
+                                <input type="password" id="password-salt" value="GENERATE_NEW_SALT_FOR_PRODUCTION" placeholder="Password salt">
+                                <button type="button" class="generate-button" onclick="generatePasswordSalt()">🧂 Generate</button>
+                            </div>
+                            <div class="help-text">Generate a new random password salt for production</div>
                         </div>
                     </div>
 
@@ -734,11 +809,11 @@ database:
 
 security:
   # GENERATE NEW RANDOM VALUES FOR PRODUCTION!
-  password_salt: "GENERATE_NEW_SALT_FOR_PRODUCTION"
+  password_salt: "${document.getElementById('password-salt').value}"
   admin_userid: "${document.getElementById('admin-email').value}"
   admin_password: "${document.getElementById('admin-password').value}"
   # nosemgrep: generic.secrets.security.detected-generic-secret
-  jwt_secret: "GENERATE_NEW_JWT_SECRET_FOR_PRODUCTION"
+  jwt_secret: "${document.getElementById('jwt-secret').value}"
   jwt_algorithm: "HS256"
   jwt_auth_timeout: ${document.getElementById('jwt-timeout').value}
   jwt_refresh_timeout: ${document.getElementById('jwt-refresh-timeout').value}
@@ -926,6 +1001,51 @@ collection:
             }).catch(err => {
                 console.error('Failed to copy: ', err);
             });
+        }
+
+        // Generate secure random values
+        function generateRandomString(length = 32) {
+            const charset = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=';
+            let result = '';
+            for (let i = 0; i < length; i++) {
+                result += charset.charAt(Math.floor(Math.random() * charset.length));
+            }
+            return result;
+        }
+
+        function generatePassword(fieldId) {
+            const length = 24;
+            const charset = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*()_+-=';
+            let password = '';
+
+            // Ensure at least one of each required type
+            password += 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'[Math.floor(Math.random() * 26)]; // uppercase
+            password += 'abcdefghijklmnopqrstuvwxyz'[Math.floor(Math.random() * 26)]; // lowercase
+            password += '0123456789'[Math.floor(Math.random() * 10)]; // number
+            password += '!@#$%^&*()_+-='[Math.floor(Math.random() * 13)]; // special
+
+            // Fill the rest
+            for (let i = 4; i < length; i++) {
+                password += charset[Math.floor(Math.random() * charset.length)];
+            }
+
+            // Shuffle the password
+            password = password.split('').sort(() => Math.random() - 0.5).join('');
+
+            document.getElementById(fieldId).value = password;
+            updateYaml();
+        }
+
+        function generateJwtSecret() {
+            const secret = generateRandomString(43); // Base64-like string
+            document.getElementById('jwt-secret').value = secret;
+            updateYaml();
+        }
+
+        function generatePasswordSalt() {
+            const salt = generateRandomString(43); // Base64-like string
+            document.getElementById('password-salt').value = salt;
+            updateYaml();
         }
 
         // Initialize
