@@ -1,0 +1,938 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Configuration Builder - SysManage</title>
+    <meta name="description" content="Interactive configuration builder for SysManage server and agent YAML files.">
+    <link rel="stylesheet" href="assets/css/style.css">
+    <link rel="icon" type="image/svg+xml" href="assets/images/favicon.svg">
+    <style>
+        .config-builder {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        .builder-header {
+            text-align: center;
+            margin-bottom: 3rem;
+        }
+
+        .builder-header h1 {
+            color: #333;
+            margin-bottom: 1rem;
+        }
+
+        .builder-header p {
+            color: #666;
+            font-size: 1.1rem;
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        .config-type-selector {
+            text-align: center;
+            margin-bottom: 3rem;
+        }
+
+        .type-buttons {
+            display: flex;
+            gap: 1rem;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        .type-button {
+            background: #f8f9fa;
+            border: 2px solid #ddd;
+            padding: 1rem 2rem;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            min-width: 200px;
+            text-align: center;
+        }
+
+        .type-button:hover {
+            border-color: #667eea;
+            background: #f0f4ff;
+        }
+
+        .type-button.active {
+            background: #667eea;
+            border-color: #667eea;
+            color: white;
+        }
+
+        .type-button h3 {
+            margin: 0 0 0.5rem 0;
+            font-size: 1.2rem;
+        }
+
+        .type-button p {
+            margin: 0;
+            font-size: 0.9rem;
+            opacity: 0.8;
+        }
+
+        .builder-main {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 2rem;
+            min-height: 600px;
+        }
+
+        .config-form {
+            background: white;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 2rem;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+
+        .yaml-preview {
+            background: #1e1e1e;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 2rem;
+            color: #d4d4d4;
+            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+            max-height: 80vh;
+            overflow-y: auto;
+            position: relative;
+        }
+
+        .section-header {
+            background: #f8f9fa;
+            margin: 0 -2rem 1.5rem -2rem;
+            padding: 1rem 2rem;
+            border-bottom: 1px solid #ddd;
+            font-weight: 600;
+            color: #333;
+        }
+
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 500;
+            color: #333;
+        }
+
+        .form-group input,
+        .form-group select,
+        .form-group textarea {
+            width: 100%;
+            padding: 0.75rem;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 0.9rem;
+            font-family: inherit;
+        }
+
+        .form-group input:focus,
+        .form-group select:focus,
+        .form-group textarea:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.1);
+        }
+
+        .form-group .help-text {
+            font-size: 0.8rem;
+            color: #666;
+            margin-top: 0.25rem;
+        }
+
+        .checkbox-group {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 0.5rem;
+            margin-top: 0.5rem;
+        }
+
+        .checkbox-item {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .checkbox-item input[type="checkbox"] {
+            width: auto;
+        }
+
+        .download-controls {
+            text-align: center;
+            margin-top: 2rem;
+            padding-top: 2rem;
+            border-top: 1px solid #ddd;
+        }
+
+        .download-button {
+            background: #28a745;
+            color: white;
+            border: none;
+            padding: 1rem 2rem;
+            border-radius: 8px;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: background 0.3s ease;
+            margin: 0 0.5rem;
+        }
+
+        .download-button:hover {
+            background: #218838;
+        }
+
+        .download-button:disabled {
+            background: #6c757d;
+            cursor: not-allowed;
+        }
+
+        .yaml-content {
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            line-height: 1.5;
+        }
+
+        .copy-button {
+            position: absolute;
+            top: 1rem;
+            right: 1rem;
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 0.5rem 1rem;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.8rem;
+        }
+
+        .copy-button:hover {
+            background: #5a6fd8;
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        @media (max-width: 768px) {
+            .builder-main {
+                grid-template-columns: 1fr;
+            }
+
+            .type-buttons {
+                flex-direction: column;
+                align-items: center;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header class="site-header">
+        <nav class="navbar">
+            <div class="container">
+                <div class="nav-brand">
+                    <a href="./">
+                        <img src="assets/images/sysmanage-logo.svg" alt="SysManage" class="logo">
+                    </a>
+                </div>
+                <div class="nav-menu">
+                    <a href="#features" class="nav-link">Features</a>
+                    <a href="#getting-started" class="nav-link">Getting Started</a>
+                    <a href="docs/" class="nav-link">Documentation</a>
+                    <a href="config-builder.html" class="nav-link active">Configuration Builder</a>
+                    <a href="https://github.com/bceverly/sysmanage" class="nav-link" target="_blank">GitHub</a>
+                </div>
+            </div>
+        </nav>
+    </header>
+
+    <main class="config-builder">
+        <div class="builder-header">
+            <h1>SysManage Configuration Builder</h1>
+            <p>Create customized YAML configuration files for your SysManage server and agents with this interactive builder. Fill out the form and watch your configuration update in real-time.</p>
+        </div>
+
+        <div class="config-type-selector">
+            <div class="type-buttons">
+                <div class="type-button active" data-type="server">
+                    <h3>🖥️ Server Configuration</h3>
+                    <p>Generate sysmanage.yaml for your server installation</p>
+                </div>
+                <div class="type-button" data-type="agent">
+                    <h3>🤖 Agent Configuration</h3>
+                    <p>Generate sysmanage-agent.yaml for your agents</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="builder-main">
+            <div class="config-form">
+                <!-- Server Configuration Form -->
+                <div id="server-form" class="config-section">
+                    <div class="section-header">Server Configuration</div>
+
+                    <div class="section-group">
+                        <h3>API Settings</h3>
+                        <div class="form-group">
+                            <label for="api-host">API Host</label>
+                            <input type="text" id="api-host" value="localhost" placeholder="localhost">
+                            <div class="help-text">Hostname or IP address for the API server</div>
+                        </div>
+                        <div class="form-group">
+                            <label for="api-port">API Port</label>
+                            <input type="number" id="api-port" value="8080" min="1" max="65535">
+                            <div class="help-text">Port number for the API server</div>
+                        </div>
+                    </div>
+
+                    <div class="section-group">
+                        <h3>Database Settings</h3>
+                        <div class="form-group">
+                            <label for="db-host">Database Host</label>
+                            <input type="text" id="db-host" value="localhost" placeholder="localhost">
+                        </div>
+                        <div class="form-group">
+                            <label for="db-port">Database Port</label>
+                            <input type="number" id="db-port" value="5432" min="1" max="65535">
+                        </div>
+                        <div class="form-group">
+                            <label for="db-name">Database Name</label>
+                            <input type="text" id="db-name" value="sysmanage" placeholder="sysmanage">
+                        </div>
+                        <div class="form-group">
+                            <label for="db-user">Database User</label>
+                            <input type="text" id="db-user" value="sysmanage" placeholder="sysmanage">
+                        </div>
+                        <div class="form-group">
+                            <label for="db-password">Database Password</label>
+                            <input type="password" id="db-password" value="CHANGE_ME_PLEASE!" placeholder="Enter secure password">
+                            <div class="help-text">Use a strong, unique password for production</div>
+                        </div>
+                    </div>
+
+                    <div class="section-group">
+                        <h3>Security Settings</h3>
+                        <div class="form-group">
+                            <label for="admin-email">Admin Email</label>
+                            <input type="email" id="admin-email" value="admin@sysmanage.org" placeholder="admin@example.com">
+                        </div>
+                        <div class="form-group">
+                            <label for="admin-password">Admin Password</label>
+                            <input type="password" id="admin-password" value="CHANGE_ME_PLEASE!" placeholder="Enter secure admin password">
+                        </div>
+                        <div class="form-group">
+                            <label for="jwt-timeout">JWT Auth Timeout (seconds)</label>
+                            <input type="number" id="jwt-timeout" value="6000" min="300" max="86400">
+                        </div>
+                        <div class="form-group">
+                            <label for="jwt-refresh-timeout">JWT Refresh Timeout (seconds)</label>
+                            <input type="number" id="jwt-refresh-timeout" value="60000" min="1800" max="604800">
+                        </div>
+                    </div>
+
+                    <div class="section-group">
+                        <h3>Password Policy</h3>
+                        <div class="form-group">
+                            <label for="min-length">Minimum Password Length</label>
+                            <input type="number" id="min-length" value="8" min="4" max="128">
+                        </div>
+                        <div class="form-group">
+                            <label for="max-length">Maximum Password Length</label>
+                            <input type="number" id="max-length" value="128" min="8" max="256">
+                        </div>
+                        <div class="form-group">
+                            <label>Password Requirements</label>
+                            <div class="checkbox-group">
+                                <div class="checkbox-item">
+                                    <input type="checkbox" id="require-uppercase" checked>
+                                    <label for="require-uppercase">Require Uppercase</label>
+                                </div>
+                                <div class="checkbox-item">
+                                    <input type="checkbox" id="require-lowercase" checked>
+                                    <label for="require-lowercase">Require Lowercase</label>
+                                </div>
+                                <div class="checkbox-item">
+                                    <input type="checkbox" id="require-numbers" checked>
+                                    <label for="require-numbers">Require Numbers</label>
+                                </div>
+                                <div class="checkbox-item">
+                                    <input type="checkbox" id="require-special" checked>
+                                    <label for="require-special">Require Special Characters</label>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label for="password-history">Password History Count</label>
+                            <input type="number" id="password-history" value="3" min="0" max="20">
+                            <div class="help-text">Number of previous passwords to remember (0 = disabled)</div>
+                        </div>
+                    </div>
+
+                    <div class="section-group">
+                        <h3>Web UI Settings</h3>
+                        <div class="form-group">
+                            <label for="webui-host">Web UI Host</label>
+                            <input type="text" id="webui-host" value="localhost" placeholder="localhost">
+                        </div>
+                        <div class="form-group">
+                            <label for="webui-port">Web UI Port</label>
+                            <input type="number" id="webui-port" value="3000" min="1" max="65535">
+                        </div>
+                    </div>
+
+                    <div class="section-group">
+                        <h3>Email Configuration</h3>
+                        <div class="form-group">
+                            <div class="checkbox-item">
+                                <input type="checkbox" id="email-enabled">
+                                <label for="email-enabled">Enable Email</label>
+                            </div>
+                        </div>
+                        <div id="email-settings" class="hidden">
+                            <div class="form-group">
+                                <label for="smtp-host">SMTP Host</label>
+                                <input type="text" id="smtp-host" value="smtp.gmail.com" placeholder="smtp.gmail.com">
+                            </div>
+                            <div class="form-group">
+                                <label for="smtp-port">SMTP Port</label>
+                                <input type="number" id="smtp-port" value="587" min="1" max="65535">
+                            </div>
+                            <div class="form-group">
+                                <div class="checkbox-item">
+                                    <input type="checkbox" id="smtp-tls" checked>
+                                    <label for="smtp-tls">Use TLS</label>
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label for="smtp-username">SMTP Username</label>
+                                <input type="text" id="smtp-username" placeholder="your-email@gmail.com">
+                            </div>
+                            <div class="form-group">
+                                <label for="smtp-password">SMTP Password</label>
+                                <input type="password" id="smtp-password" placeholder="your-app-password">
+                            </div>
+                            <div class="form-group">
+                                <label for="from-address">From Address</label>
+                                <input type="email" id="from-address" value="noreply@your-domain.com" placeholder="noreply@your-domain.com">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="section-group">
+                        <h3>Logging Settings</h3>
+                        <div class="form-group">
+                            <label for="log-level">Log Level</label>
+                            <select id="log-level">
+                                <option value="DEBUG">DEBUG</option>
+                                <option value="INFO">INFO</option>
+                                <option value="INFO|WARNING|ERROR|CRITICAL" selected>INFO and above</option>
+                                <option value="WARNING|ERROR|CRITICAL">WARNING and above</option>
+                                <option value="ERROR|CRITICAL">ERROR and above</option>
+                                <option value="CRITICAL">CRITICAL only</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Agent Configuration Form -->
+                <div id="agent-form" class="config-section hidden">
+                    <div class="section-header">Agent Configuration</div>
+
+                    <div class="section-group">
+                        <h3>Server Connection</h3>
+                        <div class="form-group">
+                            <label for="agent-server-hostname">Server Hostname</label>
+                            <input type="text" id="agent-server-hostname" value="localhost" placeholder="sysmanage.example.com">
+                            <div class="help-text">Hostname or IP address of the SysManage server</div>
+                        </div>
+                        <div class="form-group">
+                            <label for="agent-server-port">Server Port</label>
+                            <input type="number" id="agent-server-port" value="8080" min="1" max="65535">
+                        </div>
+                        <div class="form-group">
+                            <div class="checkbox-item">
+                                <input type="checkbox" id="agent-use-https">
+                                <label for="agent-use-https">Use HTTPS</label>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <div class="checkbox-item">
+                                <input type="checkbox" id="agent-verify-ssl">
+                                <label for="agent-verify-ssl">Verify SSL Certificates</label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="section-group">
+                        <h3>Client Settings</h3>
+                        <div class="form-group">
+                            <label for="agent-hostname-override">Hostname Override (optional)</label>
+                            <input type="text" id="agent-hostname-override" placeholder="Leave empty for auto-detection">
+                            <div class="help-text">Override system hostname for identification</div>
+                        </div>
+                        <div class="form-group">
+                            <label for="agent-registration-retry">Registration Retry Interval (seconds)</label>
+                            <input type="number" id="agent-registration-retry" value="30" min="5" max="300">
+                        </div>
+                        <div class="form-group">
+                            <label for="agent-max-retries">Max Registration Retries</label>
+                            <input type="number" id="agent-max-retries" value="10" min="-1" max="100">
+                            <div class="help-text">-1 for infinite retries</div>
+                        </div>
+                        <div class="form-group">
+                            <label for="agent-update-interval">Update Check Interval (seconds)</label>
+                            <input type="number" id="agent-update-interval" value="3600" min="300" max="86400">
+                        </div>
+                        <div class="form-group">
+                            <label for="agent-package-interval">Package Collection Interval (seconds)</label>
+                            <input type="number" id="agent-package-interval" value="86400" min="3600" max="604800">
+                        </div>
+                        <div class="form-group">
+                            <div class="checkbox-item">
+                                <input type="checkbox" id="agent-package-enabled" checked>
+                                <label for="agent-package-enabled">Enable Package Collection</label>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <div class="checkbox-item">
+                                <input type="checkbox" id="agent-package-startup" checked>
+                                <label for="agent-package-startup">Collect Packages at Startup</label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="section-group">
+                        <h3>Internationalization</h3>
+                        <div class="form-group">
+                            <label for="agent-language">Language</label>
+                            <select id="agent-language">
+                                <option value="en" selected>English</option>
+                                <option value="es">Spanish</option>
+                                <option value="fr">French</option>
+                                <option value="de">German</option>
+                                <option value="it">Italian</option>
+                                <option value="pt">Portuguese</option>
+                                <option value="nl">Dutch</option>
+                                <option value="ja">Japanese</option>
+                                <option value="zh_CN">Chinese (Simplified)</option>
+                                <option value="ko">Korean</option>
+                                <option value="ru">Russian</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="section-group">
+                        <h3>Logging Settings</h3>
+                        <div class="form-group">
+                            <label for="agent-log-level">Log Level</label>
+                            <select id="agent-log-level">
+                                <option value="DEBUG">DEBUG</option>
+                                <option value="INFO">INFO</option>
+                                <option value="INFO|WARNING|ERROR|CRITICAL" selected>INFO and above</option>
+                                <option value="WARNING|ERROR|CRITICAL">WARNING and above</option>
+                                <option value="ERROR|CRITICAL">ERROR and above</option>
+                                <option value="CRITICAL">CRITICAL only</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="section-group">
+                        <h3>WebSocket Settings</h3>
+                        <div class="form-group">
+                            <div class="checkbox-item">
+                                <input type="checkbox" id="agent-auto-reconnect" checked>
+                                <label for="agent-auto-reconnect">Auto Reconnect</label>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label for="agent-reconnect-interval">Reconnect Interval (seconds)</label>
+                            <input type="number" id="agent-reconnect-interval" value="5" min="1" max="60">
+                        </div>
+                        <div class="form-group">
+                            <label for="agent-ping-interval">Ping Interval (seconds)</label>
+                            <input type="number" id="agent-ping-interval" value="60" min="10" max="300">
+                        </div>
+                    </div>
+
+                    <div class="section-group">
+                        <h3>Script Execution</h3>
+                        <div class="form-group">
+                            <div class="checkbox-item">
+                                <input type="checkbox" id="agent-script-enabled">
+                                <label for="agent-script-enabled">Enable Script Execution</label>
+                            </div>
+                            <div class="help-text">⚠️ Enable only if you trust the server administrators</div>
+                        </div>
+                        <div id="script-settings" class="hidden">
+                            <div class="form-group">
+                                <label for="agent-script-timeout">Script Timeout (seconds)</label>
+                                <input type="number" id="agent-script-timeout" value="300" min="30" max="3600">
+                            </div>
+                            <div class="form-group">
+                                <label for="agent-max-concurrent">Max Concurrent Scripts</label>
+                                <input type="number" id="agent-max-concurrent" value="3" min="1" max="10">
+                            </div>
+                            <div class="form-group">
+                                <div class="checkbox-item">
+                                    <input type="checkbox" id="agent-audit-logging" checked>
+                                    <label for="agent-audit-logging">Enable Audit Logging</label>
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <div class="checkbox-item">
+                                    <input type="checkbox" id="agent-require-approval">
+                                    <label for="agent-require-approval">Require Script Approval</label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="section-group">
+                        <h3>Data Collection</h3>
+                        <div class="form-group">
+                            <div class="checkbox-item">
+                                <input type="checkbox" id="agent-collection-enabled" checked>
+                                <label for="agent-collection-enabled">Enable Data Collection</label>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label>Collection Types</label>
+                            <div class="checkbox-group">
+                                <div class="checkbox-item">
+                                    <input type="checkbox" id="collect-software" checked>
+                                    <label for="collect-software">Software Packages</label>
+                                </div>
+                                <div class="checkbox-item">
+                                    <input type="checkbox" id="collect-updates" checked>
+                                    <label for="collect-updates">System Updates</label>
+                                </div>
+                                <div class="checkbox-item">
+                                    <input type="checkbox" id="collect-hardware" checked>
+                                    <label for="collect-hardware">Hardware Info</label>
+                                </div>
+                                <div class="checkbox-item">
+                                    <input type="checkbox" id="collect-network" checked>
+                                    <label for="collect-network">Network Interfaces</label>
+                                </div>
+                                <div class="checkbox-item">
+                                    <input type="checkbox" id="collect-users" checked>
+                                    <label for="collect-users">User Accounts</label>
+                                </div>
+                                <div class="checkbox-item">
+                                    <input type="checkbox" id="collect-metrics" checked>
+                                    <label for="collect-metrics">System Metrics</label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="yaml-preview">
+                <button class="copy-button" onclick="copyYamlToClipboard()">Copy YAML</button>
+                <div class="yaml-content" id="yaml-output">
+# Your configuration will appear here as you fill out the form
+                </div>
+            </div>
+        </div>
+
+        <div class="download-controls">
+            <button class="download-button" onclick="downloadYaml()" id="download-btn">
+                📥 Download Configuration File
+            </button>
+        </div>
+    </main>
+
+    <footer class="site-footer">
+        <div class="container">
+            <div class="footer-bottom">
+                <p>&copy; 2024 SysManage. All rights reserved.</p>
+            </div>
+        </div>
+    </footer>
+
+    <script>
+        let currentConfigType = 'server';
+
+        // Configuration type switching
+        document.querySelectorAll('.type-button').forEach(button => {
+            button.addEventListener('click', () => {
+                // Update active button
+                document.querySelectorAll('.type-button').forEach(b => b.classList.remove('active'));
+                button.classList.add('active');
+
+                // Switch forms
+                const newType = button.dataset.type;
+                currentConfigType = newType;
+
+                document.getElementById('server-form').classList.toggle('hidden', newType !== 'server');
+                document.getElementById('agent-form').classList.toggle('hidden', newType !== 'agent');
+
+                // Update YAML
+                updateYaml();
+            });
+        });
+
+        // Form input listeners
+        function addInputListeners() {
+            document.querySelectorAll('input, select, textarea').forEach(input => {
+                input.addEventListener('input', updateYaml);
+                input.addEventListener('change', updateYaml);
+            });
+
+            // Special handling for email enable/disable
+            document.getElementById('email-enabled').addEventListener('change', function() {
+                document.getElementById('email-settings').classList.toggle('hidden', !this.checked);
+                updateYaml();
+            });
+
+            // Special handling for script execution enable/disable
+            document.getElementById('agent-script-enabled').addEventListener('change', function() {
+                document.getElementById('script-settings').classList.toggle('hidden', !this.checked);
+                updateYaml();
+            });
+        }
+
+        function updateYaml() {
+            let yaml = '';
+
+            if (currentConfigType === 'server') {
+                yaml = generateServerYaml();
+            } else {
+                yaml = generateAgentYaml();
+            }
+
+            document.getElementById('yaml-output').textContent = yaml;
+
+            // Update download button
+            const filename = currentConfigType === 'server' ? 'sysmanage.yaml' : 'sysmanage-agent.yaml';
+            document.getElementById('download-btn').textContent = `📥 Download ${filename}`;
+        }
+
+        function generateServerYaml() {
+            const yaml = `# SysManage Server Configuration
+# Generated by Configuration Builder
+# IMPORTANT: Update all security credentials before production use!
+
+api:
+  host: "${document.getElementById('api-host').value}"
+  port: ${document.getElementById('api-port').value}
+
+database:
+  user: "${document.getElementById('db-user').value}"
+  password: "${document.getElementById('db-password').value}"
+  host: "${document.getElementById('db-host').value}"
+  port: ${document.getElementById('db-port').value}
+  name: "${document.getElementById('db-name').value}"
+
+security:
+  # GENERATE NEW RANDOM VALUES FOR PRODUCTION!
+  password_salt: "GENERATE_NEW_SALT_FOR_PRODUCTION"
+  admin_userid: "${document.getElementById('admin-email').value}"
+  admin_password: "${document.getElementById('admin-password').value}"
+  # nosemgrep: generic.secrets.security.detected-generic-secret
+  jwt_secret: "GENERATE_NEW_JWT_SECRET_FOR_PRODUCTION"
+  jwt_algorithm: "HS256"
+  jwt_auth_timeout: ${document.getElementById('jwt-timeout').value}
+  jwt_refresh_timeout: ${document.getElementById('jwt-refresh-timeout').value}
+  password_policy:
+    min_length: ${document.getElementById('min-length').value}
+    max_length: ${document.getElementById('max-length').value}
+    require_uppercase: ${document.getElementById('require-uppercase').checked}
+    require_lowercase: ${document.getElementById('require-lowercase').checked}
+    require_numbers: ${document.getElementById('require-numbers').checked}
+    require_special_chars: ${document.getElementById('require-special').checked}
+    special_chars: "!@#$%^&*()_+-=[]{}|;':\",./<>?"
+    allow_username_in_password: false
+    password_history_count: ${document.getElementById('password-history').value}
+    min_character_types: 3
+
+webui:
+  host: "${document.getElementById('webui-host').value}"
+  port: ${document.getElementById('webui-port').value}
+
+logging:
+  level: "${document.getElementById('log-level').value}"
+  format: "[%(asctime)s UTC] %(name)s - %(levelname)s - %(message)s"
+
+message_queue:
+  expiration_timeout_minutes: 60
+  cleanup_interval_minutes: 30
+
+email:
+  enabled: ${document.getElementById('email-enabled').checked}${document.getElementById('email-enabled').checked ? `
+  smtp:
+    host: "${document.getElementById('smtp-host').value}"
+    port: ${document.getElementById('smtp-port').value}
+    use_tls: ${document.getElementById('smtp-tls').checked}
+    use_ssl: false
+    username: "${document.getElementById('smtp-username').value}"
+    password: "${document.getElementById('smtp-password').value}"
+    timeout: 30
+  from_address: "${document.getElementById('from-address').value}"
+  from_name: "SysManage System"
+  templates:
+    subject_prefix: "[SysManage]"
+    password_reset:
+      subject: "Password Reset Request"
+      text_body: |
+        Hello,
+
+        We received a request to reset your password for your SysManage account.
+
+        To reset your password, please click the following link:
+        {reset_url}
+
+        This link will expire in 24 hours.
+
+        If you did not request this password reset, please ignore this email.
+
+        --
+        SysManage System
+      html_body: |
+        <html>
+        <body>
+        <p>Hello,</p>
+        <p>We received a request to reset your password for your SysManage account.</p>
+        <p>To reset your password, please click the following link:</p>
+        <p><a href="{reset_url}">Reset Your Password</a></p>
+        <p>This link will expire in 24 hours.</p>
+        <p>If you did not request this password reset, please ignore this email.</p>
+        <hr>
+        <p><em>SysManage System</em></p>
+        </body>
+        </html>` : ''}`;
+
+            return yaml;
+        }
+
+        function generateAgentYaml() {
+            const hostname = document.getElementById('agent-hostname-override').value;
+            const scriptEnabled = document.getElementById('agent-script-enabled').checked;
+
+            const yaml = `# SysManage Agent Configuration
+# Generated by Configuration Builder
+
+server:
+  hostname: "${document.getElementById('agent-server-hostname').value}"
+  port: ${document.getElementById('agent-server-port').value}
+  use_https: ${document.getElementById('agent-use-https').checked}
+  verify_ssl: ${document.getElementById('agent-verify-ssl').checked}
+
+client:${hostname ? `
+  hostname_override: "${hostname}"` : ''}
+  registration_retry_interval: ${document.getElementById('agent-registration-retry').value}
+  max_registration_retries: ${document.getElementById('agent-max-retries').value}
+  update_check_interval: ${document.getElementById('agent-update-interval').value}
+  package_collection_interval: ${document.getElementById('agent-package-interval').value}
+  package_collection_enabled: ${document.getElementById('agent-package-enabled').checked}
+  package_collection_at_startup: ${document.getElementById('agent-package-startup').checked}
+
+i18n:
+  language: "${document.getElementById('agent-language').value}"
+
+logging:
+  level: "${document.getElementById('agent-log-level').value}"
+  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+
+websocket:
+  auto_reconnect: ${document.getElementById('agent-auto-reconnect').checked}
+  reconnect_interval: ${document.getElementById('agent-reconnect-interval').value}
+  ping_interval: ${document.getElementById('agent-ping-interval').value}
+
+database:
+  path: "agent.db"
+  auto_migrate: true
+
+message_queue:
+  expiration_timeout_minutes: 60
+  cleanup_interval_minutes: 30
+
+script_execution:
+  enabled: ${scriptEnabled}${scriptEnabled ? `
+  timeout: ${document.getElementById('agent-script-timeout').value}
+  max_concurrent: ${document.getElementById('agent-max-concurrent').value}
+  allowed_shells:
+    - "bash"
+    - "sh"
+    - "zsh"
+  user_restrictions:
+    allow_user_switching: false
+    allowed_users: []
+  security:
+    restricted_paths:
+      - "/etc/passwd"
+      - "/etc/shadow"
+      - "/etc/ssh/"
+      - "/home/*/.ssh/"
+      - "/root/.ssh/"
+      - "*.key"
+      - "*.pem"
+    audit_logging: ${document.getElementById('agent-audit-logging').checked}
+    require_approval: ${document.getElementById('agent-require-approval').checked}` : ''}
+
+collection:
+  enabled: ${document.getElementById('agent-collection-enabled').checked}
+  intervals:
+    system_info: 300
+    software: 3600
+    hardware: 1800
+    network: 300
+    users: 1800
+    available_packages: 86400
+  types:
+    software_packages: ${document.getElementById('collect-software').checked}
+    system_updates: ${document.getElementById('collect-updates').checked}
+    hardware_info: ${document.getElementById('collect-hardware').checked}
+    network_interfaces: ${document.getElementById('collect-network').checked}
+    user_accounts: ${document.getElementById('collect-users').checked}
+    system_metrics: ${document.getElementById('collect-metrics').checked}
+    available_packages: true`;
+
+            return yaml;
+        }
+
+        function downloadYaml() {
+            const yaml = document.getElementById('yaml-output').textContent;
+            const filename = currentConfigType === 'server' ? 'sysmanage.yaml' : 'sysmanage-agent.yaml';
+
+            const blob = new Blob([yaml], { type: 'text/yaml' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+
+        function copyYamlToClipboard() {
+            const yaml = document.getElementById('yaml-output').textContent;
+            navigator.clipboard.writeText(yaml).then(() => {
+                const button = document.querySelector('.copy-button');
+                const originalText = button.textContent;
+                button.textContent = 'Copied!';
+                setTimeout(() => {
+                    button.textContent = originalText;
+                }, 2000);
+            }).catch(err => {
+                console.error('Failed to copy: ', err);
+            });
+        }
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            addInputListeners();
+            updateYaml();
+        });
+    </script>
+</body>
+</html>
