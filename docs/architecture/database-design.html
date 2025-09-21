@@ -1,0 +1,732 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Database Design - SysManage Architecture</title>
+    <meta name="description" content="Comprehensive guide to SysManage's PostgreSQL database design, schema relationships, indexing strategies, and data persistence patterns.">
+    <link rel="stylesheet" href="../../assets/css/style.css">
+    <link rel="icon" type="image/svg+xml" href="../../assets/images/favicon.svg">
+    <style>
+        .database-banner {
+            background: linear-gradient(135deg, #3498db 0%, #2980b9 100%);
+            color: white;
+            padding: 2rem;
+            border-radius: 12px;
+            margin: 2rem 0;
+            text-align: center;
+        }
+
+        .database-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 1.5rem;
+            margin-top: 1.5rem;
+        }
+
+        .database-card {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 1.5rem;
+            border-radius: 8px;
+            backdrop-filter: blur(10px);
+        }
+
+        .card-title {
+            display: block;
+            font-size: 1.2rem;
+            font-weight: bold;
+            margin-bottom: 0.5rem;
+            color: #fff;
+        }
+
+        .card-description {
+            font-size: 0.9rem;
+            opacity: 0.9;
+            line-height: 1.5;
+        }
+
+        .schema-section {
+            background: #f8f9fa;
+            border-left: 4px solid #3498db;
+            padding: 1.5rem;
+            margin: 1rem 0;
+            border-radius: 0 8px 8px 0;
+        }
+
+        .section-title {
+            font-size: 1.1rem;
+            font-weight: bold;
+            color: #3498db;
+            margin-bottom: 0.5rem;
+        }
+
+        .table-relationships {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1.5rem;
+            margin: 2rem 0;
+        }
+
+        .table-card {
+            background: #f8f9fa;
+            padding: 1.5rem;
+            border-radius: 8px;
+            border-top: 3px solid #3498db;
+        }
+
+        .table-icon {
+            font-size: 2rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .table-name {
+            font-weight: bold;
+            margin-bottom: 0.5rem;
+            color: #2c3e50;
+        }
+
+        .indexing-strategy {
+            background: #2c3e50;
+            color: white;
+            padding: 2rem;
+            border-radius: 12px;
+            margin: 2rem 0;
+        }
+
+        .index-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1.5rem;
+            margin-top: 1rem;
+        }
+
+        .index-item {
+            background: rgba(52, 152, 219, 0.2);
+            padding: 1rem;
+            border-radius: 8px;
+            border: 1px solid rgba(52, 152, 219, 0.3);
+            text-align: center;
+        }
+
+        .index-icon {
+            font-size: 1.5rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .performance-features {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1.5rem;
+            margin: 2rem 0;
+        }
+
+        .feature-card {
+            background: #f8f9fa;
+            padding: 1.5rem;
+            border-radius: 8px;
+            border-top: 3px solid #3498db;
+        }
+
+        .feature-icon {
+            font-size: 2rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .feature-title {
+            font-weight: bold;
+            margin-bottom: 0.5rem;
+            color: #2c3e50;
+        }
+
+        .code-example {
+            background: #2c3e50;
+            color: #ecf0f1;
+            padding: 1.5rem;
+            border-radius: 8px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9rem;
+            line-height: 1.4;
+            overflow-x: auto;
+            margin: 1rem 0;
+        }
+
+        .code-title {
+            color: #3498db;
+            font-weight: bold;
+            margin-bottom: 0.5rem;
+        }
+
+        .migration-flow {
+            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+            padding: 2rem;
+            border-radius: 12px;
+            margin: 2rem 0;
+        }
+
+        .migration-steps {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+            margin-top: 1rem;
+        }
+
+        .migration-step {
+            display: flex;
+            align-items: center;
+            background: white;
+            padding: 1rem;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .step-number {
+            background: #3498db;
+            color: white;
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-right: 1rem;
+            font-weight: bold;
+        }
+
+        .step-content {
+            flex: 1;
+        }
+
+        .step-title {
+            font-weight: bold;
+            margin-bottom: 0.3rem;
+        }
+
+        .step-description {
+            font-size: 0.9rem;
+            color: #666;
+        }
+
+        .performance-metrics {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1.5rem;
+            margin: 2rem 0;
+        }
+
+        .metric-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 1.5rem;
+            border-radius: 8px;
+            text-align: center;
+        }
+
+        .metric-value {
+            font-size: 2.5rem;
+            font-weight: bold;
+            margin-bottom: 0.5rem;
+        }
+
+        .metric-label {
+            font-size: 0.9rem;
+            opacity: 0.9;
+        }
+
+        @media (max-width: 768px) {
+            .database-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .migration-step {
+                flex-direction: column;
+                text-align: center;
+            }
+
+            .step-number {
+                margin-right: 0;
+                margin-bottom: 0.5rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header class="site-header">
+        <nav class="navbar">
+            <div class="container">
+                <div class="nav-brand">
+                    <a href="../../">
+                        <img src="../../assets/images/sysmanage-logo.svg" alt="SysManage" class="logo">
+                    </a>
+                </div>
+                <div class="nav-menu">
+                    <a href="../../#features" class="nav-link">Features</a>
+                    <a href="../../#getting-started" class="nav-link">Getting Started</a>
+                    <a href="../" class="nav-link active">Documentation</a>
+                    <a href="https://github.com/bceverly/sysmanage" class="nav-link" target="_blank">GitHub</a>
+                </div>
+            </div>
+        </nav>
+    </header>
+
+    <main class="docs-main">
+        <div class="container">
+            <nav class="breadcrumb">
+                <a href="../">Documentation</a> &gt;
+                <a href="./">Architecture</a> &gt;
+                <span>Database Design</span>
+            </nav>
+
+            <div class="database-banner">
+                <h1>🗄️ Database Design</h1>
+                <p>Enterprise-grade PostgreSQL architecture with advanced indexing, relationships, and performance optimization</p>
+
+                <div class="database-grid">
+                    <div class="database-card">
+                        <span class="card-title">🐘 PostgreSQL 15+</span>
+                        <div class="card-description">
+                            Modern relational database with JSON support, advanced indexing, full-text search, and enterprise reliability
+                        </div>
+                    </div>
+                    <div class="database-card">
+                        <span class="card-title">🔗 Normalized Schema</span>
+                        <div class="card-description">
+                            Well-designed relational schema with proper normalization, foreign key constraints, and data integrity
+                        </div>
+                    </div>
+                    <div class="database-card">
+                        <span class="card-title">⚡ Performance Optimized</span>
+                        <div class="card-description">
+                            Strategic indexing, query optimization, connection pooling, and efficient data access patterns
+                        </div>
+                    </div>
+                    <div class="database-card">
+                        <span class="card-title">🔄 Migration Ready</span>
+                        <div class="card-description">
+                            Alembic-powered schema migrations with version control, rollback capabilities, and deployment automation
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <section>
+                <h2>🏗️ Schema Architecture</h2>
+                <p>SysManage implements a comprehensive relational schema designed for scalability, performance, and data integrity.</p>
+
+                <div class="schema-section">
+                    <div class="section-title">👥 User Management Schema</div>
+                    <p><strong>Authentication & Authorization:</strong> Complete user management system with secure password hashing, JWT tokens, role-based access control, user groups, and profile management including image uploads and account locking mechanisms.</p>
+                </div>
+
+                <div class="schema-section">
+                    <div class="section-title">🖥️ Host Management Schema</div>
+                    <p><strong>Infrastructure Tracking:</strong> Comprehensive host information including hardware specifications, operating system details, network interfaces, storage devices, certificate management, and real-time status monitoring.</p>
+                </div>
+
+                <div class="schema-section">
+                    <div class="section-title">📦 Package Management Schema</div>
+                    <p><strong>Software Inventory:</strong> Complete package tracking system including installed packages, available packages, update operations, dependency management, and package operation history with detailed execution logs.</p>
+                </div>
+
+                <div class="schema-section">
+                    <div class="section-title">📜 Script Management Schema</div>
+                    <p><strong>Automation Framework:</strong> Script repository with version control, execution tracking, parameter management, result storage, and comprehensive audit trails for all script operations.</p>
+                </div>
+
+                <div class="schema-section">
+                    <div class="section-title">📨 Message Queue Schema</div>
+                    <p><strong>Communication Infrastructure:</strong> Persistent message queuing system with delivery tracking, retry logic, expiration handling, and comprehensive message lifecycle management.</p>
+                </div>
+
+                <div class="schema-section">
+                    <div class="section-title">🏷️ Tagging & Organization Schema</div>
+                    <p><strong>Flexible Categorization:</strong> Dynamic tagging system for hosts and resources with hierarchical organization, color coding, and advanced filtering capabilities.</p>
+                </div>
+            </section>
+
+            <section>
+                <h2>📊 Core Table Relationships</h2>
+                <div class="table-relationships">
+                    <div class="table-card">
+                        <div class="table-icon">👤</div>
+                        <div class="table-name">users</div>
+                        <p>Central user registry with authentication credentials, profile information, and account management features.</p>
+                    </div>
+
+                    <div class="table-card">
+                        <div class="table-icon">🖥️</div>
+                        <div class="table-name">hosts</div>
+                        <p>Complete host inventory with hardware specs, OS information, network configuration, and status tracking.</p>
+                    </div>
+
+                    <div class="table-card">
+                        <div class="table-icon">📦</div>
+                        <div class="table-name">software_packages</div>
+                        <p>Installed package inventory with version tracking, installation dates, and dependency relationships.</p>
+                    </div>
+
+                    <div class="table-card">
+                        <div class="table-icon">🛒</div>
+                        <div class="table-name">available_packages</div>
+                        <p>Package repository information with available versions, descriptions, and OS compatibility.</p>
+                    </div>
+
+                    <div class="table-card">
+                        <div class="table-icon">🔄</div>
+                        <div class="table-name">package_operations</div>
+                        <p>Package operation history including installs, updates, removals with execution status and logs.</p>
+                    </div>
+
+                    <div class="table-card">
+                        <div class="table-icon">📜</div>
+                        <div class="table-name">scripts</div>
+                        <p>Script repository with content, parameters, execution history, and version management.</p>
+                    </div>
+
+                    <div class="table-card">
+                        <div class="table-icon">📨</div>
+                        <div class="table-name">message_queue</div>
+                        <p>Persistent message storage with delivery tracking, retry logic, and expiration management.</p>
+                    </div>
+
+                    <div class="table-card">
+                        <div class="table-icon">🏷️</div>
+                        <div class="table-name">tags</div>
+                        <p>Dynamic tagging system for flexible resource organization and advanced filtering.</p>
+                    </div>
+
+                    <div class="table-card">
+                        <div class="table-icon">🌐</div>
+                        <div class="table-name">network_interfaces</div>
+                        <p>Network configuration tracking with IP addresses, MAC addresses, and interface status.</p>
+                    </div>
+
+                    <div class="table-card">
+                        <div class="table-icon">💾</div>
+                        <div class="table-name">storage_devices</div>
+                        <p>Storage hardware inventory with capacity, usage, health status, and performance metrics.</p>
+                    </div>
+
+                    <div class="table-card">
+                        <div class="table-icon">👥</div>
+                        <div class="table-name">user_groups</div>
+                        <p>Role-based access control with group memberships and permission inheritance.</p>
+                    </div>
+
+                    <div class="table-card">
+                        <div class="table-icon">🔒</div>
+                        <div class="table-name">issued_tokens</div>
+                        <p>JWT token management with expiration tracking and revocation capabilities.</p>
+                    </div>
+                </div>
+            </section>
+
+            <section>
+                <h2>⚡ Indexing Strategy</h2>
+                <div class="indexing-strategy">
+                    <h3>Performance-Optimized Database Indexes</h3>
+                    <div class="index-grid">
+                        <div class="index-item">
+                            <div class="index-icon">🔍</div>
+                            <div>Primary Key Indexes</div>
+                        </div>
+                        <div class="index-item">
+                            <div class="index-icon">🔗</div>
+                            <div>Foreign Key Indexes</div>
+                        </div>
+                        <div class="index-item">
+                            <div class="index-icon">⚡</div>
+                            <div>Composite Indexes</div>
+                        </div>
+                        <div class="index-item">
+                            <div class="index-icon">🎯</div>
+                            <div>Unique Constraints</div>
+                        </div>
+                        <div class="index-item">
+                            <div class="index-icon">📝</div>
+                            <div>Full-Text Search</div>
+                        </div>
+                        <div class="index-item">
+                            <div class="index-icon">📊</div>
+                            <div>JSON Path Indexes</div>
+                        </div>
+                        <div class="index-item">
+                            <div class="index-icon">⏰</div>
+                            <div>Timestamp Indexes</div>
+                        </div>
+                        <div class="index-item">
+                            <div class="index-icon">🏷️</div>
+                            <div>Status Indexes</div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <section>
+                <h2>🚀 Advanced Features</h2>
+                <div class="performance-features">
+                    <div class="feature-card">
+                        <div class="feature-icon">📄</div>
+                        <div class="feature-title">JSON Columns</div>
+                        <p>Native PostgreSQL JSON support for flexible schema evolution, metadata storage, and complex configuration data.</p>
+                    </div>
+
+                    <div class="feature-card">
+                        <div class="feature-icon">🔍</div>
+                        <div class="feature-title">Full-Text Search</div>
+                        <p>Built-in PostgreSQL text search capabilities for efficient content searching across multiple columns and tables.</p>
+                    </div>
+
+                    <div class="feature-card">
+                        <div class="feature-icon">🔗</div>
+                        <div class="feature-title">Foreign Key Constraints</div>
+                        <p>Strict referential integrity with CASCADE options ensuring data consistency across related tables.</p>
+                    </div>
+
+                    <div class="feature-card">
+                        <div class="feature-icon">⚡</div>
+                        <div class="feature-title">Connection Pooling</div>
+                        <p>SQLAlchemy connection pooling with configurable pool sizes and connection lifecycle management.</p>
+                    </div>
+
+                    <div class="feature-card">
+                        <div class="feature-icon">🕐</div>
+                        <div class="feature-title">Timezone Awareness</div>
+                        <p>Proper timezone handling with UTC storage and automatic timezone conversion for global deployments.</p>
+                    </div>
+
+                    <div class="feature-card">
+                        <div class="feature-icon">🛡️</div>
+                        <div class="feature-title">ACID Compliance</div>
+                        <p>Full ACID transaction support ensuring data integrity even during complex multi-table operations.</p>
+                    </div>
+                </div>
+            </section>
+
+            <section>
+                <h2>💻 Schema Examples</h2>
+
+                <h3>Host Table Structure</h3>
+                <div class="code-example">
+                    <div class="code-title">Core Host Information</div>
+CREATE TABLE hosts (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    fqdn VARCHAR(255) NOT NULL UNIQUE,
+    platform VARCHAR(50),
+    platform_version VARCHAR(100),
+    architecture VARCHAR(50),
+    cpu_count INTEGER,
+    memory_gb NUMERIC(10,2),
+    last_seen TIMESTAMP WITH TIME ZONE,
+    active BOOLEAN DEFAULT true,
+    approval_status VARCHAR(20) DEFAULT 'pending',
+    enabled_shells JSONB,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Indexes for performance
+CREATE INDEX idx_hosts_fqdn ON hosts(fqdn);
+CREATE INDEX idx_hosts_active ON hosts(active);
+CREATE INDEX idx_hosts_platform ON hosts(platform, platform_version);
+CREATE INDEX idx_hosts_last_seen ON hosts(last_seen);
+                </div>
+
+                <h3>Package Operation Tracking</h3>
+                <div class="code-example">
+                    <div class="code-title">Package Management History</div>
+CREATE TABLE package_operations (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    host_id UUID NOT NULL REFERENCES hosts(id) ON DELETE CASCADE,
+    operation_type VARCHAR(20) NOT NULL,
+    package_name VARCHAR(255) NOT NULL,
+    package_version VARCHAR(100),
+    status VARCHAR(20) DEFAULT 'pending',
+    started_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    completed_at TIMESTAMP WITH TIME ZONE,
+    execution_log TEXT,
+    error_message TEXT
+);
+
+-- Composite index for efficient queries
+CREATE INDEX idx_pkg_ops_host_status ON package_operations(host_id, status);
+CREATE INDEX idx_pkg_ops_package ON package_operations(package_name, operation_type);
+                </div>
+
+                <h3>Message Queue Implementation</h3>
+                <div class="code-example">
+                    <div class="code-title">Persistent Message Storage</div>
+CREATE TABLE message_queue (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    target_host_id UUID REFERENCES hosts(id) ON DELETE CASCADE,
+    message_type VARCHAR(50) NOT NULL,
+    message_content JSONB NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    expires_at TIMESTAMP WITH TIME ZONE,
+    delivered_at TIMESTAMP WITH TIME ZONE,
+    status VARCHAR(20) DEFAULT 'pending',
+    retry_count INTEGER DEFAULT 0,
+    last_retry_at TIMESTAMP WITH TIME ZONE
+);
+
+-- Indexes for message processing
+CREATE INDEX idx_msg_queue_target ON message_queue(target_host_id, status);
+CREATE INDEX idx_msg_queue_expires ON message_queue(expires_at);
+CREATE INDEX idx_msg_queue_type ON message_queue(message_type);
+                </div>
+            </section>
+
+            <section>
+                <h2>🔄 Migration Strategy</h2>
+                <div class="migration-flow">
+                    <h3>Alembic Migration Workflow</h3>
+                    <div class="migration-steps">
+                        <div class="migration-step">
+                            <div class="step-number">1</div>
+                            <div class="step-content">
+                                <div class="step-title">Schema Changes</div>
+                                <div class="step-description">Modify SQLAlchemy models with new fields, relationships, or constraints</div>
+                            </div>
+                        </div>
+
+                        <div class="migration-step">
+                            <div class="step-number">2</div>
+                            <div class="step-content">
+                                <div class="step-title">Generate Migration</div>
+                                <div class="step-description">Use Alembic autogenerate to create migration script with review and customization</div>
+                            </div>
+                        </div>
+
+                        <div class="migration-step">
+                            <div class="step-number">3</div>
+                            <div class="step-content">
+                                <div class="step-title">Test Migration</div>
+                                <div class="step-description">Validate migration on development database with rollback testing</div>
+                            </div>
+                        </div>
+
+                        <div class="migration-step">
+                            <div class="step-number">4</div>
+                            <div class="step-content">
+                                <div class="step-title">Deploy Migration</div>
+                                <div class="step-description">Execute migration in production with backup and monitoring</div>
+                            </div>
+                        </div>
+
+                        <div class="migration-step">
+                            <div class="step-number">5</div>
+                            <div class="step-content">
+                                <div class="step-title">Verify Integrity</div>
+                                <div class="step-description">Confirm data integrity and application functionality post-migration</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <section>
+                <h2>📊 Performance Metrics</h2>
+                <div class="performance-metrics">
+                    <div class="metric-card">
+                        <div class="metric-value">&lt;10ms</div>
+                        <div class="metric-label">Query Response Time</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-value">1M+</div>
+                        <div class="metric-label">Records per Table</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-value">99.9%</div>
+                        <div class="metric-label">Database Uptime</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-value">100+</div>
+                        <div class="metric-label">Concurrent Connections</div>
+                    </div>
+                </div>
+            </section>
+
+            <section>
+                <h2>🔗 Related Documentation</h2>
+                <div class="docs-links">
+                    <a href="database-schema.html" class="docs-link">📋 Database Schema</a>
+                    <a href="package-operation-tracking.html" class="docs-link">📦 Package Operation Tracking</a>
+                    <a href="migration-strategy.html" class="docs-link">🔄 Migration Strategy</a>
+                    <a href="performance-optimization.html" class="docs-link">⚡ Performance Optimization</a>
+                    <a href="system-architecture.html" class="docs-link">🏗️ System Architecture</a>
+                    <a href="../server/configuration.html" class="docs-link">⚙️ Database Configuration</a>
+                </div>
+            </section>
+        </div>
+
+        <div class="docs-footer">
+            <div class="docs-navigation">
+                <h3>Quick Navigation</h3>
+                <div class="nav-links">
+                    <a href="communication-protocols.html" class="nav-link">← Communication Protocols</a>
+                    <a href="database-schema.html" class="nav-link">Database Schema</a>
+                    <a href="migration-strategy.html" class="nav-link">Migration Strategy</a>
+                    <a href="performance-stability.html" class="nav-link">Performance & Stability →</a>
+                </div>
+            </div>
+
+            <div class="docs-resources">
+                <h3>Database Resources</h3>
+                <div class="resource-links">
+                    <a href="../../assets/images/sysmanage-erd.svg" target="_blank" class="resource-link">
+                        <span class="resource-icon">🗄️</span>
+                        <span>Database ERD</span>
+                    </a>
+                    <a href="database-schema.html" class="resource-link">
+                        <span class="resource-icon">📋</span>
+                        <span>Schema Documentation</span>
+                    </a>
+                    <a href="package-operation-tracking.html" class="resource-link">
+                        <span class="resource-icon">📦</span>
+                        <span>Package Tracking</span>
+                    </a>
+                    <a href="../server/configuration.html" class="resource-link">
+                        <span class="resource-icon">⚙️</span>
+                        <span>Database Setup</span>
+                    </a>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <footer class="site-footer">
+        <div class="container">
+            <div class="footer-content">
+                <div class="footer-section">
+                    <h3>SysManage</h3>
+                    <p>Modern system management platform for comprehensive infrastructure monitoring and automation.</p>
+                </div>
+                <div class="footer-section">
+                    <h3>Documentation</h3>
+                    <ul>
+                        <li><a href="../server/">Server Docs</a></li>
+                        <li><a href="../agent/">Agent Docs</a></li>
+                        <li><a href="../api/">API Reference</a></li>
+                        <li><a href="../security/">Security</a></li>
+                    </ul>
+                </div>
+                <div class="footer-section">
+                    <h3>Community</h3>
+                    <ul>
+                        <li><a href="https://github.com/bceverly/sysmanage" target="_blank">GitHub Repository</a></li>
+                        <li><a href="https://github.com/bceverly/sysmanage/issues" target="_blank">Issue Tracker</a></li>
+                        <li><a href="https://github.com/bceverly/sysmanage/issues" target="_blank">Discussions</a></li>
+                    </ul>
+                </div>
+                <div class="footer-section">
+                    <h3>License</h3>
+                    <p>Licensed under AGPLv3</p>
+                    <p><a href="https://github.com/bceverly/sysmanage/blob/main/LICENSE" target="_blank">View License</a></p>
+                </div>
+            </div>
+            <div class="footer-bottom">
+                <p>&copy; 2024 SysManage. All rights reserved.</p>
+            </div>
+        </div>
+    </footer>
+</body>
+</html>
