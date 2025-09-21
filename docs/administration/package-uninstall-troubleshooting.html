@@ -1,0 +1,733 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Package Uninstallation Troubleshooting - SysManage</title>
+    <meta name="description" content="Comprehensive troubleshooting guide for package uninstallation issues in SysManage, including common problems and solutions.">
+    <link rel="stylesheet" href="../../assets/css/style.css">
+    <link rel="icon" type="image/svg+xml" href="../../assets/images/favicon.svg">
+</head>
+<body>
+    <header class="site-header">
+        <nav class="navbar">
+            <div class="container">
+                <div class="nav-brand">
+                    <a href="../../">
+                        <img src="../../assets/images/sysmanage-logo.svg" alt="SysManage" class="logo">
+                    </a>
+                </div>
+                <div class="nav-menu">
+                    <a href="../../#features" class="nav-link">Features</a>
+                    <a href="../../#getting-started" class="nav-link">Getting Started</a>
+                    <a href="../" class="nav-link active">Documentation</a>
+                    <a href="https://github.com/bceverly/sysmanage" class="nav-link" target="_blank">GitHub</a>
+                </div>
+            </div>
+        </nav>
+    </header>
+
+    <main class="docs-main">
+        <div class="container">
+            <div class="docs-breadcrumb">
+                <a href="../">Documentation</a> > <a href="./">Administration</a> > <span>Package Uninstall Troubleshooting</span>
+            </div>
+
+            <div class="docs-header">
+                <h1>Package Uninstallation Troubleshooting</h1>
+                <p>Comprehensive guide for diagnosing and resolving package uninstallation issues in SysManage environments.</p>
+            </div>
+
+            <div class="docs-content">
+                <section class="overview">
+                    <h2>Overview</h2>
+                    <p>Package uninstallation can encounter various issues due to system dependencies, permissions, package manager states, and network conditions. This guide provides systematic approaches to diagnose and resolve common uninstallation problems.</p>
+
+                    <div class="troubleshooting-approach">
+                        <h3>Systematic Troubleshooting Approach</h3>
+                        <ol>
+                            <li><strong>Identify the Problem:</strong> Understand the specific error or failure mode</li>
+                            <li><strong>Gather Information:</strong> Collect logs, system state, and environmental details</li>
+                            <li><strong>Isolate the Cause:</strong> Determine if the issue is system, package, or SysManage related</li>
+                            <li><strong>Apply Solution:</strong> Implement appropriate fixes based on root cause</li>
+                            <li><strong>Verify Resolution:</strong> Confirm the issue is resolved and system is stable</li>
+                            <li><strong>Document Findings:</strong> Record solutions for future reference</li>
+                        </ol>
+                    </div>
+
+                    <div class="diagnostic-tools">
+                        <h3>Diagnostic Tools and Resources</h3>
+                        <ul>
+                            <li><strong>Software Changes Tab:</strong> Real-time operation status and error messages</li>
+                            <li><strong>Agent Logs:</strong> Detailed command output and system interaction logs</li>
+                            <li><strong>System Logs:</strong> Operating system and package manager logs</li>
+                            <li><strong>API Endpoints:</strong> Direct query capabilities for operation details</li>
+                            <li><strong>Database Queries:</strong> Direct access to operation tracking data</li>
+                        </ul>
+                    </div>
+                </section>
+
+                <section class="common-issues">
+                    <h2>Common Uninstallation Issues</h2>
+
+                    <div class="issue-category">
+                        <h3>🚫 Issue: Uninstallation Operation Fails</h3>
+
+                        <h4>Symptoms</h4>
+                        <ul>
+                            <li>Status shows "failed" in Software Changes tab</li>
+                            <li>Error message appears in the operation log</li>
+                            <li>Package remains installed after operation</li>
+                            <li>Agent reports errors in installation_log field</li>
+                        </ul>
+
+                        <h4>Common Causes and Solutions</h4>
+
+                        <div class="cause-solution">
+                            <h5>Package Manager Lock Issues</h5>
+                            <p><strong>Symptoms:</strong> Error messages about package manager being locked or busy</p>
+                            <p><strong>Common Error Messages:</strong></p>
+                            <ul>
+                                <li>"Could not get lock /var/lib/dpkg/lock-frontend"</li>
+                                <li>"Another package manager is running"</li>
+                                <li>"Package database is locked"</li>
+                            </ul>
+                            <p><strong>Solutions:</strong></p>
+                            <ol>
+                                <li>Wait for other package operations to complete</li>
+                                <li>Check for hung package manager processes</li>
+                                <li>Verify no automated updates are running</li>
+                                <li>Restart the agent if necessary</li>
+                                <li>For persistent locks, manually clear lock files (with caution)</li>
+                            </ol>
+                            <div class="code-block">
+                                <pre><code># Check for running package managers
+ps aux | grep -E "(apt|yum|dnf|pkg)"
+
+# Clear APT locks (Ubuntu/Debian) - use with caution
+sudo rm /var/lib/dpkg/lock-frontend
+sudo rm /var/lib/apt/lists/lock
+sudo dpkg --configure -a</code></pre>
+                            </div>
+                        </div>
+
+                        <div class="cause-solution">
+                            <h5>Package Dependencies Block Removal</h5>
+                            <p><strong>Symptoms:</strong> Package manager refuses to remove package due to dependencies</p>
+                            <p><strong>Common Error Messages:</strong></p>
+                            <ul>
+                                <li>"Package is required by other packages"</li>
+                                <li>"Dependency conflicts prevent removal"</li>
+                                <li>"Would break dependencies"</li>
+                            </ul>
+                            <p><strong>Solutions:</strong></p>
+                            <ol>
+                                <li>Review package dependencies before removal</li>
+                                <li>Remove dependent packages first</li>
+                                <li>Use force removal options (with extreme caution)</li>
+                                <li>Consider alternative packages for required functionality</li>
+                            </ol>
+                            <div class="code-block">
+                                <pre><code># Check package dependencies (APT)
+apt-cache rdepends package-name
+
+# Check what depends on a package (YUM/DNF)
+yum deplist package-name
+dnf repoquery --whatrequires package-name
+
+# Force removal (use with extreme caution)
+apt-get remove --force-yes package-name
+yum remove --skip-broken package-name</code></pre>
+                            </div>
+                        </div>
+
+                        <div class="cause-solution">
+                            <h5>Insufficient Permissions</h5>
+                            <p><strong>Symptoms:</strong> Permission denied errors during uninstallation</p>
+                            <p><strong>Common Error Messages:</strong></p>
+                            <ul>
+                                <li>"Permission denied"</li>
+                                <li>"Operation not permitted"</li>
+                                <li>"Must be run as root"</li>
+                            </ul>
+                            <p><strong>Solutions:</strong></p>
+                            <ol>
+                                <li>Verify SysManage agent is running with appropriate privileges</li>
+                                <li>Check sudo configuration for agent user</li>
+                                <li>Ensure package manager commands can be executed with required permissions</li>
+                                <li>Review agent configuration for privilege escalation settings</li>
+                            </ol>
+                        </div>
+
+                        <div class="cause-solution">
+                            <h5>Network Connectivity Issues</h5>
+                            <p><strong>Symptoms:</strong> Timeout or connection errors during package removal</p>
+                            <p><strong>Common Error Messages:</strong></p>
+                            <ul>
+                                <li>"Failed to connect to repository"</li>
+                                <li>"Network timeout"</li>
+                                <li>"Could not resolve hostname"</li>
+                            </ul>
+                            <p><strong>Solutions:</strong></p>
+                            <ol>
+                                <li>Check network connectivity to package repositories</li>
+                                <li>Verify DNS resolution is working correctly</li>
+                                <li>Check firewall rules and proxy settings</li>
+                                <li>Test repository access manually</li>
+                                <li>Consider using local package mirrors</li>
+                            </ol>
+                        </div>
+                    </div>
+
+                    <div class="issue-category">
+                        <h3>📊 Issue: Package Still Shows as Installed</h3>
+
+                        <h4>Symptoms</h4>
+                        <ul>
+                            <li>Uninstall operation shows "completed" status</li>
+                            <li>Package still appears in Software Inventory</li>
+                            <li>Application files may still be present on disk</li>
+                            <li>Service or daemon may still be running</li>
+                        </ul>
+
+                        <h4>Diagnosis and Solutions</h4>
+
+                        <div class="cause-solution">
+                            <h5>Inventory Cache Not Updated</h5>
+                            <p><strong>Cause:</strong> Software inventory cache needs refresh after package removal</p>
+                            <p><strong>Solutions:</strong></p>
+                            <ol>
+                                <li>Refresh the browser page to reload inventory</li>
+                                <li>Wait for next automatic inventory update cycle</li>
+                                <li>Trigger manual inventory refresh via API</li>
+                                <li>Check agent connectivity and status</li>
+                            </ol>
+                        </div>
+
+                        <div class="cause-solution">
+                            <h5>Partial Package Removal</h5>
+                            <p><strong>Cause:</strong> Package manager removed binaries but left configuration files</p>
+                            <p><strong>Solutions:</strong></p>
+                            <ol>
+                                <li>Use purge option instead of remove (where applicable)</li>
+                                <li>Manually clean up remaining configuration files</li>
+                                <li>Check for multiple package instances or versions</li>
+                            </ol>
+                            <div class="code-block">
+                                <pre><code># APT: Complete package removal including config files
+apt-get purge package-name
+
+# Check for remaining configuration files
+dpkg -l | grep "^rc"
+
+# Remove configuration files for already removed packages
+dpkg --purge package-name</code></pre>
+                            </div>
+                        </div>
+
+                        <div class="cause-solution">
+                            <h5>Package Installed via Multiple Methods</h5>
+                            <p><strong>Cause:</strong> Package installed through different package managers or manual installation</p>
+                            <p><strong>Solutions:</strong></p>
+                            <ol>
+                                <li>Check all possible package managers on the system</li>
+                                <li>Look for manually compiled or installed versions</li>
+                                <li>Remove packages from all installation sources</li>
+                                <li>Check for snap, flatpak, or other containerized packages</li>
+                            </ol>
+                            <div class="code-block">
+                                <pre><code># Check different package managers
+which package-name
+snap list | grep package-name
+flatpak list | grep package-name
+brew list | grep package-name
+
+# Check for manual installations
+find /usr/local -name "*package-name*"
+find /opt -name "*package-name*"</code></pre>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="issue-category">
+                        <h3>⚠️ Issue: System Instability After Uninstallation</h3>
+
+                        <h4>Symptoms</h4>
+                        <ul>
+                            <li>Services fail to start after package removal</li>
+                            <li>System performance degradation</li>
+                            <li>Application errors or crashes</li>
+                            <li>Boot problems or system hangs</li>
+                        </ul>
+
+                        <h4>Immediate Response Actions</h4>
+                        <ol>
+                            <li><strong>Assess Impact:</strong> Determine scope of affected systems and services</li>
+                            <li><strong>Stop Further Operations:</strong> Halt any ongoing package operations</li>
+                            <li><strong>Document Issues:</strong> Record all observed problems and error messages</li>
+                            <li><strong>Implement Workarounds:</strong> Restore critical services if possible</li>
+                            <li><strong>Plan Recovery:</strong> Develop strategy for system restoration</li>
+                        </ol>
+
+                        <h4>Recovery Strategies</h4>
+
+                        <div class="recovery-strategy">
+                            <h5>Reinstall Removed Package</h5>
+                            <p>Quick restoration if the uninstalled package was critical:</p>
+                            <ol>
+                                <li>Identify the exact package version that was removed</li>
+                                <li>Reinstall the package using SysManage or command line</li>
+                                <li>Restart affected services</li>
+                                <li>Verify system functionality</li>
+                            </ol>
+                            <div class="code-block">
+                                <pre><code># Reinstall specific package version
+apt-get install package-name=version
+yum install package-name-version
+dnf install package-name-version
+
+# Restart services
+systemctl restart service-name
+service service-name restart</code></pre>
+                            </div>
+                        </div>
+
+                        <div class="recovery-strategy">
+                            <h5>System Restore from Backup</h5>
+                            <p>For severe system compromise:</p>
+                            <ol>
+                                <li>Assess if backup restoration is necessary</li>
+                                <li>Identify most recent stable backup</li>
+                                <li>Plan restoration during maintenance window</li>
+                                <li>Execute backup restoration procedure</li>
+                                <li>Verify system integrity after restoration</li>
+                            </ol>
+                        </div>
+
+                        <div class="recovery-strategy">
+                            <h5>Manual Dependency Resolution</h5>
+                            <p>For dependency-related issues:</p>
+                            <ol>
+                                <li>Identify broken dependencies</li>
+                                <li>Install alternative packages that provide required functionality</li>
+                                <li>Reconfigure affected applications</li>
+                                <li>Test system functionality thoroughly</li>
+                            </ol>
+                        </div>
+                    </div>
+
+                    <div class="issue-category">
+                        <h3>🔄 Issue: Operation Stuck in "in_progress" Status</h3>
+
+                        <h4>Symptoms</h4>
+                        <ul>
+                            <li>Operation status remains "in_progress" for extended period</li>
+                            <li>No progress updates or log entries</li>
+                            <li>Agent appears unresponsive</li>
+                            <li>System load may be high or normal</li>
+                        </ul>
+
+                        <h4>Diagnosis Steps</h4>
+                        <ol>
+                            <li><strong>Check Agent Status:</strong> Verify agent is running and responsive</li>
+                            <li><strong>Review System Load:</strong> Check if system is under heavy load</li>
+                            <li><strong>Examine Process List:</strong> Look for hung package manager processes</li>
+                            <li><strong>Check Network Connectivity:</strong> Verify connection to repositories</li>
+                            <li><strong>Review Agent Logs:</strong> Look for error messages or timeouts</li>
+                        </ol>
+
+                        <h4>Resolution Strategies</h4>
+
+                        <div class="resolution-strategy">
+                            <h5>Agent Restart</h5>
+                            <p>If agent appears hung or unresponsive:</p>
+                            <ol>
+                                <li>Stop the SysManage agent service</li>
+                                <li>Check for orphaned package manager processes</li>
+                                <li>Clear any package manager locks if safe</li>
+                                <li>Restart the agent service</li>
+                                <li>Monitor for proper operation resumption</li>
+                            </ol>
+                        </div>
+
+                        <div class="resolution-strategy">
+                            <h5>Manual Operation Completion</h5>
+                            <p>Complete the operation manually if safe:</p>
+                            <ol>
+                                <li>Identify the specific package and operation</li>
+                                <li>Manually execute the uninstall command</li>
+                                <li>Update the operation status in SysManage database</li>
+                                <li>Verify system consistency</li>
+                            </ol>
+                        </div>
+
+                        <div class="resolution-strategy">
+                            <h5>Operation Cancellation</h5>
+                            <p>Cancel stuck operation if completion isn't possible:</p>
+                            <ol>
+                                <li>Terminate hung package manager processes</li>
+                                <li>Clear package manager locks</li>
+                                <li>Update operation status to "cancelled" in database</li>
+                                <li>Verify system is in consistent state</li>
+                            </ol>
+                        </div>
+                    </div>
+                </section>
+
+                <section class="diagnostic-procedures">
+                    <h2>Diagnostic Procedures</h2>
+
+                    <div class="log-analysis">
+                        <h3>Log Analysis Procedures</h3>
+
+                        <h4>SysManage Operation Logs</h4>
+                        <p>Examine detailed operation logs in the Software Changes tab:</p>
+                        <ol>
+                            <li>Navigate to Host Details → Software Changes tab</li>
+                            <li>Locate the failed or problematic operation</li>
+                            <li>Click on the operation to view detailed logs</li>
+                            <li>Review the installation_log field for command output</li>
+                            <li>Check error_message field for high-level error description</li>
+                        </ol>
+
+                        <h4>Agent Logs</h4>
+                        <p>Access agent logs directly on the managed host:</p>
+                        <div class="code-block">
+                            <pre><code># Default agent log locations
+# Linux: /var/log/sysmanage-agent/
+# Windows: C:\ProgramData\SysManage\logs\
+# macOS: /usr/local/var/log/sysmanage-agent/
+
+# View recent agent logs
+tail -f /var/log/sysmanage-agent/agent.log
+
+# Search for package operation errors
+grep -i "uninstall\|error\|failed" /var/log/sysmanage-agent/agent.log
+
+# Check for specific package operations
+grep "package-name" /var/log/sysmanage-agent/agent.log</code></pre>
+                        </div>
+
+                        <h4>System Package Manager Logs</h4>
+                        <p>Review package manager specific logs:</p>
+                        <div class="code-block">
+                            <pre><code># APT logs (Debian/Ubuntu)
+cat /var/log/apt/history.log
+cat /var/log/dpkg.log
+
+# YUM logs (RHEL/CentOS)
+cat /var/log/yum.log
+
+# DNF logs (Fedora)
+cat /var/log/dnf.log
+
+# FreeBSD pkg logs
+cat /var/log/pkg.log
+
+# System journal (systemd systems)
+journalctl -u sysmanage-agent --since "1 hour ago"</code></pre>
+                        </div>
+                    </div>
+
+                    <div class="system-state-checks">
+                        <h3>System State Verification</h3>
+
+                        <h4>Package Manager Health</h4>
+                        <div class="code-block">
+                            <pre><code># Check APT package database integrity
+sudo apt-get check
+sudo dpkg --audit
+
+# Verify YUM/DNF database
+yum check
+dnf check
+
+# Check for broken packages
+apt-get --dry-run autoremove
+yum check-update
+dnf check-update
+
+# Verify package database consistency
+rpm --rebuilddb  # RPM-based systems</code></pre>
+                        </div>
+
+                        <h4>System Resources and Performance</h4>
+                        <div class="code-block">
+                            <pre><code># Check system load and memory
+top
+htop
+free -h
+
+# Check disk space
+df -h
+du -sh /var/cache/apt/  # APT cache
+du -sh /var/cache/yum/  # YUM cache
+
+# Check for high I/O usage
+iotop
+iostat -x 1
+
+# Monitor network connectivity
+ping -c 4 archive.ubuntu.com
+ping -c 4 download.fedoraproject.org</code></pre>
+                        </div>
+
+                        <h4>Service and Process Status</h4>
+                        <div class="code-block">
+                            <pre><code># Check SysManage agent status
+systemctl status sysmanage-agent
+ps aux | grep sysmanage
+
+# Check for running package managers
+ps aux | grep -E "(apt|yum|dnf|pkg|zypper)"
+
+# Check for package manager locks
+lsof /var/lib/dpkg/lock*
+lsof /var/cache/app-info/xapian/default/flintlock
+
+# Service dependency checking
+systemctl list-dependencies package-related-service</code></pre>
+                        </div>
+                    </div>
+
+                    <div class="api-diagnostics">
+                        <h3>API-Based Diagnostics</h3>
+
+                        <h4>Operation Status Queries</h4>
+                        <div class="code-block">
+                            <pre><code># Get operation details via API
+curl -H "Authorization: Bearer $TOKEN" \
+     "https://sysmanage.example.com/api/packages/operations/$HOST_ID?operation_type=uninstall"
+
+# Check specific operation by ID
+curl -H "Authorization: Bearer $TOKEN" \
+     "https://sysmanage.example.com/api/packages/operation/$OPERATION_ID"
+
+# Get failed operations
+curl -H "Authorization: Bearer $TOKEN" \
+     "https://sysmanage.example.com/api/packages/operations/$HOST_ID?status=failed"</code></pre>
+                        </div>
+
+                        <h4>Agent Health Checks</h4>
+                        <div class="code-block">
+                            <pre><code># Check agent connectivity
+curl -H "Authorization: Bearer $TOKEN" \
+     "https://sysmanage.example.com/api/hosts/$HOST_ID/status"
+
+# Get agent system information
+curl -H "Authorization: Bearer $TOKEN" \
+     "https://sysmanage.example.com/api/hosts/$HOST_ID/system-info"
+
+# Check recent agent activities
+curl -H "Authorization: Bearer $TOKEN" \
+     "https://sysmanage.example.com/api/hosts/$HOST_ID/activities?limit=50"</code></pre>
+                        </div>
+                    </div>
+                </section>
+
+                <section class="prevention-strategies">
+                    <h2>Prevention Strategies</h2>
+
+                    <div class="pre-operation-checks">
+                        <h3>Pre-Operation Validation</h3>
+
+                        <h4>Dependency Analysis</h4>
+                        <ul>
+                            <li><strong>Review Dependencies:</strong> Always check what packages depend on the target package</li>
+                            <li><strong>Impact Assessment:</strong> Understand which services or applications will be affected</li>
+                            <li><strong>Testing Environment:</strong> Test uninstallation in non-production environment first</li>
+                            <li><strong>Documentation Review:</strong> Consult package documentation for known uninstallation issues</li>
+                        </ul>
+
+                        <h4>System Health Verification</h4>
+                        <ul>
+                            <li><strong>Package Manager Status:</strong> Verify package manager is healthy before operations</li>
+                            <li><strong>System Resources:</strong> Ensure adequate disk space and memory</li>
+                            <li><strong>Network Connectivity:</strong> Confirm repository access and network stability</li>
+                            <li><strong>Agent Status:</strong> Verify SysManage agent is running properly</li>
+                        </ul>
+                    </div>
+
+                    <div class="operational-procedures">
+                        <h3>Safe Operation Procedures</h3>
+
+                        <h4>Staging and Testing</h4>
+                        <ol>
+                            <li><strong>Development Testing:</strong> Test uninstallation in development environment</li>
+                            <li><strong>Staging Validation:</strong> Validate in staging environment that mirrors production</li>
+                            <li><strong>Limited Rollout:</strong> Begin with non-critical systems</li>
+                            <li><strong>Monitoring:</strong> Implement comprehensive monitoring during operations</li>
+                            <li><strong>Rollback Planning:</strong> Have clear rollback procedures ready</li>
+                        </ol>
+
+                        <h4>Change Management</h4>
+                        <ul>
+                            <li><strong>Approval Process:</strong> Implement approval workflows for critical package changes</li>
+                            <li><strong>Maintenance Windows:</strong> Schedule operations during approved time windows</li>
+                            <li><strong>Communication:</strong> Notify stakeholders before major package changes</li>
+                            <li><strong>Documentation:</strong> Document all changes and their business justification</li>
+                        </ul>
+                    </div>
+
+                    <div class="monitoring-alerting">
+                        <h3>Monitoring and Alerting</h3>
+
+                        <h4>Real-time Monitoring</h4>
+                        <ul>
+                            <li><strong>Operation Status:</strong> Monitor operation status in real-time</li>
+                            <li><strong>System Health:</strong> Track system performance during operations</li>
+                            <li><strong>Service Status:</strong> Monitor critical services for impact</li>
+                            <li><strong>Error Detection:</strong> Implement automated error detection and alerting</li>
+                        </ul>
+
+                        <h4>Alert Configuration</h4>
+                        <ul>
+                            <li><strong>Failed Operations:</strong> Immediate alerts for operation failures</li>
+                            <li><strong>Stuck Operations:</strong> Alerts for operations exceeding time thresholds</li>
+                            <li><strong>System Impact:</strong> Alerts for service disruptions or performance degradation</li>
+                            <li><strong>Agent Issues:</strong> Alerts for agent connectivity or health problems</li>
+                        </ul>
+                    </div>
+                </section>
+
+                <section class="recovery-procedures">
+                    <h2>Recovery and Rollback Procedures</h2>
+
+                    <div class="immediate-response">
+                        <h3>Immediate Response Protocol</h3>
+
+                        <h4>Assessment Phase</h4>
+                        <ol>
+                            <li><strong>Problem Identification:</strong> Clearly define the issue and its scope</li>
+                            <li><strong>Impact Analysis:</strong> Assess affected systems and services</li>
+                            <li><strong>Severity Classification:</strong> Determine if issue is critical, major, or minor</li>
+                            <li><strong>Stakeholder Notification:</strong> Alert appropriate teams and management</li>
+                        </ol>
+
+                        <h4>Containment Actions</h4>
+                        <ol>
+                            <li><strong>Stop Operations:</strong> Halt any ongoing package operations</li>
+                            <li><strong>Isolate Impact:</strong> Prevent issue from affecting additional systems</li>
+                            <li><strong>Preserve Evidence:</strong> Capture logs and system state for analysis</li>
+                            <li><strong>Document Timeline:</strong> Record all actions and observations</li>
+                        </ol>
+                    </div>
+
+                    <div class="recovery-options">
+                        <h3>Recovery Options</h3>
+
+                        <h4>Package Reinstallation</h4>
+                        <p>Fastest recovery for incorrectly removed packages:</p>
+                        <ol>
+                            <li>Identify exact package version that was removed</li>
+                            <li>Use SysManage or command line to reinstall</li>
+                            <li>Verify configuration is restored correctly</li>
+                            <li>Test affected functionality</li>
+                        </ol>
+
+                        <h4>Configuration Restoration</h4>
+                        <p>Restore configuration without full package reinstall:</p>
+                        <ol>
+                            <li>Restore configuration files from backup</li>
+                            <li>Reinstall only configuration packages if available</li>
+                            <li>Manually recreate missing configurations</li>
+                            <li>Validate service functionality</li>
+                        </ol>
+
+                        <h4>System Restore</h4>
+                        <p>Full system restoration for severe issues:</p>
+                        <ol>
+                            <li>Select appropriate backup point</li>
+                            <li>Plan restoration during maintenance window</li>
+                            <li>Execute full system restore</li>
+                            <li>Verify system integrity and functionality</li>
+                            <li>Update stakeholders on status</li>
+                        </ol>
+                    </div>
+
+                    <div class="post-recovery">
+                        <h3>Post-Recovery Activities</h3>
+
+                        <h4>Verification and Testing</h4>
+                        <ul>
+                            <li><strong>Functionality Testing:</strong> Comprehensive testing of restored services</li>
+                            <li><strong>Performance Monitoring:</strong> Monitor system performance for anomalies</li>
+                            <li><strong>Security Validation:</strong> Ensure security posture is maintained</li>
+                            <li><strong>Data Integrity:</strong> Verify data consistency and integrity</li>
+                        </ul>
+
+                        <h4>Documentation and Lessons Learned</h4>
+                        <ul>
+                            <li><strong>Incident Report:</strong> Document complete incident timeline and resolution</li>
+                            <li><strong>Root Cause Analysis:</strong> Identify underlying cause and contributing factors</li>
+                            <li><strong>Process Improvement:</strong> Update procedures to prevent recurrence</li>
+                            <li><strong>Training Updates:</strong> Update team training based on lessons learned</li>
+                        </ul>
+                    </div>
+                </section>
+
+                <section class="escalation-procedures">
+                    <h2>Escalation Procedures</h2>
+
+                    <div class="escalation-criteria">
+                        <h3>When to Escalate</h3>
+                        <ul>
+                            <li><strong>Critical System Impact:</strong> Production services are down or severely degraded</li>
+                            <li><strong>Data Loss Risk:</strong> Potential for permanent data loss or corruption</li>
+                            <li><strong>Security Breach:</strong> Package removal exposes security vulnerabilities</li>
+                            <li><strong>Multiple System Failure:</strong> Issue affects multiple hosts or environments</li>
+                            <li><strong>Complex Recovery:</strong> Recovery requires specialized expertise or vendor support</li>
+                            <li><strong>Time Threshold:</strong> Issue persists beyond defined time limits</li>
+                        </ul>
+                    </div>
+
+                    <div class="escalation-contacts">
+                        <h3>Escalation Contacts</h3>
+                        <ul>
+                            <li><strong>Level 1:</strong> System Administrator or DevOps Team</li>
+                            <li><strong>Level 2:</strong> Senior System Engineer or Infrastructure Manager</li>
+                            <li><strong>Level 3:</strong> Vendor Support or External Consultants</li>
+                            <li><strong>Management:</strong> IT Director or CTO for business impact decisions</li>
+                        </ul>
+                    </div>
+
+                    <div class="escalation-information">
+                        <h3>Information to Provide During Escalation</h3>
+                        <ul>
+                            <li><strong>Problem Summary:</strong> Clear description of the issue and impact</li>
+                            <li><strong>Timeline:</strong> When the issue started and key events</li>
+                            <li><strong>Affected Systems:</strong> List of impacted hosts and services</li>
+                            <li><strong>Actions Taken:</strong> What troubleshooting steps have been performed</li>
+                            <li><strong>Current Status:</strong> Current system state and ongoing activities</li>
+                            <li><strong>Logs and Evidence:</strong> Relevant log files and diagnostic information</li>
+                            <li><strong>Business Impact:</strong> Effect on users and business operations</li>
+                        </ul>
+                    </div>
+                </section>
+            </div>
+
+            <div class="docs-footer">
+                <div class="docs-navigation">
+                    <h3>Related Documentation</h3>
+                    <div class="nav-links">
+                        <a href="package-management.html" class="nav-link">← Package Management Guide</a>
+                        <a href="../getting-started/package-uninstallation-guide.html" class="nav-link">User Guide →</a>
+                        <a href="../api/packages.html" class="nav-link">Package API Reference →</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <footer class="site-footer">
+        <div class="container">
+            <div class="footer-bottom">
+                <p>&copy; 2024 SysManage. All rights reserved.</p>
+            </div>
+        </div>
+    </footer>
+
+    <script src="../../assets/js/main.js"></script>
+    <script src="../../assets/js/i18n.js"></script>
+</body>
+</html>

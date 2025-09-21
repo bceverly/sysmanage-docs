@@ -290,6 +290,145 @@
                 </section>
 
                 <section class="endpoint-section">
+                    <h2>Package Uninstallation</h2>
+
+                    <div class="endpoint">
+                        <div class="endpoint-header">
+                            <span class="method post">POST</span>
+                            <code>/api/packages/uninstall/{host_id}</code>
+                        </div>
+                        <p>Uninstall one or more packages from a specific host using UUID-based tracking.</p>
+                        <div class="auth-required">🔒 Authentication Required</div>
+
+                        <h4>Path Parameters</h4>
+                        <ul>
+                            <li><code>host_id</code> (string) - UUID of the target host</li>
+                        </ul>
+
+                        <h4>Request Body</h4>
+                        <div class="code-block">
+                            <pre><code>{
+  "package_names": ["nginx", "apache2-utils"],
+  "package_manager": "apt",
+  "force": false,
+  "assume_yes": true,
+  "remove_dependencies": false
+}</code></pre>
+                        </div>
+
+                        <h4>Request Parameters</h4>
+                        <ul>
+                            <li><code>package_names</code> (array) - List of package names to uninstall</li>
+                            <li><code>package_manager</code> (string, optional) - Specific package manager to use ("auto" for automatic detection)</li>
+                            <li><code>force</code> (boolean, optional) - Force uninstallation (default: false)</li>
+                            <li><code>assume_yes</code> (boolean, optional) - Assume yes to all prompts (default: true)</li>
+                            <li><code>remove_dependencies</code> (boolean, optional) - Remove unused dependencies (default: false)</li>
+                        </ul>
+
+                        <h4>Response (200 OK)</h4>
+                        <div class="code-block">
+                            <pre><code>{
+  "success": true,
+  "request_id": "550e8400-e29b-41d4-a716-446655440000",
+  "message": "Successfully queued 2 packages for uninstallation",
+  "packages": ["nginx", "apache2-utils"],
+  "host_id": "uuid",
+  "estimated_time": "2-5 minutes",
+  "operation_type": "uninstall"
+}</code></pre>
+                        </div>
+
+                        <h4>Response (400 Bad Request)</h4>
+                        <div class="code-block">
+                            <pre><code>{
+  "detail": "No packages specified for uninstallation"
+}</code></pre>
+                        </div>
+
+                        <h4>Response (404 Not Found)</h4>
+                        <div class="code-block">
+                            <pre><code>{
+  "detail": "Host not found"
+}</code></pre>
+                        </div>
+
+                        <h4>Example</h4>
+                        <div class="code-block">
+                            <pre><code>curl -X POST "https://your-server.example.com/api/packages/uninstall/550e8400-e29b-41d4-a716-446655440000" \
+     -H "Authorization: Bearer YOUR_JWT_TOKEN" \
+     -H "Content-Type: application/json" \
+     -d '{
+       "package_names": ["nginx", "apache2-utils"],
+       "package_manager": "auto",
+       "assume_yes": true
+     }'</code></pre>
+                        </div>
+                    </div>
+
+                    <div class="endpoint">
+                        <div class="endpoint-header">
+                            <span class="method get">GET</span>
+                            <code>/api/packages/operations/{host_id}</code>
+                        </div>
+                        <p>Get package operation history for a specific host, including both installations and uninstallations.</p>
+                        <div class="auth-required">🔒 Authentication Required</div>
+
+                        <h4>Path Parameters</h4>
+                        <ul>
+                            <li><code>host_id</code> (string) - UUID of the target host</li>
+                        </ul>
+
+                        <h4>Query Parameters</h4>
+                        <ul>
+                            <li><code>operation_type</code> (string, optional) - Filter by operation type: "install", "uninstall", or "all" (default: "all")</li>
+                            <li><code>status</code> (string, optional) - Filter by status: "pending", "in_progress", "completed", "failed"</li>
+                            <li><code>limit</code> (integer, optional) - Maximum results (default: 50)</li>
+                            <li><code>offset</code> (integer, optional) - Results offset (default: 0)</li>
+                        </ul>
+
+                        <h4>Response (200 OK)</h4>
+                        <div class="code-block">
+                            <pre><code>[
+  {
+    "installation_id": "550e8400-e29b-41d4-a716-446655440000",
+    "package_name": "nginx",
+    "package_manager": "apt",
+    "operation_type": "uninstall",
+    "status": "completed",
+    "requested_by": "admin@example.com",
+    "requested_at": "2024-01-01T10:00:00Z",
+    "started_at": "2024-01-01T10:01:00Z",
+    "completed_at": "2024-01-01T10:03:00Z",
+    "success": true,
+    "error_message": null,
+    "installation_log": "Reading package lists...\nRemoving nginx (1.18.0-6ubuntu14.4) ...\nProcessing triggers..."
+  },
+  {
+    "installation_id": "660e8400-e29b-41d4-a716-446655440001",
+    "package_name": "apache2",
+    "package_manager": "apt",
+    "operation_type": "install",
+    "status": "completed",
+    "requested_by": "admin@example.com",
+    "requested_at": "2024-01-01T09:00:00Z",
+    "started_at": "2024-01-01T09:01:00Z",
+    "completed_at": "2024-01-01T09:05:00Z",
+    "success": true,
+    "error_message": null,
+    "installation_log": "Reading package lists...\nInstalling apache2 (2.4.52-1ubuntu4.7) ...\nProcessing triggers..."
+  }
+]</code></pre>
+                        </div>
+
+                        <h4>Example</h4>
+                        <div class="code-block">
+                            <pre><code>curl -X GET "https://your-server.example.com/api/packages/operations/550e8400-e29b-41d4-a716-446655440000?operation_type=uninstall&status=completed" \
+     -H "Authorization: Bearer YOUR_JWT_TOKEN"</code></pre>
+                        </div>
+                    </div>
+                </section>
+
+                <section class="endpoint-section">
                     <h2>Package Updates</h2>
 
                     <div class="endpoint">
@@ -521,13 +660,39 @@
 
                 <section class="notes">
                     <h2>Important Notes</h2>
+
+                    <h3>General Package Operations</h3>
                     <ul>
                         <li>Package operations are executed asynchronously - use execution IDs to track progress</li>
                         <li>Some operations require root/administrator privileges on target hosts</li>
-                        <li>OS upgrades should be scheduled during maintenance windows</li>
-                        <li>Always test updates on non-production systems first</li>
-                        <li>Backup systems before major updates or OS upgrades</li>
+                        <li>Always test operations on non-production systems first</li>
                         <li>Package availability depends on configured repositories</li>
+                        <li>Use UUID-based tracking for grouped operations to ensure atomicity</li>
+                    </ul>
+
+                    <h3>Package Uninstallation</h3>
+                    <ul>
+                        <li><strong>⚠️ Irreversible Operations:</strong> Package uninstallation cannot be undone through the API</li>
+                        <li><strong>Dependency Management:</strong> Uninstalling packages may automatically remove dependencies</li>
+                        <li><strong>System Stability:</strong> Removing system packages can cause instability or service disruption</li>
+                        <li><strong>Backup Recommended:</strong> Create system snapshots before uninstalling critical packages</li>
+                        <li><strong>Confirmation Required:</strong> Web interface requires explicit confirmation for uninstall operations</li>
+                        <li><strong>Audit Trail:</strong> All uninstallation operations are logged with full details and user attribution</li>
+                    </ul>
+
+                    <h3>Updates and Upgrades</h3>
+                    <ul>
+                        <li>OS upgrades should be scheduled during maintenance windows</li>
+                        <li>Backup systems before major updates or OS upgrades</li>
+                        <li>Monitor system resources during large package operations</li>
+                    </ul>
+
+                    <h3>Security Considerations</h3>
+                    <ul>
+                        <li>Implement proper role-based access controls for package management</li>
+                        <li>Review package sources and repositories for security</li>
+                        <li>Monitor package operations for unauthorized changes</li>
+                        <li>Use approval workflows for critical system modifications</li>
                     </ul>
                 </section>
             </div>
