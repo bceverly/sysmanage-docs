@@ -1,0 +1,540 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Package Operation Tracking - SysManage Architecture</title>
+    <meta name="description" content="Database schema design and architecture for tracking package installation and uninstallation operations in SysManage.">
+    <link rel="stylesheet" href="../../assets/css/style.css">
+    <link rel="icon" type="image/svg+xml" href="../../assets/images/favicon.svg">
+</head>
+<body>
+    <header class="site-header">
+        <nav class="navbar">
+            <div class="container">
+                <div class="nav-brand">
+                    <a href="../../">
+                        <img src="../../assets/images/sysmanage-logo.svg" alt="SysManage" class="logo">
+                    </a>
+                </div>
+                <div class="nav-menu">
+                    <a href="../../#features" class="nav-link">Features</a>
+                    <a href="../../#getting-started" class="nav-link">Getting Started</a>
+                    <a href="../" class="nav-link active">Documentation</a>
+                    <a href="https://github.com/bceverly/sysmanage" class="nav-link" target="_blank">GitHub</a>
+                </div>
+            </div>
+        </nav>
+    </header>
+
+    <main class="docs-main">
+        <div class="container">
+            <div class="docs-breadcrumb">
+                <a href="../">Documentation</a> > <a href="./">Architecture</a> > <span>Package Operation Tracking</span>
+            </div>
+
+            <div class="docs-header">
+                <h1>Package Operation Tracking</h1>
+                <p>Database schema design and implementation for comprehensive tracking of package installation and uninstallation operations.</p>
+            </div>
+
+            <div class="docs-content">
+                <section class="overview">
+                    <h2>Architecture Overview</h2>
+                    <p>SysManage implements a comprehensive package operation tracking system that provides full audit trails, real-time status monitoring, and historical analysis of all package management activities across the infrastructure.</p>
+
+                    <div class="key-features">
+                        <h3>Key Features</h3>
+                        <ul>
+                            <li><strong>Unified Operation Tracking:</strong> Single schema for both installation and uninstallation operations</li>
+                            <li><strong>UUID-based Grouping:</strong> Efficient tracking of bulk operations using unique identifiers</li>
+                            <li><strong>Real-time Status Updates:</strong> Live progress monitoring through WebSocket connections</li>
+                            <li><strong>Complete Audit Trail:</strong> Full user attribution and timestamping for compliance</li>
+                            <li><strong>Performance Optimization:</strong> Indexed queries for efficient reporting and filtering</li>
+                            <li><strong>Backward Compatibility:</strong> Seamless migration from installation-only tracking</li>
+                        </ul>
+                    </div>
+
+                    <div class="design-principles">
+                        <h3>Design Principles</h3>
+                        <ul>
+                            <li><strong>Atomicity:</strong> Operations are tracked as atomic units with clear success/failure states</li>
+                            <li><strong>Traceability:</strong> Every operation can be traced back to the requesting user and timestamp</li>
+                            <li><strong>Scalability:</strong> Schema designed to handle high-volume operations across large infrastructures</li>
+                            <li><strong>Extensibility:</strong> Architecture supports future operation types and metadata expansion</li>
+                            <li><strong>Consistency:</strong> Standardized status values and operation lifecycle management</li>
+                        </ul>
+                    </div>
+                </section>
+
+                <section class="database-schema">
+                    <h2>Database Schema Design</h2>
+
+                    <div class="primary-table">
+                        <h3>Software Installation Log Table</h3>
+                        <p>The core table for tracking all package operations:</p>
+
+                        <div class="code-block">
+                            <pre><code>CREATE TABLE software_installation_log (
+    -- Primary key and relationships
+    id SERIAL PRIMARY KEY,
+    host_id INTEGER REFERENCES host(id) ON DELETE CASCADE,
+
+    -- Package identification
+    package_name VARCHAR(255) NOT NULL,
+    package_manager VARCHAR(50) NOT NULL,
+    requested_version VARCHAR(100),
+
+    -- User attribution and tracking
+    requested_by VARCHAR(100) NOT NULL,
+    installation_id VARCHAR(36) NOT NULL UNIQUE,  -- UUID for operation tracking
+
+    -- Operation control
+    status VARCHAR(20) DEFAULT 'pending' NOT NULL,
+    operation_type VARCHAR(20) DEFAULT 'install' NOT NULL,  -- NEW: install/uninstall
+
+    -- Lifecycle timestamps
+    requested_at TIMESTAMP WITH TIME ZONE NOT NULL,
+    queued_at TIMESTAMP WITH TIME ZONE,
+    started_at TIMESTAMP WITH TIME ZONE,
+    completed_at TIMESTAMP WITH TIME ZONE,
+
+    -- Operation results
+    installed_version VARCHAR(100),
+    success BOOLEAN,
+    error_message TEXT,
+    installation_log TEXT,  -- Full command output and logs
+
+    -- Record metadata
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP NOT NULL
+);</code></pre>
+                        </div>
+
+                        <h4>Key Schema Enhancements for Uninstall Support</h4>
+                        <ul>
+                            <li><strong>operation_type Column:</strong> Differentiates between 'install' and 'uninstall' operations</li>
+                            <li><strong>Enhanced Indexing:</strong> Optimized for filtering by operation type and status</li>
+                            <li><strong>Backward Compatibility:</strong> Existing records default to 'install' operation type</li>
+                            <li><strong>Unified Workflow:</strong> Same status lifecycle for both operation types</li>
+                        </ul>
+                    </div>
+
+                    <div class="supporting-tables">
+                        <h3>UUID-based Request Tracking Tables</h3>
+                        <p>Additional tables for managing grouped operations:</p>
+
+                        <h4>Installation Requests Table</h4>
+                        <div class="code-block">
+                            <pre><code>CREATE TABLE installation_requests (
+    id VARCHAR(36) PRIMARY KEY,  -- UUID
+    host_id INTEGER REFERENCES host(id) ON DELETE CASCADE,
+    requested_by VARCHAR(100) NOT NULL,
+    requested_at TIMESTAMP WITH TIME ZONE NOT NULL,
+    completed_at TIMESTAMP WITH TIME ZONE,
+    status VARCHAR(20) DEFAULT 'pending' NOT NULL,
+    result_log TEXT,
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL,
+    updated_at TIMESTAMP WITH TIME ZONE NOT NULL
+);</code></pre>
+                        </div>
+
+                        <h4>Installation Packages Table</h4>
+                        <div class="code-block">
+                            <pre><code>CREATE TABLE installation_packages (
+    id SERIAL PRIMARY KEY,
+    installation_request_id VARCHAR(36) REFERENCES installation_requests(id) ON DELETE CASCADE,
+    package_name VARCHAR(255) NOT NULL,
+    package_manager VARCHAR(50) NOT NULL
+);</code></pre>
+                        </div>
+
+                        <h4>Benefits of UUID-based Tracking</h4>
+                        <ul>
+                            <li><strong>Atomic Operations:</strong> Multiple packages grouped under single UUID for all-or-nothing operations</li>
+                            <li><strong>Simplified Tracking:</strong> Single request ID for monitoring bulk operations</li>
+                            <li><strong>Improved Performance:</strong> Reduced query complexity for grouped operations</li>
+                            <li><strong>Better User Experience:</strong> Clear progress indication for multi-package operations</li>
+                        </ul>
+                    </div>
+
+                    <div class="indexing-strategy">
+                        <h3>Index Strategy</h3>
+                        <p>Optimized indexes for efficient querying and reporting:</p>
+
+                        <div class="code-block">
+                            <pre><code>-- Primary indexes for software_installation_log
+CREATE INDEX ix_software_installation_log_host_id ON software_installation_log(host_id);
+CREATE INDEX ix_software_installation_log_installation_id ON software_installation_log(installation_id);
+CREATE INDEX ix_software_installation_log_status ON software_installation_log(status);
+CREATE INDEX ix_software_installation_log_operation_type ON software_installation_log(operation_type);
+CREATE INDEX ix_software_installation_log_requested_at ON software_installation_log(requested_at);
+CREATE INDEX ix_software_installation_log_package_name ON software_installation_log(package_name);
+
+-- Composite indexes for common query patterns
+CREATE INDEX ix_software_installation_log_host_operation ON software_installation_log(host_id, operation_type);
+CREATE INDEX ix_software_installation_log_status_operation ON software_installation_log(status, operation_type);
+
+-- Supporting table indexes
+CREATE INDEX ix_installation_requests_requested_at ON installation_requests(requested_at);
+CREATE INDEX ix_installation_requests_status ON installation_requests(status);
+CREATE INDEX ix_installation_packages_installation_request_id ON installation_packages(installation_request_id);</code></pre>
+                        </div>
+
+                        <h4>Index Usage Patterns</h4>
+                        <ul>
+                            <li><strong>Host-based Queries:</strong> Quick lookup of operations for specific hosts</li>
+                            <li><strong>Status Filtering:</strong> Efficient filtering by operation status and type</li>
+                            <li><strong>Time-based Reporting:</strong> Chronological analysis of operations</li>
+                            <li><strong>Package Search:</strong> Fast package name lookups across operations</li>
+                        </ul>
+                    </div>
+                </section>
+
+                <section class="operation-lifecycle">
+                    <h2>Operation Lifecycle Management</h2>
+
+                    <div class="status-flow">
+                        <h3>Status Flow Diagram</h3>
+                        <div class="code-block">
+                            <pre><code>pending → queued → in_progress → completed
+   ↓          ↓           ↓           ↓
+cancelled   cancelled   failed    (final state)
+   ↓          ↓           ↓
+(final)    (final)    (final)</code></pre>
+                        </div>
+
+                        <h4>Status Definitions</h4>
+                        <ul>
+                            <li><strong>pending:</strong> Operation created but not yet queued for execution</li>
+                            <li><strong>queued:</strong> Operation queued and waiting for agent processing</li>
+                            <li><strong>in_progress:</strong> Agent actively executing the operation</li>
+                            <li><strong>completed:</strong> Operation finished successfully</li>
+                            <li><strong>failed:</strong> Operation encountered an error and could not complete</li>
+                            <li><strong>cancelled:</strong> Operation was cancelled before completion</li>
+                        </ul>
+                    </div>
+
+                    <div class="timestamp-tracking">
+                        <h3>Timestamp Tracking</h3>
+                        <p>Comprehensive timestamp tracking for performance analysis and SLA monitoring:</p>
+
+                        <ul>
+                            <li><strong>requested_at:</strong> When the user initiated the operation</li>
+                            <li><strong>queued_at:</strong> When the operation was added to the agent queue</li>
+                            <li><strong>started_at:</strong> When the agent began executing the operation</li>
+                            <li><strong>completed_at:</strong> When the operation finished (success or failure)</li>
+                            <li><strong>created_at:</strong> Record creation timestamp (audit trail)</li>
+                            <li><strong>updated_at:</strong> Last record modification timestamp</li>
+                        </ul>
+
+                        <h4>Performance Metrics Derived from Timestamps</h4>
+                        <ul>
+                            <li><strong>Queue Wait Time:</strong> queued_at - requested_at</li>
+                            <li><strong>Execution Time:</strong> completed_at - started_at</li>
+                            <li><strong>Total Operation Time:</strong> completed_at - requested_at</li>
+                            <li><strong>Agent Response Time:</strong> started_at - queued_at</li>
+                        </ul>
+                    </div>
+
+                    <div class="operation-results">
+                        <h3>Operation Results Storage</h3>
+                        <p>Detailed storage of operation outcomes for troubleshooting and compliance:</p>
+
+                        <h4>Success Tracking</h4>
+                        <ul>
+                            <li><strong>success (boolean):</strong> Overall operation success/failure indicator</li>
+                            <li><strong>installed_version:</strong> Actual version installed/uninstalled</li>
+                            <li><strong>installation_log:</strong> Complete command output and system logs</li>
+                        </ul>
+
+                        <h4>Error Handling</h4>
+                        <ul>
+                            <li><strong>error_message:</strong> High-level error description for UI display</li>
+                            <li><strong>installation_log:</strong> Detailed error output for debugging</li>
+                            <li><strong>Structured Error Codes:</strong> Standardized error classification for automated handling</li>
+                        </ul>
+                    </div>
+                </section>
+
+                <section class="data-migration">
+                    <h2>Data Migration and Compatibility</h2>
+
+                    <div class="migration-strategy">
+                        <h3>Migration from Installation-Only Schema</h3>
+                        <p>The migration to support uninstall operations was designed for zero-downtime deployment:</p>
+
+                        <h4>Migration Steps</h4>
+                        <ol>
+                            <li><strong>Schema Extension:</strong> Add operation_type column with default 'install' value</li>
+                            <li><strong>Index Creation:</strong> Add new indexes for operation type filtering</li>
+                            <li><strong>Backward Compatibility:</strong> Existing application code continues to work</li>
+                            <li><strong>Gradual Adoption:</strong> New uninstall features enabled incrementally</li>
+                        </ol>
+
+                        <div class="code-block">
+                            <pre><code>-- Migration SQL for adding uninstall support
+ALTER TABLE software_installation_log
+ADD COLUMN operation_type VARCHAR(20) DEFAULT 'install' NOT NULL;
+
+CREATE INDEX ix_software_installation_log_operation_type
+ON software_installation_log(operation_type);
+
+CREATE INDEX ix_software_installation_log_host_operation
+ON software_installation_log(host_id, operation_type);</code></pre>
+                        </div>
+                    </div>
+
+                    <div class="compatibility-considerations">
+                        <h3>Compatibility Considerations</h3>
+                        <ul>
+                            <li><strong>API Versioning:</strong> New endpoints maintain backward compatibility</li>
+                            <li><strong>Default Values:</strong> Schema defaults ensure existing queries continue to work</li>
+                            <li><strong>UI Graceful Degradation:</strong> Interface works with both old and new data</li>
+                            <li><strong>Report Compatibility:</strong> Existing reports automatically include new operation types</li>
+                        </ul>
+                    </div>
+                </section>
+
+                <section class="performance-considerations">
+                    <h2>Performance and Scalability</h2>
+
+                    <div class="query-optimization">
+                        <h3>Query Optimization Strategies</h3>
+
+                        <h4>Common Query Patterns</h4>
+                        <div class="code-block">
+                            <pre><code>-- Get recent operations for a host (optimized with host_id index)
+SELECT * FROM software_installation_log
+WHERE host_id = ?
+ORDER BY requested_at DESC
+LIMIT 50;
+
+-- Filter by operation type (optimized with composite index)
+SELECT * FROM software_installation_log
+WHERE host_id = ? AND operation_type = 'uninstall'
+ORDER BY requested_at DESC;
+
+-- Status monitoring query (optimized with status index)
+SELECT COUNT(*) FROM software_installation_log
+WHERE status = 'in_progress'
+GROUP BY operation_type;
+
+-- Performance analytics query
+SELECT
+    operation_type,
+    AVG(EXTRACT(EPOCH FROM (completed_at - started_at))) as avg_execution_time,
+    COUNT(*) as operation_count
+FROM software_installation_log
+WHERE completed_at IS NOT NULL
+    AND started_at IS NOT NULL
+    AND requested_at > NOW() - INTERVAL '30 days'
+GROUP BY operation_type;</code></pre>
+                        </div>
+
+                        <h4>Index Effectiveness</h4>
+                        <ul>
+                            <li><strong>Single Column Indexes:</strong> Efficient for status and operation type filtering</li>
+                            <li><strong>Composite Indexes:</strong> Optimal for multi-column WHERE clauses</li>
+                            <li><strong>Timestamp Indexes:</strong> Essential for time-based reporting and cleanup</li>
+                            <li><strong>Foreign Key Indexes:</strong> Critical for join performance with host table</li>
+                        </ul>
+                    </div>
+
+                    <div class="scalability-design">
+                        <h3>Scalability Considerations</h3>
+
+                        <h4>High-Volume Environments</h4>
+                        <ul>
+                            <li><strong>Partitioning Strategy:</strong> Time-based partitioning for large installations</li>
+                            <li><strong>Archive Strategy:</strong> Automated archival of old operation records</li>
+                            <li><strong>Read Replicas:</strong> Separate read replicas for reporting queries</li>
+                            <li><strong>Connection Pooling:</strong> Efficient database connection management</li>
+                        </ul>
+
+                        <h4>Storage Optimization</h4>
+                        <ul>
+                            <li><strong>Log Compression:</strong> Compress installation_log field for large outputs</li>
+                            <li><strong>Retention Policies:</strong> Configurable retention for compliance and storage management</li>
+                            <li><strong>Archival Automation:</strong> Automated movement of old records to cold storage</li>
+                        </ul>
+                    </div>
+
+                    <div class="monitoring-metrics">
+                        <h3>Database Performance Monitoring</h3>
+
+                        <h4>Key Metrics to Monitor</h4>
+                        <ul>
+                            <li><strong>Query Performance:</strong> Average execution time for common queries</li>
+                            <li><strong>Index Usage:</strong> Utilization rates for all indexes</li>
+                            <li><strong>Table Growth:</strong> Rate of record insertion and table size growth</li>
+                            <li><strong>Lock Contention:</strong> Database lock wait times during high activity</li>
+                            <li><strong>Connection Usage:</strong> Database connection pool utilization</li>
+                        </ul>
+
+                        <h4>Performance Alerts</h4>
+                        <ul>
+                            <li>Query execution time exceeding thresholds</li>
+                            <li>Index usage dropping below expected levels</li>
+                            <li>Table size growing beyond planned capacity</li>
+                            <li>Long-running transactions blocking operations</li>
+                        </ul>
+                    </div>
+                </section>
+
+                <section class="security-compliance">
+                    <h2>Security and Compliance Features</h2>
+
+                    <div class="audit-capabilities">
+                        <h3>Audit Trail Implementation</h3>
+                        <p>Comprehensive audit capabilities for regulatory compliance and security monitoring:</p>
+
+                        <h4>Audit Data Points</h4>
+                        <ul>
+                            <li><strong>User Attribution:</strong> Every operation linked to requesting user account</li>
+                            <li><strong>Timestamp Precision:</strong> Microsecond-precision timestamps with timezone information</li>
+                            <li><strong>Operation Details:</strong> Complete record of what was changed and how</li>
+                            <li><strong>Source Tracking:</strong> API endpoint or UI interaction that initiated the operation</li>
+                            <li><strong>Result Logging:</strong> Success/failure status with detailed error information</li>
+                        </ul>
+
+                        <h4>Immutable Records</h4>
+                        <ul>
+                            <li>Records are never deleted, only marked as archived</li>
+                            <li>Update operations only modify status and timestamp fields</li>
+                            <li>Original request data is preserved for audit purposes</li>
+                            <li>Database triggers prevent unauthorized modifications</li>
+                        </ul>
+                    </div>
+
+                    <div class="data-protection">
+                        <h3>Data Protection and Privacy</h3>
+
+                        <h4>Sensitive Data Handling</h4>
+                        <ul>
+                            <li><strong>User Information:</strong> Only essential user identifiers stored</li>
+                            <li><strong>Log Sanitization:</strong> System logs filtered to remove sensitive information</li>
+                            <li><strong>Access Controls:</strong> Database-level permissions restrict access to audit data</li>
+                            <li><strong>Encryption:</strong> Sensitive fields encrypted at rest and in transit</li>
+                        </ul>
+
+                        <h4>Compliance Support</h4>
+                        <ul>
+                            <li><strong>GDPR Compliance:</strong> Data retention and deletion policies</li>
+                            <li><strong>SOX Compliance:</strong> Immutable audit trails with timestamp integrity</li>
+                            <li><strong>PCI DSS:</strong> Secure handling of system change records</li>
+                            <li><strong>HIPAA:</strong> Protected health information handling in healthcare environments</li>
+                        </ul>
+                    </div>
+
+                    <div class="access-control">
+                        <h3>Database Access Control</h3>
+
+                        <h4>Role-Based Permissions</h4>
+                        <ul>
+                            <li><strong>Read-Only Users:</strong> Limited to SELECT operations for reporting</li>
+                            <li><strong>Application Users:</strong> INSERT and UPDATE permissions for operation tracking</li>
+                            <li><strong>Administrative Users:</strong> Full access for maintenance and troubleshooting</li>
+                            <li><strong>Audit Users:</strong> Specialized access for compliance and security teams</li>
+                        </ul>
+
+                        <h4>Security Monitoring</h4>
+                        <ul>
+                            <li>Database access logging for all operations</li>
+                            <li>Automated alerts for unusual access patterns</li>
+                            <li>Regular access reviews and permission audits</li>
+                            <li>Integration with security information and event management (SIEM) systems</li>
+                        </ul>
+                    </div>
+                </section>
+
+                <section class="implementation-notes">
+                    <h2>Implementation Notes and Best Practices</h2>
+
+                    <div class="development-guidelines">
+                        <h3>Development Guidelines</h3>
+
+                        <h4>Database Operations</h4>
+                        <ul>
+                            <li><strong>Transaction Management:</strong> Use explicit transactions for multi-table operations</li>
+                            <li><strong>Error Handling:</strong> Implement comprehensive error handling with detailed logging</li>
+                            <li><strong>Retry Logic:</strong> Build retry mechanisms for transient database errors</li>
+                            <li><strong>Connection Management:</strong> Use connection pooling and proper resource cleanup</li>
+                        </ul>
+
+                        <h4>Performance Best Practices</h4>
+                        <ul>
+                            <li><strong>Bulk Operations:</strong> Use batch inserts for high-volume operations</li>
+                            <li><strong>Query Optimization:</strong> Regular review and optimization of query plans</li>
+                            <li><strong>Index Maintenance:</strong> Monitor and maintain index effectiveness</li>
+                            <li><strong>Statistics Updates:</strong> Regular database statistics updates for optimal query planning</li>
+                        </ul>
+                    </div>
+
+                    <div class="operational-procedures">
+                        <h3>Operational Procedures</h3>
+
+                        <h4>Backup and Recovery</h4>
+                        <ul>
+                            <li><strong>Regular Backups:</strong> Daily full backups with transaction log backups</li>
+                            <li><strong>Point-in-Time Recovery:</strong> Capability to restore to specific timestamps</li>
+                            <li><strong>Backup Testing:</strong> Regular validation of backup integrity and restore procedures</li>
+                            <li><strong>Disaster Recovery:</strong> Documented procedures for database recovery</li>
+                        </ul>
+
+                        <h4>Maintenance Tasks</h4>
+                        <ul>
+                            <li><strong>Index Reorganization:</strong> Regular index maintenance for optimal performance</li>
+                            <li><strong>Statistics Updates:</strong> Automated statistics updates for query optimization</li>
+                            <li><strong>Log Cleanup:</strong> Automated cleanup of old operation logs based on retention policies</li>
+                            <li><strong>Performance Monitoring:</strong> Continuous monitoring of database performance metrics</li>
+                        </ul>
+                    </div>
+
+                    <div class="future-considerations">
+                        <h3>Future Enhancements</h3>
+
+                        <h4>Planned Improvements</h4>
+                        <ul>
+                            <li><strong>Enhanced Metadata:</strong> Additional operation metadata for better analytics</li>
+                            <li><strong>Advanced Filtering:</strong> More sophisticated query and filtering capabilities</li>
+                            <li><strong>Real-time Analytics:</strong> Streaming analytics for operation monitoring</li>
+                            <li><strong>Integration APIs:</strong> Enhanced APIs for external system integration</li>
+                        </ul>
+
+                        <h4>Scalability Roadmap</h4>
+                        <ul>
+                            <li><strong>Horizontal Scaling:</strong> Sharding strategy for very large deployments</li>
+                            <li><strong>Time-series Optimization:</strong> Specialized storage for time-series operation data</li>
+                            <li><strong>Machine Learning:</strong> Predictive analytics for operation success rates</li>
+                            <li><strong>Advanced Reporting:</strong> Enhanced reporting and visualization capabilities</li>
+                        </ul>
+                    </div>
+                </section>
+            </div>
+
+            <div class="docs-footer">
+                <div class="docs-navigation">
+                    <h3>Related Architecture Documentation</h3>
+                    <div class="nav-links">
+                        <a href="database-schema.html" class="nav-link">← Database Design</a>
+                        <a href="message-flow.html" class="nav-link">Message Flow & Queuing →</a>
+                        <a href="../administration/package-management.html" class="nav-link">Package Management Guide →</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <footer class="site-footer">
+        <div class="container">
+            <div class="footer-bottom">
+                <p>&copy; 2024 SysManage. All rights reserved.</p>
+            </div>
+        </div>
+    </footer>
+
+    <script src="../../assets/js/main.js"></script>
+    <script src="../../assets/js/i18n.js"></script>
+</body>
+</html>
