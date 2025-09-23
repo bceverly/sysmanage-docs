@@ -9,10 +9,7 @@
         brand: {
             logoSrc: '/assets/images/sysmanage-logo.svg',
             logoAlt: 'SysManage',
-            homeLink: '/',
-            showText: true,
-            brandText: 'SysManage',
-            brandTagline: 'System Management Platform'
+            homeLink: '/'
         },
         links: [
             {
@@ -108,12 +105,12 @@
         <nav class="navbar">
             <div class="container">
                 <div class="nav-brand">
-                    <a href="${adjustPath(navConfig.brand.homeLink)}">
+                    <a href="/">
                         <img src="${adjustPath(navConfig.brand.logoSrc)}" alt="${navConfig.brand.logoAlt}" class="logo">
-                        ${navConfig.brand.showText ? `<div class="brand-text">
-                            <div class="brand-name">${navConfig.brand.brandText}</div>
-                            <div class="brand-tagline">${navConfig.brand.brandTagline}</div>
-                        </div>` : ''}
+                        <div class="brand-text">
+                            <div class="brand-name">SysManage</div>
+                            <div class="brand-tagline">System Management Platform</div>
+                        </div>
                     </a>
                 </div>
                 <div class="nav-menu">
