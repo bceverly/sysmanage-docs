@@ -56,12 +56,20 @@
 
     // Adjust paths based on current page depth
     function adjustPath(originalPath) {
-        // Don't adjust absolute URLs or anchors
-        if (originalPath.startsWith('http') || originalPath.startsWith('#')) {
+        // Don't adjust absolute URLs
+        if (originalPath.startsWith('http')) {
             return originalPath;
         }
 
         const relativePath = getRelativePath();
+
+        // Handle anchor links - if we're in docs, point back to homepage for anchors
+        if (originalPath.startsWith('#')) {
+            if (window.location.pathname.includes('/docs/')) {
+                return relativePath + originalPath;
+            }
+            return originalPath;
+        }
 
         // If we're in docs, adjust paths accordingly
         if (window.location.pathname.includes('/docs/')) {
