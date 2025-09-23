@@ -88,6 +88,7 @@
     function buildNavigation() {
         const relativePath = getRelativePath();
         const currentPath = window.location.pathname;
+        const isHomePage = currentPath === '/' || currentPath === '/index.html';
 
         // Build nav links
         const navLinks = navConfig.links.map(link => {
@@ -99,6 +100,13 @@
             return `<a href="${href}" class="nav-link${active}" data-i18n="${link.i18n}"${externalAttrs}>${link.text}</a>`;
         }).join('\n                    ');
 
+        // Only add brand text on non-home pages
+        const brandTextHTML = isHomePage ? '' : `
+                        <div class="brand-text">
+                            <div class="brand-name">SysManage</div>
+                            <div class="brand-tagline">System Management Platform</div>
+                        </div>`;
+
         // Build complete navigation HTML
         const navHTML = `
     <header class="site-header">
@@ -106,11 +114,7 @@
             <div class="container">
                 <div class="nav-brand">
                     <a href="/">
-                        <img src="${adjustPath(navConfig.brand.logoSrc)}" alt="${navConfig.brand.logoAlt}" class="logo">
-                        <div class="brand-text">
-                            <div class="brand-name">SysManage</div>
-                            <div class="brand-tagline">System Management Platform</div>
-                        </div>
+                        <img src="${adjustPath(navConfig.brand.logoSrc)}" alt="${navConfig.brand.logoAlt}" class="logo">${brandTextHTML}
                     </a>
                 </div>
                 <div class="nav-menu">
