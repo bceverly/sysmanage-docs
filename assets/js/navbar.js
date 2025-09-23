@@ -106,7 +106,7 @@
             <div class="container">
                 <div class="nav-brand">
                     <a href="/">
-                        <img src="${adjustPath(navConfig.brand.logoSrc)}" alt="${navConfig.brand.logoAlt}" class="logo">
+                        <img src="${navConfig.brand.logoSrc}" alt="${navConfig.brand.logoAlt}" class="logo">
                     </a>
                 </div>
                 <div class="nav-menu">
