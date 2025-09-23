@@ -13,16 +13,6 @@
         },
         links: [
             {
-                href: '/#features',
-                text: 'Features',
-                i18n: 'nav.features'
-            },
-            {
-                href: '/#getting-started',
-                text: 'Getting Started',
-                i18n: 'nav.getting_started'
-            },
-            {
                 href: '/docs/',
                 text: 'Documentation',
                 i18n: 'nav.documentation',
@@ -121,6 +111,17 @@
                 </div>
                 <div class="nav-menu">
                     ${navLinks}
+                    <div class="language-switcher">
+                        <button class="language-button">
+                            <span class="language-icon">🌐</span><span>English</span>
+                        </button>
+                        <div class="language-dropdown">
+                            <div class="language-option active">
+                                <span class="language-name">English</span>
+                                <span class="language-code">en</span>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </nav>
