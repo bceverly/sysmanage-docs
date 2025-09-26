@@ -451,6 +451,73 @@
                     </div>
 
                     <div class="section-group">
+                        <h3>🔒 OpenBAO Vault Settings</h3>
+                        <div class="form-group">
+                            <div class="checkbox-item">
+                                <input type="checkbox" id="vault-enabled" checked>
+                                <label for="vault-enabled">Enable OpenBAO Vault Integration</label>
+                            </div>
+                            <div class="help-text">Enable enterprise-grade secrets management with OpenBAO</div>
+                        </div>
+                        <div id="vault-settings">
+                            <div class="form-group">
+                                <div class="checkbox-item">
+                                    <input type="checkbox" id="vault-dev-mode">
+                                    <label for="vault-dev-mode">Development Mode</label>
+                                </div>
+                                <div class="help-text">⚠️ Development mode only for testing - use production mode for real deployments</div>
+                            </div>
+                            <div class="form-group">
+                                <label for="vault-address">Vault Address</label>
+                                <input type="url" id="vault-address" value="http://127.0.0.1:8200" placeholder="http://127.0.0.1:8200">
+                                <div class="help-text">OpenBAO server address and port</div>
+                            </div>
+                            <div class="form-group">
+                                <label for="vault-token">Vault Root Token</label>
+                                <div class="input-with-button">
+                                    <input type="password" id="vault-token" value="dev-only-token" placeholder="Vault root token">
+                                    <button type="button" class="generate-button" onclick="generateVaultToken()">🎫 Generate</button>
+                                </div>
+                                <div class="help-text">Root token for vault authentication (generated during vault init)</div>
+                            </div>
+                            <div class="form-group">
+                                <label for="vault-config-file">Vault Config File Path</label>
+                                <input type="text" id="vault-config-file" value="./openbao.hcl" placeholder="./openbao.hcl">
+                                <div class="help-text">Path to OpenBAO configuration file</div>
+                            </div>
+                            <div class="form-group">
+                                <label for="vault-data-path">Vault Data Path</label>
+                                <input type="text" id="vault-data-path" value="./data/openbao" placeholder="./data/openbao">
+                                <div class="help-text">Directory for OpenBAO data storage</div>
+                            </div>
+                            <div class="form-group">
+                                <div class="checkbox-item">
+                                    <input type="checkbox" id="vault-tls" checked>
+                                    <label for="vault-tls">Enable TLS for Vault Communication</label>
+                                </div>
+                                <div class="help-text">Enable secure TLS communication with OpenBAO (recommended for production)</div>
+                            </div>
+                            <div id="vault-tls-settings">
+                                <div class="form-group">
+                                    <label for="vault-cert-path">TLS Certificate Path</label>
+                                    <input type="text" id="vault-cert-path" value="./certs/vault.crt" placeholder="./certs/vault.crt">
+                                    <div class="help-text">Path to TLS certificate for vault communication</div>
+                                </div>
+                                <div class="form-group">
+                                    <label for="vault-key-path">TLS Key Path</label>
+                                    <input type="text" id="vault-key-path" value="./certs/vault.key" placeholder="./certs/vault.key">
+                                    <div class="help-text">Path to TLS private key for vault communication</div>
+                                </div>
+                                <div class="form-group">
+                                    <label for="vault-ca-path">TLS CA Path</label>
+                                    <input type="text" id="vault-ca-path" value="./certs/ca.crt" placeholder="./certs/ca.crt">
+                                    <div class="help-text">Path to Certificate Authority for vault TLS verification</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="section-group">
                         <h3>Web UI Settings</h3>
                         <div class="form-group">
                             <label for="webui-host">Web UI Host</label>
@@ -773,6 +840,12 @@
                 document.getElementById('script-settings').classList.toggle('hidden', !this.checked);
                 updateYaml();
             });
+
+            // Special handling for vault enable/disable
+            document.getElementById('vault-enabled').addEventListener('change', toggleVaultSettings);
+
+            // Special handling for vault TLS enable/disable
+            document.getElementById('vault-tls').addEventListener('change', toggleVaultTlsSettings);
         }
 
         function updateYaml() {
@@ -829,6 +902,20 @@ security:
     password_history_count: ${document.getElementById('password-history').value}
     min_character_types: 3
 
+${document.getElementById('vault-enabled').checked ? `vault:
+  dev_mode: ${document.getElementById('vault-dev-mode').checked}
+  address: "${document.getElementById('vault-address').value}"
+  token: "${document.getElementById('vault-token').value}"
+  config_file: "${document.getElementById('vault-config-file').value}"
+  data_path: "${document.getElementById('vault-data-path').value}"${document.getElementById('vault-tls').checked ? `
+  tls:
+    enabled: true
+    cert_file: "${document.getElementById('vault-cert-path').value}"
+    key_file: "${document.getElementById('vault-key-path').value}"
+    ca_file: "${document.getElementById('vault-ca-path').value}"` : `
+  tls:
+    enabled: false`}
+` : '# OpenBAO vault integration disabled'}
 webui:
   host: "${document.getElementById('webui-host').value}"
   port: ${document.getElementById('webui-port').value}
@@ -1048,9 +1135,51 @@ collection:
             updateYaml();
         }
 
+        function generateVaultToken() {
+            const token = generateRandomString(26) + '.' + generateRandomString(24);
+            document.getElementById('vault-token').value = token;
+            updateYaml();
+        }
+
+        // Toggle visibility of vault settings
+        function toggleVaultSettings() {
+            const enabled = document.getElementById('vault-enabled').checked;
+            const settings = document.getElementById('vault-settings');
+            if (enabled) {
+                settings.style.display = 'block';
+            } else {
+                settings.style.display = 'none';
+            }
+            updateYaml();
+        }
+
+        // Toggle visibility of vault TLS settings
+        function toggleVaultTlsSettings() {
+            const enabled = document.getElementById('vault-tls').checked;
+            const settings = document.getElementById('vault-tls-settings');
+            if (enabled) {
+                settings.style.display = 'block';
+                // Update vault address to https when TLS is enabled
+                const addressField = document.getElementById('vault-address');
+                if (addressField.value.startsWith('http://')) {
+                    addressField.value = addressField.value.replace('http://', 'https://');
+                }
+            } else {
+                settings.style.display = 'none';
+                // Update vault address to http when TLS is disabled
+                const addressField = document.getElementById('vault-address');
+                if (addressField.value.startsWith('https://')) {
+                    addressField.value = addressField.value.replace('https://', 'http://');
+                }
+            }
+            updateYaml();
+        }
+
         // Initialize
         document.addEventListener('DOMContentLoaded', () => {
             addInputListeners();
+            toggleVaultSettings(); // Initialize vault settings visibility
+            toggleVaultTlsSettings(); // Initialize vault TLS settings visibility
             updateYaml();
         });
     </script>
