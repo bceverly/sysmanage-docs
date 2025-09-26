@@ -63,9 +63,11 @@
 
         // If we're in docs, adjust paths accordingly
         if (window.location.pathname.includes('/docs/')) {
-            // For root-relative paths starting with /
-            if (originalPath.startsWith('/')) {
-                return relativePath + originalPath.substring(1);
+            // For root-relative paths starting with /, only adjust if they're anchor links
+            // Leave absolute file paths like /config-builder.html unchanged
+            if (originalPath.startsWith('/') && !originalPath.startsWith('/#')) {
+                // Don't adjust absolute file paths - they should work from any depth
+                return originalPath;
             }
         }
 
