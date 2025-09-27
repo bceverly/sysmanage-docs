@@ -216,6 +216,9 @@ class I18n {
             if (element.hasAttribute('data-i18n-attr')) {
                 const attr = element.getAttribute('data-i18n-attr');
                 element.setAttribute(attr, translation);
+            } else if (element.hasAttribute('data-i18n-html')) {
+                // Use innerHTML for content that contains HTML tags
+                element.innerHTML = translation;
             } else {
                 element.textContent = translation;
             }
