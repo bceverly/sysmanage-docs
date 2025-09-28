@@ -25,8 +25,14 @@
             },
             {
                 href: 'https://github.com/bceverly/sysmanage',
-                text: 'GitHub',
-                i18n: 'nav.github',
+                text: 'Server GitHub',
+                i18n: 'nav.github_server',
+                external: true
+            },
+            {
+                href: 'https://github.com/bceverly/sysmanage-agent',
+                text: 'Agent GitHub',
+                i18n: 'nav.github_agent',
                 external: true
             }
         ]
