@@ -246,7 +246,7 @@ doas pkg_add rust gcc cmake gmake pkgconf</code></pre>
 pkgin install python312 py312-pip py312-sqlite3 nodejs npm \
     postgresql14-server postgresql14-client gcc13 cmake gmake pkgconf \
     rust py312-cffi jpeg libjpeg-turbo tiff png freetype2 lcms2 \
-    libwebp openjpeg zlib go git
+    libwebp openjpeg zlib go git chromium firefox
 
 # ===== OR STEP BY STEP INSTALLATION =====
 # ===== STEP 1: Update package manager =====
@@ -274,6 +274,9 @@ pkgin install go git  # Only needed if you want OpenBAO
 # NetBSD installs Go as go124 - create a symlink for compatibility:
 sudo ln -sf /usr/pkg/bin/go124 /usr/pkg/bin/go
 
+# Install browsers for UI testing and screenshots
+pkgin install chromium firefox  # Needed for browser automation tests
+
 # ===== STEP 3: Set environment variables (CRITICAL for NetBSD) =====
 # NetBSD installs packages in /usr/pkg, not standard locations
 # These MUST be set before installing Python packages with C extensions
@@ -287,6 +290,11 @@ echo 'export CFLAGS="-I/usr/pkg/include"' >> ~/.profile
 echo 'export LDFLAGS="-L/usr/pkg/lib -Wl,-R/usr/pkg/lib"' >> ~/.profile
 
 # Source the profile to apply changes:
+. ~/.profile
+
+# ===== STEP 4: Set up PATH for local binaries =====
+# Add ~/.local/bin to PATH (needed for OpenBAO and other local tools)
+echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.profile
 . ~/.profile
 
 # PostgreSQL Setup on NetBSD
@@ -636,10 +644,18 @@ npm run dev</code></pre>
                                 <li><strong>No space left on device during pip install:</strong> NetBSD's /tmp is limited to 1GB by default. Increase with: <code>mount -t tmpfs -o -s=4g tmpfs /tmp</code> or use <code>export TMPDIR=$HOME/tmp</code></li>
                                 <li><strong>gmake install-dev for development:</strong> Use <code>gmake</code> instead of <code>make</code>. The Makefile includes NetBSD-specific C tracer dependency checks (gcc13, py312-cffi)</li>
                                 <li><strong>PostgreSQL socket not found:</strong> NetBSD PostgreSQL often uses TCP instead of Unix sockets. Always use <code>-h localhost</code> when connecting</li>
+                                <li><strong>Browser/WebDriver errors:</strong> Install browsers for UI testing: <code>pkgin install chromium firefox</code></li>
                                 <li><strong>Pillow build failures:</strong> Install image libraries and set paths:
                                     <pre><code>pkgin install jpeg libjpeg-turbo tiff png freetype2 lcms2 libwebp openjpeg zlib
 export CFLAGS="-I/usr/pkg/include"
 export LDFLAGS="-L/usr/pkg/lib -Wl,-R/usr/pkg/lib"</code></pre>
+                                </li>
+                                <li><strong>Backend fails to start with "libjpeg.so.9 not found":</strong> This occurs when Pillow was installed before the JPEG library or with incorrect paths. The <code>gmake install-dev</code> target automatically rebuilds Pillow for NetBSD. For manual fix:
+                                    <pre><code>. .venv/bin/activate
+export CFLAGS="-I/usr/pkg/include"
+export LDFLAGS="-L/usr/pkg/lib -Wl,-R/usr/pkg/lib"
+pip uninstall -y Pillow
+pip install --no-binary=:all: Pillow</code></pre>
                                 </li>
                                 <li><strong>OpenBAO installation:</strong> NetBSD doesn't have pre-built OpenBAO packages. Options:
                                     <ol>
@@ -647,6 +663,9 @@ export LDFLAGS="-L/usr/pkg/lib -Wl,-R/usr/pkg/lib"</code></pre>
                                             <pre><code>pkgin install go git gmake
 # NetBSD installs Go as go124 - create symlink:
 sudo ln -sf /usr/pkg/bin/go124 /usr/pkg/bin/go
+# Add ~/.local/bin to PATH:
+echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.profile
+. ~/.profile
 # Then run: gmake install-dev
 # It will prompt to build OpenBAO from source</code></pre>
                                         </li>
@@ -655,6 +674,7 @@ sudo ln -sf /usr/pkg/bin/go124 /usr/pkg/bin/go
                                     </ol>
                                     <strong>Note:</strong> OpenBAO is optional for development. The system works perfectly without it.
                                 </li>
+                                <li><strong>OpenBAO 'bao' command not found:</strong> Ensure <code>~/.local/bin</code> is in your PATH: <code>echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.profile && . ~/.profile</code></li>
                             </ul>
                         </div>
                     </div>
