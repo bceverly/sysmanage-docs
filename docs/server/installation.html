@@ -242,24 +242,56 @@ doas pkg_add rust gcc cmake gmake pkgconf</code></pre>
                             <div class="tab-pane" id="netbsd">
                                 <h3 data-i18n="server_installation.prerequisites.netbsd.title" data-i18n-html>NetBSD</h3>
                                 <pre><code># Update package manager
-sudo pkgin update
+pkgin update
 
-# Install Python 3.12+
-sudo pkgin install python312 py312-pip py312-sqlite3
+# Install Python 3.12
+pkgin install python312 py312-pip py312-sqlite3
 
 # Install Node.js 20.x
-sudo pkgin install nodejs
+pkgin install nodejs npm
 
 # Install PostgreSQL 14+
-sudo pkgin install postgresql14-server postgresql14-client
-sudo /etc/rc.d/pgsql initdb
-sudo /etc/rc.d/pgsql start
+pkgin install postgresql14-server postgresql14-client
+
+# Install build tools and dependencies for Python packages
+pkgin install gcc13 cmake gmake pkgconf rust
+# Install Python CFFI for C extensions (improves test performance)
+pkgin install py312-cffi
+
+# PostgreSQL Setup
+# Create data directory
+mkdir -p /usr/pkg/pgsql/data
+chown pgsql:pgsql /usr/pkg/pgsql/data
+
+# Change pgsql user shell temporarily for initialization
+chsh -s /bin/sh pgsql
+
+# Initialize database cluster
+su - pgsql -c "/usr/pkg/bin/initdb -D /usr/pkg/pgsql/data"
+
+# Change shell back to nologin for security
+chsh -s /sbin/nologin pgsql
+
+# Copy rc.d script and start PostgreSQL
+cp /usr/pkg/share/examples/rc.d/pgsql /etc/rc.d/
+/etc/rc.d/pgsql start
 
 # Enable PostgreSQL to start at boot
-echo 'pgsql=YES' | sudo tee -a /etc/rc.conf
+echo 'pgsql=YES' >> /etc/rc.conf
 
-# Install build tools (required for cryptography packages)
-sudo pkgin install gcc10 cmake gmake pkgconf rust</code></pre>
+# IMPORTANT: /tmp filesystem considerations
+# NetBSD uses tmpfs for /tmp with a default 1GB limit
+# If you encounter "No space left on device" errors during pip installs:
+#
+# Option 1: Increase /tmp size (as root):
+mount -t tmpfs -o -s=4g tmpfs /tmp
+#
+# Option 2: Make permanent in /etc/fstab:
+# tmpfs /tmp tmpfs rw,-s=4g 0 0
+#
+# Option 3: Use alternate temp directory:
+export TMPDIR=$HOME/tmp
+mkdir -p $HOME/tmp</code></pre>
                             </div>
                         </div>
                     </div>
@@ -285,7 +317,11 @@ pip install --upgrade pip</code></pre>
 
                         <div class="step">
                             <h3 data-i18n="server_installation.installation_steps.step2.title" data-i18n-html>Step 2: Install Backend Dependencies</h3>
-                            <pre><code>pip install -r requirements.txt</code></pre>
+                            <pre><code>pip install -r requirements.txt
+
+# For development installation with testing tools:
+# Linux/macOS: make install-dev
+# BSD systems: gmake install-dev</code></pre>
                         </div>
 
                         <div class="step">
@@ -332,8 +368,13 @@ GRANT ALL ON SCHEMA public TO sysmanage;
                                     </div>
 
                                     <div class="tab-pane" id="db-netbsd">
-                                        <pre><code># Switch to pgsql user
-su - pgsql -c "psql postgres"
+                                        <pre><code># Note: PostgreSQL on NetBSD listens on TCP/IP by default
+# Connect using -h localhost
+psql -h localhost -U pgsql postgres
+
+# If the above doesn't work, temporarily change pgsql user shell:
+chsh -s /bin/sh pgsql
+su - pgsql -c "psql -h localhost postgres"
 
 # Run the same SQL commands as Linux/macOS
 CREATE USER sysmanage WITH PASSWORD 'abc123';
@@ -341,7 +382,10 @@ CREATE DATABASE sysmanage OWNER sysmanage;
 GRANT ALL PRIVILEGES ON DATABASE sysmanage TO sysmanage;
 \c sysmanage
 GRANT ALL ON SCHEMA public TO sysmanage;
-\q</code></pre>
+\q
+
+# Remember to change shell back if you modified it:
+chsh -s /sbin/nologin pgsql</code></pre>
                                     </div>
 
                                     <div class="tab-pane" id="db-windows">
@@ -526,6 +570,16 @@ npm run dev</code></pre>
                                 <li data-i18n="server_installation.troubleshooting.permission_issues.set_config_permissions" data-i18n-html>Set configuration file permissions: <code>chmod 600 /etc/sysmanage.yaml</code></li>
                                 <li data-i18n="server_installation.troubleshooting.permission_issues.ensure_ownership" data-i18n-html>Ensure proper ownership of directories</li>
                                 <li data-i18n="server_installation.troubleshooting.permission_issues.check_venv" data-i18n-html>Check virtual environment activation</li>
+                            </ul>
+                        </div>
+
+                        <div class="trouble-item">
+                            <h3>NetBSD-Specific Issues</h3>
+                            <ul>
+                                <li><strong>PostgreSQL "This account is currently not available":</strong> The pgsql user has /sbin/nologin as shell. Use <code>chsh -s /bin/sh pgsql</code> temporarily or connect via TCP: <code>psql -h localhost -U pgsql</code></li>
+                                <li><strong>No space left on device during pip install:</strong> NetBSD's /tmp is limited to 1GB by default. Increase with: <code>mount -t tmpfs -o -s=4g tmpfs /tmp</code> or use <code>export TMPDIR=$HOME/tmp</code></li>
+                                <li><strong>gmake install-dev for development:</strong> Use <code>gmake</code> instead of <code>make</code>. The Makefile includes NetBSD-specific C tracer dependency checks (gcc13, py312-cffi)</li>
+                                <li><strong>PostgreSQL socket not found:</strong> NetBSD PostgreSQL often uses TCP instead of Unix sockets. Always use <code>-h localhost</code> when connecting</li>
                             </ul>
                         </div>
                     </div>
