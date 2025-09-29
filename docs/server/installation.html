@@ -253,31 +253,49 @@ pkgin install nodejs npm
 # Install PostgreSQL 14+
 pkgin install postgresql14-server postgresql14-client
 
-# Install build tools and dependencies for Python packages
-pkgin install gcc13 cmake gmake pkgconf rust
-# Install Python CFFI for C extensions (improves test performance)
-pkgin install py312-cffi
+# Install ALL required build tools and libraries in one command:
+pkgin install gcc13 cmake gmake pkgconf rust py312-cffi \
+    jpeg libjpeg-turbo tiff png freetype2 lcms2 libwebp openjpeg zlib
 
-# PostgreSQL Setup
-# Create data directory
-mkdir -p /usr/pkg/pgsql/data
-chown pgsql:pgsql /usr/pkg/pgsql/data
+# Alternative: Install in groups if the above fails
+# Build tools: pkgin install gcc13 cmake gmake pkgconf rust py312-cffi
+# Image libs:  pkgin install jpeg libjpeg-turbo tiff png freetype2 lcms2 libwebp openjpeg zlib
 
-# Change pgsql user shell temporarily for initialization
-chsh -s /bin/sh pgsql
+# Set environment variables for Pillow to find the libraries
+export CFLAGS="-I/usr/pkg/include"
+export LDFLAGS="-L/usr/pkg/lib -Wl,-R/usr/pkg/lib"
 
-# Initialize database cluster
-su - pgsql -c "/usr/pkg/bin/initdb -D /usr/pkg/pgsql/data"
+# For permanent setup, add to ~/.profile or ~/.bashrc:
+echo 'export CFLAGS="-I/usr/pkg/include"' >> ~/.profile
+echo 'export LDFLAGS="-L/usr/pkg/lib -Wl,-R/usr/pkg/lib"' >> ~/.profile
 
-# Change shell back to nologin for security
-chsh -s /sbin/nologin pgsql
+# PostgreSQL Setup on NetBSD
+# IMPORTANT: NetBSD may not have the pgsql user created automatically
 
-# Copy rc.d script and start PostgreSQL
-cp /usr/pkg/share/examples/rc.d/pgsql /etc/rc.d/
-/etc/rc.d/pgsql start
+# Create the postgres user and group (if not already present)
+sudo useradd -m -d /var/db/postgresql -s /bin/sh postgres
+sudo groupadd postgres   # only if group not auto-created
+
+# Set ownership of the database directory
+sudo mkdir -p /var/db/postgresql/data
+sudo chown -R postgres:postgres /var/db/postgresql
+
+# Initialize the database as postgres user
+sudo -u postgres /usr/pkg/bin/initdb -D /var/db/postgresql/data
+# Note: Path might be /usr/pkg/postgresql14/bin/initdb - run 'which initdb' to confirm
+
+# Copy rc.d script and configure startup
+sudo cp /usr/pkg/share/examples/rc.d/pgsql /etc/rc.d/
+sudo chmod 755 /etc/rc.d/pgsql
 
 # Enable PostgreSQL to start at boot
-echo 'pgsql=YES' >> /etc/rc.conf
+echo 'pgsql=YES' | sudo tee -a /etc/rc.conf
+
+# Start PostgreSQL
+sudo /etc/rc.d/pgsql start
+
+# Verify PostgreSQL is running
+sudo /etc/rc.d/pgsql status
 
 # IMPORTANT: /tmp filesystem considerations
 # NetBSD uses tmpfs for /tmp with a default 1GB limit
@@ -368,13 +386,12 @@ GRANT ALL ON SCHEMA public TO sysmanage;
                                     </div>
 
                                     <div class="tab-pane" id="db-netbsd">
-                                        <pre><code># Note: PostgreSQL on NetBSD listens on TCP/IP by default
-# Connect using -h localhost
-psql -h localhost -U pgsql postgres
+                                        <pre><code># Note: PostgreSQL on NetBSD often uses TCP/IP connections
+# Connect as the postgres user (created during setup above)
+sudo -u postgres psql -h localhost postgres
 
-# If the above doesn't work, temporarily change pgsql user shell:
-chsh -s /bin/sh pgsql
-su - pgsql -c "psql -h localhost postgres"
+# Alternative: If using pgsql user instead of postgres:
+psql -h localhost -U pgsql postgres
 
 # Run the same SQL commands as Linux/macOS
 CREATE USER sysmanage WITH PASSWORD 'abc123';
@@ -384,8 +401,8 @@ GRANT ALL PRIVILEGES ON DATABASE sysmanage TO sysmanage;
 GRANT ALL ON SCHEMA public TO sysmanage;
 \q
 
-# Remember to change shell back if you modified it:
-chsh -s /sbin/nologin pgsql</code></pre>
+# Test the connection with the new user:
+PGPASSWORD=abc123 psql -h localhost -U sysmanage -d sysmanage -c "SELECT version();"</code></pre>
                                     </div>
 
                                     <div class="tab-pane" id="db-windows">
@@ -576,10 +593,25 @@ npm run dev</code></pre>
                         <div class="trouble-item">
                             <h3>NetBSD-Specific Issues</h3>
                             <ul>
-                                <li><strong>PostgreSQL "This account is currently not available":</strong> The pgsql user has /sbin/nologin as shell. Use <code>chsh -s /bin/sh pgsql</code> temporarily or connect via TCP: <code>psql -h localhost -U pgsql</code></li>
+                                <li><strong>PostgreSQL user missing:</strong> NetBSD may not create the postgres/pgsql user automatically. Create it with: <code>sudo useradd -m -d /var/db/postgresql -s /bin/sh postgres</code></li>
+                                <li><strong>PostgreSQL won't start:</strong> Ensure <code>pgsql=YES</code> is in /etc/rc.conf, then run <code>sudo /etc/rc.d/pgsql start</code></li>
                                 <li><strong>No space left on device during pip install:</strong> NetBSD's /tmp is limited to 1GB by default. Increase with: <code>mount -t tmpfs -o -s=4g tmpfs /tmp</code> or use <code>export TMPDIR=$HOME/tmp</code></li>
                                 <li><strong>gmake install-dev for development:</strong> Use <code>gmake</code> instead of <code>make</code>. The Makefile includes NetBSD-specific C tracer dependency checks (gcc13, py312-cffi)</li>
                                 <li><strong>PostgreSQL socket not found:</strong> NetBSD PostgreSQL often uses TCP instead of Unix sockets. Always use <code>-h localhost</code> when connecting</li>
+                                <li><strong>Pillow build failures:</strong> Install image libraries and set paths:
+                                    <pre><code>pkgin install jpeg libjpeg-turbo tiff png freetype2 lcms2 libwebp openjpeg zlib
+export CFLAGS="-I/usr/pkg/include"
+export LDFLAGS="-L/usr/pkg/lib -Wl,-R/usr/pkg/lib"</code></pre>
+                                </li>
+                                <li><strong>OpenBAO installation fails:</strong> NetBSD is not officially supported by OpenBAO. Manual installation required:
+                                    <ol>
+                                        <li>Visit <a href="https://github.com/openbao/openbao/releases" target="_blank">OpenBAO releases</a></li>
+                                        <li>Download Linux AMD64 binary and try running it under NetBSD's Linux emulation, OR</li>
+                                        <li>Build from source if Linux emulation doesn't work</li>
+                                        <li>Place 'bao' binary in your PATH</li>
+                                    </ol>
+                                    Note: OpenBAO is optional for development - the system works without it.
+                                </li>
                             </ul>
                         </div>
                     </div>
