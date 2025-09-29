@@ -240,34 +240,39 @@ doas pkg_add rust gcc cmake gmake pkgconf</code></pre>
                             </div>
 
                             <div class="tab-pane" id="netbsd">
-                                <h3>NetBSD</h3>
-                                <pre><code># Update package manager
+                                <h3>NetBSD Complete Setup Guide</h3>
+                                <pre><code># ===== STEP 1: Update package manager =====
 pkgin update
 
+# ===== STEP 2: Install all required packages =====
 # Install Python 3.12
 pkgin install python312 py312-pip py312-sqlite3
 
-# Install Node.js 20.x
+# Install Node.js and npm
 pkgin install nodejs npm
 
 # Install PostgreSQL 14+
 pkgin install postgresql14-server postgresql14-client
 
-# Install ALL required build tools and libraries in one command:
+# Install ALL required build tools and libraries:
+# IMPORTANT: jpeg package is required in addition to libjpeg-turbo!
 pkgin install gcc13 cmake gmake pkgconf rust py312-cffi \
     jpeg libjpeg-turbo tiff png freetype2 lcms2 libwebp openjpeg zlib
 
-# Alternative: Install in groups if the above fails
-# Build tools: pkgin install gcc13 cmake gmake pkgconf rust py312-cffi
-# Image libs:  pkgin install jpeg libjpeg-turbo tiff png freetype2 lcms2 libwebp openjpeg zlib
+# ===== STEP 3: Set environment variables (CRITICAL for NetBSD) =====
+# NetBSD installs packages in /usr/pkg, not standard locations
+# These MUST be set before installing Python packages with C extensions
 
-# Set environment variables for Pillow to find the libraries
+# Set for current session:
 export CFLAGS="-I/usr/pkg/include"
 export LDFLAGS="-L/usr/pkg/lib -Wl,-R/usr/pkg/lib"
 
-# For permanent setup, add to ~/.profile or ~/.bashrc:
+# Make permanent (add to ~/.profile for sh/ksh or ~/.bashrc for bash):
 echo 'export CFLAGS="-I/usr/pkg/include"' >> ~/.profile
 echo 'export LDFLAGS="-L/usr/pkg/lib -Wl,-R/usr/pkg/lib"' >> ~/.profile
+
+# Source the profile to apply changes:
+. ~/.profile
 
 # PostgreSQL Setup on NetBSD
 # IMPORTANT: NetBSD may not have the pgsql user created automatically
@@ -318,11 +323,29 @@ mkdir -p $HOME/tmp</code></pre>
                 <section class="docs-section">
                     <h2 data-i18n="server_installation.installation_steps.title" data-i18n-html>Installation Steps</h2>
 
+                    <div class="platform-notice" style="background-color: #fff3cd; border: 1px solid #ffc107; padding: 15px; margin-bottom: 20px; border-radius: 5px;">
+                        <h4 style="margin-top: 0;">⚠️ NetBSD Users - Critical Setup Requirements</h4>
+                        <p><strong>Before starting installation, NetBSD users MUST:</strong></p>
+                        <ol>
+                            <li>Install ALL required packages including <code>jpeg</code> (not just libjpeg-turbo)</li>
+                            <li>Set environment variables: <code>export CFLAGS="-I/usr/pkg/include" LDFLAGS="-L/usr/pkg/lib -Wl,-R/usr/pkg/lib"</code></li>
+                            <li>Use <code>gmake</code> instead of <code>make</code> for all make commands</li>
+                            <li>Manually create PostgreSQL user if not present</li>
+                            <li>Increase /tmp size if needed: <code>mount -t tmpfs -o -s=4g tmpfs /tmp</code></li>
+                        </ol>
+                        <p>See the NetBSD tab in Prerequisites above for complete setup instructions.</p>
+                    </div>
+
                     <div class="install-steps">
                         <div class="step">
                             <h3 data-i18n="server_installation.installation_steps.step1.title" data-i18n-html>Step 1: Clone and Setup</h3>
                             <pre><code>git clone https://github.com/bceverly/sysmanage.git
 cd sysmanage
+
+# NetBSD ONLY: Set environment variables BEFORE creating venv
+# (Required for building Python packages with C extensions)
+export CFLAGS="-I/usr/pkg/include"
+export LDFLAGS="-L/usr/pkg/lib -Wl,-R/usr/pkg/lib"
 
 # Create Python virtual environment (use specific version)
 python3.11 -m venv .venv  # Or python3.12 -m venv .venv
