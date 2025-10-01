@@ -246,7 +246,7 @@ doas pkg_add rust gcc cmake gmake pkgconf</code></pre>
 pkgin install python312 py312-pip py312-sqlite3 nodejs npm \
     postgresql14-server postgresql14-client gcc13 cmake gmake pkgconf \
     rust py312-cffi jpeg libjpeg-turbo tiff png freetype2 lcms2 \
-    libwebp openjpeg zlib go git chromium firefox
+    libwebp openjpeg zlib findutils coreutils go git chromium firefox
 
 # ===== OR STEP BY STEP INSTALLATION =====
 # ===== STEP 1: Update package manager =====
@@ -267,9 +267,13 @@ pkgin install postgresql14-server postgresql14-client
 pkgin install gcc13 cmake gmake pkgconf rust py312-cffi \
     jpeg libjpeg-turbo tiff png freetype2 lcms2 libwebp openjpeg zlib
 
-# Optional: Install Go if you want to build OpenBAO from source
-# (OpenBAO is optional - the system works without it)
-pkgin install go git  # Only needed if you want OpenBAO
+# Install GNU utilities (REQUIRED for OpenTelemetry Collector build from source)
+# Provides: gfind, gxargs (findutils) and gdirname (coreutils)
+pkgin install findutils coreutils
+
+# Optional: Install Go if you want to build OpenBAO or OpenTelemetry from source
+# (Both are optional - the system works without them)
+pkgin install go git  # Only needed if you want OpenBAO or OTEL Collector
 
 # NetBSD installs Go as go124 - create a symlink for compatibility:
 sudo ln -sf /usr/pkg/bin/go124 /usr/pkg/bin/go
@@ -644,6 +648,10 @@ npm run dev</code></pre>
                                 <li><strong>No space left on device during pip install:</strong> NetBSD's /tmp is limited to 1GB by default. Increase with: <code>mount -t tmpfs -o -s=4g tmpfs /tmp</code> or use <code>export TMPDIR=$HOME/tmp</code></li>
                                 <li><strong>gmake install-dev for development:</strong> Use <code>gmake</code> instead of <code>make</code>. The Makefile includes NetBSD-specific C tracer dependency checks (gcc13, py312-cffi)</li>
                                 <li><strong>PostgreSQL socket not found:</strong> NetBSD PostgreSQL often uses TCP instead of Unix sockets. Always use <code>-h localhost</code> when connecting</li>
+                                <li><strong>OpenTelemetry Collector build failures:</strong> NetBSD uses BSD versions of find/xargs/dirname which are incompatible with the OTEL Collector Makefile. Install GNU utilities:
+                                    <pre><code>sudo pkgin install findutils coreutils</code></pre>
+                                    The install-telemetry.py script will automatically detect and use gfind/gxargs/gdirname on NetBSD.
+                                </li>
                                 <li><strong>Browser/WebDriver errors:</strong> Install browsers for UI testing:
                                     <pre><code># Install Chromium (includes ChromeDriver)
 doas pkgin install chromium
