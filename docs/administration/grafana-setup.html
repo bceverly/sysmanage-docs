@@ -1,0 +1,422 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title data-i18n="administration.grafana_setup.title">Grafana Integration Setup</title>
+    <meta name="description" data-i18n="administration.grafana_setup.subtitle" content="Complete guide to setting up Grafana integration with SysManage for OpenTelemetry metrics visualization.">
+    <link rel="stylesheet" href="../../assets/css/style.css">
+    <link rel="icon" type="image/svg+xml" href="../../assets/images/favicon.svg">
+</head>
+<body>
+    <header class="site-header">
+        <nav class="navbar">
+            <div class="container">
+                <div class="nav-brand">
+                    <a href="../../">
+                        <img src="../../assets/images/sysmanage-logo.svg" alt="SysManage" class="logo">
+                    </a>
+                </div>
+                <div class="nav-menu">
+                    <a href="../../#features" class="nav-link" data-i18n="nav.features" data-i18n-html>Features</a>
+                    <a href="../../#getting-started" class="nav-link" data-i18n="nav.getting_started" data-i18n-html>Getting Started</a>
+                    <a href="../" class="nav-link active" data-i18n="nav.documentation" data-i18n-html>Documentation</a>
+                    <a href="../../config-builder.html" class="nav-link" data-i18n="nav.config_builder" data-i18n-html>Configuration Builder</a>
+                    <a href="https://github.com/bceverly/sysmanage" class="nav-link" target="_blank" data-i18n="nav.github" data-i18n-html>GitHub</a>
+                </div>
+            </div>
+        </nav>
+    </header>
+
+    <main class="docs-main">
+        <div class="container">
+            <div class="docs-breadcrumb">
+                <a href="../">Documentation</a> > <a href="./">Administration</a> > <span data-i18n="administration.grafana_setup.title">Grafana Integration Setup</span>
+            </div>
+
+            <div class="docs-header">
+                <h1 data-i18n="administration.grafana_setup.title">Grafana Integration Setup</h1>
+                <p data-i18n="administration.grafana_setup.subtitle">Complete guide to setting up Grafana integration with SysManage for OpenTelemetry metrics visualization.</p>
+            </div>
+
+            <div class="docs-content">
+                <section class="overview">
+                    <h2 data-i18n="administration.grafana_setup.overview">Overview</h2>
+                    <p data-i18n="administration.grafana_setup.overview_description">SysManage integrates with Grafana to provide powerful visualization and monitoring capabilities for OpenTelemetry metrics collected from your managed hosts. This guide walks you through the complete setup process, from installing Grafana Alloy to verifying metrics flow.</p>
+                </section>
+
+                <section class="prerequisites">
+                    <h2 data-i18n="administration.grafana_setup.prerequisites">Prerequisites</h2>
+                    <ul>
+                        <li data-i18n="administration.grafana_setup.prerequisite_grafana">A running Grafana instance (version 9.0 or later recommended)</li>
+                        <li data-i18n="administration.grafana_setup.prerequisite_access">Administrative access to the Grafana server</li>
+                        <li data-i18n="administration.grafana_setup.prerequisite_network">Network connectivity between SysManage, Grafana, and managed hosts</li>
+                        <li data-i18n="administration.grafana_setup.prerequisite_permissions">Appropriate permissions in SysManage (DEPLOY_OPENTELEMETRY role)</li>
+                    </ul>
+                </section>
+
+                <section class="alloy-installation">
+                    <h2 data-i18n="administration.grafana_setup.installing_grafana_alloy">Installing Grafana Alloy</h2>
+                    <p data-i18n="administration.grafana_setup.alloy_description">Grafana Alloy is the OpenTelemetry collector that receives OTLP metrics from managed hosts and forwards them to Prometheus for storage and visualization.</p>
+
+                    <div class="installation-steps">
+                        <h3 data-i18n="administration.grafana_setup.debian_ubuntu">Debian/Ubuntu Installation</h3>
+                        <div class="code-block">
+                            <pre><code># Add Grafana GPG key and repository
+sudo mkdir -p /etc/apt/keyrings/
+wget -q -O - https://apt.grafana.com/gpg.key | gpg --dearmor | sudo tee /etc/apt/keyrings/grafana.gpg > /dev/null
+echo "deb [signed-by=/etc/apt/keyrings/grafana.gpg] https://apt.grafana.com stable main" | sudo tee /etc/apt/sources.list.d/grafana.list
+
+# Update and install Alloy
+sudo apt-get update
+sudo apt-get install -y alloy</code></pre>
+                        </div>
+
+                        <h3 data-i18n="administration.grafana_setup.rhel_centos">RHEL/CentOS/Fedora Installation</h3>
+                        <div class="code-block">
+                            <pre><code># Add Grafana repository
+cat <<EOF | sudo tee /etc/yum.repos.d/grafana.repo
+[grafana]
+name=grafana
+baseurl=https://rpm.grafana.com
+repo_gpgcheck=1
+enabled=1
+gpgcheck=1
+gpgkey=https://rpm.grafana.com/gpg.key
+sslverify=1
+sslcacert=/etc/pki/tls/certs/ca-bundle.crt
+EOF
+
+# Install Alloy
+sudo yum install -y alloy</code></pre>
+                        </div>
+
+                        <h3 data-i18n="administration.grafana_setup.other_platforms">Other Platforms</h3>
+                        <p data-i18n="administration.grafana_setup.other_platforms_text">For macOS, Windows, or other Linux distributions, refer to the <a href="https://grafana.com/docs/alloy/latest/get-started/install/" target="_blank">official Grafana Alloy installation documentation</a>.</p>
+                    </div>
+                </section>
+
+                <section class="alloy-configuration">
+                    <h2 data-i18n="administration.grafana_setup.configuring_alloy">Configuring Grafana Alloy for OTLP</h2>
+                    <p data-i18n="administration.grafana_setup.alloy_config_description">Configure Alloy to receive OTLP metrics on port 4317 and forward them to Prometheus.</p>
+
+                    <h3 data-i18n="administration.grafana_setup.create_config_file">Create Configuration File</h3>
+                    <p data-i18n="administration.grafana_setup.config_file_location">Create or edit the Alloy configuration file at <code>/etc/alloy/config.alloy</code>:</p>
+                    <div class="code-block">
+                        <pre><code>// OTLP receiver on port 4317
+otelcol.receiver.otlp "default" {
+  grpc {
+    endpoint = "0.0.0.0:4317"
+  }
+
+  output {
+    metrics = [otelcol.processor.batch.default.input]
+  }
+}
+
+// Batch processor for efficiency
+otelcol.processor.batch "default" {
+  output {
+    metrics = [otelcol.exporter.prometheus.default.input]
+  }
+}
+
+// Export to Prometheus
+otelcol.exporter.prometheus "default" {
+  forward_to = [prometheus.remote_write.default.receiver]
+}
+
+// Prometheus remote write (local instance)
+prometheus.remote_write "default" {
+  endpoint {
+    url = "http://localhost:9090/api/v1/write"
+  }
+}</code></pre>
+                    </div>
+
+                    <h3 data-i18n="administration.grafana_setup.enable_start_alloy">Enable and Start Alloy</h3>
+                    <div class="code-block">
+                        <pre><code># Enable Alloy to start on boot
+sudo systemctl enable alloy
+
+# Start the Alloy service
+sudo systemctl start alloy
+
+# Verify it's running
+sudo systemctl status alloy</code></pre>
+                    </div>
+
+                    <h3 data-i18n="administration.grafana_setup.verify_port_listening">Verify Port 4317 is Listening</h3>
+                    <div class="code-block">
+                        <pre><code># Check that Alloy is listening on port 4317
+sudo ss -tlnp | grep 4317
+
+# Expected output:
+# LISTEN 0 4096 0.0.0.0:4317 0.0.0.0:* users:(("alloy",pid=XXXX,fd=X))</code></pre>
+                    </div>
+                </section>
+
+                <section class="sysmanage-configuration">
+                    <h2 data-i18n="administration.grafana_setup.configuring_sysmanage">Configuring SysManage Integration</h2>
+                    <p data-i18n="administration.grafana_setup.sysmanage_config_description">Enable Grafana integration in SysManage to allow OpenTelemetry deployment to hosts.</p>
+
+                    <h3 data-i18n="administration.grafana_setup.enable_integration">Enable Grafana Integration</h3>
+                    <ol>
+                        <li data-i18n="administration.grafana_setup.step1_navigate_settings">Navigate to <strong>Settings</strong> in the SysManage web interface</li>
+                        <li data-i18n="administration.grafana_setup.step2_find_grafana_card">Find the <strong>Grafana Integration</strong> card</li>
+                        <li data-i18n="administration.grafana_setup.step3_toggle_enabled">Toggle <strong>Enabled</strong> to <em>Yes</em></li>
+                        <li data-i18n="administration.grafana_setup.step4_enter_url">Enter your Grafana server URL (e.g., <code>http://grafana.example.com:4317</code>)</li>
+                        <li data-i18n="administration.grafana_setup.step5_save_changes">Click <strong>Save Changes</strong></li>
+                    </ol>
+
+                    <div class="info-box">
+                        <strong data-i18n="administration.grafana_setup.note">Note:</strong>
+                        <span data-i18n="administration.grafana_setup.url_note">The URL should point to the Grafana Alloy OTLP endpoint (port 4317), not the Grafana web interface (typically port 3000).</span>
+                    </div>
+                </section>
+
+                <section class="deploying-otel">
+                    <h2 data-i18n="administration.grafana_setup.deploying_opentelemetry">Deploying OpenTelemetry to Hosts</h2>
+                    <p data-i18n="administration.grafana_setup.deployment_description">Once Grafana integration is enabled, you can deploy OpenTelemetry collectors to individual hosts.</p>
+
+                    <h3 data-i18n="administration.grafana_setup.deployment_requirements">Deployment Requirements</h3>
+                    <ul>
+                        <li data-i18n="administration.grafana_setup.requirement_privileged">Host must have a privileged SysManage agent running (with root/administrator access)</li>
+                        <li data-i18n="administration.grafana_setup.requirement_grafana_enabled">Grafana integration must be enabled in SysManage settings</li>
+                        <li data-i18n="administration.grafana_setup.requirement_permission">User must have the DEPLOY_OPENTELEMETRY permission</li>
+                    </ul>
+
+                    <h3 data-i18n="administration.grafana_setup.deployment_steps">Deployment Steps</h3>
+                    <ol>
+                        <li data-i18n="administration.grafana_setup.deploy_step1_navigate">Navigate to the host detail page for the target host</li>
+                        <li data-i18n="administration.grafana_setup.deploy_step2_scroll">Scroll to the <strong>OpenTelemetry Status</strong> card</li>
+                        <li data-i18n="administration.grafana_setup.deploy_step3_click">Click <strong>Deploy OpenTelemetry</strong></li>
+                        <li data-i18n="administration.grafana_setup.deploy_step4_wait">Wait for deployment to complete (typically 30-60 seconds)</li>
+                        <li data-i18n="administration.grafana_setup.deploy_step5_verify">Verify the status shows "Deployed: Yes" and "Service Status: running"</li>
+                    </ol>
+
+                    <div class="info-box">
+                        <strong data-i18n="administration.grafana_setup.auto_refresh">Auto-refresh:</strong>
+                        <span data-i18n="administration.grafana_setup.auto_refresh_text">The OpenTelemetry Status card refreshes automatically every 30 seconds to reflect deployment status changes.</span>
+                    </div>
+                </section>
+
+                <section class="verifying-metrics">
+                    <h2 data-i18n="administration.grafana_setup.verifying_metrics">Verifying Metrics Flow</h2>
+                    <p data-i18n="administration.grafana_setup.verification_description">After deployment, verify that metrics are flowing from hosts through Alloy to Prometheus and Grafana.</p>
+
+                    <h3 data-i18n="administration.grafana_setup.check_service_status">Check OpenTelemetry Service Status</h3>
+                    <p data-i18n="administration.grafana_setup.check_service_description">On the managed host, verify the OpenTelemetry collector is running:</p>
+                    <div class="code-block">
+                        <pre><code># Check service status
+sudo systemctl status otelcol-contrib
+
+# View recent logs
+sudo journalctl -u otelcol-contrib -n 50</code></pre>
+                    </div>
+
+                    <h3 data-i18n="administration.grafana_setup.check_alloy_logs">Check Grafana Alloy Logs</h3>
+                    <p data-i18n="administration.grafana_setup.check_alloy_description">On the Grafana server, verify Alloy is receiving metrics:</p>
+                    <div class="code-block">
+                        <pre><code># View Alloy logs
+sudo journalctl -u alloy -f
+
+# Look for messages indicating OTLP metric reception</code></pre>
+                    </div>
+
+                    <h3 data-i18n="administration.grafana_setup.query_prometheus">Query Prometheus for Metrics</h3>
+                    <p data-i18n="administration.grafana_setup.query_prometheus_description">Access Prometheus (typically at <code>http://your-grafana-server:9090</code>) and run a query:</p>
+                    <div class="code-block">
+                        <pre><code># Query for any OpenTelemetry metrics
+{job="otelcol"}
+
+# Query for specific system metrics
+system_cpu_utilization
+system_memory_usage</code></pre>
+                    </div>
+
+                    <h3 data-i18n="administration.grafana_setup.create_grafana_dashboard">Create Grafana Dashboard</h3>
+                    <ol>
+                        <li data-i18n="administration.grafana_setup.dashboard_step1">Log in to Grafana web interface</li>
+                        <li data-i18n="administration.grafana_setup.dashboard_step2">Create a new dashboard</li>
+                        <li data-i18n="administration.grafana_setup.dashboard_step3">Add panels with Prometheus queries for OpenTelemetry metrics</li>
+                        <li data-i18n="administration.grafana_setup.dashboard_step4">Save and share the dashboard with your team</li>
+                    </ol>
+                </section>
+
+                <section class="troubleshooting">
+                    <h2 data-i18n="administration.grafana_setup.troubleshooting">Troubleshooting</h2>
+
+                    <div class="troubleshooting-item">
+                        <h3 data-i18n="administration.grafana_setup.issue_no_metrics">No Metrics Appearing in Prometheus</h3>
+                        <ul>
+                            <li data-i18n="administration.grafana_setup.solution_verify_collector">Verify OpenTelemetry collector is running on the host: <code>systemctl status otelcol-contrib</code></li>
+                            <li data-i18n="administration.grafana_setup.solution_check_config">Check collector configuration file at <code>/etc/otelcol-contrib/config.yaml</code></li>
+                            <li data-i18n="administration.grafana_setup.solution_verify_connectivity">Verify network connectivity from host to Grafana server on port 4317</li>
+                            <li data-i18n="administration.grafana_setup.solution_check_firewall">Check firewall rules allowing traffic on port 4317</li>
+                        </ul>
+                    </div>
+
+                    <div class="troubleshooting-item">
+                        <h3 data-i18n="administration.grafana_setup.issue_deployment_fails">Deployment Fails</h3>
+                        <ul>
+                            <li data-i18n="administration.grafana_setup.solution_check_agent">Ensure SysManage agent is running in privileged mode</li>
+                            <li data-i18n="administration.grafana_setup.solution_check_logs">Check agent logs for error messages: <code>~/dev/sysmanage-agent/logs/agent.log</code></li>
+                            <li data-i18n="administration.grafana_setup.solution_verify_permissions">Verify user has DEPLOY_OPENTELEMETRY permission</li>
+                            <li data-i18n="administration.grafana_setup.solution_check_package_manager">Confirm package manager (apt/yum) is working correctly on the target host</li>
+                        </ul>
+                    </div>
+
+                    <div class="troubleshooting-item">
+                        <h3 data-i18n="administration.grafana_setup.issue_connection_errors">Connection Errors in Logs</h3>
+                        <ul>
+                            <li data-i18n="administration.grafana_setup.solution_verify_url">Verify Grafana URL in SysManage settings points to port 4317 (not 3000)</li>
+                            <li data-i18n="administration.grafana_setup.solution_test_connectivity">Test connectivity: <code>nc -zv grafana-server 4317</code></li>
+                            <li data-i18n="administration.grafana_setup.solution_check_alloy">Ensure Grafana Alloy is running: <code>systemctl status alloy</code></li>
+                            <li data-i18n="administration.grafana_setup.solution_review_alloy_config">Review Alloy configuration for correct OTLP receiver setup</li>
+                        </ul>
+                    </div>
+
+                    <div class="troubleshooting-item">
+                        <h3 data-i18n="administration.grafana_setup.issue_frame_too_large">"Frame Too Large" Errors</h3>
+                        <ul>
+                            <li data-i18n="administration.grafana_setup.solution_wrong_port">This indicates the collector is trying to send OTLP to Grafana's web interface (port 3000) instead of Alloy (port 4317)</li>
+                            <li data-i18n="administration.grafana_setup.solution_update_url">Update the Grafana URL in SysManage settings to use port 4317</li>
+                            <li data-i18n="administration.grafana_setup.solution_redeploy">Redeploy OpenTelemetry to the affected hosts to update their configuration</li>
+                        </ul>
+                    </div>
+                </section>
+
+                <section class="management-operations">
+                    <h2 data-i18n="administration.grafana_setup.management_operations">Management Operations</h2>
+
+                    <div class="operation">
+                        <h3 data-i18n="administration.grafana_setup.operation_connect">Connect to Grafana</h3>
+                        <p data-i18n="administration.grafana_setup.connect_description">If a host was deployed before Grafana integration was enabled, you can connect it:</p>
+                        <ul>
+                            <li data-i18n="administration.grafana_setup.connect_step1">Enable Grafana integration in Settings</li>
+                            <li data-i18n="administration.grafana_setup.connect_step2">Navigate to the host detail page</li>
+                            <li data-i18n="administration.grafana_setup.connect_step3">Click <strong>Connect to Grafana</strong> in the OpenTelemetry Status card</li>
+                        </ul>
+                    </div>
+
+                    <div class="operation">
+                        <h3 data-i18n="administration.grafana_setup.operation_disconnect">Disconnect from Grafana</h3>
+                        <p data-i18n="administration.grafana_setup.disconnect_description">To stop sending metrics while keeping OpenTelemetry installed:</p>
+                        <ul>
+                            <li data-i18n="administration.grafana_setup.disconnect_step1">Navigate to the host detail page</li>
+                            <li data-i18n="administration.grafana_setup.disconnect_step2">Click <strong>Disconnect from Grafana</strong></li>
+                            <li data-i18n="administration.grafana_setup.disconnect_step3">The collector will remain installed but stop exporting metrics</li>
+                        </ul>
+                    </div>
+
+                    <div class="operation">
+                        <h3 data-i18n="administration.grafana_setup.operation_restart">Restart Service</h3>
+                        <p data-i18n="administration.grafana_setup.restart_description">To restart the OpenTelemetry collector service:</p>
+                        <ul>
+                            <li data-i18n="administration.grafana_setup.restart_step1">Navigate to the host detail page</li>
+                            <li data-i18n="administration.grafana_setup.restart_step2">Click <strong>Restart</strong> in the OpenTelemetry Status card</li>
+                        </ul>
+                    </div>
+
+                    <div class="operation">
+                        <h3 data-i18n="administration.grafana_setup.operation_remove">Remove OpenTelemetry</h3>
+                        <p data-i18n="administration.grafana_setup.remove_description">To completely uninstall OpenTelemetry from a host:</p>
+                        <ul>
+                            <li data-i18n="administration.grafana_setup.remove_step1">Navigate to the host detail page</li>
+                            <li data-i18n="administration.grafana_setup.remove_step2">Click <strong>Remove OpenTelemetry</strong></li>
+                            <li data-i18n="administration.grafana_setup.remove_step3">The collector package will be completely removed, including configuration files</li>
+                        </ul>
+                    </div>
+                </section>
+
+                <section class="security-best-practices">
+                    <h2 data-i18n="administration.grafana_setup.security_best_practices">Security Best Practices</h2>
+
+                    <div class="practice">
+                        <h3 data-i18n="administration.grafana_setup.security_tls">Use TLS Encryption</h3>
+                        <ul>
+                            <li data-i18n="administration.grafana_setup.security_tls_1">Configure Alloy to use TLS for OTLP receiver</li>
+                            <li data-i18n="administration.grafana_setup.security_tls_2">Use valid SSL certificates from a trusted CA</li>
+                            <li data-i18n="administration.grafana_setup.security_tls_3">Update SysManage Grafana URL to use <code>https://</code></li>
+                        </ul>
+                    </div>
+
+                    <div class="practice">
+                        <h3 data-i18n="administration.grafana_setup.security_network">Network Security</h3>
+                        <ul>
+                            <li data-i18n="administration.grafana_setup.security_network_1">Restrict port 4317 access to only SysManage-managed hosts</li>
+                            <li data-i18n="administration.grafana_setup.security_network_2">Use network segmentation or VPN for metrics traffic</li>
+                            <li data-i18n="administration.grafana_setup.security_network_3">Implement firewall rules to limit exposure</li>
+                        </ul>
+                    </div>
+
+                    <div class="practice">
+                        <h3 data-i18n="administration.grafana_setup.security_authentication">Authentication</h3>
+                        <ul>
+                            <li data-i18n="administration.grafana_setup.security_auth_1">Configure Alloy with authentication for OTLP endpoint</li>
+                            <li data-i18n="administration.grafana_setup.security_auth_2">Use API keys or mTLS for additional security</li>
+                            <li data-i18n="administration.grafana_setup.security_auth_3">Rotate credentials regularly</li>
+                        </ul>
+                    </div>
+
+                    <div class="practice">
+                        <h3 data-i18n="administration.grafana_setup.security_monitoring">Monitor Access</h3>
+                        <ul>
+                            <li data-i18n="administration.grafana_setup.security_monitoring_1">Review Alloy logs for unauthorized access attempts</li>
+                            <li data-i18n="administration.grafana_setup.security_monitoring_2">Set up alerts for connection anomalies</li>
+                            <li data-i18n="administration.grafana_setup.security_monitoring_3">Audit OpenTelemetry deployment history in SysManage</li>
+                        </ul>
+                    </div>
+                </section>
+
+                <section class="performance-considerations">
+                    <h2 data-i18n="administration.grafana_setup.performance_considerations">Performance Considerations</h2>
+
+                    <div class="consideration">
+                        <h3 data-i18n="administration.grafana_setup.performance_collection">Collection Intervals</h3>
+                        <p data-i18n="administration.grafana_setup.performance_collection_text">Adjust metric collection intervals based on your monitoring needs and system resources. More frequent collection provides better granularity but increases resource usage.</p>
+                    </div>
+
+                    <div class="consideration">
+                        <h3 data-i18n="administration.grafana_setup.performance_retention">Data Retention</h3>
+                        <p data-i18n="administration.grafana_setup.performance_retention_text">Configure Prometheus retention policies to balance historical data availability with storage requirements. Consider using remote storage for long-term metrics.</p>
+                    </div>
+
+                    <div class="consideration">
+                        <h3 data-i18n="administration.grafana_setup.performance_batching">Batch Processing</h3>
+                        <p data-i18n="administration.grafana_setup.performance_batching_text">Alloy's batch processor groups metrics before sending to Prometheus, reducing network overhead. Adjust batch size and timeout based on metric volume.</p>
+                    </div>
+
+                    <div class="consideration">
+                        <h3 data-i18n="administration.grafana_setup.performance_scaling">Scaling Considerations</h3>
+                        <p data-i18n="administration.grafana_setup.performance_scaling_text">For large deployments, consider running multiple Alloy instances behind a load balancer, or using Prometheus federation for distributed metrics collection.</p>
+                    </div>
+                </section>
+            </div>
+
+            <div class="docs-footer">
+                <div class="docs-navigation">
+                    <h3>Quick Navigation</h3>
+                    <div class="nav-links">
+                        <a href="monitoring.html" class="nav-link">← Monitoring & Alerts</a>
+                        <a href="backup.html" class="nav-link">Backup & Recovery →</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <footer class="site-footer">
+        <div class="container">
+            <div class="footer-bottom">
+                <p>&copy; 2024 SysManage. All rights reserved.</p>
+            </div>
+        </div>
+    </footer>
+
+    <script src="../../assets/js/navbar.js"></script>
+    <script src="../../assets/js/main.js"></script>
+    <script src="../../assets/js/i18n.js"></script>
+</body>
+</html>
