@@ -156,6 +156,49 @@ sudo ss -tlnp | grep 4317
                     </div>
                 </section>
 
+                <section class="prometheus-configuration">
+                    <h2 data-i18n="administration.grafana_setup.configuring_prometheus">Configuring Prometheus for Remote Write</h2>
+                    <p data-i18n="administration.grafana_setup.prometheus_config_description">Prometheus must be configured to accept remote write requests from Grafana Alloy. This requires enabling the remote write receiver feature.</p>
+
+                    <h3 data-i18n="administration.grafana_setup.enable_remote_write">Enable Remote Write Receiver</h3>
+                    <p data-i18n="administration.grafana_setup.enable_remote_write_description">Edit the Prometheus systemd service file to add the <code>--web.enable-remote-write-receiver</code> flag:</p>
+                    <div class="code-block">
+                        <pre><code># Edit the Prometheus service file
+sudo systemctl edit --full prometheus
+
+# Find the ExecStart line and add the flag:
+ExecStart=/usr/bin/prometheus \
+  --config.file=/etc/prometheus/prometheus.yml \
+  --storage.tsdb.path=/var/lib/prometheus/ \
+  --web.enable-remote-write-receiver
+
+# Save and exit the editor</code></pre>
+                    </div>
+
+                    <h3 data-i18n="administration.grafana_setup.apply_prometheus_changes">Apply Configuration Changes</h3>
+                    <div class="code-block">
+                        <pre><code># Reload systemd to pick up the service file changes
+sudo systemctl daemon-reload
+
+# Restart Prometheus
+sudo systemctl restart prometheus
+
+# Verify Prometheus is running with the flag
+ps aux | grep prometheus | grep enable-remote-write-receiver</code></pre>
+                    </div>
+
+                    <div class="warning-box">
+                        <strong data-i18n="administration.grafana_setup.warning">Warning:</strong>
+                        <span data-i18n="administration.grafana_setup.prometheus_warning">Without the <code>--web.enable-remote-write-receiver</code> flag, Alloy will receive "404 Not Found" errors when attempting to write metrics to Prometheus. This is a required configuration step.</span>
+                    </div>
+
+                    <h3 data-i18n="administration.grafana_setup.restart_alloy_after_prometheus">Restart Alloy After Prometheus Configuration</h3>
+                    <p data-i18n="administration.grafana_setup.restart_alloy_description">If Alloy was already running and encountering errors before Prometheus was configured, restart it to clear any retry backoff state:</p>
+                    <div class="code-block">
+                        <pre><code>sudo systemctl restart alloy</code></pre>
+                    </div>
+                </section>
+
                 <section class="sysmanage-configuration">
                     <h2 data-i18n="administration.grafana_setup.configuring_sysmanage">Configuring SysManage Integration</h2>
                     <p data-i18n="administration.grafana_setup.sysmanage_config_description">Enable Grafana integration in SysManage to allow OpenTelemetry deployment to hosts.</p>
