@@ -2,6 +2,62 @@
 
 This directory contains scripts for translating documentation keys to multiple languages.
 
+## translate_third_party_repo_keys.py
+
+This script translates the third-party repository documentation keys from English to all 14 supported languages.
+
+### Prerequisites
+
+- Python 3.7 or higher
+- Anthropic API key
+- `anthropic` Python package
+
+### Installation
+
+```bash
+pip install anthropic
+```
+
+### Usage
+
+1. Set your Anthropic API key as an environment variable:
+
+```bash
+export ANTHROPIC_API_KEY='your-api-key-here'
+```
+
+2. Run the script:
+
+```bash
+python3 /home/bceverly/dev/sysmanage-docs/scripts/translate_third_party_repo_keys.py
+```
+
+### What It Does
+
+The script will:
+
+1. Extract all `data-i18n` attributes from `docs/administration/third-party-repositories.html`
+2. Add missing keys to the English locale file (`en.json`) under `administration.third_party_repositories`
+3. Translate each key to all 14 supported languages using Claude API
+4. Update each language locale file with the translations
+5. Preserve all existing translations in each file
+
+### Two-Phase Operation
+
+The script can run in two phases:
+
+**Phase 1: Extraction Only** (no API key required)
+- Extracts i18n keys from HTML file
+- Adds them to en.json with English text
+
+**Phase 2: Translation** (requires API key)
+- Translates all keys to 14 languages
+- Updates all language locale files
+
+If the ANTHROPIC_API_KEY environment variable is not set, the script will run Phase 1 only.
+
+---
+
 ## translate_grafana_keys.py
 
 This script translates the Grafana setup documentation keys from English to all 14 supported languages.
