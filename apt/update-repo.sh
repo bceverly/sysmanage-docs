@@ -22,9 +22,27 @@ if [ $# -eq 1 ]; then
 
     echo "📦 Adding package: $DEB_FILE"
 
-    # Copy to pool/main
-    cp "$DEB_FILE" pool/main/
-    echo "✓ Copied to pool/main/"
+    # Extract package name and version from .deb filename
+    # Format: package-name_version-revision_arch.deb
+    BASENAME=$(basename "$DEB_FILE")
+
+    # Extract version (everything between first _ and last _)
+    VERSION=$(echo "$BASENAME" | sed 's/^[^_]*_\([^_]*\)_.*$/\1/')
+
+    if [ -z "$VERSION" ]; then
+        echo "Error: Could not extract version from filename: $BASENAME"
+        exit 1
+    fi
+
+    echo "   Version detected: $VERSION"
+
+    # Create version-specific directory
+    VERSION_DIR="pool/main/$VERSION"
+    mkdir -p "$VERSION_DIR"
+
+    # Copy to version-specific pool directory
+    cp "$DEB_FILE" "$VERSION_DIR/"
+    echo "✓ Copied to $VERSION_DIR/"
 fi
 
 # Generate package index
