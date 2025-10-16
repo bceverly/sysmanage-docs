@@ -29,9 +29,7 @@ sudo launchctl start com.sysmanage.agent
 
 ## Manual Download
 
-Browse available versions at: https://bceverly.github.io/sysmanage-docs/repo/mac/packages/
-
-Or check the package index: https://bceverly.github.io/sysmanage-docs/repo/mac/index.json
+Check the package index for available versions: https://bceverly.github.io/sysmanage-docs/repo/mac/index.json
 
 ## Verify Package Integrity
 
