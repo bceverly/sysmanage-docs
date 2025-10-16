@@ -6,16 +6,30 @@ YUM/DNF repository for Red Hat-based Linux distributions.
 
 ```
 rpm/
-├── el8/            # RHEL 8, CentOS 8, Rocky 8, AlmaLinux 8
+├── el8/                    # RHEL 8, CentOS 8, Rocky 8, AlmaLinux 8
 │   └── x86_64/
 │       ├── *.rpm
 │       └── repodata/
-├── el9/            # RHEL 9, CentOS Stream 9, Rocky 9, AlmaLinux 9
+├── el9/                    # RHEL 9, CentOS Stream 9, Rocky 9, AlmaLinux 9
 │   └── x86_64/
 │       ├── *.rpm
 │       └── repodata/
-└── fedora/
-    └── 39/         # Fedora 39+
+├── fedora/
+│   └── 39/                 # Fedora 39+
+│       └── x86_64/
+│           ├── *.rpm
+│           └── repodata/
+├── opensuse-leap/          # openSUSE Leap 15.x
+│   └── 15/
+│       └── x86_64/
+│           ├── *.rpm
+│           └── repodata/
+├── opensuse-tumbleweed/    # openSUSE Tumbleweed
+│   └── x86_64/
+│       ├── *.rpm
+│       └── repodata/
+└── sles/                   # SUSE Linux Enterprise Server 15
+    └── 15/
         └── x86_64/
             ├── *.rpm
             └── repodata/
@@ -26,6 +40,9 @@ rpm/
 - **RHEL 9 / CentOS Stream 9 / Rocky 9 / AlmaLinux 9** - Python 3.9+ (2022+)
 - **RHEL 8 / CentOS 8 / Rocky 8 / AlmaLinux 8** - Python 3.11 via AppStream (2019+)
 - **Fedora 38+** - Python 3.11+ (2023+)
+- **openSUSE Leap 15.x** - Python 3.11 (2021+)
+- **openSUSE Tumbleweed** - Python 3.11+ (Rolling)
+- **SUSE Linux Enterprise Server 15** - Python 3.11 (2018+)
 
 ## User Installation
 
@@ -74,6 +91,30 @@ EOF
 sudo dnf install sysmanage-agent
 ```
 
+### openSUSE Leap 15.x
+
+```bash
+sudo zypper addrepo https://bceverly.github.io/sysmanage-docs/repo/rpm/opensuse-leap/15/x86_64 sysmanage
+sudo zypper refresh
+sudo zypper install sysmanage-agent
+```
+
+### openSUSE Tumbleweed
+
+```bash
+sudo zypper addrepo https://bceverly.github.io/sysmanage-docs/repo/rpm/opensuse-tumbleweed/x86_64 sysmanage
+sudo zypper refresh
+sudo zypper install sysmanage-agent
+```
+
+### SUSE Linux Enterprise Server 15
+
+```bash
+sudo zypper addrepo https://bceverly.github.io/sysmanage-docs/repo/rpm/sles/15/x86_64 sysmanage
+sudo zypper refresh
+sudo zypper install sysmanage-agent
+```
+
 ## Repository Maintainer Guide
 
 ### Prerequisites
@@ -95,6 +136,15 @@ Use the `update-repo.sh` script:
 
 # Add a package to Fedora repository
 ./update-repo.sh /path/to/sysmanage-agent-X.Y.Z.fc39.x86_64.rpm fedora/39
+
+# Add a package to openSUSE Leap repository
+./update-repo.sh /path/to/sysmanage-agent-X.Y.Z.x86_64.rpm opensuse-leap
+
+# Add a package to openSUSE Tumbleweed repository
+./update-repo.sh /path/to/sysmanage-agent-X.Y.Z.x86_64.rpm opensuse-tumbleweed
+
+# Add a package to SLES repository
+./update-repo.sh /path/to/sysmanage-agent-X.Y.Z.x86_64.rpm sles
 ```
 
 ### Manual Process

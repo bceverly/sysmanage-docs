@@ -1,7 +1,7 @@
 #!/bin/bash
 # update-repo.sh - Add or update RPM packages in the repository
 # Usage: ./update-repo.sh /path/to/package.rpm <target>
-#   target: el8, el9, or fedora/39
+#   target: el8, el9, fedora/39, opensuse-leap, opensuse-tumbleweed, sles
 
 set -e
 
@@ -9,12 +9,16 @@ if [ $# -ne 2 ]; then
     echo "Usage: $0 /path/to/package.rpm <target>"
     echo ""
     echo "Targets:"
-    echo "  el8       - RHEL 8, Rocky 8, AlmaLinux 8"
-    echo "  el9       - RHEL 9, Rocky 9, AlmaLinux 9, CentOS Stream 9"
-    echo "  fedora/39 - Fedora 39+"
+    echo "  el8                  - RHEL 8, Rocky 8, AlmaLinux 8"
+    echo "  el9                  - RHEL 9, Rocky 9, AlmaLinux 9, CentOS Stream 9"
+    echo "  fedora/39            - Fedora 39+"
+    echo "  opensuse-leap        - openSUSE Leap 15.x"
+    echo "  opensuse-tumbleweed  - openSUSE Tumbleweed"
+    echo "  sles                 - SUSE Linux Enterprise Server 15"
     echo ""
     echo "Example:"
     echo "  $0 /tmp/sysmanage-agent-1.0.0.el9.x86_64.rpm el9"
+    echo "  $0 /tmp/sysmanage-agent-1.0.0.x86_64.rpm opensuse-leap"
     exit 1
 fi
 
@@ -43,9 +47,18 @@ case "$TARGET" in
     fedora/39)
         TARGET_DIR="fedora/39/x86_64"
         ;;
+    opensuse-leap)
+        TARGET_DIR="opensuse-leap/15/x86_64"
+        ;;
+    opensuse-tumbleweed)
+        TARGET_DIR="opensuse-tumbleweed/x86_64"
+        ;;
+    sles)
+        TARGET_DIR="sles/15/x86_64"
+        ;;
     *)
         echo "ERROR: Invalid target: $TARGET"
-        echo "Valid targets: el8, el9, fedora/39"
+        echo "Valid targets: el8, el9, fedora/39, opensuse-leap, opensuse-tumbleweed, sles"
         exit 1
         ;;
 esac
