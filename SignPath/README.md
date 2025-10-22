@@ -56,7 +56,7 @@ According to the [SignPath Foundation Terms of Use](https://signpath.org/terms),
 
 ### Phase 2: Application Submission
 
-1. **Visit**: https://about.signpath.io/product/devops/open-source-projects
+1. **Visit**: signpath.io (check their website for current OSS application page)
 2. **Complete**: OSSRequestForm-v4
 3. **Submit**: Documentation from this folder
 
@@ -120,7 +120,7 @@ Code Signing Information:
 ## Support & Questions
 
 - **SignPath Support**: support@signpath.io
-- **Documentation**: https://about.signpath.io/documentation
+- **Documentation**: Check signpath.io for latest documentation
 - **Community**: SignPath Foundation community forums
 
 ## Notes

@@ -242,7 +242,7 @@ After SignPath approval:
 - GitHub Releases: https://github.com/bceverly/sysmanage-agent/releases
 - Windows Repository: https://bceverly.github.io/sysmanage-docs/repo/windows/
 - Installation Guide: https://bceverly.github.io/sysmanage-docs/docs/agent/installation.html
-- SignPath Foundation Terms: https://about.signpath.io/code-signing/terms-of-use
+- SignPath Foundation Terms: (Link temporarily unavailable - check signpath.io directly)
 
 ## Notes
 

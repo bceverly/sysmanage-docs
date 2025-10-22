@@ -380,7 +380,7 @@ For a new project like SysManage:
 
 - **Wikipedia Help Desk**: https://en.wikipedia.org/wiki/Wikipedia:Help_desk
 - **WikiProject Software**: https://en.wikipedia.org/wiki/Wikipedia:WikiProject_Software
-- **Articles for Creation Help**: https://en.wikipedia.org/wiki/Wikipedia:AFC_help
+- **Articles for Creation Help**: https://en.wikipedia.org/wiki/Wikipedia:Articles_for_creation
 
 ---
 

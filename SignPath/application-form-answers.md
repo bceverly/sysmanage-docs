@@ -4,7 +4,7 @@
 
 This document provides pre-filled answers for the SignPath Foundation OSSRequestForm-v4. Review and customize these answers before submitting your application.
 
-**Application URL**: https://about.signpath.io/product/devops/open-source-projects
+**Application URL**: (Check signpath.io for current application page)
 
 ## Form Section 1: Basic Information
 
