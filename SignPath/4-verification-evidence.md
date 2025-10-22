@@ -83,7 +83,7 @@ If published to PyPI:
 Document statistics from:
 
 **APT Repository** (Ubuntu/Debian):
-- Location: https://bceverly.github.io/sysmanage-docs/repo/apt/
+- Location: https://bceverly.github.io/sysmanage-docs/repo/deb/
 - Download statistics: [If available via access logs]
 
 **YUM/DNF Repository** (RHEL/CentOS/Fedora):
@@ -188,9 +188,9 @@ External Contributors: [Number who submitted PRs]
 ### Discussions
 
 If GitHub Discussions enabled:
-- **URL**: https://github.com/bceverly/sysmanage-agent/discussions
-- Number of discussions
-- Participant count
+- **URL**: (Discussions not yet enabled - will be enabled before SignPath application)
+- Number of discussions: TBD
+- Participant count: TBD
 - Question/answer engagement
 
 ## 6. Dependency Analysis
@@ -275,8 +275,8 @@ If using analysis tools:
 
 ### OpenSSF Best Practices
 
-**Badge**: https://bestpractices.coreinfrastructure.org/projects/[ID]
-- Consider applying for OpenSSF Best Practices badge
+**Badge**: (Not yet applied - consider applying after initial release)
+- Consider applying for OpenSSF Best Practices badge at https://www.bestpractices.dev/
 - Shows commitment to security and quality
 
 ## 9. Competitive Analysis
@@ -377,7 +377,7 @@ Show legitimate project identity:
 
 ### OpenHub Profile
 
-**URL**: https://www.openhub.net/p/sysmanage-agent
+**URL**: (Not yet registered - will register after initial release)
 
 Register project on OpenHub for additional metrics:
 - Lines of code
@@ -419,7 +419,7 @@ Target conferences:
 ### Open Source Awards
 
 Apply to and document:
-- **Google Open Source Peer Bonus**: https://opensource.google/documentation/reference/growing/peer-bonus
+- **Google Open Source Peer Bonus**: (Program information available at opensource.google)
 - **GitHub Stars**: https://stars.github.com/nominate/
 - **InfoWorld Bossie Awards**: (Annual, Sept deadline)
 - **Linux Foundation Projects**: Consider joining
