@@ -95,4 +95,3 @@ sudo zypper install sysmanage-server=0.9.0-1
 ## Support
 
 - **Issues**: https://github.com/bceverly/sysmanage/issues
-- **Discussions**: https://github.com/bceverly/sysmanage/discussions

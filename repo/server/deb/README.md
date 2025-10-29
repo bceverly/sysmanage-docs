@@ -90,4 +90,3 @@ sudo systemctl status sysmanage-server
 ## Support
 
 - **Issues**: https://github.com/bceverly/sysmanage/issues
-- **Discussions**: https://github.com/bceverly/sysmanage/discussions
