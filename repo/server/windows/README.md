@@ -198,7 +198,7 @@ Each MSI includes:
 
 For issues, questions, or contributions:
 - GitHub: https://github.com/bceverly/sysmanage
-- Documentation: https://docs.sysmanage.io
+- Documentation: https://sysmanage.org
 
 ## Security
 
