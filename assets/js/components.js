@@ -38,11 +38,10 @@ class Components {
                     </a>
                 </div>
                 <div class="nav-menu">
-                    <a href="${root}#features" class="nav-link${activeLink === 'features' ? ' active' : ''}" data-i18n="nav.features" data-i18n-html>Features</a>
-                    <a href="${root}#getting-started" class="nav-link${activeLink === 'getting-started' ? ' active' : ''}" data-i18n="nav.getting_started" data-i18n-html>Getting Started</a>
                     <a href="${root}docs/" class="nav-link${activeLink === 'documentation' ? ' active' : ''}" data-i18n="nav.documentation" data-i18n-html>Documentation</a>
                     <a href="${root}config-builder.html" class="nav-link${activeLink === 'config-builder' ? ' active' : ''}" data-i18n="nav.config_builder" data-i18n-html>Configuration Builder</a>
-                    <a href="https://github.com/bceverly/sysmanage" class="nav-link" target="_blank" data-i18n="nav.github" data-i18n-html>GitHub</a>
+                    <a href="https://github.com/bceverly/sysmanage" class="nav-link" target="_blank" data-i18n="nav.github_server" data-i18n-html>Server GitHub</a>
+                    <a href="https://github.com/bceverly/sysmanage-agent" class="nav-link" target="_blank" data-i18n="nav.github_agent" data-i18n-html>Agent GitHub</a>
                 </div>
             </div>
         </nav>

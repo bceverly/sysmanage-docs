@@ -22,8 +22,7 @@ class I18n {
         this.currentLanguage = this.detectLanguage();
         this.translations = {};
         this.loadedLanguages = new Set();
-
-        this.init();
+        // Don't call init() in constructor - it will be called after DOM is ready
     }
 
     detectLanguage() {
@@ -267,8 +266,17 @@ class I18n {
     }
 }
 
-// Initialize i18n system
-window.i18n = new I18n();
+// Initialize i18n system when DOM is ready
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', async () => {
+        window.i18n = new I18n();
+        await window.i18n.init();
+    });
+} else {
+    // DOM is already loaded
+    window.i18n = new I18n();
+    window.i18n.init();
+}
 
 // Export for use in other scripts
 if (typeof module !== 'undefined' && module.exports) {
