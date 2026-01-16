@@ -6,11 +6,11 @@ YUM/DNF repository for Red Hat-based Linux distributions.
 
 ```
 rpm/
-├── el8/                    # RHEL 8, CentOS 8, Rocky 8, AlmaLinux 8
+├── el8/                    # RHEL 8, CentOS 8, Rocky 8, AlmaLinux 8, Oracle Linux 8
 │   └── x86_64/
 │       ├── *.rpm
 │       └── repodata/
-├── el9/                    # RHEL 9, CentOS Stream 9, Rocky 9, AlmaLinux 9
+├── el9/                    # RHEL 9, CentOS Stream 9, Rocky 9, AlmaLinux 9, Oracle Linux 9
 │   └── x86_64/
 │       ├── *.rpm
 │       └── repodata/
@@ -37,8 +37,8 @@ rpm/
 
 ## Supported Platforms
 
-- **RHEL 9 / CentOS Stream 9 / Rocky 9 / AlmaLinux 9** - Python 3.9+ (2022+)
-- **RHEL 8 / CentOS 8 / Rocky 8 / AlmaLinux 8** - Python 3.11 via AppStream (2019+)
+- **RHEL 9 / CentOS Stream 9 / Rocky 9 / AlmaLinux 9 / Oracle Linux 9** - Python 3.9+ (2022+)
+- **RHEL 8 / CentOS 8 / Rocky 8 / AlmaLinux 8 / Oracle Linux 8** - Python 3.11 via AppStream (2019+)
 - **Fedora 38+** - Python 3.11+ (2023+)
 - **openSUSE Leap 15.x** - Python 3.11 (2021+)
 - **openSUSE Tumbleweed** - Python 3.11+ (Rolling)
@@ -46,7 +46,7 @@ rpm/
 
 ## User Installation
 
-### EL9 (RHEL 9, Rocky 9, AlmaLinux 9, CentOS Stream 9)
+### EL9 (RHEL 9, Rocky 9, AlmaLinux 9, Oracle Linux 9, CentOS Stream 9)
 
 ```bash
 sudo tee /etc/yum.repos.d/sysmanage.repo << EOF
@@ -60,7 +60,7 @@ EOF
 sudo dnf install sysmanage-agent
 ```
 
-### EL8 (RHEL 8, Rocky 8, AlmaLinux 8)
+### EL8 (RHEL 8, Rocky 8, AlmaLinux 8, Oracle Linux 8)
 
 ```bash
 # Install Python 3.11 first

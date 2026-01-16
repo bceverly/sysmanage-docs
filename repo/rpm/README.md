@@ -12,7 +12,7 @@ The agent runs on managed systems and communicates with the server.
 
 Configure the agent repository:
 
-**CentOS/RHEL/Fedora/Rocky/AlmaLinux:**
+**CentOS/RHEL/Fedora/Rocky/AlmaLinux/Oracle Linux:**
 ```bash
 sudo tee /etc/yum.repos.d/sysmanage-agent.repo <<EOF
 [sysmanage-agent]
@@ -40,7 +40,7 @@ The server provides centralized management and web interface.
 
 Configure the server repository:
 
-**CentOS/RHEL/Fedora/Rocky/AlmaLinux:**
+**CentOS/RHEL/Fedora/Rocky/AlmaLinux/Oracle Linux:**
 ```bash
 sudo tee /etc/yum.repos.d/sysmanage-server.repo <<EOF
 [sysmanage-server]

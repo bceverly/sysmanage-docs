@@ -4,7 +4,7 @@ This directory contains RPM repositories for distributing SysManage Server packa
 
 ## Available Repositories
 
-### CentOS/RHEL/Fedora/Rocky/AlmaLinux
+### CentOS/RHEL/Fedora/Rocky/AlmaLinux/Oracle Linux
 
 ```bash
 sudo tee /etc/yum.repos.d/sysmanage-server.repo <<EOF
@@ -50,7 +50,7 @@ rpm/
 - **Package Name**: `sysmanage-server`
 - **Description**: Centralized management server for SysManage infrastructure
 - **Architecture**: noarch (Python-based, architecture independent)
-- **Required OS**: CentOS 8+, RHEL 8+, Fedora 35+, Rocky Linux 8+, AlmaLinux 8+, openSUSE Leap 15.3+
+- **Required OS**: CentOS 8+, RHEL 8+, Fedora 35+, Rocky Linux 8+, AlmaLinux 8+, Oracle Linux 8+, openSUSE Leap 15.3+
 
 ## Dependencies
 
