@@ -153,9 +153,9 @@ sudo apt update && sudo apt install sysmanage-agent
 - Ubuntu 22.04 LTS (Jammy) and later
 - Debian 11 (Bullseye) and later
 
-### RPM Repository (RHEL/CentOS/Fedora/Rocky/AlmaLinux)
+### RPM Repository (RHEL/CentOS/Fedora/Rocky/AlmaLinux/Oracle Linux)
 
-**EL9 (RHEL 9, Rocky 9, AlmaLinux 9, CentOS Stream 9):**
+**EL9 (RHEL 9, Rocky 9, AlmaLinux 9, Oracle Linux 9, CentOS Stream 9):**
 ```bash
 sudo tee /etc/yum.repos.d/sysmanage.repo << EOF
 [sysmanage]
@@ -167,7 +167,7 @@ EOF
 sudo dnf install sysmanage-agent
 ```
 
-**EL8 (RHEL 8, Rocky 8, AlmaLinux 8):**
+**EL8 (RHEL 8, Rocky 8, AlmaLinux 8, Oracle Linux 8):**
 ```bash
 sudo dnf module install python311
 sudo tee /etc/yum.repos.d/sysmanage.repo << EOF
@@ -212,8 +212,8 @@ sysmanage-docs/
 ├── repo/                  # Package repositories
 │   ├── deb/              # Debian/Ubuntu APT repository
 │   └── rpm/              # Red Hat/Fedora YUM/DNF repository
-│       ├── el8/          # RHEL 8, Rocky 8, AlmaLinux 8
-│       ├── el9/          # RHEL 9, Rocky 9, AlmaLinux 9
+│       ├── el8/          # RHEL 8, Rocky 8, AlmaLinux 8, Oracle Linux 8
+│       ├── el9/          # RHEL 9, Rocky 9, AlmaLinux 9, Oracle Linux 9
 │       └── fedora/       # Fedora 38+
 ├── assets/                # Static assets
 │   ├── css/              # Stylesheets

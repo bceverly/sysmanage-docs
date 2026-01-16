@@ -63,7 +63,7 @@ Latest Release (v[VERSION]):
 - Windows ARM64 MSI: [downloads]
 - macOS PKG: [downloads]
 - Ubuntu DEB: [downloads]
-- RHEL/CentOS RPM: [downloads]
+- RHEL/CentOS/Oracle Linux RPM: [downloads]
 - Source tarball: [downloads]
 
 Total Downloads (All Releases): [TOTAL]
@@ -86,7 +86,7 @@ Document statistics from:
 - Location: https://bceverly.github.io/sysmanage-docs/repo/deb/
 - Download statistics: [If available via access logs]
 
-**YUM/DNF Repository** (RHEL/CentOS/Fedora):
+**YUM/DNF Repository** (RHEL/CentOS/Fedora/Oracle Linux):
 - Location: https://bceverly.github.io/sysmanage-docs/repo/rpm/
 - Download statistics: [If available]
 
