@@ -24,12 +24,14 @@ This repository contains the complete documentation for SysManage, an open-sourc
 ## 🚀 Quick Start
 
 1. **Install SysManage Server**
+
    ```bash
    # Download and install the server
    curl -sSL https://install.sysmanage.org/server | bash
    ```
 
 2. **Deploy Agents**
+
    ```bash
    # Install agent on managed hosts
    curl -sSL https://install.sysmanage.org/agent | bash
@@ -43,6 +45,7 @@ This repository contains the complete documentation for SysManage, an open-sourc
 ## 🏗️ Building Documentation
 
 This documentation site is built with:
+
 - **HTML/CSS/JavaScript** - Static site generation
 - **Internationalization** - Support for 14 languages
 - **GitHub Pages** - Automated deployment
@@ -102,6 +105,7 @@ Translation files are located in `assets/locales/` and contributions are welcome
 ## 📸 Screenshots
 
 Automated screenshots are generated for:
+
 - Dashboard views
 - Configuration pages
 - Setup wizards
@@ -143,6 +147,7 @@ We welcome contributions to improve SysManage documentation!
 This repository also hosts package repositories for installing SysManage Agent on various platforms via GitHub Pages:
 
 ### DEB Repository (Ubuntu/Debian)
+
 ```bash
 echo "deb [trusted=yes] https://bceverly.github.io/sysmanage-docs/repo/deb stable main" | \
   sudo tee /etc/apt/sources.list.d/sysmanage.list
@@ -150,12 +155,14 @@ sudo apt update && sudo apt install sysmanage-agent
 ```
 
 **Supported Platforms:**
+
 - Ubuntu 22.04 LTS (Jammy) and later
 - Debian 11 (Bullseye) and later
 
 ### RPM Repository (RHEL/CentOS/Fedora/Rocky/AlmaLinux/Oracle Linux)
 
 **EL9 (RHEL 9, Rocky 9, AlmaLinux 9, Oracle Linux 9, CentOS Stream 9):**
+
 ```bash
 sudo tee /etc/yum.repos.d/sysmanage.repo << EOF
 [sysmanage]
@@ -168,6 +175,7 @@ sudo dnf install sysmanage-agent
 ```
 
 **EL8 (RHEL 8, Rocky 8, AlmaLinux 8, Oracle Linux 8):**
+
 ```bash
 sudo dnf module install python311
 sudo tee /etc/yum.repos.d/sysmanage.repo << EOF
@@ -181,6 +189,7 @@ sudo dnf install sysmanage-agent
 ```
 
 **Fedora 38+:**
+
 ```bash
 sudo tee /etc/yum.repos.d/sysmanage.repo << EOF
 [sysmanage]
@@ -193,13 +202,14 @@ sudo dnf install sysmanage-agent
 ```
 
 For more details, see:
+
 - [DEB Repository Documentation](repo/deb/README.md)
 - [RPM Repository Documentation](repo/rpm/README.md)
 - [General Repository Documentation](repo/README.md)
 
 ## 📁 Repository Structure
 
-```
+```text
 sysmanage-docs/
 ├── docs/                   # Documentation content
 │   ├── getting-started/    # Getting started guides
@@ -243,4 +253,4 @@ This documentation is released under the [GNU Affero General Public License Vers
 
 ---
 
-**Made with ❤️ by the SysManage team**
+Made with ❤️ by the SysManage team
