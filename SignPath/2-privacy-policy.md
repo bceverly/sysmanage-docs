@@ -255,7 +255,7 @@ Before publishing this privacy policy:
 - [ ] Review data collection sections for accuracy
 - [ ] Add contact email addresses
 - [ ] Set effective date
-- [ ] Publish to documentation site at `/docs/privacy-policy.html`
+- [ ] Publish to documentation site at `/privacy-policy.html`
 - [ ] Add link to privacy policy in:
   - [ ] Main documentation site footer
   - [ ] README.md files
@@ -267,7 +267,7 @@ Before publishing this privacy policy:
 ## Publication Location
 
 This privacy policy will be published at:
-- **Primary**: (To be published at bceverly.github.io/sysmanage-docs/docs/privacy-policy.html)
+- **Primary**: https://bceverly.github.io/sysmanage-docs/privacy-policy.html
 - **Repository**: https://github.com/bceverly/sysmanage-agent/blob/main/PRIVACY.md
 - **Documentation**: Linked from all installation and download pages
 

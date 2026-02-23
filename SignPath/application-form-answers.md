@@ -109,7 +109,7 @@ https://bceverly.github.io/sysmanage-docs/repo/windows/
 - Windows MSI Installer (x64 and ARM64)
 - macOS PKG Installer (Universal Binary)
 - Debian/Ubuntu APT Repository (.deb)
-- RHEL/CentOS/Fedora YUM/DNF Repository (.rpm)
+- RHEL/CentOS/Fedora/Oracle Linux YUM/DNF Repository (.rpm)
 - openSUSE/SLES Zypper Repository
 - Source tarball
 ```
@@ -251,7 +251,7 @@ SysManage Agent is actively used and trusted by the open source community, as de
 - Total Downloads: [UPDATE] across all platforms
 - Package Repository Stats:
   * APT (Ubuntu/Debian): [UPDATE] installations
-  * YUM/DNF (RHEL/CentOS): [UPDATE] installations
+  * YUM/DNF (RHEL/CentOS/Oracle Linux): [UPDATE] installations
   * macOS PKG: [UPDATE] downloads
   * Windows MSI: [UPDATE] downloads
 - Active deployments in [X] known organizations

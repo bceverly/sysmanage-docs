@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="en" data-i18n-title="pro_plus.reboot_orchestration.page_title">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title data-i18n="pro_plus.reboot_orchestration.page_title">Reboot Orchestration - SysManage Professional+</title>
+    <meta name="description" content="Safe parent host reboot with automatic child host stop and restart orchestration for WSL and LXD containers." data-i18n-attr="content" data-i18n="pro_plus.reboot_orchestration.meta_description">
+    <link rel="stylesheet" href="../../assets/css/style.css">
+    <link rel="icon" type="image/svg+xml" href="../../assets/images/favicon.svg">
+</head>
+<body data-auto-header="documentation" data-auto-footer>
+
+    <main class="docs-main">
+        <div class="container">
+            <div class="docs-breadcrumb">
+                <a href="../" data-i18n="nav.documentation">Documentation</a> &gt;
+                <a href="./" data-i18n="pro_plus.breadcrumb">Professional+</a> &gt;
+                <span data-i18n="pro_plus.reboot_orchestration.breadcrumb">Reboot Orchestration</span>
+            </div>
+
+            <div class="docs-header">
+                <div class="pro-plus-badge">&#11088; PRO+</div>
+                <h1 data-i18n="pro_plus.reboot_orchestration.header.title">Reboot Orchestration Module</h1>
+                <p data-i18n="pro_plus.reboot_orchestration.header.description">Safe parent host reboot with automatic child host orchestration. Cleanly stops running containers before reboot, then automatically restarts them after the host comes back online.</p>
+            </div>
+
+            <div class="docs-content">
+                <section class="docs-overview">
+                    <h2 data-i18n="pro_plus.reboot_orchestration.overview.title">Overview</h2>
+                    <p data-i18n="pro_plus.reboot_orchestration.overview.description">The Reboot Orchestration module provides a safe, automated workflow for rebooting parent hosts that have running child hosts (WSL or LXD containers). Instead of abruptly rebooting and risking data loss in containers, the orchestrator follows a controlled sequence to ensure all children are cleanly stopped before the reboot and automatically restarted afterward.</p>
+
+                    <div class="getting-started-steps">
+                        <div class="steps-flow">
+                            <div class="step-item">
+                                <div class="step-icon">&#128269;</div>
+                                <div class="step-title" data-i18n="pro_plus.reboot_orchestration.steps.pre_check.title">Pre-Check</div>
+                                <div class="step-desc" data-i18n="pro_plus.reboot_orchestration.steps.pre_check.desc">Identify running child hosts</div>
+                            </div>
+                            <div class="step-arrow">&#8594;</div>
+                            <div class="step-item">
+                                <div class="step-icon">&#9209;</div>
+                                <div class="step-title" data-i18n="pro_plus.reboot_orchestration.steps.stop_children.title">Stop Children</div>
+                                <div class="step-desc" data-i18n="pro_plus.reboot_orchestration.steps.stop_children.desc">Gracefully shut down containers</div>
+                            </div>
+                            <div class="step-arrow">&#8594;</div>
+                            <div class="step-item">
+                                <div class="step-icon">&#128260;</div>
+                                <div class="step-title" data-i18n="pro_plus.reboot_orchestration.steps.reboot.title">Reboot Parent</div>
+                                <div class="step-desc" data-i18n="pro_plus.reboot_orchestration.steps.reboot.desc">Issue reboot after children stop</div>
+                            </div>
+                            <div class="step-arrow">&#8594;</div>
+                            <div class="step-item">
+                                <div class="step-icon">&#9654;</div>
+                                <div class="step-title" data-i18n="pro_plus.reboot_orchestration.steps.restart.title">Restart Children</div>
+                                <div class="step-desc" data-i18n="pro_plus.reboot_orchestration.steps.restart.desc">Automatically restart containers</div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <section class="docs-section">
+                    <h2 data-i18n="pro_plus.reboot_orchestration.opensource.title">Open Source vs Professional+</h2>
+                    <p data-i18n="pro_plus.reboot_orchestration.opensource.description">The open-source Community Edition includes a pre-check endpoint that warns about running child hosts before a reboot. The Professional+ Reboot Orchestration module adds full automated orchestration:</p>
+                    <ul>
+                        <li data-i18n="pro_plus.reboot_orchestration.opensource.pre_check">Community Edition: Pre-check warning shows running child hosts before reboot</li>
+                        <li data-i18n="pro_plus.reboot_orchestration.opensource.orchestrated">Professional+: Automated stop, reboot, and restart orchestration</li>
+                        <li data-i18n="pro_plus.reboot_orchestration.opensource.tracking">Professional+: Real-time orchestration status tracking with timestamps</li>
+                        <li data-i18n="pro_plus.reboot_orchestration.opensource.recovery">Professional+: Automatic child host recovery after parent reboot</li>
+                    </ul>
+                </section>
+
+                <section class="docs-section">
+                    <h2 data-i18n="pro_plus.reboot_orchestration.state_machine.title">Orchestration State Machine</h2>
+                    <p data-i18n="pro_plus.reboot_orchestration.state_machine.description">Each orchestrated reboot follows a well-defined state machine. The orchestration progresses through these states:</p>
+
+                    <div class="code-block">
+                        <pre><code>shutting_down &#8594; rebooting &#8594; pending_restart &#8594; restarting &#8594; completed | failed</code></pre>
+                    </div>
+
+                    <ul>
+                        <li><strong data-i18n="pro_plus.reboot_orchestration.state_machine.shutting_down.label">shutting_down</strong> &mdash; <span data-i18n="pro_plus.reboot_orchestration.state_machine.shutting_down.desc">Stop commands sent to all running child hosts; waiting for confirmation</span></li>
+                        <li><strong data-i18n="pro_plus.reboot_orchestration.state_machine.rebooting.label">rebooting</strong> &mdash; <span data-i18n="pro_plus.reboot_orchestration.state_machine.rebooting.desc">All children stopped; reboot command issued to parent host</span></li>
+                        <li><strong data-i18n="pro_plus.reboot_orchestration.state_machine.pending_restart.label">pending_restart</strong> &mdash; <span data-i18n="pro_plus.reboot_orchestration.state_machine.pending_restart.desc">Parent host is rebooting; waiting for agent to reconnect</span></li>
+                        <li><strong data-i18n="pro_plus.reboot_orchestration.state_machine.restarting.label">restarting</strong> &mdash; <span data-i18n="pro_plus.reboot_orchestration.state_machine.restarting.desc">Agent reconnected; start commands sent for previously-running children</span></li>
+                        <li><strong data-i18n="pro_plus.reboot_orchestration.state_machine.completed.label">completed</strong> &mdash; <span data-i18n="pro_plus.reboot_orchestration.state_machine.completed.desc">All child hosts successfully restarted</span></li>
+                        <li><strong data-i18n="pro_plus.reboot_orchestration.state_machine.failed.label">failed</strong> &mdash; <span data-i18n="pro_plus.reboot_orchestration.state_machine.failed.desc">One or more child hosts failed to restart; error details available</span></li>
+                    </ul>
+                </section>
+
+                <section class="docs-section">
+                    <h2 data-i18n="pro_plus.reboot_orchestration.api.title">API Reference</h2>
+                    <p data-i18n="pro_plus.reboot_orchestration.api.description">The Reboot Orchestration module provides three API endpoints:</p>
+
+                    <h3 data-i18n="pro_plus.reboot_orchestration.api.pre_check.title">Reboot Pre-Check (Open Source)</h3>
+                    <div class="endpoint">
+                        <div class="endpoint-header">
+                            <span class="method get">GET</span>
+                            <code>/api/host/{host_id}/reboot/pre-check</code>
+                        </div>
+                        <p data-i18n="pro_plus.reboot_orchestration.api.pre_check.description">Returns information about running child hosts so the user can make an informed decision before rebooting. Available in the open-source Community Edition.</p>
+                        <div class="auth-required">&#128274; Authentication Required</div>
+
+                        <h4 data-i18n="pro_plus.reboot_orchestration.api.path_params">Path Parameters</h4>
+                        <ul>
+                            <li><code>host_id</code> (string) &mdash; <span data-i18n="pro_plus.reboot_orchestration.api.host_id_desc">UUID of the parent host</span></li>
+                        </ul>
+
+                        <h4 data-i18n="pro_plus.reboot_orchestration.api.response">Response (200 OK)</h4>
+                        <div class="code-block">
+                            <pre><code>{
+  "has_running_children": true,
+  "running_children": [
+    {
+      "id": "uuid",
+      "child_name": "web-container-01",
+      "child_type": "lxd",
+      "status": "running"
+    }
+  ],
+  "running_count": 1,
+  "total_children": 3,
+  "has_container_engine": true
+}</code></pre>
+                        </div>
+                    </div>
+
+                    <h3 data-i18n="pro_plus.reboot_orchestration.api.orchestrated.title">Orchestrated Reboot (Pro+)</h3>
+                    <div class="endpoint">
+                        <div class="endpoint-header">
+                            <span class="method post">POST</span>
+                            <code>/api/host/{host_id}/reboot/orchestrated</code>
+                            <div class="pro-plus-badge" style="display:inline-block; margin-left:8px; font-size:0.75em;">&#11088; PRO+</div>
+                        </div>
+                        <p data-i18n="pro_plus.reboot_orchestration.api.orchestrated.description">Initiates an orchestrated reboot sequence. Stops all running child hosts, reboots the parent, and automatically restarts children after the agent reconnects. Requires a Professional+ license with the container_engine module.</p>
+                        <div class="auth-required">&#128274; Authentication Required</div>
+
+                        <h4 data-i18n="pro_plus.reboot_orchestration.api.path_params">Path Parameters</h4>
+                        <ul>
+                            <li><code>host_id</code> (string) &mdash; <span data-i18n="pro_plus.reboot_orchestration.api.host_id_desc">UUID of the parent host</span></li>
+                        </ul>
+
+                        <h4 data-i18n="pro_plus.reboot_orchestration.api.response">Response (200 OK)</h4>
+                        <div class="code-block">
+                            <pre><code>{
+  "orchestration_id": "uuid",
+  "status": "shutting_down",
+  "child_count": 2
+}</code></pre>
+                        </div>
+
+                        <h4 data-i18n="pro_plus.reboot_orchestration.api.error_responses">Error Responses</h4>
+                        <ul>
+                            <li><code>402</code> &mdash; <span data-i18n="pro_plus.reboot_orchestration.api.orchestrated.error_402">Professional+ license required. Upgrade to access orchestrated reboot.</span></li>
+                            <li><code>400</code> &mdash; <span data-i18n="pro_plus.reboot_orchestration.api.orchestrated.error_400">Host is not active, or no running child hosts found.</span></li>
+                        </ul>
+                    </div>
+
+                    <h3 data-i18n="pro_plus.reboot_orchestration.api.status.title">Orchestration Status</h3>
+                    <div class="endpoint">
+                        <div class="endpoint-header">
+                            <span class="method get">GET</span>
+                            <code>/api/host/{host_id}/reboot/orchestration/{orchestration_id}</code>
+                        </div>
+                        <p data-i18n="pro_plus.reboot_orchestration.api.status.description">Returns the current status of a reboot orchestration, including timestamps for each phase and per-child restart status.</p>
+                        <div class="auth-required">&#128274; Authentication Required</div>
+
+                        <h4 data-i18n="pro_plus.reboot_orchestration.api.path_params">Path Parameters</h4>
+                        <ul>
+                            <li><code>host_id</code> (string) &mdash; <span data-i18n="pro_plus.reboot_orchestration.api.host_id_desc">UUID of the parent host</span></li>
+                            <li><code>orchestration_id</code> (string) &mdash; <span data-i18n="pro_plus.reboot_orchestration.api.orchestration_id_desc">UUID of the orchestration record</span></li>
+                        </ul>
+
+                        <h4 data-i18n="pro_plus.reboot_orchestration.api.response">Response (200 OK)</h4>
+                        <div class="code-block">
+                            <pre><code>{
+  "orchestration_id": "uuid",
+  "parent_host_id": "uuid",
+  "status": "completed",
+  "child_hosts_snapshot": [
+    {
+      "id": "uuid",
+      "child_name": "web-container-01",
+      "child_type": "lxd",
+      "pre_reboot_status": "running"
+    }
+  ],
+  "child_hosts_restart_status": [
+    {
+      "id": "uuid",
+      "child_name": "web-container-01",
+      "restart_status": "running",
+      "error": null
+    }
+  ],
+  "shutdown_timeout_seconds": 120,
+  "initiated_by": "admin",
+  "initiated_at": "2025-01-15T10:30:00",
+  "shutdown_completed_at": "2025-01-15T10:31:15",
+  "reboot_issued_at": "2025-01-15T10:31:15",
+  "agent_reconnected_at": "2025-01-15T10:33:45",
+  "restart_completed_at": "2025-01-15T10:34:20",
+  "error_message": null
+}</code></pre>
+                        </div>
+                    </div>
+                </section>
+
+                <section class="docs-section">
+                    <h2 data-i18n="pro_plus.reboot_orchestration.frontend.title">Frontend Behavior</h2>
+                    <p data-i18n="pro_plus.reboot_orchestration.frontend.description">When rebooting a parent host with running child hosts, the frontend provides an enhanced experience:</p>
+                    <ul>
+                        <li data-i18n="pro_plus.reboot_orchestration.frontend.pre_check_dialog">The reboot dialog shows a pre-check summary of running child hosts</li>
+                        <li data-i18n="pro_plus.reboot_orchestration.frontend.orchestrated_option">With Pro+, an "Orchestrated Reboot" button replaces the standard reboot for hosts with children</li>
+                        <li data-i18n="pro_plus.reboot_orchestration.frontend.progress_polling">A progress indicator polls the orchestration status endpoint to show real-time state transitions</li>
+                        <li data-i18n="pro_plus.reboot_orchestration.frontend.completion_notification">A notification is shown when the orchestration completes or if any children fail to restart</li>
+                    </ul>
+                </section>
+
+                <section class="docs-section">
+                    <h2 data-i18n="pro_plus.reboot_orchestration.timeouts.title">Timeout and Error Handling</h2>
+                    <p data-i18n="pro_plus.reboot_orchestration.timeouts.description">The orchestration service includes built-in safeguards to handle failures at any stage:</p>
+                    <ul>
+                        <li data-i18n="pro_plus.reboot_orchestration.timeouts.shutdown_timeout">Shutdown timeout: If child hosts do not stop within the configured timeout (default 120 seconds), the reboot proceeds anyway</li>
+                        <li data-i18n="pro_plus.reboot_orchestration.timeouts.agent_reconnect">Agent reconnect: The orchestration transitions from "rebooting" to "restarting" when the parent's agent sends its first heartbeat after reboot</li>
+                        <li data-i18n="pro_plus.reboot_orchestration.timeouts.partial_failure">Partial failure: If some children fail to restart, the orchestration completes with an error message indicating which children failed</li>
+                        <li data-i18n="pro_plus.reboot_orchestration.timeouts.audit_logging">Audit logging: All orchestration events are recorded in the audit log for compliance and troubleshooting</li>
+                    </ul>
+                </section>
+
+                <section class="docs-section">
+                    <h2 data-i18n="pro_plus.reboot_orchestration.requirements.title">Requirements</h2>
+                    <ul>
+                        <li data-i18n="pro_plus.reboot_orchestration.requirements.license">Professional or Enterprise license with container_engine module enabled</li>
+                        <li data-i18n="pro_plus.reboot_orchestration.requirements.children">Parent host must have at least one running child host (WSL or LXD)</li>
+                        <li data-i18n="pro_plus.reboot_orchestration.requirements.permissions">User must have the REBOOT_HOST security role</li>
+                        <li data-i18n="pro_plus.reboot_orchestration.requirements.agent">SysManage agent running on the parent host with active connectivity</li>
+                    </ul>
+                </section>
+            </div>
+        </div>
+    </main>
+
+    <script src="../../assets/js/i18n.js"></script>
+    <script src="../../assets/js/components.js"></script>
+    <script src="../../assets/js/navbar.js"></script>
+    <script src="../../assets/js/main.js"></script>
+</body>
+</html>

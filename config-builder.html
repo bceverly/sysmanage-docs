@@ -724,6 +724,36 @@
                                     <label for="agent-require-approval">Require Script Approval</label>
                                 </div>
                             </div>
+                            <div class="form-group">
+                                <label>Allowed Shells</label>
+                                <div class="help-text">Select which shells the agent is permitted to use for script execution</div>
+                                <div class="checkbox-group">
+                                    <div class="checkbox-item">
+                                        <input type="checkbox" id="shell-bash" checked>
+                                        <label for="shell-bash">bash</label>
+                                    </div>
+                                    <div class="checkbox-item">
+                                        <input type="checkbox" id="shell-sh" checked>
+                                        <label for="shell-sh">sh</label>
+                                    </div>
+                                    <div class="checkbox-item">
+                                        <input type="checkbox" id="shell-zsh">
+                                        <label for="shell-zsh">zsh</label>
+                                    </div>
+                                    <div class="checkbox-item">
+                                        <input type="checkbox" id="shell-ksh">
+                                        <label for="shell-ksh">ksh</label>
+                                    </div>
+                                    <div class="checkbox-item">
+                                        <input type="checkbox" id="shell-powershell">
+                                        <label for="shell-powershell">powershell</label>
+                                    </div>
+                                    <div class="checkbox-item">
+                                        <input type="checkbox" id="shell-cmd">
+                                        <label for="shell-cmd">cmd</label>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     </div>
 
@@ -789,10 +819,326 @@
 
     <!-- Config Builder functionality -->
     <script>
-        // Initialize config builder when page loads
+        // --- Utility functions ---
+
+        function randomHex(bytes) {
+            var arr = new Uint8Array(bytes);
+            crypto.getRandomValues(arr);
+            return Array.from(arr, function(b) { return b.toString(16).padStart(2, '0'); }).join('');
+        }
+
+        function randomPassword(length) {
+            var charset = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()-_=+';
+            var arr = new Uint8Array(length);
+            crypto.getRandomValues(arr);
+            return Array.from(arr, function(b) { return charset[b % charset.length]; }).join('');
+        }
+
+        function generatePassword(fieldId) {
+            document.getElementById(fieldId).value = randomPassword(24);
+            updateYaml();
+        }
+
+        function generateJwtSecret() {
+            document.getElementById('jwt-secret').value = randomHex(32);
+            updateYaml();
+        }
+
+        function generatePasswordSalt() {
+            document.getElementById('password-salt').value = randomHex(16);
+            updateYaml();
+        }
+
+        function generateVaultToken() {
+            document.getElementById('vault-token').value = 's.' + randomHex(24);
+            updateYaml();
+        }
+
+        function copyYamlToClipboard() {
+            var text = document.getElementById('yaml-output').textContent;
+            navigator.clipboard.writeText(text).then(function() {
+                var btn = document.querySelector('.copy-button');
+                var orig = btn.textContent;
+                btn.textContent = 'Copied!';
+                setTimeout(function() { btn.textContent = orig; }, 2000);
+            });
+        }
+
+        function downloadYaml() {
+            var text = document.getElementById('yaml-output').textContent;
+            var filename = currentMode === 'server' ? 'sysmanage.yaml' : 'sysmanage-agent.yaml';
+            var blob = new Blob([text], { type: 'text/yaml' });
+            var a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            a.download = filename;
+            a.click();
+            URL.revokeObjectURL(a.href);
+        }
+
+        // --- YAML helpers ---
+
+        function yamlVal(val) {
+            if (typeof val === 'boolean') return val ? 'true' : 'false';
+            if (typeof val === 'number') return String(val);
+            if (/[:#\[\]{}&*!|>'"%@`]/.test(val) || val === '' || val === 'true' || val === 'false' || val === 'null') {
+                return '"' + val.replace(/\\/g, '\\\\').replace(/"/g, '\\"') + '"';
+            }
+            return val;
+        }
+
+        // --- YAML generators ---
+
+        function buildServerYaml() {
+            var lines = [];
+            lines.push('# SysManage Server Configuration');
+            lines.push('# Generated by SysManage Configuration Builder');
+            lines.push('');
+
+            // API
+            lines.push('api:');
+            lines.push('  host: ' + yamlVal(document.getElementById('api-host').value));
+            lines.push('  port: ' + parseInt(document.getElementById('api-port').value, 10));
+            lines.push('');
+
+            // Database
+            lines.push('database:');
+            lines.push('  host: ' + yamlVal(document.getElementById('db-host').value));
+            lines.push('  port: ' + parseInt(document.getElementById('db-port').value, 10));
+            lines.push('  name: ' + yamlVal(document.getElementById('db-name').value));
+            lines.push('  user: ' + yamlVal(document.getElementById('db-user').value));
+            lines.push('  password: ' + yamlVal(document.getElementById('db-password').value));
+            lines.push('');
+
+            // Security
+            lines.push('security:');
+            lines.push('  admin_email: ' + yamlVal(document.getElementById('admin-email').value));
+            lines.push('  admin_password: ' + yamlVal(document.getElementById('admin-password').value));
+            lines.push('  jwt_auth_timeout: ' + parseInt(document.getElementById('jwt-timeout').value, 10));
+            lines.push('  jwt_refresh_timeout: ' + parseInt(document.getElementById('jwt-refresh-timeout').value, 10));
+            lines.push('  jwt_secret: ' + yamlVal(document.getElementById('jwt-secret').value));
+            lines.push('  password_salt: ' + yamlVal(document.getElementById('password-salt').value));
+            lines.push('');
+
+            // Password policy
+            lines.push('password_policy:');
+            lines.push('  min_length: ' + parseInt(document.getElementById('min-length').value, 10));
+            lines.push('  max_length: ' + parseInt(document.getElementById('max-length').value, 10));
+            lines.push('  require_uppercase: ' + yamlVal(document.getElementById('require-uppercase').checked));
+            lines.push('  require_lowercase: ' + yamlVal(document.getElementById('require-lowercase').checked));
+            lines.push('  require_numbers: ' + yamlVal(document.getElementById('require-numbers').checked));
+            lines.push('  require_special: ' + yamlVal(document.getElementById('require-special').checked));
+            lines.push('  password_history: ' + parseInt(document.getElementById('password-history').value, 10));
+            lines.push('');
+
+            // Vault
+            var vaultEnabled = document.getElementById('vault-enabled').checked;
+            lines.push('vault:');
+            lines.push('  enabled: ' + yamlVal(vaultEnabled));
+            if (vaultEnabled) {
+                lines.push('  dev_mode: ' + yamlVal(document.getElementById('vault-dev-mode').checked));
+                lines.push('  url: ' + yamlVal(document.getElementById('vault-address').value));
+                lines.push('  token: ' + yamlVal(document.getElementById('vault-token').value));
+                lines.push('  server:');
+                lines.push('    config_file: ' + yamlVal(document.getElementById('vault-config-file').value));
+                lines.push('    data_path: ' + yamlVal(document.getElementById('vault-data-path').value));
+                var vaultTls = document.getElementById('vault-tls').checked;
+                lines.push('  tls:');
+                lines.push('    enabled: ' + yamlVal(vaultTls));
+                if (vaultTls) {
+                    lines.push('    cert_path: ' + yamlVal(document.getElementById('vault-cert-path').value));
+                    lines.push('    key_path: ' + yamlVal(document.getElementById('vault-key-path').value));
+                    lines.push('    ca_path: ' + yamlVal(document.getElementById('vault-ca-path').value));
+                }
+            }
+            lines.push('');
+
+            // Web UI
+            lines.push('webui:');
+            lines.push('  host: ' + yamlVal(document.getElementById('webui-host').value));
+            lines.push('  port: ' + parseInt(document.getElementById('webui-port').value, 10));
+            lines.push('');
+
+            // Email
+            var emailEnabled = document.getElementById('email-enabled').checked;
+            lines.push('email:');
+            lines.push('  enabled: ' + yamlVal(emailEnabled));
+            if (emailEnabled) {
+                lines.push('  smtp_host: ' + yamlVal(document.getElementById('smtp-host').value));
+                lines.push('  smtp_port: ' + parseInt(document.getElementById('smtp-port').value, 10));
+                lines.push('  smtp_tls: ' + yamlVal(document.getElementById('smtp-tls').checked));
+                lines.push('  smtp_username: ' + yamlVal(document.getElementById('smtp-username').value));
+                lines.push('  smtp_password: ' + yamlVal(document.getElementById('smtp-password').value));
+                lines.push('  from_address: ' + yamlVal(document.getElementById('from-address').value));
+            }
+            lines.push('');
+
+            // Logging
+            lines.push('logging:');
+            lines.push('  level: ' + yamlVal(document.getElementById('log-level').value));
+
+            return lines.join('\n');
+        }
+
+        function buildAgentYaml() {
+            var lines = [];
+            lines.push('# SysManage Agent Configuration');
+            lines.push('# Generated by SysManage Configuration Builder');
+            lines.push('');
+
+            // Server connection
+            var useHttps = document.getElementById('agent-use-https').checked;
+            lines.push('server:');
+            lines.push('  hostname: ' + yamlVal(document.getElementById('agent-server-hostname').value));
+            lines.push('  port: ' + parseInt(document.getElementById('agent-server-port').value, 10));
+            lines.push('  use_https: ' + yamlVal(useHttps));
+            lines.push('  verify_ssl: ' + yamlVal(document.getElementById('agent-verify-ssl').checked));
+            lines.push('');
+
+            // Client settings
+            lines.push('client:');
+            var hostnameOverride = document.getElementById('agent-hostname-override').value;
+            if (hostnameOverride) {
+                lines.push('  hostname_override: ' + yamlVal(hostnameOverride));
+            }
+            lines.push('  registration_retry_interval: ' + parseInt(document.getElementById('agent-registration-retry').value, 10));
+            lines.push('  max_registration_retries: ' + parseInt(document.getElementById('agent-max-retries').value, 10));
+            lines.push('  update_check_interval: ' + parseInt(document.getElementById('agent-update-interval').value, 10));
+            lines.push('  package_collection_interval: ' + parseInt(document.getElementById('agent-package-interval').value, 10));
+            lines.push('  enable_package_collection: ' + yamlVal(document.getElementById('agent-package-enabled').checked));
+            lines.push('  collect_packages_at_startup: ' + yamlVal(document.getElementById('agent-package-startup').checked));
+            lines.push('');
+
+            // Internationalization
+            lines.push('i18n:');
+            lines.push('  language: ' + yamlVal(document.getElementById('agent-language').value));
+            lines.push('');
+
+            // Logging
+            lines.push('logging:');
+            lines.push('  level: ' + yamlVal(document.getElementById('agent-log-level').value));
+            lines.push('');
+
+            // WebSocket
+            lines.push('websocket:');
+            lines.push('  auto_reconnect: ' + yamlVal(document.getElementById('agent-auto-reconnect').checked));
+            lines.push('  reconnect_interval: ' + parseInt(document.getElementById('agent-reconnect-interval').value, 10));
+            lines.push('  ping_interval: ' + parseInt(document.getElementById('agent-ping-interval').value, 10));
+            lines.push('');
+
+            // Script execution
+            var scriptEnabled = document.getElementById('agent-script-enabled').checked;
+            lines.push('scripts:');
+            lines.push('  enabled: ' + yamlVal(scriptEnabled));
+            if (scriptEnabled) {
+                lines.push('  timeout: ' + parseInt(document.getElementById('agent-script-timeout').value, 10));
+                lines.push('  max_concurrent: ' + parseInt(document.getElementById('agent-max-concurrent').value, 10));
+                lines.push('  audit_logging: ' + yamlVal(document.getElementById('agent-audit-logging').checked));
+                lines.push('  require_approval: ' + yamlVal(document.getElementById('agent-require-approval').checked));
+                var shells = [];
+                if (document.getElementById('shell-bash').checked) shells.push('bash');
+                if (document.getElementById('shell-sh').checked) shells.push('sh');
+                if (document.getElementById('shell-zsh').checked) shells.push('zsh');
+                if (document.getElementById('shell-ksh').checked) shells.push('ksh');
+                if (document.getElementById('shell-powershell').checked) shells.push('powershell');
+                if (document.getElementById('shell-cmd').checked) shells.push('cmd');
+                if (shells.length > 0) {
+                    lines.push('  allowed_shells:');
+                    for (var i = 0; i < shells.length; i++) {
+                        lines.push('    - ' + yamlVal(shells[i]));
+                    }
+                }
+            }
+            lines.push('');
+
+            // Data collection
+            var collectionEnabled = document.getElementById('agent-collection-enabled').checked;
+            lines.push('data_collection:');
+            lines.push('  enabled: ' + yamlVal(collectionEnabled));
+            if (collectionEnabled) {
+                lines.push('  types:');
+                if (document.getElementById('collect-software').checked) lines.push('    - software_packages');
+                if (document.getElementById('collect-updates').checked) lines.push('    - system_updates');
+                if (document.getElementById('collect-hardware').checked) lines.push('    - hardware_info');
+                if (document.getElementById('collect-network').checked) lines.push('    - network_interfaces');
+                if (document.getElementById('collect-users').checked) lines.push('    - user_accounts');
+                if (document.getElementById('collect-metrics').checked) lines.push('    - system_metrics');
+            }
+
+            return lines.join('\n');
+        }
+
+        function updateYaml() {
+            var yaml = currentMode === 'server' ? buildServerYaml() : buildAgentYaml();
+            document.getElementById('yaml-output').textContent = yaml;
+        }
+
+        // --- Conditional visibility ---
+
+        function setupToggles() {
+            document.getElementById('vault-enabled').addEventListener('change', function() {
+                document.getElementById('vault-settings').classList.toggle('hidden', !this.checked);
+                updateYaml();
+            });
+
+            document.getElementById('vault-tls').addEventListener('change', function() {
+                document.getElementById('vault-tls-settings').classList.toggle('hidden', !this.checked);
+                updateYaml();
+            });
+
+            document.getElementById('email-enabled').addEventListener('change', function() {
+                document.getElementById('email-settings').classList.toggle('hidden', !this.checked);
+                updateYaml();
+            });
+
+            document.getElementById('agent-script-enabled').addEventListener('change', function() {
+                document.getElementById('script-settings').classList.toggle('hidden', !this.checked);
+                updateYaml();
+            });
+        }
+
+        // --- Tab switching ---
+
+        var currentMode = 'server';
+
+        function setupTabSwitching() {
+            var buttons = document.querySelectorAll('.type-button');
+            buttons.forEach(function(btn) {
+                btn.addEventListener('click', function() {
+                    var mode = this.getAttribute('data-type');
+                    if (mode === currentMode) return;
+
+                    currentMode = mode;
+
+                    // Update button states
+                    buttons.forEach(function(b) { b.classList.remove('active'); });
+                    this.classList.add('active');
+
+                    // Toggle form visibility
+                    document.getElementById('server-form').classList.toggle('hidden', mode !== 'server');
+                    document.getElementById('agent-form').classList.toggle('hidden', mode !== 'agent');
+
+                    updateYaml();
+                });
+            });
+        }
+
+        // --- Listen to all form inputs ---
+
+        function setupFormListeners() {
+            var inputs = document.querySelectorAll('.config-form input, .config-form select, .config-form textarea');
+            inputs.forEach(function(el) {
+                el.addEventListener('input', updateYaml);
+                el.addEventListener('change', updateYaml);
+            });
+        }
+
+        // --- Initialize ---
+
         document.addEventListener('DOMContentLoaded', function() {
-            // Config builder code would go here
-            console.log('Config builder initialized');
+            setupTabSwitching();
+            setupToggles();
+            setupFormListeners();
+            updateYaml();
         });
     </script>
 </body>

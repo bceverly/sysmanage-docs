@@ -18,12 +18,12 @@ repo/
 - **Ubuntu 22.04 LTS (Jammy)** - Python 3.10
 - **Debian 12 (Bookworm)** - Python 3.11
 
-### Red Hat/CentOS/Fedora (RPM Packages)
+### Red Hat/CentOS/Fedora/Oracle Linux (RPM Packages)
 
 - **RHEL 9 / CentOS Stream 9** - Python 3.9+ (2022+)
-- **Rocky Linux 9 / AlmaLinux 9** - Python 3.9+ (2022+)
+- **Rocky Linux 9 / AlmaLinux 9 / Oracle Linux 9** - Python 3.9+ (2022+)
 - **RHEL 8 / CentOS 8** - Python 3.11 via AppStream (2019+)
-- **Rocky Linux 8 / AlmaLinux 8** - Python 3.11 via AppStream (2020+)
+- **Rocky Linux 8 / AlmaLinux 8 / Oracle Linux 8** - Python 3.11 via AppStream (2020+)
 - **Fedora 38+** - Python 3.11+ (2023+)
 
 ### openSUSE/SLES (RPM Packages)
@@ -48,7 +48,7 @@ sudo apt update
 sudo apt install sysmanage-agent
 ```
 
-### RHEL 9 / Rocky 9 / AlmaLinux 9 / CentOS Stream 9
+### RHEL 9 / Rocky 9 / AlmaLinux 9 / Oracle Linux 9 / CentOS Stream 9
 
 ```bash
 # Add the repository
@@ -64,7 +64,7 @@ EOF
 sudo dnf install sysmanage-agent
 ```
 
-### RHEL 8 / Rocky 8 / AlmaLinux 8
+### RHEL 8 / Rocky 8 / AlmaLinux 8 / Oracle Linux 8
 
 ```bash
 # Install Python 3.11 first (required)

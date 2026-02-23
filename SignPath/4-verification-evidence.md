@@ -63,7 +63,7 @@ Latest Release (v[VERSION]):
 - Windows ARM64 MSI: [downloads]
 - macOS PKG: [downloads]
 - Ubuntu DEB: [downloads]
-- RHEL/CentOS RPM: [downloads]
+- RHEL/CentOS/Oracle Linux RPM: [downloads]
 - Source tarball: [downloads]
 
 Total Downloads (All Releases): [TOTAL]
@@ -86,7 +86,7 @@ Document statistics from:
 - Location: https://bceverly.github.io/sysmanage-docs/repo/deb/
 - Download statistics: [If available via access logs]
 
-**YUM/DNF Repository** (RHEL/CentOS/Fedora):
+**YUM/DNF Repository** (RHEL/CentOS/Fedora/Oracle Linux):
 - Location: https://bceverly.github.io/sysmanage-docs/repo/rpm/
 - Download statistics: [If available]
 
@@ -188,7 +188,7 @@ External Contributors: [Number who submitted PRs]
 ### Discussions
 
 If GitHub Discussions enabled:
-- **URL**: (Discussions not yet enabled - will be enabled before SignPath application)
+- **URL**: (Discussions not yet enabled for this repository - consider enabling before SignPath application)
 - Number of discussions: TBD
 - Participant count: TBD
 - Question/answer engagement
@@ -276,7 +276,7 @@ If using analysis tools:
 ### OpenSSF Best Practices
 
 **Badge**: (Not yet applied - consider applying after initial release)
-- Consider applying for OpenSSF Best Practices badge at https://www.bestpractices.dev/
+- Consider applying for OpenSSF Best Practices badge at https://www.bestpractices.dev/ (note: this is the current URL, formerly bestpractices.coreinfrastructure.org)
 - Shows commitment to security and quality
 
 ## 9. Competitive Analysis
@@ -377,7 +377,7 @@ Show legitimate project identity:
 
 ### OpenHub Profile
 
-**URL**: (Not yet registered - will register after initial release)
+**URL**: (Not yet registered - consider registering at https://www.openhub.net/ after initial release)
 
 Register project on OpenHub for additional metrics:
 - Lines of code
@@ -387,7 +387,7 @@ Register project on OpenHub for additional metrics:
 - Contributor analysis
 - Community rating
 
-SignPath specifically mentions they look at OpenHub data.
+Note: OpenHub (formerly Ohloh) can be useful for additional project metrics.
 
 ## 14. Conference Presentations & Talks
 
@@ -419,7 +419,7 @@ Target conferences:
 ### Open Source Awards
 
 Apply to and document:
-- **Google Open Source Peer Bonus**: (Program information available at opensource.google)
+- **Google Open Source Peer Bonus**: (Check Google's open source programs for current information)
 - **GitHub Stars**: https://stars.github.com/nominate/
 - **InfoWorld Bossie Awards**: (Annual, Sept deadline)
 - **Linux Foundation Projects**: Consider joining

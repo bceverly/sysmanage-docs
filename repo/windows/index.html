@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SysManage Windows Packages</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        h1 { color: #2c3e50; border-bottom: 3px solid #0078d4; padding-bottom: 10px; }
+        h2 { color: #34495e; margin-top: 30px; }
+        .repository { background: #f8f9fa; border-left: 4px solid #0078d4; padding: 15px; margin: 15px 0; }
+        .repository h3 { margin-top: 0; color: #0078d4; }
+        code { background: #ecf0f1; padding: 2px 6px; border-radius: 3px; font-family: 'Courier New', monospace; }
+        pre { background: #1e1e1e; color: #d4d4d4; padding: 15px; border-radius: 5px; overflow-x: auto; }
+        a { color: #0078d4; text-decoration: none; }
+        a:hover { text-decoration: underline; }
+        .badge { background: #0078d4; color: white; padding: 3px 8px; border-radius: 3px; font-size: 0.85em; }
+        .badge.coming-soon { background: #95a5a6; }
+        .arch { display: inline-block; background: #16a085; color: white; padding: 2px 6px; border-radius: 3px; font-size: 0.8em; margin-right: 5px; }
+    </style>
+</head>
+<body>
+    <h1>SysManage Windows Packages</h1>
+    <p>MSI installer packages for SysManage components on Windows.</p>
+
+    <div class="repository">
+        <h3>SysManage Agent <span class="badge">Available</span></h3>
+        <p><strong>Description:</strong> Agent that runs on managed Windows systems</p>
+        <p><strong>Repository:</strong> <a href="../agent/windows/">agent/windows/</a></p>
+        <p><strong>Documentation:</strong> <a href="../agent/windows/README.md">README</a></p>
+        <p><strong>Architectures:</strong> <span class="arch">x64</span> <span class="arch">ARM64</span></p>
+
+        <h4>Installation (PowerShell):</h4>
+        <pre># Download latest installer
+Invoke-WebRequest -Uri "https://bceverly.github.io/sysmanage-docs/repo/agent/windows/packages/sysmanage-agent-latest-x64.msi" -OutFile "sysmanage-agent.msi"
+
+# Install silently
+msiexec /i sysmanage-agent.msi /qn
+
+# Or use interactive installer
+Start-Process sysmanage-agent.msi</pre>
+
+        <h4>One-Line Installation:</h4>
+        <pre>$url = "https://bceverly.github.io/sysmanage-docs/repo/agent/windows/packages/sysmanage-agent-latest-x64.msi"
+$output = "$env:TEMP\sysmanage-agent.msi"
+Invoke-WebRequest -Uri $url -OutFile $output
+Start-Process msiexec.exe -ArgumentList "/i `"$output`" /qn" -Wait
+Remove-Item $output</pre>
+    </div>
+
+    <div class="repository">
+        <h3>SysManage Server <span class="badge coming-soon">Coming Soon</span></h3>
+        <p><strong>Description:</strong> Centralized management server (planned for future release)</p>
+        <p><strong>Status:</strong> Windows Server support is planned but not yet available</p>
+        <p><strong>Platform:</strong> Windows Server 2019+</p>
+        <p><strong>Architecture:</strong> <span class="arch">x64</span></p>
+    </div>
+
+    <h2>Package Verification</h2>
+    <p>All Windows installers are digitally signed using:</p>
+    <ul>
+        <li><strong>Certificate Authority:</strong> SignPath Foundation</li>
+        <li><strong>Certificate Type:</strong> EV Code Signing</li>
+        <li><strong>Signing Service:</strong> SignPath.io</li>
+    </ul>
+
+    <h4>Verify Signature (PowerShell):</h4>
+    <pre># Check digital signature
+Get-AuthenticodeSignature sysmanage-agent.msi | Format-List
+
+# Verify SHA256 checksum
+$url = "https://bceverly.github.io/sysmanage-docs/repo/agent/windows/packages/VERSION/checksums.txt"
+Invoke-WebRequest -Uri $url -OutFile "checksums.txt"
+$actualHash = (Get-FileHash sysmanage-agent.msi -Algorithm SHA256).Hash
+$expectedHash = (Get-Content checksums.txt | Select-String "sysmanage-agent.*x64.msi" | ForEach-Object { ($_ -split '\s+')[0] })
+if ($actualHash -eq $expectedHash) {
+    Write-Host "✓ Checksum verified"
+} else {
+    Write-Host "✗ Checksum mismatch!"
+}</pre>
+
+    <h2>System Requirements</h2>
+    <h3>Agent</h3>
+    <ul>
+        <li><strong>OS:</strong> Windows 10, Windows 11, Windows Server 2016+</li>
+        <li><strong>Architecture:</strong> x64 or ARM64</li>
+        <li><strong>.NET:</strong> Framework 4.8 or .NET 6+ (included in installer)</li>
+        <li><strong>Disk Space:</strong> 50 MB</li>
+        <li><strong>Memory:</strong> 256 MB</li>
+    </ul>
+
+    <h2>Repository Metadata</h2>
+    <p>View repository information: <a href="index.json">index.json</a></p>
+
+    <h2>Additional Resources</h2>
+    <ul>
+        <li><a href="https://github.com/bceverly/sysmanage">SysManage Server on GitHub</a></li>
+        <li><a href="https://github.com/bceverly/sysmanage-agent">SysManage Agent on GitHub</a></li>
+        <li><a href="https://github.com/bceverly/sysmanage/issues">Report Issues</a></li>
+    </ul>
+</body>
+</html>
