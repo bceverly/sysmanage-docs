@@ -55,7 +55,7 @@ endif
 
 .PHONY: help install-dev install-browsers screenshot clean check-deps platform-info \
        test test-spelling test-markdown-lint test-vale test-accessibility test-links \
-       check-test-deps
+       check-test-deps website-package
 
 # Default target
 help:
@@ -69,6 +69,9 @@ help:
 	@echo "  clean          - Clean generated files and dependencies"
 	@echo "  check-deps     - Check if required tools are installed"
 	@echo "  platform-info  - Show detected platform information"
+	@echo ""
+	@echo "$(GREEN)Packaging targets:$(RESET)"
+	@echo "  website-package     - Build .deb package for self-hosted sysmanage.org (nginx + certbot)"
 	@echo ""
 	@echo "$(GREEN)Testing targets (mirrors CI/CD):$(RESET)"
 	@echo "  test                - Run all tests (spellcheck, lint, style, accessibility, links)"
@@ -268,3 +271,32 @@ test: test-spelling test-markdown-lint test-vale test-accessibility test-links
 	@echo "$(GREEN)========================================$(RESET)"
 	@echo "$(GREEN)  All tests passed$(RESET)"
 	@echo "$(GREEN)========================================$(RESET)"
+
+# ============================================================================
+# Packaging target - build .deb for self-hosted sysmanage.org
+# ============================================================================
+
+# Build a .deb package that installs the sysmanage.org website with nginx + certbot SSL
+# Usage: make website-package
+# Usage: VERSION=1.3.0.0 make website-package
+website-package:
+	@echo "$(BLUE)=================================================$(RESET)"
+	@echo "$(BLUE)Building sysmanage.org website .deb package$(RESET)"
+	@echo "$(BLUE)=================================================$(RESET)"
+	@echo ""
+	@CURDIR=$$(pwd); \
+	export CURDIR; \
+	if [ -n "$$VERSION" ]; then \
+		echo "Using VERSION from environment: $$VERSION"; \
+	else \
+		VERSION=$$(git describe --tags --abbrev=0 2>/dev/null | sed 's/^v//'); \
+		if [ -z "$$VERSION" ]; then \
+			VERSION="1.0.0"; \
+			echo "No git tags found, using default version: $$VERSION"; \
+		else \
+			echo "Using version from git tag: $$VERSION"; \
+		fi; \
+	fi; \
+	export VERSION; \
+	echo ""; \
+	exec sh "$$CURDIR/scripts/build-website-deb.sh"
