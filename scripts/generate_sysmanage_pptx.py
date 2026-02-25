@@ -20,6 +20,8 @@ ICON_SVG = os.path.join(ASSETS_DIR, "sysmanage-icon.svg")
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 LOGO_PNG = os.path.join(SCRIPT_DIR, "sysmanage-logo.png")
 ICON_PNG = os.path.join(SCRIPT_DIR, "sysmanage-icon.png")
+BRYAN_PHOTO = os.path.join(SCRIPT_DIR, "bryan-everly.jpg")
+FEDOR_PHOTO = os.path.join(SCRIPT_DIR, "fedor-dikarev.jpg")
 
 # ── Branding colors ───────────────────────────────────────────────────
 PRIMARY_BLUE = RGBColor(0x19, 0x76, 0xD2)
@@ -414,6 +416,9 @@ def slide_05_who_bryan(prs):
     add_bottom_bar(slide)
     add_footer_text(slide)
 
+    # Photo
+    slide.shapes.add_picture(BRYAN_PHOTO, Inches(10.5), Inches(1.25), Inches(1.5))
+
     # Role badge
     badge = add_accent_rect(slide, 0.8, 1.35, 3.0, 0.5, PRIMARY_BLUE)
     add_text_in_shape(badge, "Founder & CEO", size=16, color=WHITE, bold=True)
@@ -462,6 +467,9 @@ def slide_06_who_fedor(prs):
     add_title_textbox(slide, "Who is SysManage? \u2014 Fedor Dikarev")
     add_bottom_bar(slide)
     add_footer_text(slide)
+
+    # Photo
+    slide.shapes.add_picture(FEDOR_PHOTO, Inches(10.5), Inches(1.25), Inches(1.5))
 
     # Role badge
     badge = add_accent_rect(slide, 0.8, 1.35, 4.5, 0.5, PRIMARY_BLUE)
@@ -852,12 +860,14 @@ def slide_17_ecosystem(prs):
             row_height = max(len(items) * 0.32, 0.36)
             y += row_height + 0.08
 
-    # Bottom note
-    txBox = slide.shapes.add_textbox(Inches(0.8), Inches(6.6), Inches(11.5), Inches(0.35))
+    # Bottom note — centered, larger font
+    txBox = slide.shapes.add_textbox(Inches(0.8), Inches(6.3), Inches(11.5), Inches(0.5))
     tf = txBox.text_frame
-    set_run(tf.paragraphs[0],
+    p = tf.paragraphs[0]
+    p.alignment = PP_ALIGN.CENTER
+    set_run(p,
             "SysManage integrates \u2014 not replaces \u2014 best-of-breed tools in each category",
-            size=11, bold=True, color=DARK_TEXT)
+            size=16, bold=True, color=DARK_TEXT)
 
 
 def slide_18_why_security(prs):
@@ -870,6 +880,7 @@ def slide_18_why_security(prs):
         "Compliance mandates \u2014 SOC2, HIPAA, FedRAMP require secure management tooling",
         "Supply chain risk \u2014 management software is a high-value target",
         "Audit requirements \u2014 every action must be traceable and tamper-evident",
+        "Scalability testing in CI/CD \u2014 load testing in the pipeline to reduce DDoS attack impact",
     ]
     add_bullet_slide(slide, "Why Security Matters", bullets)
 
@@ -1013,21 +1024,22 @@ def slide_22_demo_sequence(prs):
         for i, (num, title, desc) in enumerate(items):
             y = 1.55 + i * 0.68
 
-            # Step number circle
+            # Step number circle — larger for double-digit numbers
+            circ_size = 0.45 if len(num) > 1 else 0.38
             circ = slide.shapes.add_shape(
                 MSO_SHAPE.OVAL,
-                Inches(x), Inches(y), Inches(0.38), Inches(0.38),
+                Inches(x), Inches(y), Inches(circ_size), Inches(circ_size),
             )
             color = PRIMARY_BLUE if col_idx == 0 else BUTTON_GREEN
             circ.fill.solid()
             circ.fill.fore_color.rgb = color
             circ.line.fill.background()
-            num_size = 9 if len(num) > 1 else 11
+            num_size = 10 if len(num) > 1 else 11
             add_text_in_shape(circ, num, size=num_size, color=WHITE, bold=True)
 
             # Title + description
             txBox = slide.shapes.add_textbox(
-                Inches(x + 0.5), Inches(y - 0.04), Inches(5.0), Inches(0.65),
+                Inches(x + 0.55), Inches(y - 0.04), Inches(4.95), Inches(0.65),
             )
             tf = txBox.text_frame
             tf.word_wrap = True
@@ -1083,7 +1095,93 @@ def slide_24_what_you_saw(prs):
     add_bullet_slide(slide, "What You Just Saw", bullets)
 
 
-def slide_25_roadmap_overview(prs):
+def slide_25_codebase_metrics(prs):
+    """Codebase Metrics & Development History slide."""
+    slide = prs.slides.add_slide(prs.slide_layouts[6])
+    add_light_bg(slide)
+    add_top_bar(slide)
+    add_title_textbox(slide, "Codebase & Development History")
+    add_bottom_bar(slide)
+    add_footer_text(slide)
+
+    # Top-line stats row
+    stats = [
+        ("22 Months", "Under Development"),
+        ("1M+ Lines", "of Code"),
+        ("2,400+", "Commits"),
+        ("72", "Release Tags"),
+        ("4", "Repositories"),
+    ]
+    for i, (big, label) in enumerate(stats):
+        x = 0.5 + i * 2.5
+        box = add_accent_rect(slide, x, 1.3, 2.2, 0.9, DARK_BLUE)
+        add_multiline_in_shape(box, [big, label], size=13, color=WHITE, bold=False,
+                               alignment=PP_ALIGN.CENTER)
+
+    # Repository timeline
+    repos = [
+        ("sysmanage", "Apr 2024", "Server: FastAPI + React", "1,047 commits"),
+        ("sysmanage-agent", "Apr 2024", "Agent: Python cross-platform", "863 commits"),
+        ("sysmanage-docs", "Sep 2025", "Docs site + packaging", "334 commits"),
+        ("sysmanage-professional-plus", "Jan 2026", "Pro+ Cython modules", "171 commits"),
+    ]
+
+    headers = ["Repository", "Started", "Description", "Commits"]
+    n_rows = len(repos) + 1
+    table_shape = slide.shapes.add_table(n_rows, 4, Inches(0.5), Inches(2.5),
+                                         Inches(12.0), Inches(0.35 * n_rows))
+    table = table_shape.table
+    col_ws = [3.5, 1.5, 5.0, 2.0]
+    for ci, w in enumerate(col_ws):
+        table.columns[ci].width = Inches(w)
+
+    for ci, h in enumerate(headers):
+        cell = table.cell(0, ci)
+        cell.text = h
+        cell.fill.solid()
+        cell.fill.fore_color.rgb = DARK_BLUE
+        for paragraph in cell.text_frame.paragraphs:
+            paragraph.font.size = Pt(12)
+            paragraph.font.bold = True
+            paragraph.font.color.rgb = WHITE
+            paragraph.font.name = FONT
+
+    for r, (name, started, desc, commits) in enumerate(repos, start=1):
+        for c, val in enumerate([name, started, desc, commits]):
+            cell = table.cell(r, c)
+            cell.text = val
+            cell.fill.solid()
+            cell.fill.fore_color.rgb = WHITE if r % 2 == 1 else VERY_LIGHT_BLUE
+            for paragraph in cell.text_frame.paragraphs:
+                paragraph.font.size = Pt(11)
+                paragraph.font.color.rgb = DARK_TEXT
+                paragraph.font.name = FONT
+
+    # Data model + test metrics row
+    metrics = [
+        ("Server DB", "74 tables \u2022 799 columns"),
+        ("Agent DB", "7 tables"),
+        ("Test Suite", "775 files \u2022 271K lines"),
+    ]
+    for i, (label, detail) in enumerate(metrics):
+        x = 0.5 + i * 4.2
+        box = add_accent_rect(slide, x, 4.8, 3.8, 0.7, PRIMARY_BLUE)
+        add_multiline_in_shape(box, [label, detail], size=11, color=WHITE,
+                               alignment=PP_ALIGN.CENTER)
+
+    # Quarter-by-quarter velocity label
+    txBox = slide.shapes.add_textbox(Inches(0.5), Inches(5.8), Inches(12.0), Inches(0.5))
+    tf = txBox.text_frame
+    tf.word_wrap = True
+    p = tf.paragraphs[0]
+    p.alignment = PP_ALIGN.LEFT
+    set_run(p, "Development velocity:  ", size=12, bold=True, color=DARK_BLUE)
+    set_run(p, "Q2 2024 \u2192 project start  |  Q3-Q4 2025 \u2192 major feature build (730+ commits)  "
+               "|  Q1 2026 \u2192 Pro+ launch + stabilization",
+            size=11, bold=False, color=MEDIUM_GRAY)
+
+
+def slide_26_roadmap_overview(prs):
     """Roadmap Overview slide."""
     slide = prs.slides.add_slide(prs.slide_layouts[6])
     add_light_bg(slide)
@@ -1154,7 +1252,7 @@ def slide_25_roadmap_overview(prs):
     set_run(p, "Target: v3.0.0.0 Enterprise GA \u2014 Q1 2027", size=16, bold=True, color=DARK_BLUE)
 
 
-def slide_26_futures_near(prs):
+def slide_27_futures_near(prs):
     """Futures: Near-Term slide."""
     slide = prs.slides.add_slide(prs.slide_layouts[6])
     headers = ["Phase", "Version", "Description", "Target"]
@@ -1167,7 +1265,7 @@ def slide_26_futures_near(prs):
                     col_widths=[1.0, 1.5, 6.0, 2.0])
 
 
-def slide_27_futures_mid(prs):
+def slide_28_futures_mid(prs):
     """Futures: Mid-Term slide."""
     slide = prs.slides.add_slide(prs.slide_layouts[6])
     headers = ["Phase", "Version", "Description", "Target"]
@@ -1181,7 +1279,7 @@ def slide_27_futures_mid(prs):
                     col_widths=[1.0, 1.5, 6.0, 2.0])
 
 
-def slide_28_futures_long(prs):
+def slide_29_futures_long(prs):
     """Futures: Long-Term slide."""
     slide = prs.slides.add_slide(prs.slide_layouts[6])
     headers = ["Phase", "Version", "Description", "Target"]
@@ -1194,7 +1292,7 @@ def slide_28_futures_long(prs):
                     col_widths=[1.0, 1.5, 6.0, 2.0])
 
 
-def slide_29_takeaways(prs):
+def slide_30_takeaways(prs):
     """Key Takeaways slide."""
     slide = prs.slides.add_slide(prs.slide_layouts[6])
     add_light_bg(slide)
@@ -1233,7 +1331,51 @@ def slide_29_takeaways(prs):
         set_run(tf2.paragraphs[0], desc, size=15, color=MEDIUM_GRAY)
 
 
-def slide_30_thank_you(prs):
+def slide_31_partnerships(prs):
+    """Partnerships slide."""
+    slide = prs.slides.add_slide(prs.slide_layouts[6])
+    add_light_bg(slide)
+    add_top_bar(slide)
+    add_title_textbox(slide, "Partnership Opportunities")
+    add_bottom_bar(slide)
+    add_footer_text(slide)
+
+    # Customers box
+    cust_box = add_accent_rect(slide, 0.8, 1.5, 5.5, 3.5, DARK_BLUE)
+    add_multiline_in_shape(cust_box, [
+        "Customers",
+        "",
+        "\u2022  Organizations managing heterogeneous",
+        "    OS estates (Linux, macOS, Windows, *BSD)",
+        "\u2022  Compliance-driven environments",
+        "    (SOC2, HIPAA, FedRAMP, CIS, DISA STIG)",
+        "\u2022  Teams replacing expensive commercial",
+        "    management tools with open source",
+        "\u2022  MSPs and IT service providers",
+    ], size=13, color=WHITE, alignment=PP_ALIGN.LEFT)
+
+    # Channel partners box
+    partner_box = add_accent_rect(slide, 7.0, 1.5, 5.5, 3.5, PRIMARY_BLUE)
+    add_multiline_in_shape(partner_box, [
+        "Channel Partners",
+        "",
+        "\u2022  Managed service providers (MSPs)",
+        "\u2022  Systems integrators & consultancies",
+        "\u2022  Value-added resellers (VARs)",
+        "\u2022  Cloud hosting providers",
+        "\u2022  Security & compliance consultancies",
+        "\u2022  Regional technology distributors",
+    ], size=13, color=WHITE, alignment=PP_ALIGN.LEFT)
+
+    # Bottom note
+    note_box = add_accent_rect(slide, 0.8, 5.5, 11.7, 1.0, BUTTON_GREEN)
+    add_multiline_in_shape(note_box, [
+        "We're actively seeking both direct customers and channel partners",
+        "Open source core lowers barrier to entry  \u2022  Pro+ tiers create partner revenue opportunities",
+    ], size=13, color=WHITE, alignment=PP_ALIGN.CENTER)
+
+
+def slide_32_thank_you(prs):
     """Thank You slide."""
     slide = prs.slides.add_slide(prs.slide_layouts[6])
     add_dark_bg(slide)
@@ -1248,28 +1390,15 @@ def slide_30_thank_you(prs):
     p.alignment = PP_ALIGN.CENTER
     set_run(p, "Thank You", size=44, bold=True, color=WHITE)
 
-    # URLs
-    txBox2 = slide.shapes.add_textbox(Inches(2), Inches(4.3), Inches(9), Inches(2.0))
+    # URL
+    txBox2 = slide.shapes.add_textbox(Inches(2), Inches(4.5), Inches(9), Inches(0.8))
     tf2 = txBox2.text_frame
-    tf2.word_wrap = True
-
-    links = [
-        "sysmanage.org",
-        "github.com/bceverly/sysmanage",
-        "github.com/bceverly/sysmanage-agent",
-        "github.com/bceverly/sysmanage-docs",
-    ]
-    for i, link in enumerate(links):
-        if i == 0:
-            p = tf2.paragraphs[0]
-        else:
-            p = tf2.add_paragraph()
-        p.alignment = PP_ALIGN.CENTER
-        p.space_before = Pt(6)
-        set_run(p, link, size=18, color=LIGHT_BLUE)
+    p2 = tf2.paragraphs[0]
+    p2.alignment = PP_ALIGN.CENTER
+    set_run(p2, "sysmanage.org", size=22, color=LIGHT_BLUE)
 
     # License
-    txBox3 = slide.shapes.add_textbox(Inches(3), Inches(6.0), Inches(7), Inches(0.5))
+    txBox3 = slide.shapes.add_textbox(Inches(3), Inches(5.5), Inches(7), Inches(0.5))
     tf3 = txBox3.text_frame
     p3 = tf3.paragraphs[0]
     p3.alignment = PP_ALIGN.CENTER
@@ -1312,12 +1441,14 @@ def main():
         slide_22_demo_sequence,
         slide_23_live_demo,
         slide_24_what_you_saw,
-        slide_25_roadmap_overview,
-        slide_26_futures_near,
-        slide_27_futures_mid,
-        slide_28_futures_long,
-        slide_29_takeaways,
-        slide_30_thank_you,
+        slide_25_codebase_metrics,
+        slide_26_roadmap_overview,
+        slide_27_futures_near,
+        slide_28_futures_mid,
+        slide_29_futures_long,
+        slide_30_takeaways,
+        slide_31_partnerships,
+        slide_32_thank_you,
     ]
 
     for builder in slide_builders:

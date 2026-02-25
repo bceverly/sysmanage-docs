@@ -40,7 +40,7 @@ python3 ~/dev/sysmanage-docs/scripts/generate_sysmanage_pptx.py
 
 ### Output
 
-`~/dev/sysmanage-docs/Presentations/SysManage.pptx` -- a 30-slide, 16:9 branded presentation.
+`~/dev/sysmanage-docs/Presentations/SysManage.pptx` -- a 32-slide, 16:9 branded presentation.
 
 ### How It Works
 
@@ -85,12 +85,14 @@ python3 ~/dev/sysmanage-docs/scripts/generate_sysmanage_pptx.py
 | 22 | Demo Sequence | Demo |
 | 23 | LIVE DEMO | Demo |
 | 24 | What You Just Saw | Post-Demo |
-| 25 | Roadmap Overview | Futures |
-| 26 | Futures: Near-Term (Phases 3-5) | Futures |
-| 27 | Futures: Mid-Term (Phases 6-9) | Futures |
-| 28 | Futures: Long-Term (Phases 10-12) | Futures |
-| 29 | Key Takeaways | Closing |
-| 30 | Thank You | Closing |
+| 25 | Codebase & Development History | Futures |
+| 26 | Roadmap Overview | Futures |
+| 27 | Futures: Near-Term (Phases 3-5) | Futures |
+| 28 | Futures: Mid-Term (Phases 6-9) | Futures |
+| 29 | Futures: Long-Term (Phases 10-12) | Futures |
+| 30 | Key Takeaways | Closing |
+| 31 | Partnership Opportunities | Closing |
+| 32 | Thank You | Closing |
 
 ### Making Changes
 
