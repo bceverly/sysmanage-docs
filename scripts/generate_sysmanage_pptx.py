@@ -423,7 +423,7 @@ def slide_05_who_bryan(prs):
         ("Software Artistry", "Early employee \u2192 Dir. of Worldwide Product Dev  \u2022  IPO 1995  \u2022  Sold to IBM/Tivoli 1998"),
         ("IBM", "Led global engineering team post-acquisition (3 years)"),
         ("SaaS Founder", "Founded & sold a SaaS company securing sensitive HR data (~8 years)"),
-        ("ExactTarget", "Engineering leader (1/3 of technology team)  \u2022  Later acquired by Salesforce"),
+        ("ExactTarget", "Engineering leader (1/3 of technology team)  \u2022  Acquired by Salesforce (now Salesforce Marketing Cloud)"),
         ("Aprimo / Teradata", "VP of Worldwide Engineering  \u2022  $525M acquisition by Teradata"),
         ("NextGear Capital", "CTO  \u2022  Built dev org from scratch  \u2022  Grew loan volume $1.6B \u2192 $3.2B  \u2022  CTO of the Year (IBJ/TechPoint)"),
         ("Cox Automotive", "CTO & CISO"),
@@ -469,6 +469,8 @@ def slide_06_who_fedor(prs):
 
     # Background items
     items = [
+        ("NGINX",
+         "Infrastructure and operations engineering at NGINX, the world's most widely deployed web server and reverse proxy"),
         ("Databricks (via Neon acquisition)",
          "Infrastructure engineer at Databricks following the ~$1B acquisition of Neon, the serverless Postgres company"),
         ("Neon \u2014 Serverless Postgres",
@@ -476,11 +478,9 @@ def slide_06_who_fedor(prs):
         ("Infrastructure & DevOps Expertise",
          "Deep experience with AWS, Docker, Kubernetes, Prometheus monitoring, and high-availability architectures"),
         ("CI/CD & Automation",
-         "Designed and operated large-scale continuous integration pipelines  \u2022  GitHub Actions, ephemeral runners, caching optimization"),
-        ("Open Source Contributor",
-         "Active GitHub contributor  \u2022  Published tools for AWS HA, Docker Swarm service registration, and Prometheus metrics"),
+         "Designed and operated large-scale CI pipelines  \u2022  GitHub Actions, ephemeral runners, caching optimization"),
         ("Based in Germany",
-         "Bringing European engineering perspective and timezone coverage to the team"),
+         "European engineering perspective and timezone coverage"),
     ]
 
     txBox = slide.shapes.add_textbox(Inches(0.8), Inches(2.1), Inches(11.5), Inches(4.2))
@@ -549,8 +549,28 @@ def slide_08_architecture(prs):
     add_bottom_bar(slide)
     add_footer_text(slide)
 
+    # Agent box (left)
+    agent_box = add_accent_rect(slide, 0.8, 2.0, 3.2, 2.0, GREEN)
+    add_multiline_in_shape(agent_box, [
+        "SysManage Agent",
+        "",
+        "Local DB (SQLite)",
+        "System Metrics",
+    ], size=12, color=WHITE, alignment=PP_ALIGN.CENTER)
+
+    # mTLS label (centered between agent and server)
+    mtls_box = slide.shapes.add_textbox(Inches(4.1), Inches(2.4), Inches(1.6), Inches(0.8))
+    tf = mtls_box.text_frame
+    tf.word_wrap = True
+    p = tf.paragraphs[0]
+    p.alignment = PP_ALIGN.CENTER
+    set_run(p, "mTLS", size=13, bold=True, color=PRIMARY_BLUE)
+    p2 = tf.add_paragraph()
+    p2.alignment = PP_ALIGN.CENTER
+    set_run(p2, "\u2190 \u2192", size=16, bold=True, color=PRIMARY_BLUE)
+
     # Server box
-    server_box = add_accent_rect(slide, 4.5, 1.8, 4.3, 2.8, DARK_BLUE)
+    server_box = add_accent_rect(slide, 5.8, 1.5, 4.3, 3.0, DARK_BLUE)
     add_multiline_in_shape(server_box, [
         "SysManage Server",
         "",
@@ -560,35 +580,30 @@ def slide_08_architecture(prs):
     ], size=13, bold=False, color=WHITE, alignment=PP_ALIGN.CENTER)
 
     # PostgreSQL
-    db_box = add_accent_rect(slide, 4.5, 5.2, 4.3, 0.8, PRIMARY_BLUE)
+    db_box = add_accent_rect(slide, 5.8, 5.0, 4.3, 0.8, PRIMARY_BLUE)
     add_text_in_shape(db_box, "PostgreSQL Database", size=14, color=WHITE, bold=True)
 
-    # Agent boxes (left and right)
-    for x_pos in [0.8, 9.5]:
-        agent_box = add_accent_rect(slide, x_pos, 2.2, 2.8, 1.8, GREEN)
-        add_multiline_in_shape(agent_box, [
-            "SysManage Agent",
-            "",
-            "Local DB (SQLite)",
-            "System Metrics",
-        ], size=12, color=WHITE, alignment=PP_ALIGN.CENTER)
-
-    # mTLS labels
-    for x_pos, label_x in [(3.8, 3.0), (8.8, 9.0)]:
-        txBox = slide.shapes.add_textbox(Inches(label_x), Inches(2.5), Inches(1.5), Inches(0.4))
-        tf = txBox.text_frame
-        p = tf.paragraphs[0]
-        p.alignment = PP_ALIGN.CENTER
-        set_run(p, "mTLS\n\u2194", size=12, bold=True, color=PRIMARY_BLUE)
-
     # Pro+ modules
-    pro_box = add_accent_rect(slide, 9.5, 4.8, 2.8, 1.5, BUTTON_GREEN)
+    pro_box = add_accent_rect(slide, 10.5, 1.5, 2.3, 3.0, BUTTON_GREEN)
     add_multiline_in_shape(pro_box, [
-        "Pro+ Modules",
-        "Health \u2022 Compliance",
-        "Reporting \u2022 Secrets",
-        "Containers \u2022 CVE",
-    ], size=11, color=WHITE, alignment=PP_ALIGN.CENTER)
+        "Pro+",
+        "Modules",
+        "",
+        "Health",
+        "Compliance",
+        "Reporting",
+        "Secrets",
+        "CVE",
+    ], size=10, color=WHITE, alignment=PP_ALIGN.CENTER)
+
+    # Message queuing note
+    queue_box = add_accent_rect(slide, 0.8, 4.6, 4.6, 1.2, DARK_BLUE)
+    add_multiline_in_shape(queue_box, [
+        "Message Queue Architecture",
+        "All agent \u2194 server communication is queued",
+        "to the database. Background threads process",
+        "messages \u2014 no data loss on crash or restart.",
+    ], size=10, color=WHITE, alignment=PP_ALIGN.CENTER)
 
 
 def slide_09_cross_platform(prs):
@@ -786,23 +801,26 @@ def slide_17_ecosystem(prs):
     add_bottom_bar(slide)
     add_footer_text(slide)
 
-    # Categories with integrations
-    categories = [
-        ("Secrets & Key Management", [
-            ("OpenBAO / Vault", "Encrypted secrets storage, API keys, credential management"),
+    # Categories with integrations — two-column layout to fit vertically
+    left_categories = [
+        ("Secrets & Key Mgmt", [
+            ("OpenBAO / Vault", "Encrypted secrets, API keys"),
         ], DARK_BLUE),
         ("Observability", [
-            ("OpenTelemetry", "Distributed tracing and metrics collection"),
-            ("Grafana", "Dashboard visualization and metrics"),
-            ("Prometheus", "Metrics collection and querying"),
-            ("Graylog", "Centralized log aggregation (GELF, syslog)"),
+            ("OpenTelemetry", "Distributed tracing & metrics"),
+            ("Grafana", "Dashboard visualization"),
+            ("Prometheus", "Metrics collection & querying"),
+            ("Graylog", "Log aggregation (GELF, syslog)"),
         ], PRIMARY_BLUE),
         ("Vulnerability Data", [
-            ("NIST NVD", "National Vulnerability Database (CVE)"),
-            ("Ubuntu / Debian / Red Hat / Microsoft / FreeBSD", "OS-specific security advisories"),
+            ("NIST NVD", "National Vulnerability Database"),
+            ("Ubuntu / Debian / RHEL / MSRC / FreeBSD", "OS-specific advisories"),
         ], BUTTON_GREEN),
+    ]
+
+    right_categories = [
         ("Platform & Virtualization", [
-            ("Ubuntu Pro", "ESM, security patching, compliance"),
+            ("Ubuntu Pro", "ESM, patching, compliance"),
             ("LXD / Incus", "Container management"),
             ("KVM / bhyve / VMM", "Hypervisor management"),
         ], GREEN),
@@ -811,37 +829,35 @@ def slide_17_ecosystem(prs):
             ("Webhooks / Slack / Teams", "Real-time notifications"),
         ], DARK_BLUE),
         ("Firewalls", [
-            ("UFW / iptables / nftables / PF", "Cross-platform firewall management"),
+            ("UFW / iptables / nftables / PF", "Cross-platform firewall mgmt"),
         ], PRIMARY_BLUE),
     ]
 
-    y = 1.4
-    for cat_name, items, color in categories:
-        # Category header
-        cat_box = add_accent_rect(slide, 0.8, y, 3.2, 0.4, color)
-        add_text_in_shape(cat_box, cat_name, size=11, color=WHITE, bold=True)
+    for col_offset, categories in [(0.0, left_categories), (6.3, right_categories)]:
+        y = 1.35
+        for cat_name, items, color in categories:
+            cat_box = add_accent_rect(slide, 0.8 + col_offset, y, 2.6, 0.32, color)
+            add_text_in_shape(cat_box, cat_name, size=9, color=WHITE, bold=True)
 
-        # Items
-        for j, (name, desc) in enumerate(items):
-            item_x = 4.3
-            item_y = y + j * 0.4
-            txBox = slide.shapes.add_textbox(
-                Inches(item_x), Inches(item_y), Inches(8.5), Inches(0.38),
-            )
-            tf = txBox.text_frame
-            tf.word_wrap = True
-            set_run(tf.paragraphs[0], name, size=11, bold=True, color=DARK_BLUE)
-            set_run(tf.paragraphs[0], f"  \u2014  {desc}", size=10, bold=False, color=MEDIUM_GRAY)
+            for j, (name, desc) in enumerate(items):
+                item_y = y + j * 0.32
+                txBox = slide.shapes.add_textbox(
+                    Inches(3.6 + col_offset), Inches(item_y), Inches(3.5), Inches(0.30),
+                )
+                tf = txBox.text_frame
+                tf.word_wrap = True
+                set_run(tf.paragraphs[0], name, size=9, bold=True, color=DARK_BLUE)
+                set_run(tf.paragraphs[0], f" \u2014 {desc}", size=8, bold=False, color=MEDIUM_GRAY)
 
-        row_height = max(len(items) * 0.4, 0.45)
-        y += row_height + 0.12
+            row_height = max(len(items) * 0.32, 0.36)
+            y += row_height + 0.08
 
     # Bottom note
-    txBox = slide.shapes.add_textbox(Inches(0.8), Inches(6.5), Inches(11.5), Inches(0.4))
+    txBox = slide.shapes.add_textbox(Inches(0.8), Inches(6.6), Inches(11.5), Inches(0.35))
     tf = txBox.text_frame
     set_run(tf.paragraphs[0],
             "SysManage integrates \u2014 not replaces \u2014 best-of-breed tools in each category",
-            size=12, bold=True, color=DARK_TEXT)
+            size=11, bold=True, color=DARK_TEXT)
 
 
 def slide_18_why_security(prs):
@@ -855,7 +871,7 @@ def slide_18_why_security(prs):
         "Supply chain risk \u2014 management software is a high-value target",
         "Audit requirements \u2014 every action must be traceable and tamper-evident",
     ]
-    add_bullet_slide(slide, "Why Security Matters for Systems Management", bullets)
+    add_bullet_slide(slide, "Why Security Matters", bullets)
 
 
 def slide_19_security_architecture(prs):
@@ -1006,7 +1022,8 @@ def slide_22_demo_sequence(prs):
             circ.fill.solid()
             circ.fill.fore_color.rgb = color
             circ.line.fill.background()
-            add_text_in_shape(circ, num, size=11, color=WHITE, bold=True)
+            num_size = 9 if len(num) > 1 else 11
+            add_text_in_shape(circ, num, size=num_size, color=WHITE, bold=True)
 
             # Title + description
             txBox = slide.shapes.add_textbox(
@@ -1075,84 +1092,106 @@ def slide_25_roadmap_overview(prs):
     add_bottom_bar(slide)
     add_footer_text(slide)
 
-    phases = [
-        ("1", "Stabilization", "Feb 2026", True),
-        ("2", "Phase 2 Features", "Feb 2026", True),
-        ("3", "AV + Firewall", "Apr 2026", False),
-        ("4", "Stabilization", "May 2026", False),
-        ("5", "Automation + Fleet", "May-Jun 2026", False),
-        ("6", "Stabilization", "Jun 2026", False),
-        ("7", "Stab. RC1", "Jun 2026", False),
-        ("8", "Foundation v2", "Jul 2026", False),
-        ("9", "Stab. RC2", "Aug 2026", False),
-        ("10", "Virt + Obs + MFA", "Dec 2026", False),
-        ("11", "Air-Gapped", "Jan 2027", False),
-        ("12", "Enterprise GA", "Feb 2027", False),
+    # Historical releases (row 1) — compact
+    history = [
+        ("v0.9.0", "Foundation\n+ Core Platform"),
+        ("v0.9.1", "CI/CD\n& Quality"),
+        ("v0.9.2", "Mgmt\nFeatures"),
+        ("v1.0.0", "Child Host\nFoundation"),
+        ("v1.0.1", "Virtualization\nExpansion"),
+        ("v1.0.2", "Platform\nMaturity"),
+        ("v1.1.0", "Pro+\nLaunch"),
     ]
 
-    for i, (num, desc, date, done) in enumerate(phases):
+    for i, (ver, desc) in enumerate(history):
+        x = 0.4 + i * 1.8
+        box = add_accent_rect(slide, x, 1.25, 1.6, 1.1, MEDIUM_GRAY)
+        add_multiline_in_shape(box, [ver, desc], size=8, color=WHITE, bold=False,
+                               alignment=PP_ALIGN.CENTER)
+
+    # "Shipped" label
+    txBox = slide.shapes.add_textbox(Inches(0.4), Inches(1.05), Inches(3), Inches(0.2))
+    tf = txBox.text_frame
+    set_run(tf.paragraphs[0], "Shipped", size=8, bold=True, color=MEDIUM_GRAY)
+
+    # Phases (rows 2-3)
+    phases = [
+        ("1", "Stabilization", "v1.2.0.0", "\u2713 Done", True),
+        ("2", "Pro+ Prof.", "v1.3.0.0", "\u2713 Done", True),
+        ("3", "AV + Firewall", "v1.4.0.0", "Apr 2026", False),
+        ("4", "Stabilization", "v1.5.0.0", "May 2026", False),
+        ("5", "Auto + Fleet", "v1.6.0.0", "May-Jun 2026", False),
+        ("6", "Stabilization", "v1.7.0.0", "Jun 2026", False),
+        ("7", "Stab. RC1", "v1.8.0.0", "Jun 2026", False),
+        ("8", "Foundation", "v2.0.0.0", "Jul 2026", False),
+        ("9", "Stab. RC2", "v2.1.0.0", "Aug 2026", False),
+        ("10", "Virt+Obs+MFA", "v2.2.0.0", "Dec 2026", False),
+        ("11", "Air-Gapped", "v2.3.0.0", "Jan 2027", False),
+        ("12", "Enterprise GA", "v3.0.0.0", "Feb 2027", False),
+    ]
+
+    for i, (num, desc, ver, status, done) in enumerate(phases):
         col = i % 6
         row = i // 6
-        x = 0.6 + col * 2.05
-        y = 1.7 + row * 2.7
+        x = 0.4 + col * 2.08
+        y = 2.7 + row * 1.95
 
         color = GREEN if done else PRIMARY_BLUE
-        box = add_accent_rect(slide, x, y, 1.85, 2.0, color)
-        status = "\u2713 Done" if done else date
+        box = add_accent_rect(slide, x, y, 1.88, 1.65, color)
         add_multiline_in_shape(box, [
             f"Phase {num}",
+            ver,
             "",
             desc,
-            "",
             status,
-        ], size=11, color=WHITE, bold=False, alignment=PP_ALIGN.CENTER)
+        ], size=9, color=WHITE, bold=False, alignment=PP_ALIGN.CENTER)
 
     # Target label
-    txBox = slide.shapes.add_textbox(Inches(3.0), Inches(6.5), Inches(7), Inches(0.5))
+    txBox = slide.shapes.add_textbox(Inches(3.0), Inches(6.55), Inches(7), Inches(0.4))
     tf = txBox.text_frame
     p = tf.paragraphs[0]
     p.alignment = PP_ALIGN.CENTER
-    set_run(p, "Target: v3.0.0.0 Enterprise GA \u2014 Q1 2027", size=18, bold=True, color=DARK_BLUE)
+    set_run(p, "Target: v3.0.0.0 Enterprise GA \u2014 Q1 2027", size=16, bold=True, color=DARK_BLUE)
 
 
 def slide_26_futures_near(prs):
     """Futures: Near-Term slide."""
     slide = prs.slides.add_slide(prs.slide_layouts[6])
-    headers = ["Phase", "Description", "Estimate", "Target"]
+    headers = ["Phase", "Version", "Description", "Target"]
     rows = [
-        ("3", "AV Management + Firewall Orchestration", "~59 days (padded)", "Apr 2026"),
-        ("4", "Stabilization", "~13 days", "May 2026"),
-        ("5", "Automation + Fleet Management", "~16 days", "May-Jun 2026"),
+        ("3", "v1.4.0.0", "AV Management + Firewall Orchestration", "Apr 2026"),
+        ("4", "v1.5.0.0", "Stabilization", "May 2026"),
+        ("5", "v1.6.0.0", "Automation + Fleet Management", "May-Jun 2026"),
     ]
     add_table_slide(slide, "Futures: Near-Term (Phases 3\u20135)", headers, rows,
-                    col_widths=[1.5, 5.0, 2.5, 2.0])
+                    col_widths=[1.0, 1.5, 6.0, 2.0])
 
 
 def slide_27_futures_mid(prs):
     """Futures: Mid-Term slide."""
     slide = prs.slides.add_slide(prs.slide_layouts[6])
-    headers = ["Phase", "Description", "Estimate", "Target"]
+    headers = ["Phase", "Version", "Description", "Target"]
     rows = [
-        ("6", "Stabilization", "~13 days", "Jun 2026"),
-        ("7", "Stabilization RC1", "~13 days", "Jun 2026"),
-        ("8", "Foundation Features v2.0.0.0", "~25 days", "Jul 2026"),
-        ("9", "Stabilization RC2", "~13 days", "Aug 2026"),
+        ("6", "v1.7.0.0", "Stabilization", "Jun 2026"),
+        ("7", "v1.8.0.0", "Stabilization RC1", "Jun 2026"),
+        ("8", "v2.0.0.0", "Foundation Features", "Jul 2026"),
+        ("9", "v2.1.0.0", "Stabilization RC2", "Aug 2026"),
     ]
     add_table_slide(slide, "Futures: Mid-Term (Phases 6\u20139)", headers, rows,
-                    col_widths=[1.5, 5.0, 2.5, 2.0])
+                    col_widths=[1.0, 1.5, 6.0, 2.0])
 
 
 def slide_28_futures_long(prs):
     """Futures: Long-Term slide."""
     slide = prs.slides.add_slide(prs.slide_layouts[6])
-    headers = ["Phase", "Description", "Estimate", "Target"]
+    headers = ["Phase", "Version", "Description", "Target"]
     rows = [
-        ("10", "Virtualization + Observability + MFA", "~130 days", "Dec 2026"),
-        ("11", "Air-Gapped Support", "~39 days", "Jan 2027"),
-        ("12", "Enterprise GA v3.0.0.0", "~31 days", "Feb 2027"),
+        ("10", "v2.2.0.0", "Virtualization + Observability + MFA", "Dec 2026"),
+        ("11", "v2.3.0.0", "Air-Gapped Support", "Jan 2027"),
+        ("12", "v3.0.0.0", "Enterprise GA", "Feb 2027"),
     ]
     add_table_slide(slide, "Futures: Long-Term (Phases 10\u201312)", headers, rows,
-                    col_widths=[1.5, 5.0, 2.5, 2.0])
+                    col_widths=[1.0, 1.5, 6.0, 2.0])
 
 
 def slide_29_takeaways(prs):
