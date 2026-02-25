@@ -1034,8 +1034,7 @@ def slide_22_demo_sequence(prs):
             circ.fill.solid()
             circ.fill.fore_color.rgb = color
             circ.line.fill.background()
-            num_size = 7 if len(num) > 1 else 11
-            add_text_in_shape(circ, num, size=num_size, color=WHITE, bold=True)
+            add_text_in_shape(circ, num, size=7, color=WHITE, bold=True)
 
             # Title + description
             txBox = slide.shapes.add_textbox(
