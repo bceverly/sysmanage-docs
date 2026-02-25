@@ -40,7 +40,7 @@ python3 ~/dev/sysmanage-docs/scripts/generate_sysmanage_pptx.py
 
 ### Output
 
-`~/dev/sysmanage-docs/Presentations/SysManage.pptx` -- a 25-slide, 16:9 branded presentation.
+`~/dev/sysmanage-docs/Presentations/SysManage.pptx` -- a 30-slide, 16:9 branded presentation.
 
 ### How It Works
 
@@ -65,27 +65,32 @@ python3 ~/dev/sysmanage-docs/scripts/generate_sysmanage_pptx.py
 | 2 | Agenda | Opening |
 | 3 | The Problem | Opening |
 | 4 | What is SysManage? | Opening |
-| 5 | Architecture | Opening |
-| 6 | Cross-Platform Support | Opening |
-| 7 | Packaging Formats & OS Versions | Opening |
-| 8 | Internationalization | Opening |
-| 9 | Open Source Features | Features |
-| 10 | Monitoring & Management | Features |
-| 11 | Pro+ Licensing Model | Features |
-| 12 | Pro+ Professional Tier | Features |
-| 13 | Pro+ Enterprise Tier | Features |
-| 14 | Why Security Matters | Security |
-| 15 | Security-First Architecture | Security |
-| 16 | Security in Development Process | Security |
-| 17 | Demo Agenda | Demo |
-| 18 | LIVE DEMO | Demo |
-| 19 | What You Just Saw | Post-Demo |
-| 20 | Roadmap Overview | Futures |
-| 21 | Futures: Near-Term (Phases 3-5) | Futures |
-| 22 | Futures: Mid-Term (Phases 6-9) | Futures |
-| 23 | Futures: Long-Term (Phases 10-12) | Futures |
-| 24 | Key Takeaways | Closing |
-| 25 | Thank You | Closing |
+| 5 | Who is SysManage? -- Bryan Everly | Opening |
+| 6 | Who is SysManage? -- Fedor Dikarev | Opening |
+| 7 | Growth Strategy (VC & Advisors) | Opening |
+| 8 | Architecture | Opening |
+| 9 | Cross-Platform Support | Opening |
+| 10 | Packaging Formats & OS Versions | Opening |
+| 11 | Internationalization | Opening |
+| 12 | Open Source Features | Features |
+| 13 | Monitoring & Management | Features |
+| 14 | Pro+ Licensing Model | Features |
+| 15 | Pro+ Professional Tier | Features |
+| 16 | Pro+ Enterprise Tier | Features |
+| 17 | Ecosystem Integrations | Features |
+| 18 | Why Security Matters | Security |
+| 19 | Security-First Architecture | Security |
+| 20 | Security in Development Process | Security |
+| 21 | Software Bill of Materials (SBOM) | Security |
+| 22 | Demo Sequence | Demo |
+| 23 | LIVE DEMO | Demo |
+| 24 | What You Just Saw | Post-Demo |
+| 25 | Roadmap Overview | Futures |
+| 26 | Futures: Near-Term (Phases 3-5) | Futures |
+| 27 | Futures: Mid-Term (Phases 6-9) | Futures |
+| 28 | Futures: Long-Term (Phases 10-12) | Futures |
+| 29 | Key Takeaways | Closing |
+| 30 | Thank You | Closing |
 
 ### Making Changes
 

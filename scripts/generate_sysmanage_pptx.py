@@ -405,7 +405,142 @@ def slide_04_what_is(prs):
     slide.shapes.add_picture(ICON_PNG, Inches(9.0), Inches(2.0), Inches(3.0))
 
 
-def slide_05_architecture(prs):
+def slide_05_who_bryan(prs):
+    """Who is SysManage? — Bryan Everly slide."""
+    slide = prs.slides.add_slide(prs.slide_layouts[6])
+    add_light_bg(slide)
+    add_top_bar(slide)
+    add_title_textbox(slide, "Who is SysManage? \u2014 Bryan Everly")
+    add_bottom_bar(slide)
+    add_footer_text(slide)
+
+    # Role badge
+    badge = add_accent_rect(slide, 0.8, 1.35, 3.0, 0.5, PRIMARY_BLUE)
+    add_text_in_shape(badge, "Founder & CEO", size=16, color=WHITE, bold=True)
+
+    # Career timeline
+    career = [
+        ("Software Artistry", "Early employee \u2192 Dir. of Worldwide Product Dev  \u2022  IPO 1995  \u2022  Sold to IBM/Tivoli 1998"),
+        ("IBM", "Led global engineering team post-acquisition (3 years)"),
+        ("SaaS Founder", "Founded & sold a SaaS company securing sensitive HR data (~8 years)"),
+        ("ExactTarget", "Engineering leader (1/3 of technology team)  \u2022  Later acquired by Salesforce"),
+        ("Aprimo / Teradata", "VP of Worldwide Engineering  \u2022  $525M acquisition by Teradata"),
+        ("NextGear Capital", "CTO  \u2022  Built dev org from scratch  \u2022  Grew loan volume $1.6B \u2192 $3.2B  \u2022  CTO of the Year (IBJ/TechPoint)"),
+        ("Cox Automotive", "CTO & CISO"),
+        ("Cummins", "Chief Enterprise Architect & Exec. Dir. Software Engineering"),
+        ("Canonical", "VP of Software Engineering  \u2022  Ubuntu, IoT, real-time Linux, HPC"),
+    ]
+
+    txBox = slide.shapes.add_textbox(Inches(0.8), Inches(2.0), Inches(11.5), Inches(4.5))
+    tf = txBox.text_frame
+    tf.word_wrap = True
+
+    for i, (company, detail) in enumerate(career):
+        if i > 0:
+            p = tf.add_paragraph()
+            p.space_before = Pt(6)
+        else:
+            p = tf.paragraphs[0]
+            p.space_before = Pt(2)
+        set_run(p, f"{company}  ", size=15, bold=True, color=DARK_BLUE)
+        set_run(p, f"\u2014  {detail}", size=13, bold=False, color=MEDIUM_GRAY)
+
+    # Education & OSS footer
+    txBox2 = slide.shapes.add_textbox(Inches(0.8), Inches(6.3), Inches(11.5), Inches(0.5))
+    tf2 = txBox2.text_frame
+    tf2.word_wrap = True
+    set_run(tf2.paragraphs[0],
+            "M.S. Cybersecurity, UC Berkeley  \u2022  B.S. Computer Science, Indiana State  \u2022  OpenBSD Ports Maintainer",
+            size=12, color=DARK_TEXT)
+
+
+def slide_06_who_fedor(prs):
+    """Who is SysManage? — Fedor Dikarev slide."""
+    slide = prs.slides.add_slide(prs.slide_layouts[6])
+    add_light_bg(slide)
+    add_top_bar(slide)
+    add_title_textbox(slide, "Who is SysManage? \u2014 Fedor Dikarev")
+    add_bottom_bar(slide)
+    add_footer_text(slide)
+
+    # Role badge
+    badge = add_accent_rect(slide, 0.8, 1.35, 4.5, 0.5, PRIMARY_BLUE)
+    add_text_in_shape(badge, "Lead SRE / CI/CD Engineer", size=16, color=WHITE, bold=True)
+
+    # Background items
+    items = [
+        ("Databricks (via Neon acquisition)",
+         "Infrastructure engineer at Databricks following the ~$1B acquisition of Neon, the serverless Postgres company"),
+        ("Neon \u2014 Serverless Postgres",
+         "Member of Technical Staff  \u2022  Led CI/CD infrastructure migration and cost optimization  \u2022  Reduced cloud CI costs by 50%"),
+        ("Infrastructure & DevOps Expertise",
+         "Deep experience with AWS, Docker, Kubernetes, Prometheus monitoring, and high-availability architectures"),
+        ("CI/CD & Automation",
+         "Designed and operated large-scale continuous integration pipelines  \u2022  GitHub Actions, ephemeral runners, caching optimization"),
+        ("Open Source Contributor",
+         "Active GitHub contributor  \u2022  Published tools for AWS HA, Docker Swarm service registration, and Prometheus metrics"),
+        ("Based in Germany",
+         "Bringing European engineering perspective and timezone coverage to the team"),
+    ]
+
+    txBox = slide.shapes.add_textbox(Inches(0.8), Inches(2.1), Inches(11.5), Inches(4.2))
+    tf = txBox.text_frame
+    tf.word_wrap = True
+
+    for i, (title, desc) in enumerate(items):
+        if i > 0:
+            p = tf.add_paragraph()
+            p.space_before = Pt(10)
+        else:
+            p = tf.paragraphs[0]
+            p.space_before = Pt(4)
+        set_run(p, f"\u2022  {title}", size=16, bold=True, color=DARK_BLUE)
+        p2 = tf.add_paragraph()
+        p2.space_before = Pt(2)
+        set_run(p2, f"     {desc}", size=13, color=MEDIUM_GRAY)
+
+
+def slide_07_growth_strategy(prs):
+    """Growth Strategy — VC & Advisors slide."""
+    slide = prs.slides.add_slide(prs.slide_layouts[6])
+    add_light_bg(slide)
+    add_top_bar(slide)
+    add_title_textbox(slide, "Growth Strategy")
+    add_bottom_bar(slide)
+    add_footer_text(slide)
+
+    # VC box
+    vc_box = add_accent_rect(slide, 0.8, 1.5, 5.5, 3.0, DARK_BLUE)
+    add_multiline_in_shape(vc_box, [
+        "Venture Capital",
+        "",
+        "In active discussions with a European",
+        "venture capital fund focused on open",
+        "source and infrastructure software",
+    ], size=14, color=WHITE, alignment=PP_ALIGN.LEFT)
+
+    # Advisors box
+    adv_box = add_accent_rect(slide, 7.0, 1.5, 5.5, 3.0, PRIMARY_BLUE)
+    add_multiline_in_shape(adv_box, [
+        "Advisory Network",
+        "",
+        "Engaging potential advisors from",
+        "proven open source \u2192 commercial",
+        "success stories including NGINX",
+        "and WordPress ecosystems",
+    ], size=14, color=WHITE, alignment=PP_ALIGN.LEFT)
+
+    # Bottom: strategy note
+    strategy_box = add_accent_rect(slide, 0.8, 5.0, 11.7, 1.5, BUTTON_GREEN)
+    add_multiline_in_shape(strategy_box, [
+        "Open Source \u2192 Commercial Playbook",
+        "",
+        "AGPLv3 core builds community trust & adoption  \u2192  Pro+ tiers monetize enterprise needs",
+        "Following the proven model: open core + commercial extensions + enterprise support",
+    ], size=13, color=WHITE, alignment=PP_ALIGN.CENTER)
+
+
+def slide_08_architecture(prs):
     """Architecture Diagram slide."""
     slide = prs.slides.add_slide(prs.slide_layouts[6])
     add_light_bg(slide)
@@ -456,7 +591,7 @@ def slide_05_architecture(prs):
     ], size=11, color=WHITE, alignment=PP_ALIGN.CENTER)
 
 
-def slide_06_cross_platform(prs):
+def slide_09_cross_platform(prs):
     """Cross-Platform Matrix slide."""
     slide = prs.slides.add_slide(prs.slide_layouts[6])
     headers = ["Operating System", "Server", "Agent"]
@@ -472,7 +607,7 @@ def slide_06_cross_platform(prs):
                     col_widths=[6.0, 2.5, 2.5])
 
 
-def slide_07_packaging(prs):
+def slide_10_packaging(prs):
     """Packaging Formats & OS Versions slide."""
     slide = prs.slides.add_slide(prs.slide_layouts[6])
     headers = ["Format", "OS / Distro", "Versions"]
@@ -491,7 +626,7 @@ def slide_07_packaging(prs):
                     col_widths=[2.0, 4.0, 4.0])
 
 
-def slide_08_i18n(prs):
+def slide_11_i18n(prs):
     """Internationalization slide."""
     slide = prs.slides.add_slide(prs.slide_layouts[6])
     add_light_bg(slide)
@@ -525,7 +660,7 @@ def slide_08_i18n(prs):
             size=14, color=MEDIUM_GRAY)
 
 
-def slide_09_oss_features(prs):
+def slide_12_oss_features(prs):
     """Open Source Features slide."""
     slide = prs.slides.add_slide(prs.slide_layouts[6])
     bullets = [
@@ -543,7 +678,7 @@ def slide_09_oss_features(prs):
     add_bullet_slide(slide, "Open Source Features", bullets)
 
 
-def slide_10_oss_monitoring(prs):
+def slide_13_oss_monitoring(prs):
     """Open Source: Monitoring & Management slide."""
     slide = prs.slides.add_slide(prs.slide_layouts[6])
     bullets = [
@@ -558,7 +693,7 @@ def slide_10_oss_monitoring(prs):
     add_bullet_slide(slide, "Open Source: Monitoring & Management", bullets)
 
 
-def slide_11_proplus_licensing(prs):
+def slide_14_proplus_licensing(prs):
     """Pro+ Licensing Model slide."""
     slide = prs.slides.add_slide(prs.slide_layouts[6])
     add_light_bg(slide)
@@ -606,7 +741,7 @@ def slide_11_proplus_licensing(prs):
             size=13, color=MEDIUM_GRAY)
 
 
-def slide_12_proplus_professional(prs):
+def slide_15_proplus_professional(prs):
     """Pro+ Professional Tier slide."""
     slide = prs.slides.add_slide(prs.slide_layouts[6])
     bullets = [
@@ -621,7 +756,7 @@ def slide_12_proplus_professional(prs):
     add_bullet_slide(slide, "Pro+ Professional Tier", bullets)
 
 
-def slide_13_proplus_enterprise(prs):
+def slide_16_proplus_enterprise(prs):
     """Pro+ Enterprise Tier slide."""
     slide = prs.slides.add_slide(prs.slide_layouts[6])
     bullets = [
@@ -642,7 +777,74 @@ def slide_13_proplus_enterprise(prs):
     add_bullet_slide(slide, "Pro+ Enterprise Tier", bullets + ["Upcoming enterprise modules:"], sub)
 
 
-def slide_14_why_security(prs):
+def slide_17_ecosystem(prs):
+    """Ecosystem Integrations slide."""
+    slide = prs.slides.add_slide(prs.slide_layouts[6])
+    add_light_bg(slide)
+    add_top_bar(slide)
+    add_title_textbox(slide, "Ecosystem Integrations")
+    add_bottom_bar(slide)
+    add_footer_text(slide)
+
+    # Categories with integrations
+    categories = [
+        ("Secrets & Key Management", [
+            ("OpenBAO / Vault", "Encrypted secrets storage, API keys, credential management"),
+        ], DARK_BLUE),
+        ("Observability", [
+            ("OpenTelemetry", "Distributed tracing and metrics collection"),
+            ("Grafana", "Dashboard visualization and metrics"),
+            ("Prometheus", "Metrics collection and querying"),
+            ("Graylog", "Centralized log aggregation (GELF, syslog)"),
+        ], PRIMARY_BLUE),
+        ("Vulnerability Data", [
+            ("NIST NVD", "National Vulnerability Database (CVE)"),
+            ("Ubuntu / Debian / Red Hat / Microsoft / FreeBSD", "OS-specific security advisories"),
+        ], BUTTON_GREEN),
+        ("Platform & Virtualization", [
+            ("Ubuntu Pro", "ESM, security patching, compliance"),
+            ("LXD / Incus", "Container management"),
+            ("KVM / bhyve / VMM", "Hypervisor management"),
+        ], GREEN),
+        ("Notifications", [
+            ("SMTP / Email", "Alert delivery"),
+            ("Webhooks / Slack / Teams", "Real-time notifications"),
+        ], DARK_BLUE),
+        ("Firewalls", [
+            ("UFW / iptables / nftables / PF", "Cross-platform firewall management"),
+        ], PRIMARY_BLUE),
+    ]
+
+    y = 1.4
+    for cat_name, items, color in categories:
+        # Category header
+        cat_box = add_accent_rect(slide, 0.8, y, 3.2, 0.4, color)
+        add_text_in_shape(cat_box, cat_name, size=11, color=WHITE, bold=True)
+
+        # Items
+        for j, (name, desc) in enumerate(items):
+            item_x = 4.3
+            item_y = y + j * 0.4
+            txBox = slide.shapes.add_textbox(
+                Inches(item_x), Inches(item_y), Inches(8.5), Inches(0.38),
+            )
+            tf = txBox.text_frame
+            tf.word_wrap = True
+            set_run(tf.paragraphs[0], name, size=11, bold=True, color=DARK_BLUE)
+            set_run(tf.paragraphs[0], f"  \u2014  {desc}", size=10, bold=False, color=MEDIUM_GRAY)
+
+        row_height = max(len(items) * 0.4, 0.45)
+        y += row_height + 0.12
+
+    # Bottom note
+    txBox = slide.shapes.add_textbox(Inches(0.8), Inches(6.5), Inches(11.5), Inches(0.4))
+    tf = txBox.text_frame
+    set_run(tf.paragraphs[0],
+            "SysManage integrates \u2014 not replaces \u2014 best-of-breed tools in each category",
+            size=12, bold=True, color=DARK_TEXT)
+
+
+def slide_18_why_security(prs):
     """Why Security Matters slide."""
     slide = prs.slides.add_slide(prs.slide_layouts[6])
     bullets = [
@@ -656,7 +858,7 @@ def slide_14_why_security(prs):
     add_bullet_slide(slide, "Why Security Matters for Systems Management", bullets)
 
 
-def slide_15_security_architecture(prs):
+def slide_19_security_architecture(prs):
     """Security-First Architecture slide."""
     slide = prs.slides.add_slide(prs.slide_layouts[6])
     bullets = [
@@ -672,7 +874,7 @@ def slide_15_security_architecture(prs):
     add_bullet_slide(slide, "Security-First Architecture", bullets)
 
 
-def slide_16_security_devprocess(prs):
+def slide_20_security_devprocess(prs):
     """Security in the Development Process slide."""
     slide = prs.slides.add_slide(prs.slide_layouts[6])
     add_light_bg(slide)
@@ -707,54 +909,118 @@ def slide_16_security_devprocess(prs):
         add_multiline_in_shape(box, [tool, desc], size=13, color=WHITE, alignment=PP_ALIGN.CENTER)
 
 
-def slide_17_demo_agenda(prs):
-    """Demo Agenda slide."""
+def slide_21_sbom(prs):
+    """Software Bill of Materials (SBOM) slide."""
     slide = prs.slides.add_slide(prs.slide_layouts[6])
     add_light_bg(slide)
     add_top_bar(slide)
-    add_title_textbox(slide, "Demo Agenda")
+    add_title_textbox(slide, "Software Bill of Materials (SBOM)")
     add_bottom_bar(slide)
     add_footer_text(slide)
 
-    demo_items = [
-        "Dashboard & host overview",
-        "Host detail: metrics, software inventory, update detection",
-        "Package installation / removal",
-        "User management & RBAC",
-        "Settings & configuration",
-        "Multi-language switching",
-        "Pro+: Health analysis & recommendations",
-        "Pro+: Compliance audit (CIS/DISA STIG)",
-        "Pro+: PDF report generation",
-        "Pro+: Secrets management (OpenBAO)",
-        "Pro+: Container management (LXD)",
-        "Pro+: CVE vulnerability scanning",
-        "Pro+: Alerting configuration",
-        "Pro+: Audit log with tamper-evident hashing",
+    # Left column: what & why
+    left_box = add_accent_rect(slide, 0.8, 1.5, 5.5, 3.5, DARK_BLUE)
+    add_multiline_in_shape(left_box, [
+        "What & Why",
+        "",
+        "\u2022  CycloneDX JSON format (v1.6)",
+        "\u2022  Full dependency inventory for every release",
+        "\u2022  Supply chain transparency & auditability",
+        "\u2022  Separate SBOMs for backend (Python)",
+        "    and frontend (Node.js) components",
+        "\u2022  Agent packages include their own SBOM",
+    ], size=13, color=WHITE, alignment=PP_ALIGN.LEFT)
+
+    # Right column: how & where
+    right_box = add_accent_rect(slide, 7.0, 1.5, 5.5, 3.5, PRIMARY_BLUE)
+    add_multiline_in_shape(right_box, [
+        "Generation & Distribution",
+        "",
+        "\u2022  Automated via CI/CD on every build",
+        "\u2022  cyclonedx-bom (Python dependencies)",
+        "\u2022  @cyclonedx/cyclonedx-npm (Node.js)",
+        "\u2022  Published as GitHub release artifacts",
+        "\u2022  Bundled inside every installer",
+        "    (.deb, .rpm, .msi, .pkg, .snap, .tgz, ...)",
+    ], size=13, color=WHITE, alignment=PP_ALIGN.LEFT)
+
+    # Bottom: compatibility note
+    compat_box = add_accent_rect(slide, 0.8, 5.4, 11.7, 1.0, BUTTON_GREEN)
+    add_multiline_in_shape(compat_box, [
+        "Compatible with: Grype  \u2022  Trivy  \u2022  Dependency-Track  \u2022  Snyk",
+        "Inspect locally:  jq . backend-sbom.json  |  jq '.components | length'",
+    ], size=13, color=WHITE, alignment=PP_ALIGN.CENTER)
+
+
+def slide_22_demo_sequence(prs):
+    """Demo Sequence slide — numbered walkthrough of the demo."""
+    slide = prs.slides.add_slide(prs.slide_layouts[6])
+    add_light_bg(slide)
+    add_top_bar(slide)
+    add_title_textbox(slide, "Demo Sequence")
+    add_bottom_bar(slide)
+    add_footer_text(slide)
+
+    steps = [
+        ("1", "Dashboard & Host Overview", "Navigate the main dashboard, view registered hosts and status"),
+        ("2", "Host Detail Deep-Dive", "Live CPU/RAM/disk/network metrics, OS info, uptime, storage"),
+        ("3", "Software Inventory & Updates", "View installed packages, detect available updates"),
+        ("4", "Package Management", "Install and remove a package remotely from the browser"),
+        ("5", "User Management & RBAC", "Create a user, assign roles (Admin/Operator/Viewer)"),
+        ("6", "Settings & Configuration", "Server configuration, agent settings, preferences"),
+        ("7", "Multi-Language Switching", "Switch UI language live across supported locales"),
     ]
 
-    # Two columns
-    left_items = demo_items[:7]
-    right_items = demo_items[7:]
+    pro_steps = [
+        ("8", "Health Analysis", "AI-powered system health scoring and recommendations"),
+        ("9", "Compliance Audit", "Run CIS Benchmark / DISA STIG checks against a host"),
+        ("10", "PDF Report Generation", "Generate and download a formatted compliance report"),
+        ("11", "Secrets Management", "Store and retrieve secrets via OpenBAO integration"),
+        ("12", "Container Management", "View and manage LXD containers on a host"),
+        ("13", "CVE Vulnerability Scan", "Scan host packages against the CVE database"),
+        ("14", "Alerting Configuration", "Configure Email, Webhook, Slack, and Teams alerts"),
+        ("15", "Audit Log", "Browse tamper-evident audit trail with hash chain verification"),
+    ]
 
-    for col_idx, items in enumerate([left_items, right_items]):
-        x = 0.8 + col_idx * 6.0
-        txBox = slide.shapes.add_textbox(Inches(x), Inches(1.5), Inches(5.5), Inches(5.0))
-        tf = txBox.text_frame
-        tf.word_wrap = True
-        for i, item in enumerate(items):
-            if i == 0:
-                p = tf.paragraphs[0]
-            else:
-                p = tf.add_paragraph()
-            p.space_before = Pt(6)
-            p.space_after = Pt(4)
-            # Color Pro+ items differently
-            color = BUTTON_GREEN if item.startswith("Pro+") else DARK_TEXT
-            set_run(p, f"\u2022  {item}", size=16, color=color)
+    # Open Source section header
+    oss_label = slide.shapes.add_textbox(Inches(0.8), Inches(1.25), Inches(3), Inches(0.3))
+    tf = oss_label.text_frame
+    set_run(tf.paragraphs[0], "Open Source", size=14, bold=True, color=PRIMARY_BLUE)
+
+    # Pro+ section header
+    pro_label = slide.shapes.add_textbox(Inches(6.5), Inches(1.25), Inches(3), Inches(0.3))
+    tf2 = pro_label.text_frame
+    set_run(tf2.paragraphs[0], "Pro+", size=14, bold=True, color=BUTTON_GREEN)
+
+    for col_idx, items in enumerate([steps, pro_steps]):
+        x = 0.8 + col_idx * 5.7
+        for i, (num, title, desc) in enumerate(items):
+            y = 1.55 + i * 0.68
+
+            # Step number circle
+            circ = slide.shapes.add_shape(
+                MSO_SHAPE.OVAL,
+                Inches(x), Inches(y), Inches(0.38), Inches(0.38),
+            )
+            color = PRIMARY_BLUE if col_idx == 0 else BUTTON_GREEN
+            circ.fill.solid()
+            circ.fill.fore_color.rgb = color
+            circ.line.fill.background()
+            add_text_in_shape(circ, num, size=11, color=WHITE, bold=True)
+
+            # Title + description
+            txBox = slide.shapes.add_textbox(
+                Inches(x + 0.5), Inches(y - 0.04), Inches(5.0), Inches(0.65),
+            )
+            tf = txBox.text_frame
+            tf.word_wrap = True
+            set_run(tf.paragraphs[0], title, size=13, bold=True, color=DARK_BLUE)
+            p2 = tf.add_paragraph()
+            p2.space_before = Pt(1)
+            set_run(p2, desc, size=10, color=MEDIUM_GRAY)
 
 
-def slide_18_live_demo(prs):
+def slide_23_live_demo(prs):
     """LIVE DEMO slide."""
     slide = prs.slides.add_slide(prs.slide_layouts[6])
     add_dark_bg(slide)
@@ -786,7 +1052,7 @@ def slide_18_live_demo(prs):
     line.line.fill.background()
 
 
-def slide_19_what_you_saw(prs):
+def slide_24_what_you_saw(prs):
     """What You Just Saw slide."""
     slide = prs.slides.add_slide(prs.slide_layouts[6])
     bullets = [
@@ -800,7 +1066,7 @@ def slide_19_what_you_saw(prs):
     add_bullet_slide(slide, "What You Just Saw", bullets)
 
 
-def slide_20_roadmap_overview(prs):
+def slide_25_roadmap_overview(prs):
     """Roadmap Overview slide."""
     slide = prs.slides.add_slide(prs.slide_layouts[6])
     add_light_bg(slide)
@@ -849,7 +1115,7 @@ def slide_20_roadmap_overview(prs):
     set_run(p, "Target: v3.0.0.0 Enterprise GA \u2014 Q1 2027", size=18, bold=True, color=DARK_BLUE)
 
 
-def slide_21_futures_near(prs):
+def slide_26_futures_near(prs):
     """Futures: Near-Term slide."""
     slide = prs.slides.add_slide(prs.slide_layouts[6])
     headers = ["Phase", "Description", "Estimate", "Target"]
@@ -862,7 +1128,7 @@ def slide_21_futures_near(prs):
                     col_widths=[1.5, 5.0, 2.5, 2.0])
 
 
-def slide_22_futures_mid(prs):
+def slide_27_futures_mid(prs):
     """Futures: Mid-Term slide."""
     slide = prs.slides.add_slide(prs.slide_layouts[6])
     headers = ["Phase", "Description", "Estimate", "Target"]
@@ -876,7 +1142,7 @@ def slide_22_futures_mid(prs):
                     col_widths=[1.5, 5.0, 2.5, 2.0])
 
 
-def slide_23_futures_long(prs):
+def slide_28_futures_long(prs):
     """Futures: Long-Term slide."""
     slide = prs.slides.add_slide(prs.slide_layouts[6])
     headers = ["Phase", "Description", "Estimate", "Target"]
@@ -889,7 +1155,7 @@ def slide_23_futures_long(prs):
                     col_widths=[1.5, 5.0, 2.5, 2.0])
 
 
-def slide_24_takeaways(prs):
+def slide_29_takeaways(prs):
     """Key Takeaways slide."""
     slide = prs.slides.add_slide(prs.slide_layouts[6])
     add_light_bg(slide)
@@ -928,7 +1194,7 @@ def slide_24_takeaways(prs):
         set_run(tf2.paragraphs[0], desc, size=15, color=MEDIUM_GRAY)
 
 
-def slide_25_thank_you(prs):
+def slide_30_thank_you(prs):
     """Thank You slide."""
     slide = prs.slides.add_slide(prs.slide_layouts[6])
     add_dark_bg(slide)
@@ -987,27 +1253,32 @@ def main():
         slide_02_agenda,
         slide_03_problem,
         slide_04_what_is,
-        slide_05_architecture,
-        slide_06_cross_platform,
-        slide_07_packaging,
-        slide_08_i18n,
-        slide_09_oss_features,
-        slide_10_oss_monitoring,
-        slide_11_proplus_licensing,
-        slide_12_proplus_professional,
-        slide_13_proplus_enterprise,
-        slide_14_why_security,
-        slide_15_security_architecture,
-        slide_16_security_devprocess,
-        slide_17_demo_agenda,
-        slide_18_live_demo,
-        slide_19_what_you_saw,
-        slide_20_roadmap_overview,
-        slide_21_futures_near,
-        slide_22_futures_mid,
-        slide_23_futures_long,
-        slide_24_takeaways,
-        slide_25_thank_you,
+        slide_05_who_bryan,
+        slide_06_who_fedor,
+        slide_07_growth_strategy,
+        slide_08_architecture,
+        slide_09_cross_platform,
+        slide_10_packaging,
+        slide_11_i18n,
+        slide_12_oss_features,
+        slide_13_oss_monitoring,
+        slide_14_proplus_licensing,
+        slide_15_proplus_professional,
+        slide_16_proplus_enterprise,
+        slide_17_ecosystem,
+        slide_18_why_security,
+        slide_19_security_architecture,
+        slide_20_security_devprocess,
+        slide_21_sbom,
+        slide_22_demo_sequence,
+        slide_23_live_demo,
+        slide_24_what_you_saw,
+        slide_25_roadmap_overview,
+        slide_26_futures_near,
+        slide_27_futures_mid,
+        slide_28_futures_long,
+        slide_29_takeaways,
+        slide_30_thank_you,
     ]
 
     for builder in slide_builders:
