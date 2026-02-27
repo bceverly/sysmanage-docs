@@ -1211,7 +1211,7 @@ def slide_26_roadmap_overview(prs):
     tf = txBox.text_frame
     set_run(tf.paragraphs[0], "Shipped", size=8, bold=True, color=MEDIUM_GRAY)
 
-    # Phases (rows 2-3)
+    # Phases (rows 2-4)
     phases = [
         ("1", "Stabilization", "v1.2.0.0", "\u2713 Done", True),
         ("2", "Pro+ Prof.", "v1.3.0.0", "\u2713 Done", True),
@@ -1224,24 +1224,25 @@ def slide_26_roadmap_overview(prs):
         ("9", "Stab. RC2", "v2.1.0.0", "Aug 2026", False),
         ("10", "Virt+Obs+MFA", "v2.2.0.0", "Dec 2026", False),
         ("11", "Air-Gapped", "v2.3.0.0", "Jan 2027", False),
-        ("12", "Enterprise GA", "v3.0.0.0", "Feb 2027", False),
+        ("12", "Federation", "v2.4.0.0", "Feb 2027", False),
+        ("13", "Enterprise GA", "v3.0.0.0", "Mar 2027", False),
     ]
 
     for i, (num, desc, ver, status, done) in enumerate(phases):
-        col = i % 6
-        row = i // 6
-        x = 0.4 + col * 2.08
-        y = 2.7 + row * 1.95
+        col = i % 7
+        row = i // 7
+        x = 0.3 + col * 1.82
+        y = 2.7 + row * 1.85
 
         color = GREEN if done else PRIMARY_BLUE
-        box = add_accent_rect(slide, x, y, 1.88, 1.65, color)
+        box = add_accent_rect(slide, x, y, 1.65, 1.55, color)
         add_multiline_in_shape(box, [
             f"Phase {num}",
             ver,
             "",
             desc,
             status,
-        ], size=9, color=WHITE, bold=False, alignment=PP_ALIGN.CENTER)
+        ], size=8, color=WHITE, bold=False, alignment=PP_ALIGN.CENTER)
 
     # Target label
     txBox = slide.shapes.add_textbox(Inches(3.0), Inches(6.55), Inches(7), Inches(0.4))
@@ -1285,9 +1286,10 @@ def slide_29_futures_long(prs):
     rows = [
         ("10", "v2.2.0.0", "Virtualization + Observability + MFA", "Dec 2026"),
         ("11", "v2.3.0.0", "Air-Gapped Support", "Jan 2027"),
-        ("12", "v3.0.0.0", "Enterprise GA", "Feb 2027"),
+        ("12", "v2.4.0.0", "Multi-Site Federation", "Feb 2027"),
+        ("13", "v3.0.0.0", "Enterprise GA", "Mar 2027"),
     ]
-    add_table_slide(slide, "Futures: Long-Term (Phases 10\u201312)", headers, rows,
+    add_table_slide(slide, "Futures: Long-Term (Phases 10\u201313)", headers, rows,
                     col_widths=[1.0, 1.5, 6.0, 2.0])
 
 
