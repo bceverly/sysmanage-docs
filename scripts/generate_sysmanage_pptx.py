@@ -1307,7 +1307,7 @@ def slide_30_takeaways(prs):
         ("Security-First", "mTLS, JWT rotation, tamper-evident auditing, encrypted secrets, zero inbound agent ports"),
         ("Open Source Core", "AGPLv3 \u2014 transparent, auditable, community-driven foundation"),
         ("Commercial Pro+", "Professional & Enterprise tiers for compliance, AI health, CVE scanning, and more"),
-        ("Active Roadmap", "12-phase plan targeting v3.0.0.0 Enterprise GA in Q1 2027"),
+        ("Active Roadmap", "13-phase plan targeting v3.0.0.0 Enterprise GA in Q1 2027"),
     ]
 
     for i, (title, desc) in enumerate(takeaways):
