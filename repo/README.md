@@ -14,6 +14,7 @@ repo/
 
 ### Debian/Ubuntu (DEB Packages)
 
+- **Ubuntu 26.04 LTS (Resolute)** - Python 3.14
 - **Ubuntu 24.04 LTS (Noble)** - Python 3.12
 - **Ubuntu 22.04 LTS (Jammy)** - Python 3.10
 - **Debian 12 (Bookworm)** - Python 3.11
@@ -24,7 +25,7 @@ repo/
 - **Rocky Linux 9 / AlmaLinux 9 / Oracle Linux 9** - Python 3.9+ (2022+)
 - **RHEL 8 / CentOS 8** - Python 3.11 via AppStream (2019+)
 - **Rocky Linux 8 / AlmaLinux 8 / Oracle Linux 8** - Python 3.11 via AppStream (2020+)
-- **Fedora 38+** - Python 3.11+ (2023+)
+- **Fedora 38+** - Python 3.11+ (2023+) — Fedora 43 ships Python 3.14
 
 ### openSUSE/SLES (RPM Packages)
 

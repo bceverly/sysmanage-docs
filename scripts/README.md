@@ -89,7 +89,7 @@ python3 ~/dev/sysmanage-docs/scripts/generate_sysmanage_pptx.py
 | 26 | Roadmap Overview | Futures |
 | 27 | Futures: Near-Term (Phases 3-5) | Futures |
 | 28 | Futures: Mid-Term (Phases 6-9) | Futures |
-| 29 | Futures: Long-Term (Phases 10-12) | Futures |
+| 29 | Futures: Long-Term (Phases 10-13) | Futures |
 | 30 | Key Takeaways | Closing |
 | 31 | Partnership Opportunities | Closing |
 | 32 | Thank You | Closing |
