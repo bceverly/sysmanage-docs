@@ -156,50 +156,42 @@ sudo apt update && sudo apt install sysmanage-agent
 
 **Supported Platforms:**
 
-- Ubuntu 22.04 LTS (Jammy) and later
-- Debian 11 (Bullseye) and later
+- Ubuntu 26.04 LTS (Resolute) and earlier LTS releases back to 22.04
+- Debian 12 (Bookworm) and later
 
 ### RPM Repository (RHEL/CentOS/Fedora/Rocky/AlmaLinux/Oracle Linux)
 
-**EL9 (RHEL 9, Rocky 9, AlmaLinux 9, Oracle Linux 9, CentOS Stream 9):**
+RPM packages are available via [Fedora Copr](https://copr.fedorainfracloud.org/coprs/bceverly/sysmanage/) for both **x86_64** and **aarch64** architectures:
 
 ```bash
-sudo tee /etc/yum.repos.d/sysmanage.repo << EOF
-[sysmanage]
-name=SysManage Agent Repository
-baseurl=https://bceverly.github.io/sysmanage-docs/repo/rpm/el9/x86_64
-enabled=1
-gpgcheck=0
-EOF
-sudo dnf install sysmanage-agent
+sudo dnf copr enable bceverly/sysmanage
+sudo dnf install sysmanage        # Server
+sudo dnf install sysmanage-agent  # Agent
 ```
 
-**EL8 (RHEL 8, Rocky 8, AlmaLinux 8, Oracle Linux 8):**
+**Supported targets (x86_64 and aarch64):**
 
-```bash
-sudo dnf module install python311
-sudo tee /etc/yum.repos.d/sysmanage.repo << EOF
-[sysmanage]
-name=SysManage Agent Repository
-baseurl=https://bceverly.github.io/sysmanage-docs/repo/rpm/el8/x86_64
-enabled=1
-gpgcheck=0
-EOF
-sudo dnf install sysmanage-agent
-```
+- **EPEL 10 / CentOS Stream 10** - Python 3.12
+- **EPEL 9 / RHEL 9 / Rocky 9 / AlmaLinux 9 / Oracle Linux 9 / CentOS Stream 9** - Python 3.9+
+- **EPEL 8 / RHEL 8 / Rocky 8 / AlmaLinux 8 / Oracle Linux 8** - Python 3.11 via AppStream
+- **Fedora 41, 42, 43** - Python 3.13+
 
-**Fedora 38+:**
+### openSUSE/SLES (via Open Build Service)
 
-```bash
-sudo tee /etc/yum.repos.d/sysmanage.repo << EOF
-[sysmanage]
-name=SysManage Agent Repository
-baseurl=https://bceverly.github.io/sysmanage-docs/repo/rpm/fedora/39/x86_64
-enabled=1
-gpgcheck=0
-EOF
-sudo dnf install sysmanage-agent
-```
+- **openSUSE Leap 15.x** - Python 3.11
+- **openSUSE Tumbleweed** - Python 3.11+
+- **SUSE Linux Enterprise Server 15** - Python 3.11
+
+### Other Platforms
+
+- **Alpine Linux** 3.19, 3.20, 3.21 - APK packages
+- **macOS** 11+ (Big Sur) - Universal `.pkg` installer (Intel and Apple Silicon)
+- **Windows** 10+ / Server 2019+ - MSI installer (x64 and ARM64)
+- **FreeBSD** 14.0+ - `.pkg` packages (x86_64)
+- **OpenBSD** 7.7, 7.8 - Port tarballs and binary packages (x86_64)
+- **NetBSD** 10.0+ - `.tgz` packages (x86_64)
+- **Snap** - Available via `snap install sysmanage`
+- **Flatpak** - Agent available via Flatpak (x86_64)
 
 For more details, see:
 
@@ -221,10 +213,13 @@ sysmanage-docs/
 │   └── administration/    # Admin guides
 ├── repo/                  # Package repositories
 │   ├── deb/              # Debian/Ubuntu APT repository
-│   └── rpm/              # Red Hat/Fedora YUM/DNF repository
-│       ├── el8/          # RHEL 8, Rocky 8, AlmaLinux 8, Oracle Linux 8
-│       ├── el9/          # RHEL 9, Rocky 9, AlmaLinux 9, Oracle Linux 9
-│       └── fedora/       # Fedora 38+
+│   ├── rpm/              # Red Hat/Fedora YUM/DNF repository
+│   │   ├── el8/          # RHEL 8, Rocky 8, AlmaLinux 8, Oracle Linux 8
+│   │   ├── el9/          # RHEL 9, Rocky 9, AlmaLinux 9, Oracle Linux 9
+│   │   ├── el10/         # RHEL 10, CentOS Stream 10
+│   │   └── fedora/       # Fedora 41+
+│   ├── agent/            # Agent-specific packages
+│   └── server/           # Server-specific packages
 ├── assets/                # Static assets
 │   ├── css/              # Stylesheets
 │   ├── js/               # JavaScript
