@@ -14,8 +14,12 @@ rpm/
 │   └── x86_64/
 │       ├── *.rpm
 │       └── repodata/
+├── el10/                   # RHEL 10, CentOS Stream 10
+│   └── x86_64/
+│       ├── *.rpm
+│       └── repodata/
 ├── fedora/
-│   └── 39/                 # Fedora 39+
+│   └── 42/                 # Fedora 41+
 │       └── x86_64/
 │           ├── *.rpm
 │           └── repodata/
@@ -37,9 +41,12 @@ rpm/
 
 ## Supported Platforms
 
-- **RHEL 9 / CentOS Stream 9 / Rocky 9 / AlmaLinux 9 / Oracle Linux 9** - Python 3.9+ (2022+)
-- **RHEL 8 / CentOS 8 / Rocky 8 / AlmaLinux 8 / Oracle Linux 8** - Python 3.11 via AppStream (2019+)
-- **Fedora 38+** - Python 3.11+ (2023+)
+RPM packages are also available via [Fedora Copr](https://copr.fedorainfracloud.org/coprs/bceverly/sysmanage-agent/) for both **x86_64** and **aarch64** architectures.
+
+- **EPEL 10 / CentOS Stream 10** - Python 3.12 (x86_64, aarch64)
+- **RHEL 9 / CentOS Stream 9 / Rocky 9 / AlmaLinux 9 / Oracle Linux 9** - Python 3.9+ (x86_64, aarch64)
+- **RHEL 8 / CentOS 8 / Rocky 8 / AlmaLinux 8 / Oracle Linux 8** - Python 3.11 via AppStream (x86_64, aarch64)
+- **Fedora 41, 42, 43** - Python 3.13+ (x86_64, aarch64)
 - **openSUSE Leap 15.x** - Python 3.11 (2021+)
 - **openSUSE Tumbleweed** - Python 3.11+ (Rolling)
 - **SUSE Linux Enterprise Server 15** - Python 3.11 (2018+)
@@ -77,17 +84,11 @@ EOF
 sudo dnf install sysmanage-agent
 ```
 
-### Fedora 38+
+### Fedora 41+
 
 ```bash
-sudo tee /etc/yum.repos.d/sysmanage.repo << EOF
-[sysmanage]
-name=SysManage Agent Repository
-baseurl=https://bceverly.github.io/sysmanage-docs/repo/rpm/fedora/39/x86_64
-enabled=1
-gpgcheck=0
-EOF
-
+# Recommended: use Copr (supports x86_64 and aarch64)
+sudo dnf copr enable bceverly/sysmanage-agent
 sudo dnf install sysmanage-agent
 ```
 

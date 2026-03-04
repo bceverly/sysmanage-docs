@@ -50,7 +50,8 @@ rpm/
 - **Package Name**: `sysmanage-server`
 - **Description**: Centralized management server for SysManage infrastructure
 - **Architecture**: noarch (Python-based, architecture independent)
-- **Required OS**: CentOS 8+, RHEL 8+, Fedora 35+, Rocky Linux 8+, AlmaLinux 8+, Oracle Linux 8+, openSUSE Leap 15.3+
+- **Required OS**: CentOS Stream 9+, RHEL 8+, EPEL 8/9/10, Fedora 41+, Rocky Linux 8+, AlmaLinux 8+, Oracle Linux 8+, openSUSE Leap 15.3+
+- **Architectures**: x86_64, aarch64 (via Copr)
 
 ## Dependencies
 
