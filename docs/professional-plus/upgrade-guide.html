@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en" data-i18n-title="pro_plus.upgrade_guide.page_title">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title data-i18n="pro_plus.upgrade_guide.page_title">Upgrade Guide: Open Source → Professional+ - SysManage</title>
+    <meta name="description" content="Step-by-step guide for upgrading a community-edition SysManage server to Professional+ Professional or Enterprise tier." data-i18n-attr="content" data-i18n="pro_plus.upgrade_guide.meta_description">
+    <link rel="stylesheet" href="../../assets/css/style.css">
+    <link rel="icon" type="image/svg+xml" href="../../assets/images/favicon.svg">
+</head>
+<body data-auto-header="documentation" data-auto-footer>
+
+    <main class="docs-main">
+        <div class="container">
+            <div class="docs-breadcrumb">
+                <a href="../" data-i18n="nav.documentation">Documentation</a> &gt;
+                <a href="./" data-i18n="pro_plus.breadcrumb">Professional+</a> &gt;
+                <span data-i18n="pro_plus.upgrade_guide.breadcrumb">Upgrade Guide</span>
+            </div>
+
+            <div class="docs-header">
+                <div class="pro-plus-badge">&#11088; PRO+</div>
+                <h1 data-i18n="pro_plus.upgrade_guide.header.title">Upgrade Guide: Open Source → Professional+</h1>
+                <p data-i18n="pro_plus.upgrade_guide.header.description">Apply a Professional or Enterprise license to a running open-source SysManage installation. The upgrade is non-destructive — your existing hosts, users, settings, and data carry over unchanged.</p>
+            </div>
+
+            <div class="docs-content">
+
+                <section class="docs-overview">
+                    <h2 data-i18n="pro_plus.upgrade_guide.overview.title">What changes</h2>
+                    <p data-i18n="pro_plus.upgrade_guide.overview.description">Pro+ runs on top of the same open-source SysManage server you already have. There is no separate "Pro+ install" — the open-source server, when given a valid license key, downloads compiled Cython engines from the Pro+ license server at startup and mounts their routes alongside the open-source ones. Endpoints that don't have a loaded Pro+ engine return HTTP 402 (Payment Required) with <code>{"licensed": false}</code>; endpoints that do, behave normally.</p>
+                </section>
+
+                <section class="docs-section">
+                    <h2 data-i18n="pro_plus.upgrade_guide.prereq.title">Prerequisites</h2>
+                    <ul>
+                        <li data-i18n="pro_plus.upgrade_guide.prereq.running">A running open-source SysManage server (any release from v1.3.0 onward)</li>
+                        <li data-i18n="pro_plus.upgrade_guide.prereq.outbound">Outbound HTTPS to <code>license.sysmanage.org</code> from the SysManage server (the module loader needs to pull the Cython engines + plugin bundles)</li>
+                        <li data-i18n="pro_plus.upgrade_guide.prereq.license">A Professional or Enterprise license key — either purchased or evaluation</li>
+                        <li data-i18n="pro_plus.upgrade_guide.prereq.disk">~50 MB free disk under <code>/var/lib/sysmanage/modules/</code> for the cached binaries</li>
+                    </ul>
+                </section>
+
+                <section class="docs-section">
+                    <h2 data-i18n="pro_plus.upgrade_guide.steps.title">Upgrade steps</h2>
+
+                    <h3 data-i18n="pro_plus.upgrade_guide.steps.step1.title">1. Drop the license key into your config</h3>
+                    <p data-i18n="pro_plus.upgrade_guide.steps.step1.description">Edit <code>/etc/sysmanage.yaml</code> and add (or replace) the <code>license_key</code> field under the <code>pro_plus</code> section:</p>
+                    <div class="code-block">
+                        <pre><code>pro_plus:
+  license_key: "eyJhbGciOiJSUzI1NiIs...&lt;your-jwt-here&gt;"</code></pre>
+                    </div>
+                    <p data-i18n="pro_plus.upgrade_guide.steps.step1.note">The license is a signed JWT. Do not edit it; just paste the whole string.</p>
+
+                    <h3 data-i18n="pro_plus.upgrade_guide.steps.step2.title">2. Restart the server</h3>
+                    <p data-i18n="pro_plus.upgrade_guide.steps.step2.description">Restart the SysManage backend so it picks up the license and contacts the license server. On systemd-managed installs:</p>
+                    <div class="code-block">
+                        <pre><code>sudo systemctl restart sysmanage</code></pre>
+                    </div>
+                    <p data-i18n="pro_plus.upgrade_guide.steps.step2.dev">For developer installs (<code>make start</code>), stop and start as you normally would.</p>
+
+                    <h3 data-i18n="pro_plus.upgrade_guide.steps.step3.title">3. Watch the module loader log</h3>
+                    <p data-i18n="pro_plus.upgrade_guide.steps.step3.description">During startup the loader fetches the public key, validates the license, and downloads each entitled module (one Cython binary plus one frontend plugin bundle per engine). Tail the log:</p>
+                    <div class="code-block">
+                        <pre><code>tail -f /var/log/sysmanage/backend.log | grep -E "license|module_loader|Pro\+ module"</code></pre>
+                    </div>
+                    <p data-i18n="pro_plus.upgrade_guide.steps.step3.expect">You should see lines like:</p>
+                    <div class="code-block">
+                        <pre><code>License validated successfully: tier=enterprise, expires=...
+Module downloaded: health_engine v2.0.7 ...
+Module loaded: health_engine from /var/lib/sysmanage/modules/health_engine_3.14.so
+...
+Pro+ module routes mounted: {'health_engine': True, ..., 'av_management_engine': True}</code></pre>
+                    </div>
+                    <p data-i18n="pro_plus.upgrade_guide.steps.step3.timing">First-time downloads can take 30-90 seconds depending on the link to license.sysmanage.org. Subsequent restarts use cached binaries and complete in seconds.</p>
+
+                    <h3 data-i18n="pro_plus.upgrade_guide.steps.step4.title">4. Hard-refresh the browser</h3>
+                    <p data-i18n="pro_plus.upgrade_guide.steps.step4.description">The web UI caches the plugin bundle list in browser memory. After the server restart, hard-refresh (<kbd>Ctrl+Shift+R</kbd> / <kbd>Cmd+Shift+R</kbd>) so the new bundles load. Pro+ tabs and dashboard cards should appear.</p>
+
+                    <h3 data-i18n="pro_plus.upgrade_guide.steps.step5.title">5. Verify the new endpoints</h3>
+                    <p data-i18n="pro_plus.upgrade_guide.steps.step5.description">In the browser DevTools console (logged in):</p>
+                    <div class="code-block">
+                        <pre><code>// Should return 200 (NOT 402) if the Health engine is licensed:
+fetch('/api/v1/health/status', {credentials:'include'}).then(r =&gt; r.status).then(console.log)</code></pre>
+                    </div>
+                </section>
+
+                <section class="docs-section">
+                    <h2 data-i18n="pro_plus.upgrade_guide.tier_diff.title">Tier comparison: Professional vs Enterprise</h2>
+                    <p data-i18n="pro_plus.upgrade_guide.tier_diff.description">Both tiers run the same open-source server with different bundles of modules unlocked.</p>
+
+                    <h3 data-i18n="pro_plus.upgrade_guide.tier_diff.professional">Professional includes</h3>
+                    <ul>
+                        <li><code>health_engine</code> &mdash; AI-driven host health analysis</li>
+                        <li><code>vuln_engine</code> &mdash; CVE database + per-host vulnerability scanning</li>
+                        <li><code>compliance_engine</code> &mdash; CIS / STIG compliance checking</li>
+                        <li><code>alerting_engine</code> &mdash; Email / webhook / Slack / Teams alert routing</li>
+                        <li><code>reporting_engine</code> &mdash; Scheduled report generation</li>
+                        <li><code>audit_engine</code> &mdash; Audit log retention + SIEM export</li>
+                        <li><code>secrets_engine</code> &mdash; OpenBAO-backed secret deployment to hosts</li>
+                        <li><code>container_engine</code> &mdash; Full WSL / LXD container lifecycle (open source has read-only)</li>
+                        <li><code>proplus_core</code> &mdash; Pro+ settings + license management UI</li>
+                    </ul>
+
+                    <h3 data-i18n="pro_plus.upgrade_guide.tier_diff.enterprise">Enterprise adds</h3>
+                    <ul>
+                        <li><code>av_management_engine</code> &mdash; Centralised ClamAV / ClamWin deployment, named policies, scan scheduling, commercial-AV detection (CrowdStrike, SentinelOne, Defender, etc.)</li>
+                        <li><code>firewall_orchestration_engine</code> &mdash; Multi-platform firewall config generation (UFW, firewalld, pf, ipfw, npf, Windows Firewall, macOS), role assignment, fleet deployment, conflict detection, compliance reporting</li>
+                    </ul>
+                </section>
+
+                <section class="docs-section">
+                    <h2 data-i18n="pro_plus.upgrade_guide.what_doesnt_change.title">What does NOT change</h2>
+                    <p data-i18n="pro_plus.upgrade_guide.what_doesnt_change.description">Upgrading to Pro+ is purely additive. None of the following move:</p>
+                    <ul>
+                        <li data-i18n="pro_plus.upgrade_guide.what_doesnt_change.data">Your PostgreSQL/SQLite database, hosts table, users, certificates, audit log</li>
+                        <li data-i18n="pro_plus.upgrade_guide.what_doesnt_change.config">Existing <code>sysmanage.yaml</code> settings (the <code>pro_plus.license_key</code> field is the only addition needed)</li>
+                        <li data-i18n="pro_plus.upgrade_guide.what_doesnt_change.api">Open-source API endpoints &mdash; existing scripts/integrations keep working byte-for-byte</li>
+                        <li data-i18n="pro_plus.upgrade_guide.what_doesnt_change.agents">Connected agents &mdash; no agent-side changes are required to use Pro+ features (the new declarative <code>apply_deployment_plan</code> handler is already in the open-source agent)</li>
+                    </ul>
+                </section>
+
+                <section class="docs-section">
+                    <h2 data-i18n="pro_plus.upgrade_guide.renewal.title">License renewal &amp; rotation</h2>
+                    <p data-i18n="pro_plus.upgrade_guide.renewal.description">When your license is approaching expiry (visible in <strong>Settings → License</strong> in the web UI), generate a new key from the Pro+ portal and replace the <code>license_key</code> value in <code>/etc/sysmanage.yaml</code>. Restart the server. The module loader re-validates against the license server's public key on every restart and on a periodic background check (default every 24 hours).</p>
+                    <p data-i18n="pro_plus.upgrade_guide.renewal.expired">If the license expires while the server is running, all Pro+ endpoints transition back to <code>{"licensed": false, "expired": true}</code>. The open-source functionality keeps working &mdash; nothing breaks; only the Pro+ surface is gated off.</p>
+                </section>
+
+                <section class="docs-section">
+                    <h2 data-i18n="pro_plus.upgrade_guide.downgrade.title">Downgrade / removal</h2>
+                    <p data-i18n="pro_plus.upgrade_guide.downgrade.description">To go back to community edition: remove the <code>license_key</code> line from <code>sysmanage.yaml</code> and restart. The Pro+ engines will fail their license check and the server will mount the 402 stubs in their place. Optionally, delete the cached binaries to reclaim disk:</p>
+                    <div class="code-block">
+                        <pre><code>sudo rm -rf /var/lib/sysmanage/modules/*</code></pre>
+                    </div>
+                </section>
+
+                <section class="docs-section">
+                    <h2 data-i18n="pro_plus.upgrade_guide.troubleshooting.title">Troubleshooting</h2>
+
+                    <h3 data-i18n="pro_plus.upgrade_guide.troubleshooting.no_features.title">"I added the license but Pro+ features don't appear"</h3>
+                    <ol>
+                        <li data-i18n="pro_plus.upgrade_guide.troubleshooting.no_features.step1">Confirm the JWT is well-formed: <code>echo "$LICENSE" | cut -d. -f2 | base64 -d | python3 -m json.tool</code> &mdash; should show your tier and the <code>modules</code> array</li>
+                        <li data-i18n="pro_plus.upgrade_guide.troubleshooting.no_features.step2">Check the backend log for "License validated successfully" and the per-module download lines</li>
+                        <li data-i18n="pro_plus.upgrade_guide.troubleshooting.no_features.step3">Hard-refresh the browser to drop cached plugin bundle metadata</li>
+                        <li data-i18n="pro_plus.upgrade_guide.troubleshooting.no_features.step4">Log out and back in &mdash; some plugin state is per-session</li>
+                    </ol>
+
+                    <h3 data-i18n="pro_plus.upgrade_guide.troubleshooting.slow.title">"The first restart after adding the license takes forever"</h3>
+                    <p data-i18n="pro_plus.upgrade_guide.troubleshooting.slow.description">Expected. The loader is downloading every entitled module (.so) and plugin bundle (.iife.js) from license.sysmanage.org for the first time. Subsequent restarts use the on-disk cache and complete in seconds.</p>
+
+                    <h3 data-i18n="pro_plus.upgrade_guide.troubleshooting.402.title">"I see Pro+ features but every API call returns 402"</h3>
+                    <p data-i18n="pro_plus.upgrade_guide.troubleshooting.402.description">The license is valid but the specific feature isn't in your tier. Check the <code>features</code> array in your decoded JWT &mdash; if the feature code (e.g. <code>av_install</code>, <code>firewall_compliance_check</code>) isn't there, contact sales to upgrade tier.</p>
+
+                    <h3 data-i18n="pro_plus.upgrade_guide.troubleshooting.network.title">"Module download failed: connection timeout"</h3>
+                    <p data-i18n="pro_plus.upgrade_guide.troubleshooting.network.description">The SysManage server can't reach <code>license.sysmanage.org</code>. Confirm outbound HTTPS (TCP/443) is allowed, especially through any corporate proxy. For air-gapped installations a separate offline-licensing flow is planned for Phase 11.</p>
+                </section>
+            </div>
+        </div>
+    </main>
+
+</body>
+</html>
