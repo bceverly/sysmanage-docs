@@ -1448,7 +1448,33 @@
       "vulnerability": "Schwachstellenscan",
       "alerting": "Alarmierungs-Engine",
       "compliance": "Compliance-Engine",
-      "view_docs": "Pro+ Docs anzeigen ->"
+      "view_docs": "Pro+ Docs anzeigen ->",
+      "docs": {
+        "modules": {
+          "av_management_engine": {
+            "title": "🛡 Antivirenverwaltungs-Engine",
+            "description": "Zentrale Antivirenbereitstellung mit wiederverwendbaren Richtlinien, geplanten Scans, Definitionsaktualisierungs-Kadenz und flotten weiter Erkennung kommerzieller Antivirenprogramme.",
+            "features": {
+              "policies": "Wiederverwendbare benannte AV-Richtlinien",
+              "scheduling": "Tägliche / wöchentliche / monatliche Scan-Zeitpläne",
+              "cadence": "Konfigurierbare Definitionsaktualisierungs-Kadenz",
+              "commercial": "Flotten weiter Erkennungsbericht für kommerzielle AV"
+            },
+            "link": "Antivirenverwaltungs-Engine-Anleitung →"
+          },
+          "firewall_orchestration_engine": {
+            "title": "🔒 Firewall-Orchestrierungs-Engine",
+            "description": "Plattformübergreifende Firewall-Konfigurationsgenerierung mit Rollenzuweisung, flotten weiter Richtlinienbereitstellung, Regelkonflikterkennung und Compliance-Berichten.",
+            "features": {
+              "flavors": "UFW, firewalld, pf, ipfw, npf, Windows, macOS",
+              "fleet": "Flotten weite Richtlinienbereitstellung mit Filtern",
+              "conflicts": "Regelkonflikterkennung vor der Bereitstellung",
+              "compliance": "Flotten weite Compliance-Berichterstattung"
+            },
+            "link": "Firewall-Orchestrierungs-Engine-Anleitung →"
+          }
+        }
+      }
     }
   },
   "administration": {
@@ -6422,6 +6448,97 @@
         "children": "Der übergeordnete Host muss mindestens einen laufenden untergeordneten Host haben (WSL oder LXD)",
         "permissions": "Benutzer muss die REBOOT_HOST-Sicherheitsrolle haben",
         "agent": "SysManage-Agent läuft auf dem übergeordneten Host mit aktiver Verbindung"
+      }
+    },
+    "av_management_engine": {
+      "page_title": "Antivirenverwaltungs-Engine - SysManage Professional+",
+      "meta_description": "Zentrale Antivirenbereitstellung, Richtlinienverwaltung, Scan-Planung und Erkennung kommerzieller Antivirenprogramme über die gesamte Flotte.",
+      "breadcrumb": "Antivirenverwaltungs-Engine",
+      "header": {
+        "title": "Antivirenverwaltungs-Engine",
+        "description": "Zentrale, richtliniengesteuerte Antivirenbereitstellung für ClamAV (Linux/BSD/macOS) und ClamWin (Windows). Fügt wiederverwendbare AV-Richtlinien, geplante Scans, Steuerung der Definitionsaktualisierungs-Kadenz und einen flotten weiten Erkennungsbericht für kommerzielle AV zusätzlich zu den Open-Source-Grundlagen hinzu."
+      },
+      "overview": {
+        "title": "Übersicht",
+        "description": "Die AV Management Engine generiert serverseitig ClamAV / ClamWin-Konfigurationen und sendet sie als vollständig vorbereitete Bereitstellungspläne an Agents. Der Agent führt den Plan über den generischen apply_deployment_plan-Handler aus — keine AV-Geschäftslogik liegt auf dem Agent. Die Engine fügt eine AvPolicy-Abstraktion darüber, sodass ein Bediener eine einzelne benannte Richtlinie (Kadenz + Zeitplan + Produkt) definieren und auf eine beliebige Anzahl von Hosts anwenden kann."
+      },
+      "opensource": {
+        "title": "Open Source vs. Professional+",
+        "deploy": "Community Edition: Pro-Host-Installation / Aktivierung / Deaktivierung / Entfernung über backend/services/av_plan_builder.py",
+        "policies": "Professional+: wiederverwendbare benannte Richtlinien mit Kadenz + Scan-Zeitplan, in einem Aufruf auf viele Hosts angewendet",
+        "commercial": "Professional+: flotten weiter Erkennungsbericht für kommerzielle AV (CrowdStrike, SentinelOne, Defender usw.)",
+        "scheduling": "Professional+: cron-artige tägliche / wöchentliche / monatliche geplante Scans (Linux/FreeBSD über /etc/cron.d; Windows über schtasks)"
+      },
+      "deploy_plan": {
+        "title": "Form des Bereitstellungsplans",
+        "description": "Jede Operation erzeugt einen deklarativen Bereitstellungsplan, den der Agent Schritt für Schritt ausführt (Pakete installieren → Konfigurationen schreiben → Befehle ausführen → Dienste starten). Der Plan ist drahtkompatibel mit dem Open-Source-Planer, sodass derselbe Agent-Handler beide ausführt:"
+      },
+      "policies": {
+        "title": "AV-Richtlinien",
+        "description": "Eine AvPolicy bündelt das AV-Produkt, die Definitionsaktualisierungs-Kadenz und den Scan-Zeitplan zu einer benannten, wiederverwendbaren Einheit. Wenden Sie sie auf so viele Hosts an, wie Sie möchten; die Engine löst die Pro-Host-Build-Optionen auf und stellt für jeden eine APPLY_DEPLOYMENT_PLAN-Nachricht in die Warteschlange.",
+        "endpoints": "Endpunkte",
+        "example": "Beispiel"
+      },
+      "commercial": {
+        "title": "Kommerzieller AV-Flottenbericht",
+        "description": "Das Open-Source commercial_antivirus_collection.py des Agents erkennt bereits CrowdStrike, SentinelOne, Defender, McAfee, Symantec usw. und schreibt den Pro-Host-Status in die Tabelle commercial_antivirus_status. Professional+ fügt einen Flotten-Aggregationsendpunkt hinzu, der zusammenfasst, welche Produkte auf wie vielen Hosts installiert sind, und Hosts mit deaktiviertem Echtzeitschutz hervorhebt."
+      },
+      "feature_codes": {
+        "title": "Funktionscodes",
+        "description": "Endpunkte in dieser Engine werden durch diese Funktionscodes geschützt (vom Open-Source-Server mit 402 zurückgegeben, wenn das Modul nicht geladen ist):"
+      },
+      "architecture": {
+        "title": "Architektur",
+        "description": "Die Engine ist eine mit Cython kompilierte Binärdatei (av_management_engine.so), die beim Start vom module_loader des Open-Source-Servers geladen wird. Sie exportiert denselben get_module_info() + get_av_management_router()-Vertrag wie die anderen Pro+-Module, sodass der mount_av_management_routes()-Wrapper des Open-Source-Servers sie ohne Bedingungen neben den 402-Stubs einbinden kann."
+      }
+    },
+    "firewall_orchestration_engine": {
+      "page_title": "Firewall-Orchestrierungs-Engine - SysManage Professional+",
+      "meta_description": "Plattformübergreifende Firewall-Konfigurationsgenerierung, Rollenzuweisung, flotten weite Richtlinienbereitstellung, Regelkonflikterkennung und Compliance-Berichterstattung.",
+      "breadcrumb": "Firewall-Orchestrierungs-Engine",
+      "header": {
+        "title": "Firewall-Orchestrierungs-Engine",
+        "description": "Serverseitige, plattformübergreifende Firewall-Regelgenerierung. Erstellt UFW-, firewalld-, pf-, ipfw-, npf-, Windows Firewall- und macOS socketfilterfw-Pläne aus einem einheitlichen PortRule-Schema. Fügt Rollenzuweisung, flotten weite Richtlinienbereitstellung, Regelkonflikterkennung und Compliance-Berichterstattung zusätzlich zu den Open-Source-Grundlagen hinzu."
+      },
+      "overview": {
+        "title": "Übersicht",
+        "description": "Die Firewall Orchestration Engine generiert serverseitig plattformspezifische Firewall-Konfigurationen und sendet sie als Bereitstellungspläne an den Agent. Der Agent führt den Plan über den generischen apply_deployment_plan-Handler aus — keine Firewall-Geschäftslogik liegt auf dem Agent (nur das schreibgeschützte firewall_collector.py bleibt für die Statusmeldung). Alle sieben unterstützten Versionen teilen sich ein einziges PortRule-Schema mit Quellbeschränkungen, Eingabe-/Ausgaberichtung und Aktion (zulassen/verweigern)."
+      },
+      "opensource": {
+        "title": "Open Source vs. Professional+",
+        "basics": "Community Edition: Aktivieren / Deaktivieren / Neustart / Bereitstellen plus Hinzufügen / Entfernen von Rollen-Ports pro Host über backend/services/firewall_plan_builder.py",
+        "rich_rules": "Professional+: quellenbeschränkte Regeln (CIDR), Eingabe-/Ausgaberichtung, benannte Regelbeschreibungen, In-Engine-Validierung",
+        "fleet": "Professional+: flotten weite Bereitstellung mit Plattform- / Genehmigungsstatus-Filtern",
+        "conflict": "Professional+: Regelkonflikterkennung vor der Bereitstellung (Diskrepanz zwischen Zulassen/Verweigern, Quellüberschattung, mehrere unterschiedliche Quellen)",
+        "compliance": "Professional+: Flotten-Compliance-Bericht, der zugewiesene Rollen mit dem tatsächlichen Firewall-Status vergleicht"
+      },
+      "flavors": {
+        "title": "Unterstützte Firewall-Versionen",
+        "description": "Die Version eines Hosts wird aus platform + platform_release erkannt:"
+      },
+      "fleet": {
+        "title": "Flottenrichtlinien-Bereitstellung",
+        "description": "Wenden Sie eine Rollenmenge in einem Aufruf auf viele Hosts an. Geben Sie entweder explizite host_ids oder einen host_filter (platform / approval_status, UND-verknüpft) an. Hosts auf Plattformen ohne Builder werden mit einer Begründung übersprungen."
+      },
+      "conflicts": {
+        "title": "Regelkonflikterkennung",
+        "description": "Bevor ein Plan in die Warteschlange gestellt wird, durchläuft detect_rule_conflicts() die abgeflachte Regelliste und zeigt inkonsistente Absichten:",
+        "identical": "Identische Regeln, die zweimal aufgeführt sind, werden <em>nicht</em> gemeldet — sie werden nur dedupliziert."
+      },
+      "compliance": {
+        "title": "Compliance-Bericht",
+        "description": "Vergleicht die rollenabgeleitete erwartete Portmenge jedes Hosts mit dem, was FirewallStatus.tcp_open_ports als tatsächlich offen meldet. Ein Host ist <strong>konform</strong>, nur wenn er eine Statuszeile hat UND actual_ports ⊇ expected_ports."
+      },
+      "lockout": {
+        "title": "Aussperrungsschutz",
+        "description": "Jeder build_*_rules-Aufruf erlaubt immer zuerst die Verwaltungsports — SSH (22), DNS (53), DHCP (67), plus alle Agent-Kommunikationsports, die in host_info[\"agent_ports\"] übergeben werden, plus RDP (3389) unter Windows. Entfernungs-Builder überspringen geschützte Ports stillschweigend und zeigen sie in skipped_preserved_ports an, damit der Bediener prüfen kann. Dies ist nicht umgehbar; die Engine weigert sich, einen Plan zu erstellen, der den Agent aussperren würde."
+      },
+      "feature_codes": {
+        "title": "Funktionscodes"
+      },
+      "architecture": {
+        "title": "Architektur",
+        "description": "Die Engine ist eine mit Cython kompilierte Binärdatei (firewall_orchestration_engine.so), die beim Start vom module_loader des Open-Source-Servers geladen wird. Sie exportiert denselben get_module_info() + get_firewall_orchestration_router()-Vertrag wie die anderen Pro+-Module. Der Agent behält nach dem Start von Phase 3 keine Firewall-Geschäftslogik mehr, mit Ausnahme des schreibgeschützten firewall_collector.py, das den aktuellen Status zurückmeldet."
       }
     }
   },

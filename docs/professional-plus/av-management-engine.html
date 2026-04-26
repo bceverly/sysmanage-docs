@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en" data-i18n-title="pro_plus.av_management_engine.page_title">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title data-i18n="pro_plus.av_management_engine.page_title">AV Management Engine - SysManage Professional+</title>
+    <meta name="description" content="Centralised antivirus deployment, policy management, scan scheduling, and commercial AV detection across the fleet." data-i18n-attr="content" data-i18n="pro_plus.av_management_engine.meta_description">
+    <link rel="stylesheet" href="../../assets/css/style.css">
+    <link rel="icon" type="image/svg+xml" href="../../assets/images/favicon.svg">
+</head>
+<body data-auto-header="documentation" data-auto-footer>
+
+    <main class="docs-main">
+        <div class="container">
+            <div class="docs-breadcrumb">
+                <a href="../" data-i18n="nav.documentation">Documentation</a> &gt;
+                <a href="./" data-i18n="pro_plus.breadcrumb">Professional+</a> &gt;
+                <span data-i18n="pro_plus.av_management_engine.breadcrumb">AV Management Engine</span>
+            </div>
+
+            <div class="docs-header">
+                <div class="pro-plus-badge">&#11088; PRO+</div>
+                <h1 data-i18n="pro_plus.av_management_engine.header.title">AV Management Engine</h1>
+                <p data-i18n="pro_plus.av_management_engine.header.description">Centralised, policy-driven antivirus deployment for ClamAV (Linux/BSD/macOS) and ClamWin (Windows). Adds reusable AV policies, scheduled scans, definition-update cadence control, and a fleet-wide commercial-AV detection report on top of the open-source basics.</p>
+            </div>
+
+            <div class="docs-content">
+                <section class="docs-overview">
+                    <h2 data-i18n="pro_plus.av_management_engine.overview.title">Overview</h2>
+                    <p data-i18n="pro_plus.av_management_engine.overview.description">The AV Management Engine generates server-side ClamAV / ClamWin configurations and ships them to agents as fully-baked deploy plans. The agent runs the plan via the generic <code>apply_deployment_plan</code> handler — no AV business logic lives on the agent. The engine layers an <strong>AvPolicy</strong> abstraction on top so an operator can define a single named policy (cadence + schedule + product) and apply it to any number of hosts.</p>
+                </section>
+
+                <section class="docs-section">
+                    <h2 data-i18n="pro_plus.av_management_engine.opensource.title">Open Source vs Professional+</h2>
+                    <ul>
+                        <li data-i18n="pro_plus.av_management_engine.opensource.deploy">Community Edition: per-host install / enable / disable / remove via <code>backend/services/av_plan_builder.py</code></li>
+                        <li data-i18n="pro_plus.av_management_engine.opensource.policies">Professional+: reusable named policies with cadence + scan schedule, applied to many hosts in one call</li>
+                        <li data-i18n="pro_plus.av_management_engine.opensource.commercial">Professional+: fleet-wide commercial-AV detection report (CrowdStrike, SentinelOne, Defender, etc.)</li>
+                        <li data-i18n="pro_plus.av_management_engine.opensource.scheduling">Professional+: cron-style daily / weekly / monthly scheduled scans (Linux/FreeBSD via <code>/etc/cron.d</code>; Windows via <code>schtasks</code>)</li>
+                    </ul>
+                </section>
+
+                <section class="docs-section">
+                    <h2 data-i18n="pro_plus.av_management_engine.deploy_plan.title">Deploy Plan Shape</h2>
+                    <p data-i18n="pro_plus.av_management_engine.deploy_plan.description">Every operation produces a declarative deploy plan that the agent executes step-by-step (install packages → write configs → run commands → start services). The plan is wire-compatible with the open-source planner so the same agent handler runs both:</p>
+                    <div class="code-block">
+                        <pre><code>{
+  "platform": "linux" | "windows" | "freebsd" | ...,
+  "av_product": "clamav" | "clamwin",
+  "packages":         [str | {"manager": str, "name": str, "args": [str]}],
+  "files":            [{"path", "content", "mode", "owner", "group", "backup"}],
+  "commands":         [{"argv", "sudo", "elevated", "timeout", "ignore_errors", "description"}],
+  "service_actions":  [{"service", "action": "enable|start|stop|disable"}],
+  "scan_schedule":    {"frequency": "daily|weekly|monthly", "hour", "minute", "day_of_week"?, "day_of_month"?, "scan_paths": [str]}
+}</code></pre>
+                    </div>
+                </section>
+
+                <section class="docs-section">
+                    <h2 data-i18n="pro_plus.av_management_engine.policies.title">AV Policies</h2>
+                    <p data-i18n="pro_plus.av_management_engine.policies.description">An <code>AvPolicy</code> bundles the AV product, definition-update cadence, and scan schedule into a named, reusable unit. Apply it across as many hosts as you like; the engine resolves the per-host build options and queues an <code>APPLY_DEPLOYMENT_PLAN</code> message for each.</p>
+
+                    <h3 data-i18n="pro_plus.av_management_engine.policies.endpoints">Endpoints</h3>
+                    <ul>
+                        <li><code>GET /api/v1/av/policies</code> &mdash; list registered policies</li>
+                        <li><code>POST /api/v1/av/policies</code> &mdash; create or overwrite a policy by name</li>
+                        <li><code>DELETE /api/v1/av/policies/{name}</code> &mdash; remove a policy</li>
+                        <li><code>POST /api/v1/av/policies/{name}/apply</code> &mdash; resolve and queue the policy for a host list</li>
+                    </ul>
+
+                    <h3 data-i18n="pro_plus.av_management_engine.policies.example">Example</h3>
+                    <div class="code-block">
+                        <pre><code>POST /api/v1/av/policies
+{
+  "name": "production-tier",
+  "av_product": "clamav",
+  "checks_per_day": 12,
+  "scan_schedule": {
+    "frequency": "weekly",
+    "day_of_week": 0,
+    "hour": 2,
+    "minute": 0,
+    "scan_paths": ["/var/www", "/opt/app"]
+  }
+}
+
+POST /api/v1/av/policies/production-tier/apply
+{ "host_ids": ["..uuid..", "..uuid.."] }</code></pre>
+                    </div>
+                </section>
+
+                <section class="docs-section">
+                    <h2 data-i18n="pro_plus.av_management_engine.commercial.title">Commercial AV Fleet Report</h2>
+                    <p data-i18n="pro_plus.av_management_engine.commercial.description">The agent's open-source <code>commercial_antivirus_collection.py</code> already detects CrowdStrike, SentinelOne, Defender, McAfee, Symantec, etc. and writes per-host status to the <code>commercial_antivirus_status</code> table. Professional+ adds a <strong>fleet aggregation</strong> endpoint that summarises which products are installed on how many hosts and surfaces hosts with realtime protection disabled.</p>
+                    <div class="code-block">
+                        <pre><code>GET /api/v1/av/commercial/fleet-report
+
+{
+  "total_hosts": 142,
+  "hosts_with_commercial_av": 87,
+  "by_product": {
+    "Microsoft Defender": 54,
+    "CrowdStrike": 22,
+    "SentinelOne": 11
+  },
+  "realtime_protection_off_count": 3,
+  "entries": [...]
+}</code></pre>
+                    </div>
+                </section>
+
+                <section class="docs-section">
+                    <h2 data-i18n="pro_plus.av_management_engine.feature_codes.title">Feature Codes</h2>
+                    <p data-i18n="pro_plus.av_management_engine.feature_codes.description">Endpoints in this engine are gated by these feature codes (returned <code>402</code> by the open-source server when the module isn't loaded):</p>
+                    <ul>
+                        <li><code>av_install</code> &mdash; deploy / policy-apply</li>
+                        <li><code>av_uninstall</code> &mdash; remove</li>
+                        <li><code>av_status</code> &mdash; per-host status read</li>
+                        <li><code>av_scan</code> &mdash; on-demand scan</li>
+                        <li><code>commercial_av_detect</code> &mdash; fleet commercial-AV report</li>
+                    </ul>
+                </section>
+
+                <section class="docs-section">
+                    <h2 data-i18n="pro_plus.av_management_engine.architecture.title">Architecture</h2>
+                    <p data-i18n="pro_plus.av_management_engine.architecture.description">The engine is a Cython-compiled binary (<code>av_management_engine.so</code>) loaded by the open-source server's <code>module_loader</code> at startup. It exports the same <code>get_module_info()</code> + <code>get_av_management_router()</code> contract as the other Pro+ modules, so the open-source server's <code>mount_av_management_routes()</code> wrapper can mount it alongside the 402 stubs without conditionals.</p>
+                </section>
+            </div>
+        </div>
+    </main>
+
+</body>
+</html>

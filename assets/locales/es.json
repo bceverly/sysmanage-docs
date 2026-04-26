@@ -2907,7 +2907,33 @@
       "vulnerability": "Escaneo de Vulnerabilidades",
       "alerting": "Motor de Alertas",
       "compliance": "Motor de Cumplimiento",
-      "view_docs": "Ver Docs Pro+ ->"
+      "view_docs": "Ver Docs Pro+ ->",
+      "docs": {
+        "modules": {
+          "av_management_engine": {
+            "title": "🛡 Motor de gestión antivirus",
+            "description": "Despliegue centralizado de antivirus con políticas reutilizables, escaneos programados, cadencia de actualización de definiciones y detección de antivirus comerciales en toda la flota.",
+            "features": {
+              "policies": "Políticas AV con nombre reutilizables",
+              "scheduling": "Programaciones de escaneo diarias / semanales / mensuales",
+              "cadence": "Cadencia configurable de actualización de definiciones",
+              "commercial": "Informe de detección de AV comercial en toda la flota"
+            },
+            "link": "Guía del motor de gestión antivirus →"
+          },
+          "firewall_orchestration_engine": {
+            "title": "🔒 Motor de orquestación de firewall",
+            "description": "Generación de configuración de firewall multiplataforma con asignación de roles, despliegue de políticas en toda la flota, detección de conflictos de reglas e informes de cumplimiento.",
+            "features": {
+              "flavors": "UFW, firewalld, pf, ipfw, npf, Windows, macOS",
+              "fleet": "Despliegue de políticas en toda la flota con filtros",
+              "conflicts": "Detección de conflictos de reglas previa al despliegue",
+              "compliance": "Informes de cumplimiento en toda la flota"
+            },
+            "link": "Guía del motor de orquestación de firewall →"
+          }
+        }
+      }
     }
   },
   "features": {
@@ -6545,6 +6571,97 @@
         "children": "El host principal debe tener al menos un host secundario en ejecución (WSL o LXD)",
         "permissions": "El usuario debe tener el rol de seguridad REBOOT_HOST",
         "agent": "Agente SysManage ejecutándose en el host principal con conectividad activa"
+      }
+    },
+    "av_management_engine": {
+      "page_title": "Motor de gestión antivirus - SysManage Professional+",
+      "meta_description": "Despliegue centralizado de antivirus, gestión de políticas, programación de escaneos y detección de antivirus comerciales en toda la flota.",
+      "breadcrumb": "Motor de gestión antivirus",
+      "header": {
+        "title": "Motor de gestión antivirus",
+        "description": "Despliegue antivirus centralizado y basado en políticas para ClamAV (Linux/BSD/macOS) y ClamWin (Windows). Añade políticas AV reutilizables, escaneos programados, control de cadencia de actualización de definiciones e informe de detección de AV comercial en toda la flota sobre los aspectos básicos de código abierto."
+      },
+      "overview": {
+        "title": "Visión general",
+        "description": "El motor de gestión antivirus genera configuraciones de ClamAV / ClamWin del lado del servidor y las envía a los agentes como planes de despliegue completamente preparados. El agente ejecuta el plan a través del manejador genérico apply_deployment_plan — no hay lógica de negocio AV en el agente. El motor agrega una abstracción AvPolicy encima para que un operador pueda definir una sola política con nombre (cadencia + programación + producto) y aplicarla a cualquier número de hosts."
+      },
+      "opensource": {
+        "title": "Código abierto vs Professional+",
+        "deploy": "Edición Community: instalación / habilitación / deshabilitación / eliminación por host a través de backend/services/av_plan_builder.py",
+        "policies": "Professional+: políticas con nombre reutilizables con cadencia + programación de escaneo, aplicadas a muchos hosts en una sola llamada",
+        "commercial": "Professional+: informe de detección de AV comercial en toda la flota (CrowdStrike, SentinelOne, Defender, etc.)",
+        "scheduling": "Professional+: escaneos programados de estilo cron diarios / semanales / mensuales (Linux/FreeBSD a través de /etc/cron.d; Windows a través de schtasks)"
+      },
+      "deploy_plan": {
+        "title": "Forma del plan de despliegue",
+        "description": "Cada operación produce un plan de despliegue declarativo que el agente ejecuta paso a paso (instalar paquetes → escribir configuraciones → ejecutar comandos → iniciar servicios). El plan es compatible por cable con el planificador de código abierto, por lo que el mismo manejador del agente ejecuta ambos:"
+      },
+      "policies": {
+        "title": "Políticas AV",
+        "description": "Una AvPolicy agrupa el producto AV, la cadencia de actualización de definiciones y la programación de escaneo en una unidad reutilizable con nombre. Aplíquela a tantos hosts como desee; el motor resuelve las opciones de compilación por host y pone en cola un mensaje APPLY_DEPLOYMENT_PLAN para cada uno.",
+        "endpoints": "Puntos finales",
+        "example": "Ejemplo"
+      },
+      "commercial": {
+        "title": "Informe de AV comercial de la flota",
+        "description": "El commercial_antivirus_collection.py de código abierto del agente ya detecta CrowdStrike, SentinelOne, Defender, McAfee, Symantec, etc. y escribe el estado por host en la tabla commercial_antivirus_status. Professional+ agrega un punto final de agregación de flota que resume qué productos están instalados en cuántos hosts y muestra los hosts con la protección en tiempo real desactivada."
+      },
+      "feature_codes": {
+        "title": "Códigos de características",
+        "description": "Los puntos finales en este motor están protegidos por estos códigos de características (devueltos como 402 por el servidor de código abierto cuando el módulo no está cargado):"
+      },
+      "architecture": {
+        "title": "Arquitectura",
+        "description": "El motor es un binario compilado con Cython (av_management_engine.so) cargado por el module_loader del servidor de código abierto al inicio. Exporta el mismo contrato get_module_info() + get_av_management_router() que los otros módulos Pro+, por lo que el envoltorio mount_av_management_routes() del servidor de código abierto puede montarlo junto a los stubs 402 sin condicionales."
+      }
+    },
+    "firewall_orchestration_engine": {
+      "page_title": "Motor de orquestación de firewall - SysManage Professional+",
+      "meta_description": "Generación de configuración de firewall multiplataforma, asignación de roles, despliegue de políticas en toda la flota, detección de conflictos de reglas e informes de cumplimiento.",
+      "breadcrumb": "Motor de orquestación de firewall",
+      "header": {
+        "title": "Motor de orquestación de firewall",
+        "description": "Generación de reglas de firewall multiplataforma del lado del servidor. Crea planes UFW, firewalld, pf, ipfw, npf, Windows Firewall y macOS socketfilterfw a partir de un esquema PortRule unificado. Añade asignación de roles, despliegue de políticas en toda la flota, detección de conflictos de reglas e informes de cumplimiento sobre los aspectos básicos de código abierto."
+      },
+      "overview": {
+        "title": "Visión general",
+        "description": "El motor de orquestación de firewall genera configuraciones de firewall específicas de la plataforma del lado del servidor y las envía al agente como planes de despliegue. El agente ejecuta el plan a través del manejador genérico apply_deployment_plan — no hay lógica de negocio de firewall en el agente (solo permanece firewall_collector.py de solo lectura para la generación de informes de estado). Las siete versiones admitidas comparten un único esquema PortRule con restricciones de origen, dirección de entrada/salida y acción (permitir/denegar)."
+      },
+      "opensource": {
+        "title": "Código abierto vs Professional+",
+        "basics": "Edición Community: habilitar / deshabilitar / reiniciar / desplegar más agregar / eliminar puertos de rol por host a través de backend/services/firewall_plan_builder.py",
+        "rich_rules": "Professional+: reglas con restricción de origen (CIDR), dirección de entrada/salida, descripciones de reglas con nombre, validación dentro del motor",
+        "fleet": "Professional+: despliegue en toda la flota con filtros de plataforma / estado de aprobación",
+        "conflict": "Professional+: detección de conflictos de reglas previa al despliegue (discrepancia permitir/denegar, sombreado de origen, múltiples orígenes distintos)",
+        "compliance": "Professional+: informe de cumplimiento de la flota que compara los roles asignados con el estado real del firewall"
+      },
+      "flavors": {
+        "title": "Versiones de firewall admitidas",
+        "description": "La versión de un host se detecta a partir de platform + platform_release:"
+      },
+      "fleet": {
+        "title": "Despliegue de políticas de flota",
+        "description": "Aplique un conjunto de roles a muchos hosts en una sola llamada. Proporcione host_ids explícitos o un host_filter (platform / approval_status, combinados con AND). Los hosts en plataformas sin un compilador se omiten con un motivo."
+      },
+      "conflicts": {
+        "title": "Detección de conflictos de reglas",
+        "description": "Antes de poner en cola cualquier plan, detect_rule_conflicts() recorre la lista plana de reglas y muestra intenciones inconsistentes:",
+        "identical": "Las reglas idénticas listadas dos veces <em>no</em> se reportan — solo se deduplican."
+      },
+      "compliance": {
+        "title": "Informe de cumplimiento",
+        "description": "Compara el conjunto de puertos esperados derivados de roles de cada host con lo que FirewallStatus.tcp_open_ports informa como realmente abierto. Un host es <strong>conforme</strong> si y solo si tiene una fila de estado Y actual_ports ⊇ expected_ports."
+      },
+      "lockout": {
+        "title": "Protección contra bloqueo",
+        "description": "Cada llamada build_*_rules siempre vuelve a permitir primero los puertos de gestión — SSH (22), DNS (53), DHCP (67), más cualquier puerto de comunicación del agente pasado en host_info[\"agent_ports\"], más RDP (3389) en Windows. Los compiladores de eliminación omiten los puertos preservados silenciosamente y los muestran en skipped_preserved_ports para que el operador pueda auditar. Esto no es eludible; el motor se niega a emitir un plan que bloquearía al agente."
+      },
+      "feature_codes": {
+        "title": "Códigos de características"
+      },
+      "architecture": {
+        "title": "Arquitectura",
+        "description": "El motor es un binario compilado con Cython (firewall_orchestration_engine.so) cargado por el module_loader del servidor de código abierto al inicio. Exporta el mismo contrato get_module_info() + get_firewall_orchestration_router() que los otros módulos Pro+. El agente no retiene ninguna lógica de negocio de firewall después del lanzamiento de la Fase 3, excepto el firewall_collector.py de solo lectura que informa el estado actual."
       }
     }
   },
