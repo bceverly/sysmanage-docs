@@ -1751,7 +1751,33 @@
       "vulnerability": "漏洞扫描",
       "alerting": "警报引擎",
       "compliance": "合规引擎",
-      "view_docs": "查看 Pro+ 文档 ->"
+      "view_docs": "查看 Pro+ 文档 ->",
+      "docs": {
+        "modules": {
+          "av_management_engine": {
+            "title": "🛡 防病毒管理引擎",
+            "description": "集中式防病毒部署，具有可重复使用的策略、计划扫描、定义更新节奏和全队商业 AV 检测。",
+            "features": {
+              "policies": "可重复使用的命名 AV 策略",
+              "scheduling": "每日 / 每周 / 每月扫描计划",
+              "cadence": "可配置的定义更新节奏",
+              "commercial": "全队商业 AV 检测报告"
+            },
+            "link": "AV 管理引擎指南 →"
+          },
+          "firewall_orchestration_engine": {
+            "title": "🔒 防火墙编排引擎",
+            "description": "多平台防火墙配置生成，具有角色分配、全队策略部署、规则冲突检测和合规性报告。",
+            "features": {
+              "flavors": "UFW、firewalld、pf、ipfw、npf、Windows、macOS",
+              "fleet": "带过滤器的全队策略部署",
+              "conflicts": "部署前规则冲突检测",
+              "compliance": "全队合规性报告"
+            },
+            "link": "防火墙编排引擎指南 →"
+          }
+        }
+      }
     }
   },
   "navigation": {
@@ -6545,6 +6571,97 @@
         "children": "父主机必须至少有一个运行中的子主机（WSL 或 LXD）",
         "permissions": "用户必须拥有 REBOOT_HOST 安全角色",
         "agent": "父主机上运行着具有活动连接的 SysManage 代理"
+      }
+    },
+    "av_management_engine": {
+      "page_title": "AV 管理引擎 - SysManage Professional+",
+      "meta_description": "整个集群的集中式防病毒部署、策略管理、扫描计划和商业 AV 检测。",
+      "breadcrumb": "AV 管理引擎",
+      "header": {
+        "title": "AV 管理引擎",
+        "description": "适用于 ClamAV (Linux/BSD/macOS) 和 ClamWin (Windows) 的集中式、基于策略的防病毒部署。在开源基础之上添加可重用的 AV 策略、计划扫描、定义更新节奏控制和全队商业 AV 检测报告。"
+      },
+      "overview": {
+        "title": "概述",
+        "description": "AV 管理引擎在服务器端生成 ClamAV / ClamWin 配置，并将其作为完全准备好的部署计划发送给代理。代理通过通用 apply_deployment_plan 处理程序运行计划 — 代理上没有 AV 业务逻辑。引擎在其上添加 AvPolicy 抽象，以便操作员可以定义单个命名策略（节奏 + 计划 + 产品）并将其应用于任意数量的主机。"
+      },
+      "opensource": {
+        "title": "开源 vs Professional+",
+        "deploy": "Community Edition：通过 backend/services/av_plan_builder.py 进行每主机安装 / 启用 / 禁用 / 删除",
+        "policies": "Professional+：可重用的命名策略，具有节奏 + 扫描计划，在一次调用中应用于多个主机",
+        "commercial": "Professional+：全队商业 AV 检测报告（CrowdStrike、SentinelOne、Defender 等）",
+        "scheduling": "Professional+：cron 风格的每日 / 每周 / 每月计划扫描（Linux/FreeBSD 通过 /etc/cron.d；Windows 通过 schtasks）"
+      },
+      "deploy_plan": {
+        "title": "部署计划形状",
+        "description": "每个操作都会产生一个声明性部署计划，代理逐步执行该计划（安装包 → 写入配置 → 运行命令 → 启动服务）。该计划与开源规划器线兼容，因此同一个代理处理程序运行两者："
+      },
+      "policies": {
+        "title": "AV 策略",
+        "description": "AvPolicy 将 AV 产品、定义更新节奏和扫描计划捆绑到一个命名的、可重用的单元中。将其应用于任意多的主机；引擎解析每个主机的构建选项，并为每个主机排队一个 APPLY_DEPLOYMENT_PLAN 消息。",
+        "endpoints": "端点",
+        "example": "示例"
+      },
+      "commercial": {
+        "title": "商业 AV 集群报告",
+        "description": "代理的开源 commercial_antivirus_collection.py 已经检测 CrowdStrike、SentinelOne、Defender、McAfee、Symantec 等，并将每主机状态写入 commercial_antivirus_status 表。Professional+ 添加了一个集群聚合端点，该端点总结了哪些产品安装在多少主机上，并显示禁用了实时保护的主机。"
+      },
+      "feature_codes": {
+        "title": "功能代码",
+        "description": "此引擎中的端点由这些功能代码控制（当模块未加载时，开源服务器返回 402）："
+      },
+      "architecture": {
+        "title": "架构",
+        "description": "引擎是一个 Cython 编译的二进制文件 (av_management_engine.so)，由开源服务器的 module_loader 在启动时加载。它导出与其他 Pro+ 模块相同的 get_module_info() + get_av_management_router() 契约，因此开源服务器的 mount_av_management_routes() 包装器可以无条件地将其与 402 存根一起挂载。"
+      }
+    },
+    "firewall_orchestration_engine": {
+      "page_title": "防火墙编排引擎 - SysManage Professional+",
+      "meta_description": "多平台防火墙配置生成、角色分配、全队策略部署、规则冲突检测和合规性报告。",
+      "breadcrumb": "防火墙编排引擎",
+      "header": {
+        "title": "防火墙编排引擎",
+        "description": "服务器端、多平台防火墙规则生成。从统一的 PortRule 模式构建 UFW、firewalld、pf、ipfw、npf、Windows Firewall 和 macOS socketfilterfw 计划。在开源基础之上添加角色分配、全队策略部署、规则冲突检测和合规性报告。"
+      },
+      "overview": {
+        "title": "概述",
+        "description": "防火墙编排引擎在服务器端生成每个平台的防火墙配置，并将它们作为部署计划发送给代理。代理通过通用 apply_deployment_plan 处理程序运行计划 — 代理上没有防火墙业务逻辑（只有用于状态报告的只读 firewall_collector.py 保留）。所有七个支持的版本共享一个具有源限制、入/出方向和操作（允许/拒绝）的单一 PortRule 模式。"
+      },
+      "opensource": {
+        "title": "开源 vs Professional+",
+        "basics": "Community Edition：通过 backend/services/firewall_plan_builder.py 启用 / 禁用 / 重启 / 部署，以及每主机添加 / 删除角色端口",
+        "rich_rules": "Professional+：源限制规则 (CIDR)、入/出方向、命名规则描述、引擎内验证",
+        "fleet": "Professional+：带平台 / 批准状态过滤器的全队部署",
+        "conflict": "Professional+：部署前规则冲突检测（允许/拒绝不匹配、源遮蔽、多个不同源）",
+        "compliance": "Professional+：将分配的角色与实际防火墙状态进行比较的集群合规性报告"
+      },
+      "flavors": {
+        "title": "支持的防火墙版本",
+        "description": "主机的版本从 platform + platform_release 检测："
+      },
+      "fleet": {
+        "title": "集群策略部署",
+        "description": "在一次调用中将角色集应用于许多主机。提供显式的 host_ids 或 host_filter（platform / approval_status，AND 组合）。没有构建器的平台上的主机会被跳过并附带原因。"
+      },
+      "conflicts": {
+        "title": "规则冲突检测",
+        "description": "在任何计划被排队之前，detect_rule_conflicts() 遍历扁平化的规则列表并显示不一致的意图：",
+        "identical": "列出两次的相同规则<em>不</em>会被报告 — 它们只是被去重。"
+      },
+      "compliance": {
+        "title": "合规性报告",
+        "description": "将每个主机的角色派生预期端口集与 FirewallStatus.tcp_open_ports 报告为实际打开的端口集进行比较。仅当主机有状态行且 actual_ports ⊇ expected_ports 时，主机才<strong>合规</strong>。"
+      },
+      "lockout": {
+        "title": "锁定保护",
+        "description": "每次 build_*_rules 调用始终首先重新允许管理端口 — SSH (22)、DNS (53)、DHCP (67)，加上传递给 host_info[\"agent_ports\"] 的任何代理通信端口，加上 Windows 上的 RDP (3389)。删除构建器静默跳过保留的端口，并在 skipped_preserved_ports 中显示它们，以便操作员可以进行审计。这是不可绕过的；引擎拒绝发出会锁定代理的计划。"
+      },
+      "feature_codes": {
+        "title": "功能代码"
+      },
+      "architecture": {
+        "title": "架构",
+        "description": "引擎是一个 Cython 编译的二进制文件 (firewall_orchestration_engine.so)，由开源服务器的 module_loader 在启动时加载。它导出与其他 Pro+ 模块相同的 get_module_info() + get_firewall_orchestration_router() 契约。除了报告当前状态的只读 firewall_collector.py 之外，代理在第 3 阶段发布后不保留任何防火墙业务逻辑。"
       }
     }
   },

@@ -1445,7 +1445,33 @@
       "vulnerability": "Vulnerability Scanning",
       "alerting": "Alerting Engine",
       "compliance": "Compliance Engine",
-      "view_docs": "View Pro+ Docs ->"
+      "view_docs": "View Pro+ Docs ->",
+      "docs": {
+        "modules": {
+          "av_management_engine": {
+            "title": "🛡 AV Management Engine",
+            "description": "Centralised antivirus deployment with reusable policies, scheduled scans, definition-update cadence, and fleet-wide commercial AV detection.",
+            "features": {
+              "policies": "Reusable named AV policies",
+              "scheduling": "Daily / weekly / monthly scan schedules",
+              "cadence": "Configurable definition-update cadence",
+              "commercial": "Fleet commercial-AV detection report"
+            },
+            "link": "AV Management Engine Guide →"
+          },
+          "firewall_orchestration_engine": {
+            "title": "🔒 Firewall Orchestration Engine",
+            "description": "Multi-platform firewall config generation with role assignment, fleet policy deployment, rule conflict detection, and compliance reporting.",
+            "features": {
+              "flavors": "UFW, firewalld, pf, ipfw, npf, Windows, macOS",
+              "fleet": "Fleet-wide policy deployment with filters",
+              "conflicts": "Pre-deploy rule conflict detection",
+              "compliance": "Fleet compliance reporting"
+            },
+            "link": "Firewall Orchestration Engine Guide →"
+          }
+        }
+      }
     }
   },
   "administration": {
@@ -6541,6 +6567,97 @@
         "children": "Parent host must have at least one running child host (WSL or LXD)",
         "permissions": "User must have the REBOOT_HOST security role",
         "agent": "SysManage agent running on the parent host with active connectivity"
+      }
+    },
+    "av_management_engine": {
+      "page_title": "AV Management Engine - SysManage Professional+",
+      "meta_description": "Centralised antivirus deployment, policy management, scan scheduling, and commercial AV detection across the fleet.",
+      "breadcrumb": "AV Management Engine",
+      "header": {
+        "title": "AV Management Engine",
+        "description": "Centralised, policy-driven antivirus deployment for ClamAV (Linux/BSD/macOS) and ClamWin (Windows). Adds reusable AV policies, scheduled scans, definition-update cadence control, and a fleet-wide commercial-AV detection report on top of the open-source basics."
+      },
+      "overview": {
+        "title": "Overview",
+        "description": "The AV Management Engine generates server-side ClamAV / ClamWin configurations and ships them to agents as fully-baked deploy plans. The agent runs the plan via the generic apply_deployment_plan handler — no AV business logic lives on the agent. The engine layers an AvPolicy abstraction on top so an operator can define a single named policy (cadence + schedule + product) and apply it to any number of hosts."
+      },
+      "opensource": {
+        "title": "Open Source vs Professional+",
+        "deploy": "Community Edition: per-host install / enable / disable / remove via backend/services/av_plan_builder.py",
+        "policies": "Professional+: reusable named policies with cadence + scan schedule, applied to many hosts in one call",
+        "commercial": "Professional+: fleet-wide commercial-AV detection report (CrowdStrike, SentinelOne, Defender, etc.)",
+        "scheduling": "Professional+: cron-style daily / weekly / monthly scheduled scans (Linux/FreeBSD via /etc/cron.d; Windows via schtasks)"
+      },
+      "deploy_plan": {
+        "title": "Deploy Plan Shape",
+        "description": "Every operation produces a declarative deploy plan that the agent executes step-by-step (install packages → write configs → run commands → start services). The plan is wire-compatible with the open-source planner so the same agent handler runs both:"
+      },
+      "policies": {
+        "title": "AV Policies",
+        "description": "An AvPolicy bundles the AV product, definition-update cadence, and scan schedule into a named, reusable unit. Apply it across as many hosts as you like; the engine resolves the per-host build options and queues an APPLY_DEPLOYMENT_PLAN message for each.",
+        "endpoints": "Endpoints",
+        "example": "Example"
+      },
+      "commercial": {
+        "title": "Commercial AV Fleet Report",
+        "description": "The agent's open-source commercial_antivirus_collection.py already detects CrowdStrike, SentinelOne, Defender, McAfee, Symantec, etc. and writes per-host status to the commercial_antivirus_status table. Professional+ adds a fleet aggregation endpoint that summarises which products are installed on how many hosts and surfaces hosts with realtime protection disabled."
+      },
+      "feature_codes": {
+        "title": "Feature Codes",
+        "description": "Endpoints in this engine are gated by these feature codes (returned 402 by the open-source server when the module isn't loaded):"
+      },
+      "architecture": {
+        "title": "Architecture",
+        "description": "The engine is a Cython-compiled binary (av_management_engine.so) loaded by the open-source server's module_loader at startup. It exports the same get_module_info() + get_av_management_router() contract as the other Pro+ modules, so the open-source server's mount_av_management_routes() wrapper can mount it alongside the 402 stubs without conditionals."
+      }
+    },
+    "firewall_orchestration_engine": {
+      "page_title": "Firewall Orchestration Engine - SysManage Professional+",
+      "meta_description": "Multi-platform firewall config generation, role assignment, fleet policy deployment, rule conflict detection, and compliance reporting.",
+      "breadcrumb": "Firewall Orchestration Engine",
+      "header": {
+        "title": "Firewall Orchestration Engine",
+        "description": "Server-side, multi-platform firewall rule generation. Builds UFW, firewalld, pf, ipfw, npf, Windows Firewall, and macOS socketfilterfw plans from a unified PortRule schema. Adds role assignment, fleet policy deployment, rule conflict detection, and compliance reporting on top of the open-source basics."
+      },
+      "overview": {
+        "title": "Overview",
+        "description": "The Firewall Orchestration Engine generates per-platform firewall configurations server-side and ships them to the agent as deploy plans. The agent runs the plan via the generic apply_deployment_plan handler — no firewall business logic lives on the agent (only the read-only firewall_collector.py stays for status reporting). All seven supported flavors share a single PortRule schema with source restrictions, in/out direction, and action (allow/deny)."
+      },
+      "opensource": {
+        "title": "Open Source vs Professional+",
+        "basics": "Community Edition: enable / disable / restart / deploy plus add / remove role ports per host via backend/services/firewall_plan_builder.py",
+        "rich_rules": "Professional+: source-restricted rules (CIDR), in/out direction, named-rule descriptions, in-engine validation",
+        "fleet": "Professional+: fleet-wide deployment with platform / approval-status filters",
+        "conflict": "Professional+: pre-deploy rule conflict detection (allow/deny mismatch, source shadowing, multiple distinct sources)",
+        "compliance": "Professional+: fleet compliance report comparing assigned roles vs actual firewall state"
+      },
+      "flavors": {
+        "title": "Supported Firewall Flavors",
+        "description": "A host's flavor is detected from platform + platform_release:"
+      },
+      "fleet": {
+        "title": "Fleet Policy Deployment",
+        "description": "Apply a role-set to many hosts in a single call. Supply either explicit host_ids or a host_filter (platform / approval_status, ANDed). Hosts on platforms with no builder are skipped with a reason."
+      },
+      "conflicts": {
+        "title": "Rule Conflict Detection",
+        "description": "Before any plan is queued, detect_rule_conflicts() walks the flattened rule list and surfaces inconsistent intent:",
+        "identical": "Identical rules listed twice are not reported — they just deduplicate."
+      },
+      "compliance": {
+        "title": "Compliance Report",
+        "description": "Compares each host's role-derived expected port set against what FirewallStatus.tcp_open_ports reports as actually open. A host is compliant iff it has a status row AND actual_ports ⊇ expected_ports."
+      },
+      "lockout": {
+        "title": "Lockout Protection",
+        "description": "Every build_*_rules call always re-permits the management ports first — SSH (22), DNS (53), DHCP (67), plus any agent communication ports passed in host_info[\"agent_ports\"], plus RDP (3389) on Windows. Removal builders skip preserved ports silently and surface them in skipped_preserved_ports so the operator can audit. This is non-bypassable; the engine refuses to emit a plan that would lock the agent out."
+      },
+      "feature_codes": {
+        "title": "Feature Codes"
+      },
+      "architecture": {
+        "title": "Architecture",
+        "description": "The engine is a Cython-compiled binary (firewall_orchestration_engine.so) loaded by the open-source server's module_loader at startup. It exports the same get_module_info() + get_firewall_orchestration_router() contract as the other Pro+ modules. The agent retains zero firewall business logic after Phase 3 ships, except for the read-only firewall_collector.py which reports current state back."
       }
     }
   },

@@ -1448,7 +1448,33 @@
       "vulnerability": "Varredura de Vulnerabilidades",
       "alerting": "Motor de Alertas",
       "compliance": "Motor de Conformidade",
-      "view_docs": "Ver Docs Pro+ ->"
+      "view_docs": "Ver Docs Pro+ ->",
+      "docs": {
+        "modules": {
+          "av_management_engine": {
+            "title": "🛡 Motor de gestão antivírus",
+            "description": "Implantação centralizada de antivírus com políticas reutilizáveis, varreduras agendadas, cadência de atualização de definições e detecção de antivírus comerciais em toda a frota.",
+            "features": {
+              "policies": "Políticas AV nomeadas reutilizáveis",
+              "scheduling": "Agendamentos de varredura diários / semanais / mensais",
+              "cadence": "Cadência configurável de atualização de definições",
+              "commercial": "Relatório de detecção de AV comercial em toda a frota"
+            },
+            "link": "Guia do motor de gestão antivírus →"
+          },
+          "firewall_orchestration_engine": {
+            "title": "🔒 Motor de orquestração de firewall",
+            "description": "Geração de configuração de firewall multi-plataforma com atribuição de funções, implantação de políticas em toda a frota, detecção de conflitos de regras e relatórios de conformidade.",
+            "features": {
+              "flavors": "UFW, firewalld, pf, ipfw, npf, Windows, macOS",
+              "fleet": "Implantação de políticas em toda a frota com filtros",
+              "conflicts": "Detecção de conflitos de regras pré-implantação",
+              "compliance": "Relatórios de conformidade em toda a frota"
+            },
+            "link": "Guia do motor de orquestração de firewall →"
+          }
+        }
+      }
     }
   },
   "administration": {
@@ -6545,6 +6571,97 @@
         "children": "O host principal deve ter pelo menos um host filho em execução (WSL ou LXD)",
         "permissions": "O usuário deve ter a função de segurança REBOOT_HOST",
         "agent": "Agente SysManage em execução no host principal com conectividade ativa"
+      }
+    },
+    "av_management_engine": {
+      "page_title": "Motor de gestão antivírus - SysManage Professional+",
+      "meta_description": "Implantação centralizada de antivírus, gestão de políticas, agendamento de varreduras e detecção de antivírus comerciais em toda a frota.",
+      "breadcrumb": "Motor de gestão antivírus",
+      "header": {
+        "title": "Motor de gestão antivírus",
+        "description": "Implantação antivírus centralizada e baseada em políticas para ClamAV (Linux/BSD/macOS) e ClamWin (Windows). Adiciona políticas AV reutilizáveis, varreduras agendadas, controle de cadência de atualização de definições e um relatório de detecção de AV comercial em toda a frota sobre os fundamentos de código aberto."
+      },
+      "overview": {
+        "title": "Visão geral",
+        "description": "O motor de gestão AV gera configurações ClamAV / ClamWin no lado do servidor e as envia aos agentes como planos de implantação totalmente preparados. O agente executa o plano através do manipulador genérico apply_deployment_plan — nenhuma lógica de negócio AV reside no agente. O motor adiciona uma abstração AvPolicy em cima para que um operador possa definir uma única política nomeada (cadência + agendamento + produto) e aplicá-la a qualquer número de hosts."
+      },
+      "opensource": {
+        "title": "Código aberto vs Professional+",
+        "deploy": "Edição Community: instalação / habilitação / desabilitação / remoção por host via backend/services/av_plan_builder.py",
+        "policies": "Professional+: políticas nomeadas reutilizáveis com cadência + agendamento de varredura, aplicadas a muitos hosts em uma única chamada",
+        "commercial": "Professional+: relatório de detecção de AV comercial em toda a frota (CrowdStrike, SentinelOne, Defender, etc.)",
+        "scheduling": "Professional+: varreduras agendadas no estilo cron diárias / semanais / mensais (Linux/FreeBSD via /etc/cron.d; Windows via schtasks)"
+      },
+      "deploy_plan": {
+        "title": "Forma do plano de implantação",
+        "description": "Cada operação produz um plano de implantação declarativo que o agente executa passo a passo (instalar pacotes → escrever configurações → executar comandos → iniciar serviços). O plano é compatível por fio com o planejador de código aberto, então o mesmo manipulador do agente executa ambos:"
+      },
+      "policies": {
+        "title": "Políticas AV",
+        "description": "Uma AvPolicy agrupa o produto AV, a cadência de atualização de definições e o agendamento de varredura em uma unidade nomeada e reutilizável. Aplique-a a quantos hosts desejar; o motor resolve as opções de compilação por host e enfileira uma mensagem APPLY_DEPLOYMENT_PLAN para cada um.",
+        "endpoints": "Endpoints",
+        "example": "Exemplo"
+      },
+      "commercial": {
+        "title": "Relatório de AV comercial da frota",
+        "description": "O commercial_antivirus_collection.py de código aberto do agente já detecta CrowdStrike, SentinelOne, Defender, McAfee, Symantec, etc. e grava o status por host na tabela commercial_antivirus_status. Professional+ adiciona um endpoint de agregação de frota que resume quais produtos estão instalados em quantos hosts e destaca os hosts com proteção em tempo real desabilitada."
+      },
+      "feature_codes": {
+        "title": "Códigos de recurso",
+        "description": "Os endpoints neste motor são protegidos por estes códigos de recurso (retornados como 402 pelo servidor de código aberto quando o módulo não está carregado):"
+      },
+      "architecture": {
+        "title": "Arquitetura",
+        "description": "O motor é um binário compilado com Cython (av_management_engine.so) carregado pelo module_loader do servidor de código aberto na inicialização. Exporta o mesmo contrato get_module_info() + get_av_management_router() dos outros módulos Pro+, então o invólucro mount_av_management_routes() do servidor de código aberto pode montá-lo ao lado dos stubs 402 sem condicionais."
+      }
+    },
+    "firewall_orchestration_engine": {
+      "page_title": "Motor de orquestração de firewall - SysManage Professional+",
+      "meta_description": "Geração de configuração de firewall multi-plataforma, atribuição de funções, implantação de políticas em toda a frota, detecção de conflitos de regras e relatórios de conformidade.",
+      "breadcrumb": "Motor de orquestração de firewall",
+      "header": {
+        "title": "Motor de orquestração de firewall",
+        "description": "Geração de regras de firewall multi-plataforma do lado do servidor. Constrói planos UFW, firewalld, pf, ipfw, npf, Windows Firewall e macOS socketfilterfw a partir de um esquema PortRule unificado. Adiciona atribuição de funções, implantação de políticas em toda a frota, detecção de conflitos de regras e relatórios de conformidade sobre os fundamentos de código aberto."
+      },
+      "overview": {
+        "title": "Visão geral",
+        "description": "O motor de orquestração de firewall gera configurações de firewall específicas da plataforma no lado do servidor e as envia ao agente como planos de implantação. O agente executa o plano através do manipulador genérico apply_deployment_plan — nenhuma lógica de negócio de firewall reside no agente (apenas o firewall_collector.py somente leitura permanece para relatórios de status). Todos os sete sabores suportados compartilham um único esquema PortRule com restrições de origem, direção entrada/saída e ação (permitir/negar)."
+      },
+      "opensource": {
+        "title": "Código aberto vs Professional+",
+        "basics": "Edição Community: habilitar / desabilitar / reiniciar / implantar mais adicionar / remover portas de função por host via backend/services/firewall_plan_builder.py",
+        "rich_rules": "Professional+: regras com restrição de origem (CIDR), direção entrada/saída, descrições de regras nomeadas, validação no motor",
+        "fleet": "Professional+: implantação em toda a frota com filtros de plataforma / status de aprovação",
+        "conflict": "Professional+: detecção de conflitos de regras pré-implantação (incompatibilidade permitir/negar, sombreamento de origem, várias origens distintas)",
+        "compliance": "Professional+: relatório de conformidade da frota comparando funções atribuídas com o estado real do firewall"
+      },
+      "flavors": {
+        "title": "Sabores de firewall suportados",
+        "description": "O sabor de um host é detectado a partir de platform + platform_release:"
+      },
+      "fleet": {
+        "title": "Implantação de políticas de frota",
+        "description": "Aplique um conjunto de funções a muitos hosts em uma única chamada. Forneça host_ids explícitos ou um host_filter (platform / approval_status, combinados com AND). Hosts em plataformas sem um construtor são ignorados com um motivo."
+      },
+      "conflicts": {
+        "title": "Detecção de conflitos de regras",
+        "description": "Antes de qualquer plano ser enfileirado, detect_rule_conflicts() percorre a lista de regras achatada e destaca intenções inconsistentes:",
+        "identical": "Regras idênticas listadas duas vezes <em>não</em> são relatadas — apenas são desduplicadas."
+      },
+      "compliance": {
+        "title": "Relatório de conformidade",
+        "description": "Compara o conjunto de portas esperadas derivado das funções de cada host com o que FirewallStatus.tcp_open_ports relata como realmente aberto. Um host é <strong>conforme</strong> se e somente se tiver uma linha de status E actual_ports ⊇ expected_ports."
+      },
+      "lockout": {
+        "title": "Proteção contra bloqueio",
+        "description": "Toda chamada build_*_rules sempre permite primeiro as portas de gerenciamento — SSH (22), DNS (53), DHCP (67), mais quaisquer portas de comunicação do agente passadas em host_info[\"agent_ports\"], mais RDP (3389) no Windows. Os construtores de remoção ignoram silenciosamente as portas preservadas e as exibem em skipped_preserved_ports para que o operador possa auditar. Isso não pode ser contornado; o motor se recusa a emitir um plano que bloquearia o agente."
+      },
+      "feature_codes": {
+        "title": "Códigos de recurso"
+      },
+      "architecture": {
+        "title": "Arquitetura",
+        "description": "O motor é um binário compilado com Cython (firewall_orchestration_engine.so) carregado pelo module_loader do servidor de código aberto na inicialização. Exporta o mesmo contrato get_module_info() + get_firewall_orchestration_router() dos outros módulos Pro+. O agente não retém nenhuma lógica de negócio de firewall após o lançamento da Fase 3, exceto o firewall_collector.py somente leitura que relata o estado atual."
       }
     }
   },

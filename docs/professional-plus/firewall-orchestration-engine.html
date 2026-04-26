@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en" data-i18n-title="pro_plus.firewall_orchestration_engine.page_title">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title data-i18n="pro_plus.firewall_orchestration_engine.page_title">Firewall Orchestration Engine - SysManage Professional+</title>
+    <meta name="description" content="Multi-platform firewall config generation, role assignment, fleet policy deployment, rule conflict detection, and compliance reporting." data-i18n-attr="content" data-i18n="pro_plus.firewall_orchestration_engine.meta_description">
+    <link rel="stylesheet" href="../../assets/css/style.css">
+    <link rel="icon" type="image/svg+xml" href="../../assets/images/favicon.svg">
+</head>
+<body data-auto-header="documentation" data-auto-footer>
+
+    <main class="docs-main">
+        <div class="container">
+            <div class="docs-breadcrumb">
+                <a href="../" data-i18n="nav.documentation">Documentation</a> &gt;
+                <a href="./" data-i18n="pro_plus.breadcrumb">Professional+</a> &gt;
+                <span data-i18n="pro_plus.firewall_orchestration_engine.breadcrumb">Firewall Orchestration Engine</span>
+            </div>
+
+            <div class="docs-header">
+                <div class="pro-plus-badge">&#11088; PRO+</div>
+                <h1 data-i18n="pro_plus.firewall_orchestration_engine.header.title">Firewall Orchestration Engine</h1>
+                <p data-i18n="pro_plus.firewall_orchestration_engine.header.description">Server-side, multi-platform firewall rule generation. Builds UFW, firewalld, pf, ipfw, npf, Windows Firewall, and macOS socketfilterfw plans from a unified <code>PortRule</code> schema. Adds role assignment, fleet policy deployment, rule conflict detection, and compliance reporting on top of the open-source basics.</p>
+            </div>
+
+            <div class="docs-content">
+                <section class="docs-overview">
+                    <h2 data-i18n="pro_plus.firewall_orchestration_engine.overview.title">Overview</h2>
+                    <p data-i18n="pro_plus.firewall_orchestration_engine.overview.description">The Firewall Orchestration Engine generates per-platform firewall configurations server-side and ships them to the agent as deploy plans. The agent runs the plan via the generic <code>apply_deployment_plan</code> handler — no firewall business logic lives on the agent (only the read-only <code>firewall_collector.py</code> stays for status reporting). All seven supported flavors share a single <code>PortRule</code> schema with source restrictions, in/out direction, and action (allow/deny).</p>
+                </section>
+
+                <section class="docs-section">
+                    <h2 data-i18n="pro_plus.firewall_orchestration_engine.opensource.title">Open Source vs Professional+</h2>
+                    <ul>
+                        <li data-i18n="pro_plus.firewall_orchestration_engine.opensource.basics">Community Edition: enable / disable / restart / deploy plus add / remove role ports per host via <code>backend/services/firewall_plan_builder.py</code></li>
+                        <li data-i18n="pro_plus.firewall_orchestration_engine.opensource.rich_rules">Professional+: source-restricted rules (CIDR), in/out direction, named-rule descriptions, in-engine validation</li>
+                        <li data-i18n="pro_plus.firewall_orchestration_engine.opensource.fleet">Professional+: fleet-wide deployment with platform / approval-status filters</li>
+                        <li data-i18n="pro_plus.firewall_orchestration_engine.opensource.conflict">Professional+: pre-deploy rule conflict detection (allow/deny mismatch, source shadowing, multiple distinct sources)</li>
+                        <li data-i18n="pro_plus.firewall_orchestration_engine.opensource.compliance">Professional+: fleet compliance report comparing assigned roles vs actual firewall state</li>
+                    </ul>
+                </section>
+
+                <section class="docs-section">
+                    <h2 data-i18n="pro_plus.firewall_orchestration_engine.flavors.title">Supported Firewall Flavors</h2>
+                    <p data-i18n="pro_plus.firewall_orchestration_engine.flavors.description">A host's flavor is detected from <code>platform</code> + <code>platform_release</code>:</p>
+                    <ul>
+                        <li><strong>UFW</strong> &mdash; Ubuntu, Debian (default Linux fallback)</li>
+                        <li><strong>firewalld</strong> &mdash; RHEL, CentOS, Rocky, Alma, Oracle, Fedora, AmazonLinux</li>
+                        <li><strong>pf</strong> &mdash; OpenBSD, FreeBSD (writes <code>/etc/pf.conf</code> via deploy_files, <code>pfctl -nf</code> validates, <code>pfctl -f</code> loads)</li>
+                        <li><strong>ipfw</strong> &mdash; FreeBSD alternative (kldload + sysrc preamble, rule numbering from 100/+10)</li>
+                        <li><strong>npf</strong> &mdash; NetBSD (writes <code>/etc/npf.conf</code>, <code>npfctl validate</code> then <code>reload</code>)</li>
+                        <li><strong>Windows Firewall</strong> &mdash; <code>netsh advfirewall</code>, RDP 3389 always preserved, source uses <code>remoteip=</code></li>
+                        <li><strong>macOS Application Firewall</strong> &mdash; <code>socketfilterfw</code>, app-based rather than port-based; port-only rules surface in <code>unsupported</code></li>
+                    </ul>
+                </section>
+
+                <section class="docs-section">
+                    <h2 data-i18n="pro_plus.firewall_orchestration_engine.fleet.title">Fleet Policy Deployment</h2>
+                    <p data-i18n="pro_plus.firewall_orchestration_engine.fleet.description">Apply a role-set to many hosts in a single call. Supply either explicit <code>host_ids</code> or a <code>host_filter</code> (platform / approval_status, ANDed). Hosts on platforms with no builder are skipped with a reason.</p>
+                    <div class="code-block">
+                        <pre><code>POST /api/v1/firewall/fleet/deploy
+{
+  "role_names": ["web-server", "ssh-from-jumpbox"],
+  "host_filter": {"platform": "Linux", "approval_status": "approved"},
+  "replace_existing": false
+}
+
+200 OK
+{
+  "role_names": [...],
+  "queued_hosts": ["uuid1", "uuid2", ...],
+  "skipped_hosts": [{"host_id": "uuid", "reason": "..."}],
+  "message": "Resolved fleet deploy: 47 queued, 2 skipped (out of 49 matched)"
+}</code></pre>
+                    </div>
+                </section>
+
+                <section class="docs-section">
+                    <h2 data-i18n="pro_plus.firewall_orchestration_engine.conflicts.title">Rule Conflict Detection</h2>
+                    <p data-i18n="pro_plus.firewall_orchestration_engine.conflicts.description">Before any plan is queued, <code>detect_rule_conflicts()</code> walks the flattened rule list and surfaces inconsistent intent:</p>
+                    <ul>
+                        <li>An <strong>open allow</strong> on the same (port, proto, direction) as a <strong>source-restricted allow</strong> (the open rule shadows the restricted one)</li>
+                        <li>An <strong>allow</strong> and a <strong>deny</strong> on the same triple</li>
+                        <li>Two distinct <strong>source CIDRs</strong> on the same triple</li>
+                    </ul>
+                    <p data-i18n="pro_plus.firewall_orchestration_engine.conflicts.identical">Identical rules listed twice are <em>not</em> reported — they just deduplicate.</p>
+                </section>
+
+                <section class="docs-section">
+                    <h2 data-i18n="pro_plus.firewall_orchestration_engine.compliance.title">Compliance Report</h2>
+                    <p data-i18n="pro_plus.firewall_orchestration_engine.compliance.description">Compares each host's role-derived expected port set against what <code>FirewallStatus.tcp_open_ports</code> reports as actually open. A host is <strong>compliant</strong> iff it has a status row AND <code>actual_ports &supe; expected_ports</code>.</p>
+                    <div class="code-block">
+                        <pre><code>GET /api/v1/firewall/compliance/report
+
+{
+  "total_hosts": 47,
+  "compliant_hosts": 44,
+  "noncompliant_hosts": 3,
+  "entries": [
+    {
+      "host_id": "...",
+      "fqdn": "web-12.prod",
+      "compliant": false,
+      "expected_ports": [22, 80, 443],
+      "actual_ports":   [22, 443],
+      "missing_ports":  [80],
+      "extra_ports":    []
+    }
+  ]
+}</code></pre>
+                    </div>
+                </section>
+
+                <section class="docs-section">
+                    <h2 data-i18n="pro_plus.firewall_orchestration_engine.lockout.title">Lockout Protection</h2>
+                    <p data-i18n="pro_plus.firewall_orchestration_engine.lockout.description">Every <code>build_*_rules</code> call always re-permits the management ports first &mdash; SSH (22), DNS (53), DHCP (67), plus any agent communication ports passed in <code>host_info["agent_ports"]</code>, plus RDP (3389) on Windows. Removal builders skip preserved ports silently and surface them in <code>skipped_preserved_ports</code> so the operator can audit. This is non-bypassable; the engine refuses to emit a plan that would lock the agent out.</p>
+                </section>
+
+                <section class="docs-section">
+                    <h2 data-i18n="pro_plus.firewall_orchestration_engine.feature_codes.title">Feature Codes</h2>
+                    <ul>
+                        <li><code>firewall_role_define</code> &mdash; create / edit roles</li>
+                        <li><code>firewall_role_assign</code> &mdash; assign roles to hosts</li>
+                        <li><code>firewall_deploy</code> &mdash; per-host or fleet apply</li>
+                        <li><code>firewall_status</code> &mdash; per-host status read</li>
+                        <li><code>firewall_compliance_check</code> &mdash; fleet compliance report</li>
+                    </ul>
+                </section>
+
+                <section class="docs-section">
+                    <h2 data-i18n="pro_plus.firewall_orchestration_engine.architecture.title">Architecture</h2>
+                    <p data-i18n="pro_plus.firewall_orchestration_engine.architecture.description">The engine is a Cython-compiled binary (<code>firewall_orchestration_engine.so</code>) loaded by the open-source server's <code>module_loader</code> at startup. It exports the same <code>get_module_info()</code> + <code>get_firewall_orchestration_router()</code> contract as the other Pro+ modules. The agent retains zero firewall business logic after Phase 3 ships, except for the read-only <code>firewall_collector.py</code> which reports current state back.</p>
+                </section>
+            </div>
+        </div>
+    </main>
+
+</body>
+</html>
