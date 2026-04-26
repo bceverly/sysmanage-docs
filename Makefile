@@ -117,11 +117,34 @@ install-dev: check-deps
 	@echo "$(GREEN)✓ Playwright installed$(RESET)"
 	@echo ""
 	@# --- npm global tools ---
+	@# `npm install -g` writes under the system-managed prefix
+	@# (/usr/local/lib/node_modules on Linux), which requires elevated
+	@# privileges.  Wrap with sudo when the prefix isn't writable.
 	@echo "$(YELLOW)Installing npm global tools (markdownlint-cli2, pa11y, http-server)...$(RESET)"
-	@command -v markdownlint-cli2 >/dev/null 2>&1 && echo "$(GREEN)✓ markdownlint-cli2 already installed$(RESET)" || $(NPM) install -g markdownlint-cli2
-	@command -v pa11y >/dev/null 2>&1 && echo "$(GREEN)✓ pa11y already installed$(RESET)" || $(NPM) install -g pa11y
-	@command -v http-server >/dev/null 2>&1 && echo "$(GREEN)✓ http-server already installed$(RESET)" || $(NPM) install -g http-server
+	@NPM_PREFIX=$$($(NPM) prefix -g 2>/dev/null); \
+	if [ -w "$$NPM_PREFIX/lib" ] || [ -w "$$NPM_PREFIX" ]; then \
+		SUDO=""; \
+	else \
+		SUDO="sudo"; \
+		echo "$(YELLOW)(npm prefix $$NPM_PREFIX is not user-writable; using sudo)$(RESET)"; \
+	fi; \
+	command -v markdownlint-cli2 >/dev/null 2>&1 && echo "$(GREEN)✓ markdownlint-cli2 already installed$(RESET)" || $$SUDO $(NPM) install -g markdownlint-cli2; \
+	command -v pa11y >/dev/null 2>&1 && echo "$(GREEN)✓ pa11y already installed$(RESET)" || $$SUDO $(NPM) install -g pa11y; \
+	command -v http-server >/dev/null 2>&1 && echo "$(GREEN)✓ http-server already installed$(RESET)" || $$SUDO $(NPM) install -g http-server
 	@echo "$(GREEN)✓ npm global tools installed$(RESET)"
+	@echo ""
+	@# pa11y bundles puppeteer-core, which needs a Chrome binary downloaded
+	@# separately into ~/.cache/puppeteer.  Without this, `make test-accessibility`
+	@# fails with "Could not find Chrome (ver. ...)" — the Playwright chromium
+	@# from `make install-browsers` lives in a different cache dir and isn't
+	@# discoverable by puppeteer-core.
+	@echo "$(YELLOW)Installing puppeteer Chrome for pa11y...$(RESET)"
+	@if [ -d "$$HOME/.cache/puppeteer/chrome" ] && [ -n "$$(ls -A $$HOME/.cache/puppeteer/chrome 2>/dev/null)" ]; then \
+		echo "$(GREEN)✓ puppeteer Chrome already installed in ~/.cache/puppeteer$(RESET)"; \
+	else \
+		$(NPX) puppeteer browsers install chrome; \
+	fi
+	@echo "$(GREEN)✓ puppeteer Chrome installed$(RESET)"
 	@echo ""
 	@# --- Cargo tools (typos, lychee) ---
 	@echo "$(YELLOW)Installing cargo tools (typos-cli, lychee)...$(RESET)"
@@ -233,10 +256,29 @@ test-vale:
 	@echo "$(GREEN)✓ Vale style check passed$(RESET)"
 
 # Accessibility testing (mirrors .github/workflows/accessibility.yml)
+#
+# Self-healing on two fronts:
+#   1. pa11y bundles puppeteer-core which needs a Chrome binary in
+#      ~/.cache/puppeteer.  If absent, fetch it on the fly so a fresh
+#      checkout works without a separate `make install-dev`.
+#   2. A previous run that crashed mid-test can leave the http-server
+#      backgrounded on port 8087.  Kill any squatter before starting,
+#      and trap cleanup so this run never leaves a zombie either.
 test-accessibility:
 	@echo "$(BLUE)=== Accessibility Check ===$(RESET)"
-	@http-server . -p 8087 -s &>/dev/null & \
+	@if [ ! -d "$$HOME/.cache/puppeteer/chrome" ] || [ -z "$$(ls -A $$HOME/.cache/puppeteer/chrome 2>/dev/null)" ]; then \
+		echo "$(YELLOW)puppeteer Chrome missing — installing...$(RESET)"; \
+		$(NPX) puppeteer browsers install chrome; \
+	fi
+	@PORT_HOLDER=$$(lsof -ti :8087 2>/dev/null); \
+	if [ -n "$$PORT_HOLDER" ]; then \
+		echo "$(YELLOW)Killing stale process on :8087 (pid $$PORT_HOLDER)$(RESET)"; \
+		kill $$PORT_HOLDER 2>/dev/null; \
+		sleep 1; \
+	fi; \
+	http-server . -p 8087 -s &>/dev/null & \
 	SERVER_PID=$$!; \
+	trap "kill $$SERVER_PID 2>/dev/null || true" EXIT INT TERM; \
 	sleep 2; \
 	FAIL=0; \
 	echo "$(YELLOW)Testing index.html...$(RESET)"; \
@@ -255,7 +297,6 @@ test-accessibility:
 		echo "$(YELLOW)Testing docs/server/index.html...$(RESET)"; \
 		pa11y --config .pa11yrc.json http://localhost:8087/docs/server/index.html || FAIL=1; \
 	fi; \
-	kill $$SERVER_PID 2>/dev/null; \
 	if [ $$FAIL -ne 0 ]; then echo "$(RED)Accessibility tests failed$(RESET)"; exit 1; fi
 	@echo "$(GREEN)✓ Accessibility tests passed$(RESET)"
 
@@ -265,8 +306,10 @@ test-links:
 	lychee --verbose --no-progress --root-dir . --max-retries 3 --retry-wait-time 2 --exclude-path node_modules --exclude-path .git --exclude-path SignPath --exclude 'http://localhost:*' '**/*.md' '**/*.html'
 	@echo "$(GREEN)✓ Link check passed$(RESET)"
 
-# Run all tests (mirrors full CI/CD test suite)
-test: test-spelling test-markdown-lint test-vale test-accessibility test-links
+# Run all tests (mirrors full CI/CD test suite).
+# Front-loads check-test-deps so a missing tool fails with a clear install
+# hint instead of an opaque "make: <tool>: No such file or directory".
+test: check-test-deps test-spelling test-markdown-lint test-vale test-accessibility test-links
 	@echo ""
 	@echo "$(GREEN)========================================$(RESET)"
 	@echo "$(GREEN)  All tests passed$(RESET)"
