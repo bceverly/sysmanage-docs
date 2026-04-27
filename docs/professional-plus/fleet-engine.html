@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en" data-i18n-title="pro_plus.fleet_engine.page_title">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title data-i18n="pro_plus.fleet_engine.page_title">Fleet Engine - SysManage Professional+</title>
+    <meta name="description" content="Bulk operations, host groups with parent/child hierarchy and dynamic-criteria membership, rolling deployments with failure thresholds, and per-operation progress tracking." data-i18n-attr="content" data-i18n="pro_plus.fleet_engine.meta_description">
+    <link rel="stylesheet" href="../../assets/css/style.css">
+    <link rel="icon" type="image/svg+xml" href="../../assets/images/favicon.svg">
+</head>
+<body data-auto-header="documentation" data-auto-footer>
+
+    <main class="docs-main">
+        <div class="container">
+            <div class="docs-breadcrumb">
+                <a href="../" data-i18n="nav.documentation">Documentation</a> &gt;
+                <a href="./" data-i18n="pro_plus.breadcrumb">Professional+</a> &gt;
+                <span data-i18n="pro_plus.fleet_engine.breadcrumb">Fleet Engine</span>
+            </div>
+
+            <div class="docs-header">
+                <div class="pro-plus-badge">&#11088; PRO+</div>
+                <h1 data-i18n="pro_plus.fleet_engine.header.title">Fleet Engine</h1>
+                <p data-i18n="pro_plus.fleet_engine.header.description">Server-side fleet management: bulk operations across selectable host sets, host groups with parent/child hierarchies and dynamic-criteria membership, rolling deployments with batched rollout windows and failure thresholds, scheduled fleet operations, and per-operation progress tracking.</p>
+            </div>
+
+            <div class="docs-content">
+                <section class="docs-overview">
+                    <h2 data-i18n="pro_plus.fleet_engine.overview.title">Overview</h2>
+                    <p data-i18n="pro_plus.fleet_engine.overview.description">The Fleet Engine adds operation-at-scale primitives on top of the open-source single-host APIs: a <code>HostSelector</code> filter DSL that resolves to a list of host IDs, persisted <code>BulkOperation</code> records with per-host result tracking, <code>RollingDeployment</code> with configurable batch size and failure-threshold halt, and <code>HostGroup</code> with optional dynamic-criteria membership that re-evaluates on every selector resolution.</p>
+                </section>
+
+                <section class="docs-section">
+                    <h2 data-i18n="pro_plus.fleet_engine.opensource.title">Open Source vs Professional+</h2>
+                    <ul>
+                        <li data-i18n="pro_plus.fleet_engine.opensource.expand">Community Edition: simple expand-into-per-host plans via <code>backend/services/bulk_op_planner.py</code> (no persistence, no batching, explicit host_ids only)</li>
+                        <li data-i18n="pro_plus.fleet_engine.opensource.selector">Professional+: <code>HostSelector</code> filter DSL — by tag, platform, group, approval status, or arbitrary criteria with <code>equals</code> / <code>contains</code> / <code>in</code> / <code>matches</code> ops</li>
+                        <li data-i18n="pro_plus.fleet_engine.opensource.groups">Professional+: persistent host groups with parent/child hierarchy and dynamic-criteria membership</li>
+                        <li data-i18n="pro_plus.fleet_engine.opensource.rolling">Professional+: rolling deployments with batched rollout windows + automatic halt on excess failures</li>
+                        <li data-i18n="pro_plus.fleet_engine.opensource.tracking">Professional+: persisted <code>BulkOperation</code> records, per-host result tracking, aggregated <code>OperationProgress</code> snapshots</li>
+                        <li data-i18n="pro_plus.fleet_engine.opensource.schedule">Professional+: cron-triggered scheduled fleet operations</li>
+                    </ul>
+                </section>
+
+                <section class="docs-section">
+                    <h2 data-i18n="pro_plus.fleet_engine.selector.title">Host Selector DSL</h2>
+                    <p data-i18n="pro_plus.fleet_engine.selector.description">A <code>HostSelector</code> is a compound filter combining explicit host IDs with optional criteria (AND-joined). Convenience shortcuts (<code>platforms</code>, <code>tags</code>, <code>groups</code>, <code>approval_status</code>) compile into equivalent criteria before evaluation:</p>
+                    <div class="code-block">
+                        <pre><code>POST /api/v1/fleet/select
+{
+  "explicit_host_ids": ["..uuid-special.."],
+  "criteria": [
+    {"field": "platform_release", "op": "equals", "value": "ubuntu"},
+    {"field": "fqdn",             "op": "contains", "value": ".prod."}
+  ],
+  "platforms": ["linux"],
+  "tags": ["webserver"],
+  "approval_status": "approved"
+}
+
+→ {"host_ids": [...], "count": 47}</code></pre>
+                    </div>
+                </section>
+
+                <section class="docs-section">
+                    <h2 data-i18n="pro_plus.fleet_engine.groups.title">Host Groups</h2>
+                    <p data-i18n="pro_plus.fleet_engine.groups.description">A <code>HostGroup</code> bundles an explicit host list, dynamic-criteria, and an optional parent group. Membership re-evaluates on every <code>resolve_group_hosts</code> call, so newly-onboarded hosts that match a group's criteria appear automatically. The engine rejects parent assignments that would form a cycle, and reparents a deleted group's children to the deleted group's parent (preserving hierarchy depth-1).</p>
+                    <ul>
+                        <li><code>GET /api/v1/fleet/groups</code> &mdash; list groups; <code>?parent_id=</code> filters children</li>
+                        <li><code>POST /api/v1/fleet/groups</code> &mdash; create or update; cycle-checked</li>
+                        <li><code>GET /api/v1/fleet/groups/{id}/hosts</code> &mdash; resolve effective membership against the live inventory</li>
+                        <li><code>DELETE /api/v1/fleet/groups/{id}</code> &mdash; reparents children</li>
+                    </ul>
+                </section>
+
+                <section class="docs-section">
+                    <h2 data-i18n="pro_plus.fleet_engine.bulk.title">Bulk Operations</h2>
+                    <p data-i18n="pro_plus.fleet_engine.bulk.description">Eight operation types: <code>run_script</code>, <code>deploy_file</code>, <code>service_control</code>, <code>install_package</code>, <code>remove_package</code>, <code>reboot</code>, <code>shutdown</code>, and <code>apply_deployment_plan</code> (the meta-op that ships an entire pre-built deploy plan). Each <code>BulkOperation</code> record tracks per-host status (<code>queued</code> / <code>running</code> / <code>succeeded</code> / <code>failed</code> / <code>skipped</code>) and rolls up to an aggregate (<code>queued</code> / <code>running</code> / <code>succeeded</code> / <code>partial</code> / <code>failed</code> / <code>cancelled</code>).</p>
+                    <div class="code-block">
+                        <pre><code>POST /api/v1/fleet/bulk
+{
+  "operation_type": "install_package",
+  "selector": { "platforms": ["linux"], "tags": ["webserver"] },
+  "parameters": { "packages": ["nginx"] }
+}
+
+GET /api/v1/fleet/bulk/{id}/progress
+{"total": 47, "succeeded": 30, "failed": 2, "running": 15, "queued": 0, "percent_complete": 68.1}</code></pre>
+                    </div>
+                </section>
+
+                <section class="docs-section">
+                    <h2 data-i18n="pro_plus.fleet_engine.rolling.title">Rolling Deployments</h2>
+                    <p data-i18n="pro_plus.fleet_engine.rolling.description">A <code>RollingDeployment</code> partitions the resolved host set into batches of <code>batch_size</code>, dispatching one batch at a time with a configurable <code>batch_delay_seconds</code> between them. The engine automatically halts when failures exceed <code>failure_threshold_pct</code>: queued hosts are cancelled and the rollout flips to <code>failed</code>. Operators can <code>pause</code> / <code>resume</code> / <code>cancel</code> mid-flight.</p>
+                    <ul>
+                        <li><code>POST /api/v1/fleet/rolling</code> &mdash; create with batch_size + batch_delay + failure_threshold_pct</li>
+                        <li><code>GET /api/v1/fleet/rolling/{id}/progress</code> &mdash; aggregated counters snapshot</li>
+                        <li><code>POST /api/v1/fleet/rolling/{id}/pause</code> / <code>/resume</code> / <code>/cancel</code></li>
+                    </ul>
+                </section>
+
+                <section class="docs-section">
+                    <h2 data-i18n="pro_plus.fleet_engine.scheduling.title">Scheduled Fleet Operations</h2>
+                    <p data-i18n="pro_plus.fleet_engine.scheduling.description">A <code>ScheduledFleetOperation</code> binds an operation type + selector + cron expression. The selector resolves on each fire, so a schedule that targets <code>tags=[prod]</code> automatically picks up newly-tagged hosts. The engine validates the 5-field cron form on insert and tracks <code>last_run</code> + <code>last_status</code>.</p>
+                </section>
+
+                <section class="docs-section">
+                    <h2 data-i18n="pro_plus.fleet_engine.feature_codes.title">Feature Codes</h2>
+                    <p data-i18n="pro_plus.fleet_engine.feature_codes.description">Endpoints in this engine are gated by these feature codes (returned <code>402</code> by the open-source server when the module isn't loaded):</p>
+                    <ul>
+                        <li><code>fleet_groups</code> &mdash; groups CRUD + selector resolution</li>
+                        <li><code>fleet_bulk_operations</code> &mdash; bulk op endpoints</li>
+                        <li><code>fleet_rolling_deployments</code> &mdash; rolling deployments</li>
+                        <li><code>fleet_scheduled_operations</code> &mdash; scheduled fleet ops</li>
+                        <li><code>fleet_config_deployment</code> &mdash; reserved for fleet-wide config deploy</li>
+                    </ul>
+                </section>
+
+                <section class="docs-section">
+                    <h2 data-i18n="pro_plus.fleet_engine.architecture.title">Architecture</h2>
+                    <p data-i18n="pro_plus.fleet_engine.architecture.description">The engine is a Cython-compiled binary (<code>fleet_engine.so</code>) loaded by the open-source server's <code>module_loader</code> at startup. It exports the same <code>get_module_info()</code> + <code>get_fleet_router()</code> contract as the other Pro+ modules, so <code>mount_fleet_routes()</code> wires it under <code>/api/v1/fleet</code> alongside the 402 stub routes.</p>
+                </section>
+            </div>
+        </div>
+    </main>
+
+</body>
+</html>
