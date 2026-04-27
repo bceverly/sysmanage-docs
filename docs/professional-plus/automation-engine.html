@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en" data-i18n-title="pro_plus.automation_engine.page_title">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title data-i18n="pro_plus.automation_engine.page_title">Automation Engine - SysManage Professional+</title>
+    <meta name="description" content="Saved-script library with version history, multi-host execution, multi-shell support, scheduled triggers, and approval workflows for privileged scripts." data-i18n-attr="content" data-i18n="pro_plus.automation_engine.meta_description">
+    <link rel="stylesheet" href="../../assets/css/style.css">
+    <link rel="icon" type="image/svg+xml" href="../../assets/images/favicon.svg">
+</head>
+<body data-auto-header="documentation" data-auto-footer>
+
+    <main class="docs-main">
+        <div class="container">
+            <div class="docs-breadcrumb">
+                <a href="../" data-i18n="nav.documentation">Documentation</a> &gt;
+                <a href="./" data-i18n="pro_plus.breadcrumb">Professional+</a> &gt;
+                <span data-i18n="pro_plus.automation_engine.breadcrumb">Automation Engine</span>
+            </div>
+
+            <div class="docs-header">
+                <div class="pro-plus-badge">&#11088; PRO+</div>
+                <h1 data-i18n="pro_plus.automation_engine.header.title">Automation Engine</h1>
+                <p data-i18n="pro_plus.automation_engine.header.description">Server-side script automation: a versioned saved-script library, multi-host execution with per-host result tracking, multi-shell support, cron-style scheduling, and approval workflows for privileged scripts. Migrates ~328 lines of agent-side script orchestration to a Cython engine so the agent retains only a thin execution shim.</p>
+            </div>
+
+            <div class="docs-content">
+                <section class="docs-overview">
+                    <h2 data-i18n="pro_plus.automation_engine.overview.title">Overview</h2>
+                    <p data-i18n="pro_plus.automation_engine.overview.description">The Automation Engine owns every aspect of script execution: storing the script, tracking its version history, validating typed parameters, picking the right shell per host, dispatching to many hosts in one call, and capturing the per-host stdout/stderr. The agent's role shrinks to "run the deploy plan the server hands me" via the existing <code>apply_deployment_plan</code> handler.</p>
+                </section>
+
+                <section class="docs-section">
+                    <h2 data-i18n="pro_plus.automation_engine.opensource.title">Open Source vs Professional+</h2>
+                    <ul>
+                        <li data-i18n="pro_plus.automation_engine.opensource.adhoc">Community Edition: ad-hoc one-shot script runs against a single host via <code>backend/services/script_plan_builder.py</code></li>
+                        <li data-i18n="pro_plus.automation_engine.opensource.library">Professional+: persisted, versioned saved-script library (every edit snapshots the prior body for audit / rollback)</li>
+                        <li data-i18n="pro_plus.automation_engine.opensource.multihost">Professional+: queue one execution against many hosts; per-host result rolls up into an aggregate status</li>
+                        <li data-i18n="pro_plus.automation_engine.opensource.scheduling">Professional+: cron-triggered scheduled executions with last-run / next-run tracking</li>
+                        <li data-i18n="pro_plus.automation_engine.opensource.approvals">Professional+: scripts flagged <code>requires_approval</code> queue an <code>ApprovalRequest</code> reviewers must clear before the execution dispatches</li>
+                        <li data-i18n="pro_plus.automation_engine.opensource.parameters">Professional+: typed parameter declarations (string / integer / boolean / float / secret) with validation + <code>${name}</code> substitution</li>
+                    </ul>
+                </section>
+
+                <section class="docs-section">
+                    <h2 data-i18n="pro_plus.automation_engine.deploy_plan.title">Deploy Plan Shape</h2>
+                    <p data-i18n="pro_plus.automation_engine.deploy_plan.description">Every execution produces a deploy plan that the agent runs step-by-step: write the rendered script body to a tempfile, invoke the right interpreter, then clean up. The plan is wire-compatible with <code>apply_deployment_plan</code> so the same agent handler runs both Pro+ and ad-hoc paths:</p>
+                    <div class="code-block">
+                        <pre><code>{
+  "files": [
+    {"path": "/tmp/sysmanage_script_<uuid>.sh", "content": "<rendered>", "mode": 0o700}
+  ],
+  "commands": [
+    {"argv": ["/bin/bash", "<path>"], "timeout": N, "ignore_errors": false, "description": "..."},
+    {"argv": ["rm", "-f", "<path>"], "timeout": 10, "ignore_errors": true, "description": "..."}
+  ]
+}</code></pre>
+                    </div>
+                </section>
+
+                <section class="docs-section">
+                    <h2 data-i18n="pro_plus.automation_engine.scripts.title">Saved Scripts &amp; Versioning</h2>
+                    <p data-i18n="pro_plus.automation_engine.scripts.description">A <code>SavedScript</code> bundles a name, shell, body, typed parameter declarations, timeout, and an optional <code>requires_approval</code> flag. Updating an existing script bumps its <code>version</code> and snapshots the previous body into the version-history table; older versions remain executable for rollback / audit replays.</p>
+
+                    <h3 data-i18n="pro_plus.automation_engine.scripts.endpoints">Endpoints</h3>
+                    <ul>
+                        <li><code>GET /api/v1/automation/scripts</code> &mdash; list current versions</li>
+                        <li><code>POST /api/v1/automation/scripts</code> &mdash; create or update; auto-bumps version and snapshots history</li>
+                        <li><code>GET /api/v1/automation/scripts/{id}</code> &mdash; fetch the current version</li>
+                        <li><code>GET /api/v1/automation/scripts/{id}/versions</code> &mdash; full version history newest-first</li>
+                        <li><code>DELETE /api/v1/automation/scripts/{id}</code> &mdash; remove script + all version history</li>
+                    </ul>
+                </section>
+
+                <section class="docs-section">
+                    <h2 data-i18n="pro_plus.automation_engine.execution.title">Multi-host Execution</h2>
+                    <p data-i18n="pro_plus.automation_engine.execution.description">A single <code>POST</code> dispatches one rendered script body to many hosts. Each host gets its own <code>ScriptExecutionHostResult</code> tuple tracking start / completion timestamps, return code, and captured output. The overall <code>ScriptExecution.status</code> rolls up from the per-host states (all-succeeded → succeeded; any-failed → failed; etc.).</p>
+                    <div class="code-block">
+                        <pre><code>POST /api/v1/automation/scripts/{id}/execute
+{
+  "host_ids": ["..uuid-a..", "..uuid-b..", "..uuid-c.."],
+  "parameter_values": {"target_dir": "/var/www", "dry_run": false}
+}</code></pre>
+                    </div>
+                </section>
+
+                <section class="docs-section">
+                    <h2 data-i18n="pro_plus.automation_engine.approvals.title">Approval Workflows</h2>
+                    <p data-i18n="pro_plus.automation_engine.approvals.description">Scripts marked <code>requires_approval</code> dispatch into the <code>pending_approval</code> state and create a paired <code>ApprovalRequest</code>. An authorized reviewer either approves (the linked execution promotes to <code>queued</code> and dispatches) or rejects with an optional reason (the linked execution flips to <code>rejected</code>). Approvals are scoped per-execution, not per-script, so reuse is explicit.</p>
+                    <ul>
+                        <li><code>GET /api/v1/automation/approvals?status=pending</code> &mdash; pending approval queue</li>
+                        <li><code>POST /api/v1/automation/approvals/{id}/approve</code> &mdash; promote linked execution to queued</li>
+                        <li><code>POST /api/v1/automation/approvals/{id}/reject?reason=...</code> &mdash; reject with optional reason</li>
+                    </ul>
+                </section>
+
+                <section class="docs-section">
+                    <h2 data-i18n="pro_plus.automation_engine.scheduling.title">Scheduled Execution</h2>
+                    <p data-i18n="pro_plus.automation_engine.scheduling.description">A <code>ScheduledExecution</code> binds a saved script + a host list + a cron expression. The engine validates the 5-field cron form on insert; the dispatcher polls and fires matching schedules, recording <code>last_run</code> and <code>last_status</code>. Schedules can be disabled in place without deleting the record.</p>
+                </section>
+
+                <section class="docs-section">
+                    <h2 data-i18n="pro_plus.automation_engine.parameters.title">Parameters &amp; Substitution</h2>
+                    <p data-i18n="pro_plus.automation_engine.parameters.description">Each script declares a list of <code>ScriptParameter</code> entries with a typed signature (<code>string</code>, <code>integer</code>, <code>boolean</code>, <code>float</code>, <code>secret</code>), a required flag, and an optional default. Submitted values are type-coerced and required-checked before the script body's <code>${name}</code> placeholders are substituted left-to-right. Unknown parameter names are rejected; unknown placeholders are left untouched.</p>
+                </section>
+
+                <section class="docs-section">
+                    <h2 data-i18n="pro_plus.automation_engine.shells.title">Multi-shell Support</h2>
+                    <p data-i18n="pro_plus.automation_engine.shells.description">Supported shells: <code>bash</code>, <code>zsh</code>, <code>sh</code>, <code>ksh</code>, <code>powershell</code>, <code>cmd</code>. The engine validates the script's declared shell against each target host's advertised shells (or per-platform defaults) before queueing; hosts that don't support the script's shell appear in the execution's <code>skipped_hosts</code> list rather than being dispatched and failing at the agent.</p>
+                </section>
+
+                <section class="docs-section">
+                    <h2 data-i18n="pro_plus.automation_engine.feature_codes.title">Feature Codes</h2>
+                    <p data-i18n="pro_plus.automation_engine.feature_codes.description">Endpoints in this engine are gated by these feature codes (returned <code>402</code> by the open-source server when the module isn't loaded):</p>
+                    <ul>
+                        <li><code>automation_script_library</code> &mdash; saved-script CRUD + version history</li>
+                        <li><code>automation_script_exec</code> &mdash; execute / list / cancel executions</li>
+                        <li><code>automation_script_schedule</code> &mdash; scheduled executions CRUD</li>
+                        <li><code>automation_script_approval</code> &mdash; approvals queue + decisions</li>
+                    </ul>
+                </section>
+
+                <section class="docs-section">
+                    <h2 data-i18n="pro_plus.automation_engine.architecture.title">Architecture</h2>
+                    <p data-i18n="pro_plus.automation_engine.architecture.description">The engine is a Cython-compiled binary (<code>automation_engine.so</code>) loaded by the open-source server's <code>module_loader</code> at startup. It exports the same <code>get_module_info()</code> + <code>get_automation_router()</code> contract as the other Pro+ modules, so <code>mount_automation_routes()</code> wires it under <code>/api/v1/automation</code> alongside the 402 stub routes.</p>
+                </section>
+            </div>
+        </div>
+    </main>
+
+</body>
+</html>
