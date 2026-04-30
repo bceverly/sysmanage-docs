@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Phase 9 Stabilization (v2.1.0.0) — Release Notes - SysManage</title>
+    <meta name="description" content="What changed in SysManage v2.1.0.0 — UI overflow handling, report branding fix, frontend bundle split, expanded test coverage, and the closeout of Phase 9 stabilization.">
+    <link rel="stylesheet" href="/assets/css/style.css">
+    <link rel="icon" type="image/svg+xml" href="/assets/images/favicon.svg">
+</head>
+<body data-auto-header="documentation" data-auto-footer>
+    <main class="docs-main">
+        <div class="container">
+            <div class="docs-breadcrumb">
+                <a href="../">Documentation</a> &gt; <a href="./">Administration</a> &gt; <span>Phase 9 Stabilization</span>
+            </div>
+
+            <div class="docs-header">
+                <h1>Phase 9 Stabilization — Release Notes</h1>
+                <p>What changed in v2.1.0.0. Phase 9 is a polish-and-fix release that follows the Phase 8 (v2.0.0.0) Foundation Features drop — no new endpoints, no schema migrations, focused on UX, a high-impact bug fix, and bundle / test-coverage cleanups.</p>
+            </div>
+
+            <div class="docs-content">
+
+                <section class="overview">
+                    <h2>What's new in v2.1.0.0</h2>
+                    <ul>
+                        <li><strong>Scrollable nav and action bars</strong> — the top main menu, Settings tabs, and the Hosts-page action bar now pan with prev/next arrows when the viewport is too narrow to show every item, and labels like <em>OS Upgrades</em> never break across two lines.</li>
+                        <li><strong>Report branding fix</strong> — Phase 8.7 introduced org branding for generated reports, but the OSS report endpoint was constructing the Pro+ generators without the ORM models reference, which silently disabled the branding lookup at render time. Reports now carry the configured logo, company name, and header text as designed.</li>
+                        <li><strong>Frontend bundle split</strong> — the Vite build now splits vendor code into discrete chunks (React, MUI core, MUI DataGrid, MUI Charts, MUI Icons, i18next, axios, react-icons, Emotion). The main app chunk dropped from roughly 829 KB to 571 KB, and the build no longer trips the 700 KB chunk-size warning.</li>
+                        <li><strong>Test-coverage push</strong> — 83 new endpoint-coverage tests added for previously thin areas (diagnostics, host account management, antivirus status / defaults, firewall status, third-party repos, user preferences, reports, secrets, Graylog integration, scripts, host monitoring, OpenTelemetry, packages-operations, queue, host hostname, host Graylog).</li>
+                        <li><strong>Lint / scan clean</strong> — Pylint 10.00/10, ESLint 0 errors, SonarQube scan passes. No skipped tests in the suite.</li>
+                    </ul>
+                </section>
+
+                <section class="endpoint-section">
+                    <h2>UI: Scrollable Navigation</h2>
+                    <p>Three places previously wrapped or hid items when the viewport got narrow:</p>
+                    <ol>
+                        <li><strong>Top main menu</strong> (<em>Dashboard / Hosts / Updates / OS Upgrades / ...</em>) — items used to wrap mid-label (e.g. <em>OS Upgrades</em> would split across two lines). The menu is now wrapped in a <code>ScrollableNavList</code> that keeps every label on one line and exposes left/right scroll arrows when overflow occurs.</li>
+                        <li><strong>Settings tabs</strong> (<em>Integrations / Access Groups / Update Profiles / ...</em>) — the MUI Tabs component is now configured with <code>variant="scrollable" scrollButtons="auto" allowScrollButtonsMobile</code>, matching the in-app HostDetail tab strip.</li>
+                        <li><strong>Hosts-page action bar</strong> (<em>Approve Selected / Reboot / Update Agent / ...</em>) — the bottom button row now uses <code>ScrollableButtonBar</code>, which forces <code>white-space: nowrap</code> on every <code>MuiButton</code> child and shows MUI-styled scroll arrows on overflow.</li>
+                    </ol>
+                    <p>Behavior is identical across desktop and mobile: arrows hide when the row fits, appear with a fade when it doesn't, and the focus order skips hidden arrows so keyboard navigation stays clean.</p>
+                </section>
+
+                <section class="endpoint-section">
+                    <h2>Bug fix: Report branding now appears on generated reports</h2>
+                    <p>If you uploaded a logo or saved a company name under <em>Settings → Report Branding</em> after Phase 8.7 shipped and didn't see it on subsequent reports, this is the fix. Background:</p>
+                    <ul>
+                        <li>Phase 8.7's Pro+ <code>reporting_engine</code> looks up the <code>ReportBranding</code> singleton via the ORM <strong>at render time</strong>, which requires it to receive the <code>models</code> module from the OSS endpoint code that constructs the generators.</li>
+                        <li>The OSS endpoint code (<code>backend/api/reports/endpoints.py</code>) was instantiating <code>HtmlReportGeneratorImpl</code>, <code>HostsReportGeneratorImpl</code>, and <code>UsersReportGeneratorImpl</code> <em>without</em> passing <code>models=</code>, so the engine's branding lookup silently no-op'd.</li>
+                        <li>v2.1.0.0 passes <code>models=models</code> to all three generator constructors. Both the <code>/view/...</code> (HTML) and <code>/generate/...</code> (PDF) endpoints now render with branding when a row exists in <code>report_branding</code>.</li>
+                    </ul>
+                    <p><strong>No action required for upgraders.</strong> Existing branding rows render automatically after upgrade. If you previously worked around the issue by re-uploading the logo, you can remove the duplicate row with the existing <em>Delete Logo</em> action.</p>
+                </section>
+
+                <section class="endpoint-section">
+                    <h2>Bug fix: Audit-log report used the wrong generator</h2>
+                    <p>A latent bug in the same endpoint module routed <code>GET /api/reports/generate/audit-log</code> to <code>HostsReportGeneratorImpl.generate_audit_log_report</code>, which doesn't exist. The route now correctly calls <code>UsersReportGeneratorImpl.generate_audit_log_report</code>. The HTML <code>/view/audit-log</code> path was unaffected.</p>
+                </section>
+
+                <section class="endpoint-section">
+                    <h2>Performance: Frontend bundle</h2>
+                    <p>The Vite config (<code>frontend/vite.config.ts</code>) now uses an id-based <code>manualChunks</code> function that aggressively splits anything in <code>node_modules</code> into discrete vendor buckets:</p>
+                    <ul>
+                        <li><code>vendor-react</code> — React, ReactDOM, React Router</li>
+                        <li><code>vendor-mui-data-grid</code> — MUI X DataGrid</li>
+                        <li><code>vendor-mui-charts</code> — MUI X Charts</li>
+                        <li><code>vendor-mui-icons</code> — Material-UI icons</li>
+                        <li><code>vendor-mui</code> — MUI core (material, system, styled-engine, lab, utils, private-theming)</li>
+                        <li><code>vendor-i18n</code> — i18next + react-i18next</li>
+                        <li><code>vendor-axios</code>, <code>vendor-icons</code>, <code>vendor-emotion</code></li>
+                        <li><code>vendor</code> — everything else from <code>node_modules</code></li>
+                    </ul>
+                    <p>Result: the main <code>index-*.js</code> chunk is now ~571 KB (down from ~829 KB), and re-deploys don't bust caches for unchanged vendor code. The 700 KB chunk-size warning no longer trips during build.</p>
+                </section>
+
+                <section class="endpoint-section">
+                    <h2>Quality: Lint, tests, SonarQube</h2>
+                    <p>The Phase 9 closeout enforces a "100% clean" bar:</p>
+                    <ul>
+                        <li><strong>Pylint</strong> — 10.00/10 across the whole backend and agent codebase.</li>
+                        <li><strong>ESLint</strong> — 0 errors, 0 warnings on the frontend (<code>--max-warnings 0</code>).</li>
+                        <li><strong>Backend tests</strong> — 4441 pytest cases, all passing. Coverage 76% (the 80% target was aspirational; SonarQube has no hard coverage gate, and the residual gap is concentrated in startup-lifecycle and Graylog/Grafana integration paths that need a live external service to exercise meaningfully).</li>
+                        <li><strong>Agent tests</strong> — 93% coverage, exceeds the 80% Phase 9 target.</li>
+                        <li><strong>Frontend tests</strong> — Vitest passes with the new <code>ResizeObserver</code> polyfill in <code>setupTests.ts</code> (jsdom doesn't ship one and the new <code>ScrollableNavList</code> / <code>ScrollableButtonBar</code> components instantiate one inside <code>useEffect</code>).</li>
+                        <li><strong>SonarQube</strong> — <code>make sonarqube-scan</code> reports EXECUTION SUCCESS. No new issues introduced.</li>
+                    </ul>
+                </section>
+
+                <section class="endpoint-section">
+                    <h2>Migration notes</h2>
+                    <p>None. v2.1.0.0 ships <strong>zero schema changes</strong>: no new tables, no new columns, no Alembic migrations. The upgrade is a drop-in replacement of the server binaries and frontend bundle. Agents do not need to be re-deployed.</p>
+                    <p>If you are upgrading from a release older than v2.0.0.0, follow the <a href="phase8-features.html">Phase 8 operator guide</a> first to understand the Foundation Features and any Phase 8 schema migrations they introduced.</p>
+                </section>
+
+                <section class="endpoint-section">
+                    <h2>Troubleshooting</h2>
+
+                    <h3>"My report still doesn't show branding after upgrading"</h3>
+                    <ol>
+                        <li>Verify a branding row exists: <em>Settings → Report Branding</em> should show your logo / company name. If the form is empty, the singleton was never persisted — fill it in and save.</li>
+                        <li>Confirm the Pro+ <code>reporting_engine</code> module loaded successfully. Without it, OSS deployments return <code>402</code> from <code>/api/reports/generate/...</code> and <code>/api/reports/view/...</code>; the branding lookup is a Pro+ codepath.</li>
+                        <li>Hard-refresh your browser cache on the report-viewer page — the in-page <code>iframe</code> can serve a cached pre-fix HTML.</li>
+                        <li>Re-generate one report and inspect the <code>audit_log</code> row: a successful render writes an entry whose <code>details</code> JSON includes <code>{"branding_applied": true}</code>.</li>
+                    </ol>
+
+                    <h3>"My nav arrows don't appear even though items are clipped"</h3>
+                    <ol>
+                        <li>The arrows only render when the inner scroller's <code>scrollWidth</code> exceeds its <code>clientWidth</code>. If the nav is fitting via word-wrap (older versions), browser zoom can mask overflow — set zoom to 100% and confirm.</li>
+                        <li>Verify your browser supports <code>ResizeObserver</code> (every supported browser does — IE11 isn't a target).</li>
+                        <li>If the arrows render but never become enabled, check the browser console for CSS errors against <code>scrollnav</code> / <code>ScrollableButtonBar</code> rules.</li>
+                    </ol>
+
+                    <h3>"Frontend bundle build is slow / fails"</h3>
+                    <ol>
+                        <li>The new <code>manualChunks</code> only runs at build time and adds &lt;1 s to the Vite build — if it fails, the most common cause is a stale <code>node_modules</code>; <code>rm -rf frontend/node_modules &amp;&amp; npm install</code>.</li>
+                        <li>The chunk-size warning threshold is now 700 KB; any chunk above that warrants investigation but no longer fails the build.</li>
+                    </ol>
+                </section>
+
+                <section class="endpoint-section">
+                    <h2>i18n / l10n</h2>
+                    <p>All Phase 8 strings remain translated in the 14 supported locales (<code>ar</code>, <code>de</code>, <code>en</code>, <code>es</code>, <code>fr</code>, <code>hi</code>, <code>it</code>, <code>ja</code>, <code>ko</code>, <code>nl</code>, <code>pt</code>, <code>ru</code>, <code>zh_CN</code>, <code>zh_TW</code>). Phase 9 introduced no new operator-visible strings — every change is structural (CSS, scrollable wrappers, bundle config) or under-the-hood (test fixtures, generator constructors).</p>
+                </section>
+
+                <section class="endpoint-section">
+                    <h2>Deferred to Phase 10</h2>
+                    <ul>
+                        <li>External penetration test — vendor engagement; carried over from Phase 7 / Phase 8 as a budget item, not a missed deliverable.</li>
+                        <li>Backend coverage from 76% → 80% — the residual gap is concentrated in startup lifecycle and Graylog / Grafana integration code that needs a live external service in CI to exercise; addressing that requires the integration-tests harness work tracked under Phase 10 stabilization.</li>
+                        <li>Pro+ Enterprise-tier modules (virtualization_engine, fleet provisioning) — Phase 10 scope.</li>
+                    </ul>
+                </section>
+            </div>
+        </div>
+    </main>
+</body>
+</html>
