@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Phase 8 Foundation Features — Operator Guide - SysManage</title>
+    <meta name="description" content="How to use the Phase 8 features in SysManage: access groups, registration keys, update profiles, compliance profiles, broadcast refresh, report branding, custom report templates, and dynamic secrets.">
+    <link rel="stylesheet" href="/assets/css/style.css">
+    <link rel="icon" type="image/svg+xml" href="/assets/images/favicon.svg">
+</head>
+<body data-auto-header="documentation" data-auto-footer>
+    <main class="docs-main">
+        <div class="container">
+            <div class="docs-breadcrumb">
+                <a href="../">Documentation</a> > <a href="./">Administration</a> > <span>Phase 8 Features</span>
+            </div>
+
+            <div class="docs-header">
+                <h1>Phase 8 Foundation Features — Operator Guide</h1>
+                <p>How to use the new Settings tabs, the HostDetail Compliance tab, and the Broadcast Refresh action shipped in Phase 8 (v2.0.0.0).</p>
+            </div>
+
+            <div class="docs-content">
+
+                <section class="overview">
+                    <h2>What's new in v2.0.0.0</h2>
+                    <ul>
+                        <li><strong>Access Groups + Registration Keys</strong> — hierarchical RBAC scoping and pre-shared agent-enrollment tokens.</li>
+                        <li><strong>Scheduled Update Profiles</strong> — cron-driven fleet updates with security-only and staggered-rollout options.</li>
+                        <li><strong>Package Compliance Profiles</strong> — REQUIRED / BLOCKED package policy evaluated against each host.</li>
+                        <li><strong>Audit-log enhancements</strong> — script EXECUTE entries with stdout/stderr, plus CSV export.</li>
+                        <li><strong>Broadcast Messaging</strong> — single-shot fan-out to every connected agent.</li>
+                        <li><strong>Report Branding (Pro+)</strong> — org logo and header text injected into every generated report.</li>
+                        <li><strong>Custom Report Templates (Pro+)</strong> — admin-defined column selections layered on the eight built-in reports.</li>
+                        <li><strong>Dynamic Secrets (Pro+)</strong> — short-lived OpenBAO-backed credentials that expire automatically.</li>
+                    </ul>
+                </section>
+
+                <section class="endpoint-section">
+                    <h2>Settings → Access Groups</h2>
+                    <p>An <strong>access group</strong> is a named scope you can hang hosts and users off. Groups can nest up to 10 levels deep — a user granted a top-level group inherits every descendant.</p>
+                    <ol>
+                        <li>Open <em>Settings → Access Groups</em>.</li>
+                        <li>Click <em>Add Group</em>, fill in name + optional description, optionally pick a parent.</li>
+                        <li>Use the row's edit / delete buttons to rename, reparent, or remove. Re-parenting refuses cycles and depth violations with a clear 400 error.</li>
+                    </ol>
+                    <p><strong>Registration keys</strong> live on the same tab. A key optionally binds an enrolling host to an access group AND optionally auto-approves it (skipping the manual approval gate). The plaintext key value is shown <em>once</em> in the create dialog — copy it before you close the modal, since there is no recovery.</p>
+                    <p>To enroll a host with a key: paste it into the agent's <code>registration_key</code> config field before first start, or pass it as the <code>--registration-key</code> CLI argument.</p>
+                </section>
+
+                <section class="endpoint-section">
+                    <h2>Settings → Update Profiles</h2>
+                    <p>Each profile schedules an <em>apply_updates</em> command against a tag-filtered host set on a POSIX cron schedule.</p>
+                    <ol>
+                        <li>Open <em>Settings → Update Profiles</em>, click <em>Add Profile</em>.</li>
+                        <li>Set the cron expression. The OSS parser supports lists (<code>1,15,30</code>), ranges (<code>9-17</code>), step intervals (<code>*/15</code>), day/month names (<code>mon-fri</code>), and POSIX dom/dow OR-semantics.</li>
+                        <li>Toggle <em>Security Updates Only</em> to limit the agent to the security channel.</li>
+                        <li>Set <em>Staggered Window (minutes)</em> to spread agent dispatch over a window — useful to avoid all hosts pulling at once.</li>
+                        <li>Pick an optional tag to scope the profile (omit for the entire fleet).</li>
+                        <li>Use <em>Trigger Now</em> on any row to fire immediately for that profile.</li>
+                    </ol>
+                </section>
+
+                <section class="endpoint-section">
+                    <h2>Settings → Compliance Profiles &amp; HostDetail Compliance Tab</h2>
+                    <p>Compliance profiles list packages a host MUST or MUST NOT have. Constraints can include version comparisons (<code>&gt;=</code>, <code>!=</code>, <code>~=</code>, etc.) using PEP 440 / SemVer rules with a lex fallback for non-SemVer.</p>
+                    <ol>
+                        <li>Define a profile in <em>Settings → Compliance Profiles</em>.</li>
+                        <li>Add constraints: pick the package, set type (<em>Required</em> or <em>Blocked</em>), optionally constrain the version.</li>
+                        <li>Open any host in the Hosts list, navigate to its <em>Compliance</em> tab, and choose between two evaluation modes:
+                            <ul>
+                                <li><strong>Scan</strong> — server evaluates against the cached <code>software_package</code> inventory. Fast.</li>
+                                <li><strong>Live Scan</strong> — dispatches the constraints to the agent, which evaluates against its current installed-package state and reports back via the existing WS command channel. Slower but always-current.</li>
+                            </ul>
+                        </li>
+                        <li>The result row shows <em>Compliant</em> / <em>Non-Compliant</em> / <em>Pending</em>. Expand any non-compliant row to see the per-constraint violation list.</li>
+                    </ol>
+                </section>
+
+                <section class="endpoint-section">
+                    <h2>Hosts page → Broadcast Refresh</h2>
+                    <p>Click the <em>Broadcast Refresh</em> button on the Hosts page header to send a single <code>refresh_inventory</code> envelope to every connected agent. The result toast surfaces <code>delivered_count</code> and <code>elapsed_ms</code> so you can verify the &lt;5&nbsp;s SLA from the UI.</p>
+                </section>
+
+                <section class="endpoint-section">
+                    <h2>Settings → Report Branding (Pro+)</h2>
+                    <p>The Pro+ reporting engine prepends an org-branding strip (logo + company name + header text) to every PDF and every HTML report.</p>
+                    <ol>
+                        <li>Open <em>Settings → Report Branding</em>.</li>
+                        <li>Type your company name and any header text (e.g. <em>"Confidential — Internal Use"</em>).</li>
+                        <li>Click <em>Upload Logo</em> and pick a PNG, JPEG, SVG, or WEBP file (≤ 1 MB).</li>
+                        <li>Click <em>Save</em>. The next report you generate carries the branding.</li>
+                    </ol>
+                </section>
+
+                <section class="endpoint-section">
+                    <h2>Settings → Report Templates (Pro+)</h2>
+                    <p>A template is a saved column-subset (and order) for one of the eight base report types. When you generate a report with a template applied, the renderer drops columns the template omits and reorders the rest to match.</p>
+                    <ol>
+                        <li>Open <em>Settings → Report Templates</em>, click <em>Add Template</em>.</li>
+                        <li>Pick a base report type. The available-fields panel shows the column codes the renderer recognizes for that type.</li>
+                        <li>Tick the columns you want, in the order you want them.</li>
+                        <li>Save. To apply: include <code>?template_id=&lt;uuid&gt;</code> on a <code>/view/...</code> or <code>/generate/...</code> URL, or pick the template from the Reports page when launching a generation.</li>
+                    </ol>
+                </section>
+
+                <section class="endpoint-section">
+                    <h2>Settings → Dynamic Secrets</h2>
+                    <p>Issue, revoke, and reconcile short-lived credentials backed by your OpenBAO / Vault deployment. The plaintext value is shown <strong>exactly once</strong> at issue time — copy it immediately. SysManage stores only the lease metadata (kind, role, TTL, expires_at) and never the secret itself.</p>
+                    <ol>
+                        <li>Open <em>Settings → Dynamic Secrets</em>, click <em>Issue Lease</em>.</li>
+                        <li>Pick a kind (<em>token</em>, <em>database</em>, <em>ssh</em>), enter the OpenBAO backend role, set TTL (60 s – 24 h).</li>
+                        <li>Copy the secret from the reveal modal. Closing the dialog is irreversible — you cannot retrieve the value again.</li>
+                        <li>Use the leases table to revoke ahead of expiry or to filter by status.</li>
+                        <li>Click <em>Reconcile</em> to mark any ACTIVE rows whose TTL has elapsed as EXPIRED — useful if the sweeper hasn't run.</li>
+                    </ol>
+                </section>
+
+                <section class="endpoint-section">
+                    <h2>Audit Trail</h2>
+                    <p>Every state-changing action above is logged to the audit log with the operator's user, the entity touched, and the result. Use <em>Reports → Audit Log</em> to view, filter, and export to CSV.</p>
+                </section>
+
+                <section class="endpoint-section">
+                    <h2>i18n / l10n</h2>
+                    <p>All Phase 8 UI strings are translated into 14 languages (<code>ar</code>, <code>de</code>, <code>en</code>, <code>es</code>, <code>fr</code>, <code>hi</code>, <code>it</code>, <code>ja</code>, <code>ko</code>, <code>nl</code>, <code>pt</code>, <code>ru</code>, <code>zh_CN</code>, <code>zh_TW</code>). Switch the active locale from your user-profile dropdown.</p>
+                </section>
+            </div>
+        </div>
+    </main>
+</body>
+</html>

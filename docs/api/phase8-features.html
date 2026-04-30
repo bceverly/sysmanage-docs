@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Phase 8 Foundation Features API - SysManage</title>
+    <meta name="description" content="API reference for SysManage Phase 8 foundation features: access groups, registration keys, scheduled update profiles, package compliance profiles, broadcast messaging, report branding, custom report templates, and dynamic secret leases.">
+    <link rel="stylesheet" href="/assets/css/style.css">
+    <link rel="icon" type="image/svg+xml" href="/assets/images/favicon.svg">
+</head>
+<body data-auto-header="documentation" data-auto-footer>
+    <main class="docs-main">
+        <div class="container">
+            <div class="docs-breadcrumb">
+                <a href="../">Documentation</a> > <a href="./">API Reference</a> > <span>Phase 8 Foundation Features</span>
+            </div>
+
+            <div class="docs-header">
+                <h1>Phase 8 Foundation Features API</h1>
+                <p>REST endpoints introduced in Phase 8 (v2.0.0.0): access groups, registration keys, scheduled update profiles, package compliance profiles, broadcast messaging, report branding, custom report templates, and dynamic secret leases.</p>
+            </div>
+
+            <div class="docs-content">
+
+                <section class="overview">
+                    <h2>Overview</h2>
+                    <p>All endpoints below require <strong>JWT bearer authentication</strong> and are mounted under <code>/api</code>. Endpoints prefixed <code>/api/v1/reports/...</code> are served by the Pro+ <code>reporting_engine</code> module; OSS deployments expose only the storage / template-CRUD subset.</p>
+                </section>
+
+                <!-- 8.1 Access Groups + Registration Keys -->
+                <section class="endpoint-section">
+                    <h2>8.1 Access Groups &amp; Registration Keys</h2>
+                    <p>Hierarchical RBAC scoping for hosts and users, plus pre-shared registration keys for unattended agent enrollment.</p>
+
+                    <div class="endpoint"><div class="endpoint-header"><span class="method get">GET</span><code>/api/access-groups</code></div><p>List every access group (flat). Each row carries <code>parent_id</code>; tree assembly is the client's job. Returns <code>200</code> with an array of <code>{id, name, description, parent_id, created_at, updated_at}</code>.</p></div>
+
+                    <div class="endpoint"><div class="endpoint-header"><span class="method post">POST</span><code>/api/access-groups</code></div><p>Create a new group. Body: <code>{name, description?, parent_id?}</code>. Returns <code>200</code> on success, <code>404</code> if <code>parent_id</code> doesn't exist, <code>400</code> on cycle / depth violation. Tree depth is capped at 10.</p></div>
+
+                    <div class="endpoint"><div class="endpoint-header"><span class="method get">GET</span><code>/api/access-groups/{group_id}</code></div><p>Read one group.</p></div>
+
+                    <div class="endpoint"><div class="endpoint-header"><span class="method put">PUT</span><code>/api/access-groups/{group_id}</code></div><p>Update name / description / parent. Cycle detection re-runs against the new parent.</p></div>
+
+                    <div class="endpoint"><div class="endpoint-header"><span class="method delete">DELETE</span><code>/api/access-groups/{group_id}</code></div><p>Delete. Children are reparented to the deleted group's parent (or to root) per the FK <code>ON DELETE SET NULL</code> rule.</p></div>
+
+                    <div class="endpoint"><div class="endpoint-header"><span class="method get">GET</span><code>/api/registration-keys</code></div><p>List every registration key without secrets. The plaintext <code>key</code> is only ever returned at create time.</p></div>
+
+                    <div class="endpoint"><div class="endpoint-header"><span class="method post">POST</span><code>/api/registration-keys</code></div><p>Create. Body: <code>{name, access_group_id?, auto_approve?, max_uses?, expires_at?}</code>. Response includes the plaintext <code>key</code> field <strong>exactly once</strong> — it is never recoverable.</p></div>
+
+                    <div class="endpoint"><div class="endpoint-header"><span class="method post">POST</span><code>/api/registration-keys/{key_id}/revoke</code></div><p>Mark revoked. Idempotent. Existing host enrollments are not affected.</p></div>
+
+                    <div class="endpoint"><div class="endpoint-header"><span class="method delete">DELETE</span><code>/api/registration-keys/{key_id}</code></div><p>Delete the key row. (Use revoke instead if you want to keep the audit trail.)</p></div>
+                </section>
+
+                <!-- 8.2 Scheduled Update Profiles -->
+                <section class="endpoint-section">
+                    <h2>8.2 Scheduled Update Profiles</h2>
+                    <p>POSIX-cron profiles describing recurring fleet updates with security-only and staggered-rollout options.</p>
+
+                    <div class="endpoint"><div class="endpoint-header"><span class="method get">GET</span><code>/api/upgrade-profiles</code></div><p>List profiles with their next-run timestamps.</p></div>
+
+                    <div class="endpoint"><div class="endpoint-header"><span class="method post">POST</span><code>/api/upgrade-profiles</code></div><p>Create. Body: <code>{name, description?, cron, enabled?, security_only?, package_managers?, staggered_window_min?, tag_id?}</code>. <code>cron</code> validates against the OSS POSIX cron parser (lists, ranges, step intervals, day/month names, dom/dow OR-semantics). <code>staggered_window_min</code> is clamped to <code>[0, 720]</code> minutes.</p></div>
+
+                    <div class="endpoint"><div class="endpoint-header"><span class="method get">GET</span><code>/api/upgrade-profiles/{profile_id}</code></div><p>Read one.</p></div>
+
+                    <div class="endpoint"><div class="endpoint-header"><span class="method put">PUT</span><code>/api/upgrade-profiles/{profile_id}</code></div><p>Update. Cron changes recompute <code>next_run</code> automatically.</p></div>
+
+                    <div class="endpoint"><div class="endpoint-header"><span class="method delete">DELETE</span><code>/api/upgrade-profiles/{profile_id}</code></div><p>Delete.</p></div>
+
+                    <div class="endpoint"><div class="endpoint-header"><span class="method post">POST</span><code>/api/upgrade-profiles/{profile_id}/trigger</code></div><p>Fire a profile NOW. Resolves the target host set, enqueues an <code>apply_updates</code> command per host (with the profile's flags + staggered-window delay), updates <code>last_run</code> / <code>next_run</code>, and returns the dispatched host list.</p></div>
+
+                    <div class="endpoint"><div class="endpoint-header"><span class="method post">POST</span><code>/api/upgrade-profiles/tick</code></div><p>Driver hook for an external scheduler. Selects every enabled profile where <code>next_run &lt;= now</code>, fires it, and returns the fired list. Idempotent within a tick.</p></div>
+                </section>
+
+                <!-- 8.3 Package Compliance Profiles -->
+                <section class="endpoint-section">
+                    <h2>8.3 Package Compliance Profiles</h2>
+                    <p>REQUIRED / BLOCKED package definitions evaluated against host inventory, optionally with version constraints.</p>
+
+                    <div class="endpoint"><div class="endpoint-header"><span class="method get">GET</span><code>/api/package-profiles</code></div><p>List profiles (without constraints).</p></div>
+
+                    <div class="endpoint"><div class="endpoint-header"><span class="method post">POST</span><code>/api/package-profiles</code></div><p>Create. Body: <code>{name, description?, enabled?, constraints[]}</code> where each constraint is <code>{package_name, package_manager?, constraint_type, version_op?, version?}</code>. <code>constraint_type</code> is <code>REQUIRED</code> or <code>BLOCKED</code>; <code>version_op</code> is one of <code>=</code>, <code>==</code>, <code>&gt;=</code>, <code>&lt;=</code>, <code>&gt;</code>, <code>&lt;</code>, <code>!=</code>, <code>~=</code>.</p></div>
+
+                    <div class="endpoint"><div class="endpoint-header"><span class="method get">GET</span><code>/api/package-profiles/{profile_id}</code></div><p>Read with constraints.</p></div>
+
+                    <div class="endpoint"><div class="endpoint-header"><span class="method put">PUT</span><code>/api/package-profiles/{profile_id}</code></div><p>Update. <strong>Constraint list is replaced atomically</strong> — pass the full desired list.</p></div>
+
+                    <div class="endpoint"><div class="endpoint-header"><span class="method delete">DELETE</span><code>/api/package-profiles/{profile_id}</code></div><p>Delete.</p></div>
+
+                    <div class="endpoint"><div class="endpoint-header"><span class="method post">POST</span><code>/api/package-profiles/{profile_id}/scan/{host_id}</code></div><p>Evaluate the host's cached <code>software_package</code> inventory against the profile, persist the result in <code>HostPackageComplianceStatus</code>, and return it. Fast but only as fresh as the most recent inventory upload.</p></div>
+
+                    <div class="endpoint"><div class="endpoint-header"><span class="method post">POST</span><code>/api/package-profiles/{profile_id}/dispatch/{host_id}</code></div><p>Ask the agent to evaluate compliance against its <em>live</em> local package state and report back via the WS command-result channel. Slower round-trip but always-current.</p></div>
+
+                    <div class="endpoint"><div class="endpoint-header"><span class="method get">GET</span><code>/api/package-profiles/status/host/{host_id}</code></div><p>Latest compliance status for one host across all profiles. Each row contains <code>{status, violations[], last_scan_at}</code>.</p></div>
+                </section>
+
+                <!-- 8.5 Broadcast -->
+                <section class="endpoint-section">
+                    <h2>8.5 Broadcast Messaging</h2>
+                    <p>Fan out one envelope to every connected agent (or every agent matching a tag / platform filter) in a single round-trip.</p>
+
+                    <div class="endpoint"><div class="endpoint-header"><span class="method post">POST</span><code>/api/broadcast</code></div><p>Body: <code>{broadcast_action, message?, parameters?, tag_id?, platform?}</code>. Returns <code>{broadcast_id, broadcast_action, delivered_count, elapsed_ms, target_filter}</code>. SLA: under 5&nbsp;s for fleets up to 100 hosts.</p>
+                    <p><strong>Common actions:</strong> <code>refresh_inventory</code> (re-collect software inventory), <code>banner</code> + <code>message</code> (display a notification on the agent host).</p></div>
+                </section>
+
+                <!-- 8.7 Report Branding -->
+                <section class="endpoint-section">
+                    <h2>8.7 Report Branding</h2>
+                    <p>Singleton org branding (logo + company name + header text) injected into every PDF / HTML report by the Pro+ reporting engine.</p>
+
+                    <div class="endpoint"><div class="endpoint-header"><span class="method get">GET</span><code>/api/report-branding</code></div><p>Read current branding. Logo bytes are not included; <code>has_logo</code> indicates whether one is configured.</p></div>
+
+                    <div class="endpoint"><div class="endpoint-header"><span class="method put">PUT</span><code>/api/report-branding</code></div><p>Update <code>company_name</code> and <code>header_text</code>. Empty strings clear the field.</p></div>
+
+                    <div class="endpoint"><div class="endpoint-header"><span class="method post">POST</span><code>/api/report-branding/logo</code></div><p>Upload (or replace) the org logo. <code>multipart/form-data</code> with a <code>file</code> field. Allowed: PNG, JPEG, SVG, WEBP. Max size 1&nbsp;MB.</p></div>
+
+                    <div class="endpoint"><div class="endpoint-header"><span class="method get">GET</span><code>/api/report-branding/logo</code></div><p>Stream the logo bytes. Used by the frontend preview AND embedded as a data URL by the reporting engine.</p></div>
+
+                    <div class="endpoint"><div class="endpoint-header"><span class="method delete">DELETE</span><code>/api/report-branding/logo</code></div><p>Remove the configured logo (text fields untouched).</p></div>
+                </section>
+
+                <!-- 8.7 Report Templates -->
+                <section class="endpoint-section">
+                    <h2>8.7 Custom Report Templates</h2>
+                    <p>Admin-defined column subsets / orderings layered on top of the eight base report types.</p>
+
+                    <div class="endpoint"><div class="endpoint-header"><span class="method get">GET</span><code>/api/report-templates</code></div><p>List templates.</p></div>
+
+                    <div class="endpoint"><div class="endpoint-header"><span class="method post">POST</span><code>/api/report-templates</code></div><p>Create. Body: <code>{name, description?, base_report_type, selected_fields[], enabled?}</code>. <code>selected_fields</code> entries must be valid codes for the chosen <code>base_report_type</code>; unknown codes are rejected with <code>400</code>.</p></div>
+
+                    <div class="endpoint"><div class="endpoint-header"><span class="method get">GET</span><code>/api/report-templates/{template_id}</code></div><p>Read one.</p></div>
+
+                    <div class="endpoint"><div class="endpoint-header"><span class="method put">PUT</span><code>/api/report-templates/{template_id}</code></div><p>Update.</p></div>
+
+                    <div class="endpoint"><div class="endpoint-header"><span class="method delete">DELETE</span><code>/api/report-templates/{template_id}</code></div><p>Delete.</p></div>
+
+                    <div class="endpoint"><div class="endpoint-header"><span class="method get">GET</span><code>/api/report-templates/base-types</code></div><p>List the eight base report types (<code>registered-hosts</code>, <code>hosts-with-tags</code>, <code>users-list</code>, <code>firewall-status</code>, <code>antivirus-opensource</code>, <code>antivirus-commercial</code>, <code>user-rbac</code>, <code>audit-log</code>) that templates can be built on.</p></div>
+
+                    <div class="endpoint"><div class="endpoint-header"><span class="method get">GET</span><code>/api/report-templates/fields/{base_report_type}</code></div><p>Catalog of available <code>{code, label}</code> pairs for the base type. The frontend uses this to populate the field-picker UI.</p></div>
+
+                    <p><strong>Applying a template at render time:</strong> add a <code>?template_id=&lt;uuid&gt;</code> query param to <code>GET /api/v1/reports/view/{report_type}</code> or <code>GET /api/v1/reports/generate/{report_type}</code>. Unknown / disabled templates fall back to the default column set.</p>
+                </section>
+
+                <!-- 8.7 Dynamic Secrets -->
+                <section class="endpoint-section">
+                    <h2>8.7 Dynamic Secret Leases</h2>
+                    <p>Short-lived OpenBAO/Vault-backed credentials with automatic expiry. The plaintext value is returned <strong>exactly once</strong> at issue time and never persisted in the SysManage DB.</p>
+
+                    <div class="endpoint"><div class="endpoint-header"><span class="method post">POST</span><code>/api/dynamic-secrets/issue</code></div><p>Issue a new lease. Body: <code>{name, kind, backend_role, ttl_seconds, note?}</code>. <code>kind</code> is <code>token</code>, <code>database</code>, or <code>ssh</code>; <code>ttl_seconds</code> is clamped to <code>[60, 86400]</code>. Response: <code>{lease, secret}</code> — surface <code>secret</code> to the operator once and discard.</p></div>
+
+                    <div class="endpoint"><div class="endpoint-header"><span class="method get">GET</span><code>/api/dynamic-secrets/leases</code></div><p>List leases. Optional filters: <code>?status=ACTIVE|REVOKED|EXPIRED|FAILED</code>, <code>?kind=token|database|ssh</code>.</p></div>
+
+                    <div class="endpoint"><div class="endpoint-header"><span class="method get">GET</span><code>/api/dynamic-secrets/leases/{lease_id}</code></div><p>Read one lease (no secret).</p></div>
+
+                    <div class="endpoint"><div class="endpoint-header"><span class="method post">POST</span><code>/api/dynamic-secrets/leases/{lease_id}/revoke</code></div><p>Revoke immediately and delete from OpenBAO. Idempotent.</p></div>
+
+                    <div class="endpoint"><div class="endpoke-header"><span class="method post">POST</span><code>/api/dynamic-secrets/reconcile</code></div><p>Sweeper hook — transitions ACTIVE rows whose <code>expires_at</code> has passed into EXPIRED. Safe to call repeatedly.</p></div>
+
+                    <div class="endpoint"><div class="endpoint-header"><span class="method get">GET</span><code>/api/dynamic-secrets/kinds</code></div><p>Catalog of supported lease kinds and the TTL range.</p></div>
+                </section>
+
+                <section class="endpoint-section">
+                    <h2>Audit Logging</h2>
+                    <p>Every state-changing endpoint above writes one or more rows to the <code>audit_log</code> table via <code>AuditService.log</code>, including the operator's user ID, the entity touched, and the action result. Use <code>GET /api/audit-log/list</code> to query, or <code>GET /api/audit-log/export?fmt=csv</code> to stream a CSV (Phase 8.4).</p>
+                </section>
+
+                <section class="endpoint-section">
+                    <h2>i18n / l10n</h2>
+                    <p>Every operator-visible response string returned by the endpoints above is wrapped with the server's gettext shim and translated into the 14 supported locales: <code>ar</code>, <code>de</code>, <code>en</code>, <code>es</code>, <code>fr</code>, <code>hi</code>, <code>it</code>, <code>ja</code>, <code>ko</code>, <code>nl</code>, <code>pt</code>, <code>ru</code>, <code>zh_CN</code>, <code>zh_TW</code>.</p>
+                </section>
+            </div>
+        </div>
+    </main>
+</body>
+</html>
