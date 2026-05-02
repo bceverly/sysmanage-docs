@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en" data-i18n-title="pro_plus.virtualization_engine.page_title">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title data-i18n="pro_plus.virtualization_engine.page_title">Virtualization Engine - SysManage Professional+</title>
+    <meta name="description" content="Server-side VM lifecycle management for KVM/QEMU (Linux), bhyve (FreeBSD), and VMM/vmd (OpenBSD): create, delete, start, stop, networking, storage, guest provisioning, safe parent reboot." data-i18n-attr="content" data-i18n="pro_plus.virtualization_engine.meta_description">
+    <link rel="stylesheet" href="../../assets/css/style.css">
+    <link rel="icon" type="image/svg+xml" href="../../assets/images/favicon.svg">
+</head>
+<body data-auto-header="documentation" data-auto-footer>
+
+    <main class="docs-main">
+        <div class="container">
+            <div class="docs-breadcrumb">
+                <a href="../" data-i18n="nav.documentation">Documentation</a> &gt;
+                <a href="./" data-i18n="pro_plus.breadcrumb">Professional+</a> &gt;
+                <span data-i18n="pro_plus.virtualization_engine.breadcrumb">Virtualization Engine</span>
+            </div>
+
+            <div class="docs-header">
+                <div class="pro-plus-badge">&#11088; PRO+</div>
+                <h1 data-i18n="pro_plus.virtualization_engine.header.title">Virtualization Engine</h1>
+                <p data-i18n="pro_plus.virtualization_engine.header.description">Hardware virtualization lifecycle management for the three hypervisors SysManage agents can run as parent hosts: KVM/QEMU on Linux, bhyve on FreeBSD, and VMM/vmd on OpenBSD. Migrates ~30,000 lines of agent-side hypervisor orchestration to a server-side Cython engine so the agent retains only read-only listing + a thin command-execution shim.</p>
+            </div>
+
+            <div class="docs-content">
+                <section class="docs-overview">
+                    <h2 data-i18n="pro_plus.virtualization_engine.overview.title">Overview</h2>
+                    <p data-i18n="pro_plus.virtualization_engine.overview.description">The Virtualization Engine generates declarative deployment plans (files + shell command sequences) that the agent runs through its existing <code>apply_deployment_plan</code> handler. Plans cover the full VM lifecycle: image acquisition (download + decompression), disk allocation, cloud-init seed ISO build, virt-install/vm/vmctl invocation, post-boot agent bootstrap, and clean teardown. The agent never has to know how to talk to libvirt, vm-bhyve, or vmd directly &mdash; the engine handles all of it.</p>
+                </section>
+
+                <section class="docs-section">
+                    <h2 data-i18n="pro_plus.virtualization_engine.tier.title">Tier &amp; Licensing</h2>
+                    <ul>
+                        <li data-i18n="pro_plus.virtualization_engine.tier.enterprise"><strong>Enterprise tier</strong>: full hardware virtualization management.</li>
+                        <li data-i18n="pro_plus.virtualization_engine.tier.community"><strong>Community Edition</strong>: read-only listing of running VMs through the agent's <code>list_child_hosts</code> command. No create / delete / lifecycle.</li>
+                        <li data-i18n="pro_plus.virtualization_engine.tier.professional"><strong>Professional tier</strong>: includes the <em>reboot orchestration</em> slice (safe parent reboot with child host stop/start) but not VM creation / deletion.</li>
+                    </ul>
+                </section>
+
+                <section class="docs-section">
+                    <h2 data-i18n="pro_plus.virtualization_engine.hypervisors.title">Supported Hypervisors</h2>
+
+                    <h3 data-i18n="pro_plus.virtualization_engine.hypervisors.kvm.title">KVM / QEMU (Linux)</h3>
+                    <p data-i18n="pro_plus.virtualization_engine.hypervisors.kvm.description">Uses libvirt + virt-install. Cloud-image guests boot via cloud-init seed ISO; the engine handles per-distribution cloud-init wiring &mdash; full cloud-init runcmd for Linux distros and a nuageinit + bootstrap.sh + SSH-driven post-boot path for FreeBSD's BASIC-CLOUDINIT images. Multi-distro autoinstall is supported via the same engine: Debian preseed, Ubuntu Subiquity autoinstall, and Alpine apkovl overlays.</p>
+
+                    <h3 data-i18n="pro_plus.virtualization_engine.hypervisors.bhyve.title">bhyve (FreeBSD)</h3>
+                    <p data-i18n="pro_plus.virtualization_engine.hypervisors.bhyve.description">Uses vm-bhyve. Raw FreeBSD images are pre-modified before first boot: an <code>/etc/rc.d/sysmanage_firstboot</code> script (with the FreeBSD <code>firstboot</code> rc.d keyword) is injected via <code>mdconfig + mount</code> so the agent installs itself once the guest comes up. ZFS zvol storage and pf NAT for vm-bhyve switches are also covered.</p>
+
+                    <h3 data-i18n="pro_plus.virtualization_engine.hypervisors.vmm.title">VMM / vmd (OpenBSD)</h3>
+                    <p data-i18n="pro_plus.virtualization_engine.hypervisors.vmm.description">Uses vmctl + vmd. OpenBSD guests install via httpd-served sets and an install.conf embedded into a modified bsd.rd ramdisk (rdsetroot extract / vnconfig mount / re-pack). After OpenBSD's installer finishes, the VM reboots from disk; the engine plan reloads vmd with the final vm.conf fragment.</p>
+                </section>
+
+                <section class="docs-section">
+                    <h2 data-i18n="pro_plus.virtualization_engine.opensource.title">Open Source vs Professional+</h2>
+                    <ul>
+                        <li data-i18n="pro_plus.virtualization_engine.opensource.list">Community Edition: agent reports the VMs it can see (<code>list_child_hosts</code>) so the parent's "Child Hosts" tab can render them read-only.</li>
+                        <li data-i18n="pro_plus.virtualization_engine.opensource.create">Professional+: full create / delete / start / stop / restart of KVM, bhyve, VMM child hosts.</li>
+                        <li data-i18n="pro_plus.virtualization_engine.opensource.guest_provisioning">Professional+: per-distribution guest provisioning (cloud-init runcmd, FreeBSD nuageinit, Debian preseed, Ubuntu autoinstall, Alpine apkovl, bhyve firstboot, OpenBSD install.conf).</li>
+                        <li data-i18n="pro_plus.virtualization_engine.opensource.safe_reboot">Professional tier: safe-parent-reboot orchestration &mdash; stop child hosts, reboot parent, restart children automatically.</li>
+                        <li data-i18n="pro_plus.virtualization_engine.opensource.networking">Professional+: libvirt network create/delete, vm-bhyve switch + pf NAT, VMM vm.conf fragments.</li>
+                        <li data-i18n="pro_plus.virtualization_engine.opensource.storage">Professional+: KVM qcow2 clone + resize, bhyve ZFS zvol create/destroy, VMM disk allocation via vmctl create.</li>
+                    </ul>
+                </section>
+
+                <section class="docs-section">
+                    <h2 data-i18n="pro_plus.virtualization_engine.create_flow.title">VM Create Flow</h2>
+                    <p data-i18n="pro_plus.virtualization_engine.create_flow.intro">A KVM cloud-image VM create runs end-to-end as one deployment plan. Steps are skip-guarded so re-runs against an already-cached base image are cheap.</p>
+                    <ol>
+                        <li data-i18n="pro_plus.virtualization_engine.create_flow.step1">Ensure the libvirt image directory exists.</li>
+                        <li data-i18n="pro_plus.virtualization_engine.create_flow.step2">Download the cloud image (skipped if already cached).</li>
+                        <li data-i18n="pro_plus.virtualization_engine.create_flow.step3">Decompress (xz / gz / bz2) if needed.</li>
+                        <li data-i18n="pro_plus.virtualization_engine.create_flow.step4">Clone the base image to the per-VM disk path via <code>qemu-img convert</code>.</li>
+                        <li data-i18n="pro_plus.virtualization_engine.create_flow.step5">Resize the cloned disk to the requested capacity.</li>
+                        <li data-i18n="pro_plus.virtualization_engine.create_flow.step6">Build a cloud-init / nuageinit cidata ISO (genisoimage / mkisofs / xorrisofs fallback).</li>
+                        <li data-i18n="pro_plus.virtualization_engine.create_flow.step7">Run <code>virt-install --import</code>.</li>
+                        <li data-i18n="pro_plus.virtualization_engine.create_flow.step8">For FreeBSD: wait for DHCP + SSH, retry pubkey auth until nuageinit seeds <code>~/.ssh/authorized_keys</code>, then drive a pty-based <code>su -m root -c bootstrap.sh</code>.</li>
+                        <li data-i18n="pro_plus.virtualization_engine.create_flow.step9">Inside the guest: bootstrap.sh installs the agent .pkg / .deb, writes <code>/etc/sysmanage-agent.yaml</code> (including the auto-approve token), and starts the service.</li>
+                        <li data-i18n="pro_plus.virtualization_engine.create_flow.step10">New agent registers with the parent server; auto-approve token matches; host appears in the main hosts list.</li>
+                    </ol>
+                </section>
+
+                <section class="docs-section">
+                    <h2 data-i18n="pro_plus.virtualization_engine.ui.title">Using the UI</h2>
+                    <p data-i18n="pro_plus.virtualization_engine.ui.intro">From a parent host's <strong>Host Details &rarr; Child Hosts</strong> tab:</p>
+                    <ul>
+                        <li data-i18n="pro_plus.virtualization_engine.ui.enable_card">Each hypervisor card (KVM, bhyve, VMM, LXD, WSL) shows its capability state and an <strong>Enable / Initialize</strong> button when the host is capable but the hypervisor is not yet bootstrapped.</li>
+                        <li data-i18n="pro_plus.virtualization_engine.ui.create_button">When the hypervisor is ready, a <strong>Create VM</strong> (or <strong>Create Container</strong> for LXD, <strong>Create Instance</strong> for WSL) button opens the create dialog.</li>
+                        <li data-i18n="pro_plus.virtualization_engine.ui.create_dialog">The dialog asks for distribution, hostname, username, password, and an optional auto-approve checkbox. For VMM you also supply an ISO URL and a separate root password.</li>
+                        <li data-i18n="pro_plus.virtualization_engine.ui.lifecycle_actions">Once a child host exists, per-row actions cover Start / Stop / Restart / Delete. Delete dispatches the engine's destroy + undefine + storage-purge plan; the row drops out of the UI immediately.</li>
+                    </ul>
+                </section>
+
+                <section class="docs-section">
+                    <h2 data-i18n="pro_plus.virtualization_engine.endpoints.title">API Endpoints</h2>
+                    <ul>
+                        <li><code>POST /api/host/{id}/virtualization/create-child</code> &mdash; create a KVM / bhyve / VMM / LXD / WSL child host</li>
+                        <li><code>DELETE /api/host/{id}/children/{child_id}</code> &mdash; destroy + undefine + purge storage</li>
+                        <li><code>POST /api/host/{id}/children/{child_id}/start</code> &mdash; lifecycle: start</li>
+                        <li><code>POST /api/host/{id}/children/{child_id}/stop</code> &mdash; lifecycle: stop</li>
+                        <li><code>POST /api/host/{id}/children/{child_id}/restart</code> &mdash; lifecycle: restart</li>
+                        <li><code>POST /api/host/{id}/virtualization/{kvm|bhyve|vmm|lxd|wsl}/enable</code> &mdash; bootstrap the hypervisor on the parent</li>
+                        <li><code>GET  /api/host/{id}/virtualization/status</code> &mdash; capability + ready state per hypervisor</li>
+                        <li><code>POST /api/host/{id}/reboot</code> &mdash; safe reboot orchestration (stops children, reboots parent, restarts children)</li>
+                    </ul>
+                </section>
+
+                <section class="docs-section">
+                    <h2 data-i18n="pro_plus.virtualization_engine.permissions.title">Required Permissions</h2>
+                    <ul>
+                        <li><code>Enable KVM</code>, <code>Enable bhyve</code>, <code>Enable VMM</code>, <code>Enable LXD</code>, <code>Enable WSL</code> &mdash; bootstrap the hypervisor on a parent host.</li>
+                        <li><code>Create Child Host</code> &mdash; open the create dialog and dispatch the create plan.</li>
+                        <li><code>Start Child Host</code>, <code>Stop Child Host</code>, <code>Restart Child Host</code>, <code>Delete Child Host</code> &mdash; per-action lifecycle controls.</li>
+                        <li><code>Configure Child Host</code> &mdash; edit child host settings (hostname, distribution, etc.).</li>
+                        <li><code>Reboot Host</code> &mdash; trigger the safe-parent-reboot flow.</li>
+                    </ul>
+                </section>
+
+                <section class="docs-section">
+                    <h2 data-i18n="pro_plus.virtualization_engine.troubleshooting.title">Troubleshooting</h2>
+                    <ul>
+                        <li data-i18n="pro_plus.virtualization_engine.troubleshooting.firewall">Inner-VM agent registration fails with connection-timeout: check that the parent host's firewall (ufw / firewalld / pf) allows traffic from the libvirt NAT subnet (typically <code>192.168.122.0/24</code>) to the SysManage API port (<code>8080</code> by default).</li>
+                        <li data-i18n="pro_plus.virtualization_engine.troubleshooting.bind">API not reachable from inside the VM but reachable on the host: check <code>/etc/sysmanage.yaml</code> &rarr; <code>api.host</code>; set it to <code>0.0.0.0</code> (or the host's routable IP) instead of <code>localhost</code>.</li>
+                        <li data-i18n="pro_plus.virtualization_engine.troubleshooting.bootstrap_log">FreeBSD bootstrap logs go to <code>/var/log/sysmanage-firstboot.log</code> (bhyve) or stream over the SSH session (KVM); the engine surfaces them in the command_result for the create plan.</li>
+                        <li data-i18n="pro_plus.virtualization_engine.troubleshooting.skip_guard">Cloud-image download / decompression are skip-guarded against the final qcow2 path: if a previous VM left the decompressed image behind, subsequent creates re-use it without re-fetching.</li>
+                        <li data-i18n="pro_plus.virtualization_engine.troubleshooting.os_variant">The engine uses <code>--os-variant generic</code> for virt-install (a warning is harmless); pin a specific variant per distribution when libvirt's <code>osinfo</code> DB has a closer match.</li>
+                    </ul>
+                </section>
+
+            </div>
+        </div>
+    </main>
+
+</body>
+</html>
