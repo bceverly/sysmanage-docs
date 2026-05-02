@@ -27,7 +27,7 @@
                     <ul>
                         <li><strong>Scrollable nav and action bars</strong> — the top main menu, Settings tabs, and the Hosts-page action bar now pan with prev/next arrows when the viewport is too narrow to show every item, and labels like <em>OS Upgrades</em> never break across two lines.</li>
                         <li><strong>Report branding fix</strong> — Phase 8.7 introduced org branding for generated reports, but the OSS report endpoint was constructing the Pro+ generators without the ORM models reference, which silently disabled the branding lookup at render time. Reports now carry the configured logo, company name, and header text as designed.</li>
-                        <li><strong>Frontend bundle split</strong> — the Vite build now splits vendor code into discrete chunks (React, MUI core, MUI DataGrid, MUI Charts, MUI Icons, i18next, axios, react-icons, Emotion). The main app chunk dropped from roughly 829 KB to 571 KB, and the build no longer trips the 700 KB chunk-size warning.</li>
+                        <li><strong>Frontend bundle</strong> — an attempted vendor-chunk split in <code>vite.config.ts</code> was reverted after Playwright caught a runtime TDZ error caused by React 19 + MUI 7 internal circular imports across split chunks. Default Vite chunking is in use; the chunk-size warning limit was raised to 2500 KB to silence the build warning.</li>
                         <li><strong>Test-coverage push</strong> — 83 new endpoint-coverage tests added for previously thin areas (diagnostics, host account management, antivirus status / defaults, firewall status, third-party repos, user preferences, reports, secrets, Graylog integration, scripts, host monitoring, OpenTelemetry, packages-operations, queue, host hostname, host Graylog).</li>
                         <li><strong>Lint / scan clean</strong> — Pylint 10.00/10, ESLint 0 errors, SonarQube scan passes. No skipped tests in the suite.</li>
                     </ul>
@@ -61,19 +61,13 @@
                 </section>
 
                 <section class="endpoint-section">
-                    <h2>Performance: Frontend bundle</h2>
-                    <p>The Vite config (<code>frontend/vite.config.ts</code>) now uses an id-based <code>manualChunks</code> function that aggressively splits anything in <code>node_modules</code> into discrete vendor buckets:</p>
-                    <ul>
-                        <li><code>vendor-react</code> — React, ReactDOM, React Router</li>
-                        <li><code>vendor-mui-data-grid</code> — MUI X DataGrid</li>
-                        <li><code>vendor-mui-charts</code> — MUI X Charts</li>
-                        <li><code>vendor-mui-icons</code> — Material-UI icons</li>
-                        <li><code>vendor-mui</code> — MUI core (material, system, styled-engine, lab, utils, private-theming)</li>
-                        <li><code>vendor-i18n</code> — i18next + react-i18next</li>
-                        <li><code>vendor-axios</code>, <code>vendor-icons</code>, <code>vendor-emotion</code></li>
-                        <li><code>vendor</code> — everything else from <code>node_modules</code></li>
-                    </ul>
-                    <p>Result: the main <code>index-*.js</code> chunk is now ~571 KB (down from ~829 KB), and re-deploys don't bust caches for unchanged vendor code. The 700 KB chunk-size warning no longer trips during build.</p>
+                    <h2>Frontend bundle (manual chunk split reverted)</h2>
+                    <p>An earlier Phase 9 attempt to split the Vite vendor bundle with <code>manualChunks</code> — separating React, MUI core, MUI DataGrid, MUI Charts, MUI Icons, i18next, axios, react-icons, and Emotion into independent chunks — produced a runtime TDZ error on first page load:</p>
+                    <pre><code>Cannot access 'X' before initialization
+Cannot set properties of undefined (setting 'Activity')</code></pre>
+                    <p>Both messages are symptoms of the same root cause: the React 19 + MUI 7 dependency graph contains internal circular imports between <code>react</code>, <code>react-dom</code>, <code>react/jsx-runtime</code>, <code>scheduler</code>, <code>@emotion/react</code>, <code>@mui/system</code>, and <code>@mui/material</code>. When those packages live in different ES-module chunks, the chunks evaluate in an order where one binding is referenced before its declaring chunk has finished evaluating, hitting the temporal-dead-zone trap.</p>
+                    <p>The Playwright <code>auth.setup.ts</code> CI job caught this — the login page rendered as a blank <code>&lt;div id="root"&gt;</code> and the heading locator timed out. v2.1.0.0 reverts to default Vite chunking and raises <code>chunkSizeWarningLimit</code> to <code>2500</code> KB to silence the (cosmetic) chunk-size warning during build.</p>
+                    <p>Re-attempting the split is fine, but only with a verified Playwright run proving the new shape boots a fresh browser session without TDZ errors.</p>
                 </section>
 
                 <section class="endpoint-section">
@@ -115,8 +109,8 @@
 
                     <h3>"Frontend bundle build is slow / fails"</h3>
                     <ol>
-                        <li>The new <code>manualChunks</code> only runs at build time and adds &lt;1 s to the Vite build — if it fails, the most common cause is a stale <code>node_modules</code>; <code>rm -rf frontend/node_modules &amp;&amp; npm install</code>.</li>
-                        <li>The chunk-size warning threshold is now 700 KB; any chunk above that warrants investigation but no longer fails the build.</li>
+                        <li>If the build fails, the most common cause is a stale <code>node_modules</code>; <code>rm -rf frontend/node_modules &amp;&amp; npm install</code>.</li>
+                        <li>The chunk-size warning threshold is now 2500 KB. The single index chunk lands around 2 MB — large but not pathological. Custom chunk splits are tempting but unsafe with React 19 + MUI 7 (see "Frontend bundle" section above).</li>
                     </ol>
                 </section>
 
