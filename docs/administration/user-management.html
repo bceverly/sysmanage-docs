@@ -293,25 +293,47 @@
                     </div>
 
                     <div class="mfa">
-                        <h3>Multi-Factor Authentication (MFA)</h3>
-                        <p>Enhanced security through multiple authentication factors:</p>
+                        <h3 data-i18n="docs.admin.users.mfa.title" data-i18n-html>Multi-Factor Authentication (MFA)</h3>
+                        <p data-i18n="docs.admin.users.mfa.intro" data-i18n-html>Phase 10.3 ships an OSS Multi-Factor Authentication implementation. MFA is opt-in by default, and a global "admin-required" toggle (with a configurable grace period) lets administrators force enrollment fleet-wide.</p>
 
-                        <h4>Supported MFA Methods</h4>
+                        <h4 data-i18n="docs.admin.users.mfa.methods_title" data-i18n-html>Supported MFA Methods</h4>
                         <ul>
-                            <li><strong>TOTP (Time-based OTP):</strong> Google Authenticator, Authy</li>
-                            <li><strong>SMS Codes:</strong> Text message verification</li>
-                            <li><strong>Email Codes:</strong> Email-based verification</li>
-                            <li><strong>Hardware Tokens:</strong> FIDO2/WebAuthn support</li>
+                            <li data-i18n="docs.admin.users.mfa.method_totp" data-i18n-html><strong>TOTP (Time-based OTP):</strong> Any RFC 6238 authenticator app — Google Authenticator, Authy, 1Password, Bitwarden, etc.</li>
+                            <li data-i18n="docs.admin.users.mfa.method_backup" data-i18n-html><strong>Backup codes:</strong> Single-use Argon2-hashed recovery codes (10 by default) issued at enrollment for when the user loses access to their authenticator.</li>
+                        </ul>
+                        <p data-i18n="docs.admin.users.mfa.roadmap" data-i18n-html><em>Roadmap:</em> SMS / email-code fallback, FIDO2/WebAuthn — tracked in the 10.3 follow-up tasks.</p>
+
+                        <h4 data-i18n="docs.admin.users.mfa.enroll_title" data-i18n-html>User Enrollment Flow</h4>
+                        <ol>
+                            <li data-i18n="docs.admin.users.mfa.enroll_1" data-i18n-html>User opens <strong>Profile → Security Information</strong> and clicks <em>Enable MFA</em>.</li>
+                            <li data-i18n="docs.admin.users.mfa.enroll_2" data-i18n-html>Server generates a fresh TOTP secret (encrypted at rest with Fernet) and returns the <code>otpauth://</code> provisioning URI plus the raw base32 secret.</li>
+                            <li data-i18n="docs.admin.users.mfa.enroll_3" data-i18n-html>User adds the account to their authenticator app (scan the URI with a QR generator, or paste the secret manually).</li>
+                            <li data-i18n="docs.admin.users.mfa.enroll_4" data-i18n-html>User enters the first 6-digit code their app shows; on success the server issues 10 single-use backup codes shown <em>exactly once</em>.</li>
+                            <li data-i18n="docs.admin.users.mfa.enroll_5" data-i18n-html>User saves the backup codes somewhere safe, ticks the acknowledgement, and is fully enrolled.</li>
+                        </ol>
+
+                        <h4 data-i18n="docs.admin.users.mfa.login_title" data-i18n-html>Login with MFA</h4>
+                        <ol>
+                            <li data-i18n="docs.admin.users.mfa.login_1" data-i18n-html>User submits username + password as usual.</li>
+                            <li data-i18n="docs.admin.users.mfa.login_2" data-i18n-html>If they're enrolled, the server returns <code>{mfa_required: true, pending_token: "..."}</code> instead of a session token. The pending token is short-lived (5 minutes).</li>
+                            <li data-i18n="docs.admin.users.mfa.login_3" data-i18n-html>The login UI prompts for a verification code — either a current TOTP code or one of the backup codes (in <code>XXXX-XXXX</code> format, but the dash is optional).</li>
+                            <li data-i18n="docs.admin.users.mfa.login_4" data-i18n-html>The client posts pending-token + code to <code>/api/auth/mfa/verify</code>; on success it receives a normal session token.</li>
+                        </ol>
+
+                        <h4 data-i18n="docs.admin.users.mfa.settings_title" data-i18n-html>Admin Settings (<code>/api/settings/mfa</code>)</h4>
+                        <ul>
+                            <li data-i18n="docs.admin.users.mfa.setting_issuer" data-i18n-html><code>issuer_name</code> — string shown in authenticator apps (default <em>SysManage</em>).</li>
+                            <li data-i18n="docs.admin.users.mfa.setting_totp" data-i18n-html><code>totp_digits</code> / <code>totp_period_seconds</code> — TOTP shape (default 6 digits, 30 s period).</li>
+                            <li data-i18n="docs.admin.users.mfa.setting_backup_count" data-i18n-html><code>backup_code_count</code> — codes issued per enrollment / regeneration (default 10; 0 disables backup codes entirely).</li>
+                            <li data-i18n="docs.admin.users.mfa.setting_admin_required" data-i18n-html><code>admin_required</code> — when <em>true</em>, users who pass the grace period without enrolling are blocked at login until they enrol.</li>
+                            <li data-i18n="docs.admin.users.mfa.setting_grace" data-i18n-html><code>grace_period_days</code> — days from account creation during which a user can sign in without MFA even when <code>admin_required</code> is on (default 14).</li>
                         </ul>
 
-                        <h4>MFA Configuration</h4>
-                        <ol>
-                            <li>User enables MFA in profile settings</li>
-                            <li>System generates QR code for TOTP setup</li>
-                            <li>User scans QR code with authenticator app</li>
-                            <li>User enters verification code to confirm setup</li>
-                            <li>System generates backup codes for recovery</li>
-                        </ol>
+                        <h4 data-i18n="docs.admin.users.mfa.recovery_title" data-i18n-html>Recovery</h4>
+                        <ul>
+                            <li data-i18n="docs.admin.users.mfa.recovery_user" data-i18n-html><strong>User-driven:</strong> sign in with a backup code, then re-enrol from the profile page (this rotates the secret and issues a fresh set of backup codes).</li>
+                            <li data-i18n="docs.admin.users.mfa.recovery_admin" data-i18n-html><strong>Admin-driven:</strong> delete the user's <code>user_mfa_enrollment</code> row directly (or via the Users admin page) — the user can sign in with their password and re-enrol on next login.</li>
+                        </ul>
                     </div>
 
                     <div class="external-auth">

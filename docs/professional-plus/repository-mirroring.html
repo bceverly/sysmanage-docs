@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en" data-i18n-title="docs.proplus.mirror.title">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title data-i18n="docs.proplus.mirror.title" data-i18n-html>Repository Mirroring - Professional+ - SysManage</title>
+    <meta name="description" content="Pro+ APT/DNF/zypper/pkg repository mirroring with cron-driven sync, point-in-time snapshots, integrity checks, and air-gapped deployment support." data-i18n-attr="content" data-i18n="docs.proplus.mirror.meta_description" data-i18n-html>
+    <link rel="stylesheet" href="/assets/css/style.css">
+    <link rel="icon" type="image/svg+xml" href="/assets/images/favicon.svg">
+</head>
+<body data-auto-header="documentation" data-auto-footer>
+
+    <main class="docs-main">
+        <div class="container">
+            <div class="docs-breadcrumb">
+                <a href="../" data-i18n="docs.breadcrumb.documentation" data-i18n-html>Documentation</a> &gt; <a href="./" data-i18n="docs.breadcrumb.professional_plus" data-i18n-html>Professional+</a> &gt; <span data-i18n="docs.proplus.mirror.breadcrumb" data-i18n-html>Repository Mirroring</span>
+            </div>
+
+            <div class="docs-header">
+                <div class="pro-plus-badge">&#11088; PRO+</div>
+                <h1 data-i18n="docs.proplus.mirror.header.title" data-i18n-html>Repository Mirroring</h1>
+                <p data-i18n="docs.proplus.mirror.header.subtitle" data-i18n-html>Mirror upstream APT, DNF, zypper, and FreeBSD pkg repositories onto a host inside your fleet. Reduce WAN cost, freeze point-in-time snapshots for reproducible patch rollouts, and feed air-gapped networks via optical media.</p>
+            </div>
+
+            <div class="docs-content">
+                <section>
+                    <h2 data-i18n="docs.proplus.mirror.overview.title" data-i18n-html>Overview</h2>
+                    <p data-i18n="docs.proplus.mirror.overview.intro" data-i18n-html>The <code>repository_mirroring_engine</code> Pro+ module emits <code>apply_deployment_plan</code> messages that the agent on the mirror host runs. The OSS server owns the configuration tables, the Settings UI, and the routes that 402 without the engine loaded; the engine owns plan generation. No agent code needs to change to support a new package manager — every plan goes through the existing <code>apply_deployment_plan</code> handler.</p>
+                </section>
+
+                <section>
+                    <h2 data-i18n="docs.proplus.mirror.supported.title" data-i18n-html>Supported Package Managers</h2>
+                    <ul>
+                        <li data-i18n="docs.proplus.mirror.supported.apt" data-i18n-html><strong>APT</strong> (Debian / Ubuntu) — uses <code>apt-mirror</code> with optional GPG signing-key fetch.</li>
+                        <li data-i18n="docs.proplus.mirror.supported.dnf" data-i18n-html><strong>DNF / YUM</strong> (RHEL / Oracle Linux / Fedora / Rocky / Alma) — uses <code>dnf reposync --newest-only --delete</code> + <code>createrepo_c --update</code>.</li>
+                        <li data-i18n="docs.proplus.mirror.supported.zypper" data-i18n-html><strong>zypper</strong> (openSUSE / SLES) — uses a portable <code>zypper download '*'</code> wrapper + <code>createrepo_c</code>.</li>
+                        <li data-i18n="docs.proplus.mirror.supported.pkg" data-i18n-html><strong>pkg</strong> (FreeBSD) — uses <code>pkg fetch -Loy -a</code> + <code>pkg repo</code>.</li>
+                    </ul>
+                </section>
+
+                <section>
+                    <h2 data-i18n="docs.proplus.mirror.config.title" data-i18n-html>Per-Mirror Configuration</h2>
+                    <p data-i18n="docs.proplus.mirror.config.intro" data-i18n-html>Each mirror is an admin-managed row in the <code>mirror_repository</code> table. Common fields:</p>
+                    <ul>
+                        <li data-i18n="docs.proplus.mirror.config.name" data-i18n-html><code>name</code> — short slug, used as the on-disk subdirectory name. Path-traversal characters are rejected.</li>
+                        <li data-i18n="docs.proplus.mirror.config.upstream" data-i18n-html><code>upstream_url</code> — the public mirror you sync from.</li>
+                        <li data-i18n="docs.proplus.mirror.config.cron" data-i18n-html><code>sync_cron</code> — POSIX cron (5 fields). Defaults to <code>0 4 * * *</code> (4 a.m. local). Evaluated by the same parser as upgrade profiles in <code>automation_engine</code>.</li>
+                        <li data-i18n="docs.proplus.mirror.config.bandwidth" data-i18n-html><code>bandwidth_cap_kbps</code> — when non-zero, every fetch is wrapped with <code>trickle -d &lt;cap&gt;</code> if available; falls through uncapped otherwise. Most ops teams cap at the network layer (<code>tc</code>); this is a per-job courtesy.</li>
+                        <li data-i18n="docs.proplus.mirror.config.tier" data-i18n-html><code>network_tier</code> — free-form tag (e.g. <em>us-east</em>, <em>edge</em>) that lets clients pick the closest mirror.</li>
+                        <li data-i18n="docs.proplus.mirror.config.host" data-i18n-html><code>host_id</code> — the agent that runs the sync plan. The on-disk tree lives at <code>{mirror_root_path}/{name}</code> on that host.</li>
+                    </ul>
+                    <p data-i18n="docs.proplus.mirror.config.pm_specific" data-i18n-html>Per-package-manager fields: APT uses <code>suite</code> + <code>components</code> + optional <code>signing_key_url</code>; DNF uses <code>repoid</code> + optional <code>gpgkey_url</code>; zypper uses <code>repo_alias</code>; pkg uses optional <code>release</code> (e.g. <code>FreeBSD:14:amd64</code>).</p>
+                </section>
+
+                <section>
+                    <h2 data-i18n="docs.proplus.mirror.snapshots.title" data-i18n-html>Snapshots &amp; Restore</h2>
+                    <p data-i18n="docs.proplus.mirror.snapshots.intro" data-i18n-html>A snapshot is an <code>rsync -aH --delete</code> of the live tree into a sibling read-only directory at <code>{mirror_root}/{name}/.snapshots/{snapshot_id}</code>. Snapshot IDs are sortable timestamps (<code>YYYYMMDDTHHMMSS</code>). After the rsync the engine runs <code>chmod -R a-w</code> so the snapshot can't be modified in place.</p>
+                    <p data-i18n="docs.proplus.mirror.snapshots.restore" data-i18n-html>Restore is the reverse — an rsync from the chosen snapshot back into the live tree. The engine doesn't symlink-flip, because most mirror servers (httpd, nginx) cache-on-stat and the in-place rsync is simpler to reason about than coordinating a flip across worker processes.</p>
+                    <p data-i18n="docs.proplus.mirror.snapshots.gc" data-i18n-html>Snapshot retention is governed by <code>snapshot_count_to_keep</code>. The garbage-collection plan lists snapshots in alphabetical (= chronological) order, drops everything older than the keep count, and <code>rm -rf</code>s the rest after relaxing the read-only flag.</p>
+                </section>
+
+                <section>
+                    <h2 data-i18n="docs.proplus.mirror.airgap.title" data-i18n-html>Air-Gapped Deployments</h2>
+                    <p data-i18n="docs.proplus.mirror.airgap.intro" data-i18n-html>The mirroring engine produces the public-side ("collector") tree that feeds optical media or removable storage into an air-gapped network. The private-side ("repository") host imports the media into its own mirror tree using the same engine — the import is just an offline rsync of the snapshot directory. From there, hosts on the private network treat the repository host as their normal upstream.</p>
+                </section>
+
+                <section>
+                    <h2 data-i18n="docs.proplus.mirror.settings.title" data-i18n-html>Admin Settings</h2>
+                    <p data-i18n="docs.proplus.mirror.settings.intro" data-i18n-html>The singleton <code>mirror_settings</code> row carries fleet-wide defaults:</p>
+                    <ul>
+                        <li data-i18n="docs.proplus.mirror.settings.root" data-i18n-html><code>mirror_root_path</code> — filesystem root that every mirror's subdirectory hangs off (default <code>/var/mirror</code>).</li>
+                        <li data-i18n="docs.proplus.mirror.settings.cadence" data-i18n-html><code>integrity_check_cadence_hours</code> — how often the integrity-check plan runs against each mirror (default 24).</li>
+                        <li data-i18n="docs.proplus.mirror.settings.retention" data-i18n-html><code>retention_window_days</code> — days a snapshot stays on disk before being eligible for GC (default 30).</li>
+                        <li data-i18n="docs.proplus.mirror.settings.bandwidth" data-i18n-html><code>default_bandwidth_cap_kbps</code> — applied when a per-mirror cap is not set (default 0 = uncapped).</li>
+                        <li data-i18n="docs.proplus.mirror.settings.keep" data-i18n-html><code>snapshot_count_to_keep</code> — number of snapshots the GC plan preserves (default 10).</li>
+                    </ul>
+                </section>
+
+                <section>
+                    <h2 data-i18n="docs.proplus.mirror.api.title" data-i18n-html>API Reference</h2>
+                    <p data-i18n="docs.proplus.mirror.api.intro" data-i18n-html>Every route below returns 402 without <code>repository_mirroring_engine</code> loaded.</p>
+                    <ul>
+                        <li><code>GET /api/mirror-repositories</code> — <span data-i18n="docs.proplus.mirror.api.list" data-i18n-html>list mirrors</span></li>
+                        <li><code>POST /api/mirror-repositories</code> — <span data-i18n="docs.proplus.mirror.api.create" data-i18n-html>create a mirror</span></li>
+                        <li><code>GET /api/mirror-repositories/{id}</code> — <span data-i18n="docs.proplus.mirror.api.get" data-i18n-html>read one mirror</span></li>
+                        <li><code>PUT /api/mirror-repositories/{id}</code> — <span data-i18n="docs.proplus.mirror.api.update" data-i18n-html>update a mirror</span></li>
+                        <li><code>DELETE /api/mirror-repositories/{id}</code> — <span data-i18n="docs.proplus.mirror.api.delete" data-i18n-html>delete a mirror</span></li>
+                        <li><code>POST /api/mirror-repositories/{id}/sync</code> — <span data-i18n="docs.proplus.mirror.api.sync" data-i18n-html>fire the sync plan immediately</span></li>
+                        <li><code>POST /api/mirror-repositories/{id}/snapshot</code> — <span data-i18n="docs.proplus.mirror.api.snapshot" data-i18n-html>take a snapshot now</span></li>
+                        <li><code>POST /api/mirror-repositories/{id}/restore/{snapshot_id}</code> — <span data-i18n="docs.proplus.mirror.api.restore" data-i18n-html>restore a snapshot</span></li>
+                        <li><code>GET /api/mirror-repositories/{id}/snapshots</code> — <span data-i18n="docs.proplus.mirror.api.list_snapshots" data-i18n-html>list snapshots</span></li>
+                        <li><code>POST /api/mirror-repositories/tick</code> — <span data-i18n="docs.proplus.mirror.api.tick" data-i18n-html>cron-driven driver hook</span></li>
+                        <li><code>GET /api/settings/mirror</code> / <code>PUT</code> — <span data-i18n="docs.proplus.mirror.api.settings" data-i18n-html>admin settings (legacy singleton)</span></li>
+                        <li><code>GET /api/mirror-platform-configs</code> — <span data-i18n="docs.proplus.mirror.api.platform_list" data-i18n-html>list per-platform configs</span></li>
+                        <li><code>POST /api/mirror-platform-configs</code> — <span data-i18n="docs.proplus.mirror.api.platform_create" data-i18n-html>create a platform config</span></li>
+                        <li><code>PUT /api/mirror-platform-configs/{id}</code> — <span data-i18n="docs.proplus.mirror.api.platform_update" data-i18n-html>update a platform config</span></li>
+                        <li><code>DELETE /api/mirror-platform-configs/{id}</code> — <span data-i18n="docs.proplus.mirror.api.platform_delete" data-i18n-html>delete a platform config (refuses while it owns mirrors)</span></li>
+                        <li><code>GET /api/mirror-repositories/setup-status/{host_id}</code> — <span data-i18n="docs.proplus.mirror.api.setup_status" data-i18n-html>read tooling setup status for a host</span></li>
+                        <li><code>POST /api/mirror-repositories/setup-status/{host_id}/refresh</code> — <span data-i18n="docs.proplus.mirror.api.setup_refresh" data-i18n-html>queue a tooling probe (asynchronous)</span></li>
+                        <li><code>POST /api/mirror-repositories/setup-install/{host_id}</code> — <span data-i18n="docs.proplus.mirror.api.setup_install" data-i18n-html>queue an install of the tooling for a package manager</span></li>
+                    </ul>
+                </section>
+
+                <section>
+                    <h2 data-i18n="docs.proplus.mirror.platforms.title" data-i18n-html>Per-platform tab strip (Phase 10.4.3)</h2>
+                    <p data-i18n="docs.proplus.mirror.platforms.intro" data-i18n-html>The Settings → Repository Mirroring page is laid out as a tab strip with one tab per package manager. Today the four tabs are <strong>Ubuntu/Debian</strong> (apt), <strong>RHEL/Fedora</strong> (dnf — covers RHEL, Fedora, Oracle Linux, Rocky, Alma, CentOS Stream), <strong>openSUSE/SLES</strong> (zypper), and <strong>FreeBSD</strong> (pkg). Each tab represents one mirror host running one PM, so the Add Mirror dialog inherits its package manager from the active tab and the host picker filters to OS-family matches (Linux hosts on apt/dnf/zypper tabs, FreeBSD hosts on the pkg tab).</p>
+                    <p data-i18n="docs.proplus.mirror.platforms.snaps" data-i18n-html><strong>Snaps:</strong> not supported. Mirroring snap packages requires Canonical's commercial Snap Store Proxy product (separate auth + HTTP API, not file-level), which is out of scope for this engine. OpenBSD, NetBSD, macOS, and Windows are deferred until their own tooling probes and install plans are written.</p>
+                    <p data-i18n="docs.proplus.mirror.platforms.layout" data-i18n-html>Each tab contains three cards stacked vertically:</p>
+                    <ul>
+                        <li data-i18n="docs.proplus.mirror.platforms.card1" data-i18n-html><strong>Platform Settings</strong> — searchable host picker, mirror root path on the host, retention window, integrity-check cadence, default bandwidth cap, and snapshot keep count. These values are scoped to this platform on this host, so a Linux mirror on one host and a FreeBSD mirror on another can have completely independent storage layouts.</li>
+                        <li data-i18n="docs.proplus.mirror.platforms.card2" data-i18n-html><strong>Mirror Setup Status</strong> — chips for each tool the engine's plan-builders shell out to (apt-mirror, reposync, createrepo_c, trickle, rsync, curl, etc.). Refresh button queues a probe; Install Tools button queues a sudo install of the platform-appropriate package set. Both go through the agent's standard apply_deployment_plan path; the card polls the cached status row until the agent's command_result lands.</li>
+                        <li data-i18n="docs.proplus.mirror.platforms.card3" data-i18n-html><strong>Mirror Repositories</strong> — the table of upstream URLs being mirrored on this platform, plus inline sync/snapshot/edit/delete actions and an Add Mirror dialog. The package manager dropdown in the dialog is filtered to those the active platform supports (apt/dnf/zypper for Linux, pkg for FreeBSD).</li>
+                    </ul>
+                    <p data-i18n="docs.proplus.mirror.platforms.empty" data-i18n-html>If the active tab has no platform configuration yet, an empty-state card prompts you to pick a host. The host picker only lists hosts whose detected platform matches the tab — Linux hosts on the Linux tab, FreeBSD hosts on the FreeBSD tab — to prevent misconfigured pairings.</p>
+                </section>
+
+                <section>
+                    <h2 data-i18n="docs.proplus.mirror.versions.title" data-i18n-html>Version dropdown + known-version catalog (Phase 10.4.4)</h2>
+                    <p data-i18n="docs.proplus.mirror.versions.intro" data-i18n-html>The Add Mirror dialog's version field is sourced from a pre-populated <code>mirror_known_version</code> catalog instead of free-text. Selecting a row auto-fills the upstream URL and the per-PM identifier (suite for apt, repoid for dnf, repo_alias for zypper, release for pkg) so an operator can't fat-finger <code>noblee</code> and silently produce a broken mirror. The catalog ships seeded with the canonical Ubuntu/Debian/RHEL-family/openSUSE/FreeBSD versions; future versions land via dedicated migrations rather than auto-discovery, keeping the supported set reviewable in code.</p>
+                    <p data-i18n="docs.proplus.mirror.versions.crossfamily" data-i18n-html>One physical host can mirror multiple OS families that share a package manager. RHEL/Rocky/Alma/Fedora all use <code>dnf</code> with different upstream URLs, so they appear as separate <code>mirror_repository</code> rows under the same RHEL/Fedora tab — each row carries its own <code>known_version_id</code> referencing a different catalog entry. The Default Package Mirrors card has independent rows for each, so an admin can assign different defaults to RHEL 9 hosts vs Rocky 9 hosts even when both pull from the same physical mirror server.</p>
+                </section>
+
+                <section>
+                    <h2 data-i18n="docs.proplus.mirror.defaults.title" data-i18n-html>Default Package Mirrors (Phase 10.4.4)</h2>
+                    <p data-i18n="docs.proplus.mirror.defaults.intro" data-i18n-html>Settings → Host Defaults gains a "Default Package Mirrors" card that drives an apply/revert workflow against active hosts. One row per (platform, version_key, os_family) tuple drawn from the catalog; each row's dropdown lists the eligible mirrors (right PM + at least one successful sync) plus a "Cloud (upstream default)" option.</p>
+                    <p data-i18n="docs.proplus.mirror.defaults.flow" data-i18n-html>Saving a non-cloud choice queues an apply plan to every active host whose <code>platform_release</code> matches the catalog row's regex — simultaneous rollout, no staggered windows. Choosing "Cloud" queues a revert plan to the same matching hosts. New host registrations and approvals invoke the same hook automatically, so a freshly-enrolled host of a covered family gets pointed at the mirror without operator action.</p>
+                    <p data-i18n="docs.proplus.mirror.defaults.hardblock" data-i18n-html>The API hard-blocks (HTTP 409) any attempt to assign a mirror that hasn't completed a successful sync. This prevents pointing live clients at an empty or partially-built mirror tree where <code>apt update</code> would fail. Re-attempt once the mirror's <code>last_sync_status</code> reaches <code>SUCCESS</code>.</p>
+                    <p data-i18n="docs.proplus.mirror.defaults.applymech" data-i18n-html>The apply mechanism is additive only. Each PM gets a single override file the agent drops into a directory the package manager scans alongside operator-edited config:</p>
+                    <ul>
+                        <li data-i18n="docs.proplus.mirror.defaults.apt" data-i18n-html><strong>apt:</strong> <code>/etc/apt/sources.list.d/zzz-sysmanage-mirror.list</code> + <code>apt-get update</code></li>
+                        <li data-i18n="docs.proplus.mirror.defaults.dnf" data-i18n-html><strong>dnf:</strong> <code>/etc/yum.repos.d/zzz-sysmanage-&lt;repoid&gt;.repo</code> with the same <code>[section]</code> header as the upstream — dnf reads files in lex order and the last definition wins, so our <code>zzz-</code> prefix overrides whatever shipped + <code>dnf clean all</code></li>
+                        <li data-i18n="docs.proplus.mirror.defaults.zypper" data-i18n-html><strong>zypper:</strong> <code>/etc/zypp/repos.d/zzz-sysmanage-&lt;alias&gt;.repo</code> + <code>zypper refresh</code></li>
+                        <li data-i18n="docs.proplus.mirror.defaults.pkg" data-i18n-html><strong>pkg:</strong> <code>/usr/local/etc/pkg/repos/sysmanage-mirror.conf</code> overriding the FreeBSD repo + <code>pkg update -f</code></li>
+                    </ul>
+                    <p data-i18n="docs.proplus.mirror.defaults.revert" data-i18n-html>Revert is symmetric: each plan deletes the override file and refreshes the package manager's metadata cache. Operator-edited config (the original <code>sources.list</code>, vendor-shipped <code>.repo</code> files) is never modified, so a manual edit between apply and revert is preserved.</p>
+                    <p data-i18n="docs.proplus.mirror.defaults.api" data-i18n-html>API surface: <code>GET /api/mirror-known-versions</code> for the catalog dropdown, <code>GET /api/host-defaults/mirrors</code> for the assignment table, <code>PUT /api/host-defaults/mirrors/{platform}/{version_key}/{os_family}</code> with <code>{mirror_id}</code> body to assign or <code>{mirror_id: null}</code> to revert to cloud.</p>
+                </section>
+            </div>
+        </div>
+    </main>
+    <script src="/assets/js/components.js"></script>
+</body>
+</html>

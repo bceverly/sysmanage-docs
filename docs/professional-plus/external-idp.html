@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en" data-i18n-title="docs.proplus.idp.title">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title data-i18n="docs.proplus.idp.title" data-i18n-html>External Identity Providers - Professional+ - SysManage</title>
+    <meta name="description" content="Pro+ external authentication via LDAP/Active Directory bind+search and OIDC authorization-code flow, with external-group→sysmanage-role mapping and break-glass local-account fallback." data-i18n-attr="content" data-i18n="docs.proplus.idp.meta_description" data-i18n-html>
+    <link rel="stylesheet" href="/assets/css/style.css">
+    <link rel="icon" type="image/svg+xml" href="/assets/images/favicon.svg">
+</head>
+<body data-auto-header="documentation" data-auto-footer>
+
+    <main class="docs-main">
+        <div class="container">
+            <div class="docs-breadcrumb">
+                <a href="../" data-i18n="docs.breadcrumb.documentation" data-i18n-html>Documentation</a> &gt; <a href="./" data-i18n="docs.breadcrumb.professional_plus" data-i18n-html>Professional+</a> &gt; <span data-i18n="docs.proplus.idp.breadcrumb" data-i18n-html>External Identity Providers</span>
+            </div>
+
+            <div class="docs-header">
+                <div class="pro-plus-badge">&#11088; PRO+</div>
+                <h1 data-i18n="docs.proplus.idp.header.title" data-i18n-html>External Identity Providers</h1>
+                <p data-i18n="docs.proplus.idp.header.subtitle" data-i18n-html>Sign in to SysManage using your existing LDAP/Active Directory or OIDC identity provider. External group membership maps to sysmanage roles automatically; a break-glass local-password fallback keeps you in the door if the directory is unreachable.</p>
+            </div>
+
+            <div class="docs-content">
+                <section>
+                    <h2 data-i18n="docs.proplus.idp.overview.title" data-i18n-html>Overview</h2>
+                    <p data-i18n="docs.proplus.idp.overview.intro" data-i18n-html>The <code>external_idp_engine</code> Pro+ module performs the actual authentication — an LDAP bind+search for AD/LDAP providers, or an OIDC authorization-code exchange. The OSS server holds the configuration tables, the Settings UI, and the routes that 402 without the engine loaded; the engine is stateless and never touches the database directly.</p>
+                </section>
+
+                <section>
+                    <h2 data-i18n="docs.proplus.idp.ldap.title" data-i18n-html>LDAP / Active Directory</h2>
+                    <p data-i18n="docs.proplus.idp.ldap.intro" data-i18n-html>For each LDAP provider, configure:</p>
+                    <ul>
+                        <li data-i18n="docs.proplus.idp.ldap.server" data-i18n-html><code>ldap_server_url</code> — typically <code>ldaps://ad.example.com:636</code>. Plain <code>ldap://</code> is supported but logged as a warning.</li>
+                        <li data-i18n="docs.proplus.idp.ldap.bind" data-i18n-html><code>ldap_bind_dn</code> + <code>ldap_bind_password_secret_id</code> — service account used for the user-search bind. The plaintext password lives only in Vault; the server unseals it before passing to the engine.</li>
+                        <li data-i18n="docs.proplus.idp.ldap.user_search" data-i18n-html><code>ldap_user_search_base</code> + <code>ldap_user_search_filter</code> — where to look up the user. The filter must contain <code>%s</code> for the username, e.g. <code>(sAMAccountName=%s)</code> for AD or <code>(uid=%s)</code> for OpenLDAP.</li>
+                        <li data-i18n="docs.proplus.idp.ldap.group_search" data-i18n-html><code>ldap_group_search_base</code> + <code>ldap_group_search_filter</code> — optional. When set, the engine queries the user's group memberships after a successful bind; matched <code>cn</code> values are passed to the role-mapping step.</li>
+                        <li data-i18n="docs.proplus.idp.ldap.tls" data-i18n-html><code>ldap_tls_ca_bundle_path</code> + <code>ldap_connection_timeout</code> — TLS verification bundle and connection timeout (default 10 s).</li>
+                    </ul>
+                    <p data-i18n="docs.proplus.idp.ldap.flow" data-i18n-html>Authentication flow: the engine binds as the service account, searches for the user, then binds as the user with the supplied password to verify it. RFC 4515 filter-injection escapes are applied to every interpolated value.</p>
+                </section>
+
+                <section>
+                    <h2 data-i18n="docs.proplus.idp.oidc.title" data-i18n-html>OIDC</h2>
+                    <p data-i18n="docs.proplus.idp.oidc.intro" data-i18n-html>For each OIDC provider, configure:</p>
+                    <ul>
+                        <li data-i18n="docs.proplus.idp.oidc.issuer" data-i18n-html><code>oidc_issuer_url</code> — the IdP's HTTPS root, e.g. <code>https://login.example.com</code>.</li>
+                        <li data-i18n="docs.proplus.idp.oidc.client" data-i18n-html><code>oidc_client_id</code> + <code>oidc_client_secret_secret_id</code> — the application registered with the IdP. The client secret is Vault-stored.</li>
+                        <li data-i18n="docs.proplus.idp.oidc.redirect" data-i18n-html><code>oidc_redirect_uri</code> — the URL the IdP bounces the browser to after the user signs in. Typically <code>https://your-sysmanage.example.com/api/auth/oidc/{provider_id}/callback</code>.</li>
+                        <li data-i18n="docs.proplus.idp.oidc.scopes" data-i18n-html><code>oidc_scopes</code> — space-separated, default <code>openid profile email</code>. Add <code>groups</code> (or your IdP's group claim scope) when you want role mapping.</li>
+                        <li data-i18n="docs.proplus.idp.oidc.discovery" data-i18n-html><code>oidc_discovery_url</code> — optional override for the well-known discovery doc. Defaults to <code>{issuer}/.well-known/openid-configuration</code>.</li>
+                        <li data-i18n="docs.proplus.idp.oidc.group_claim" data-i18n-html><code>oidc_group_claim</code> — name of the ID-token claim that lists the user's groups (default <code>groups</code>; some IdPs use <code>roles</code> or a custom name).</li>
+                    </ul>
+                    <p data-i18n="docs.proplus.idp.oidc.flow" data-i18n-html>The login UI redirects the browser to <code>/api/auth/oidc/{provider_id}/start</code>, which 302s to the IdP's authorization endpoint with a CSRF-protecting <code>state</code> token. After the user signs in, the IdP returns to <code>/api/auth/oidc/{provider_id}/callback?code=…&amp;state=…</code> and the engine exchanges the code for an ID token. The <code>sub</code> claim is matched against the user's <code>external_subject</code> column to locate the local account.</p>
+                </section>
+
+                <section>
+                    <h2 data-i18n="docs.proplus.idp.role_mapping.title" data-i18n-html>External Group → sysmanage Role Mapping</h2>
+                    <p data-i18n="docs.proplus.idp.role_mapping.intro" data-i18n-html>Each provider has a per-row mapping table that translates external group identifiers into sysmanage <code>SecurityRole</code> names. Rules:</p>
+                    <ul>
+                        <li data-i18n="docs.proplus.idp.role_mapping.match" data-i18n-html>If any of the user's external groups matches an entry's <code>external_group</code>, the entry contributes its <code>role_name</code>. Multiple matches are unioned.</li>
+                        <li data-i18n="docs.proplus.idp.role_mapping.default" data-i18n-html>If no entries match AND a mapping has <code>default_for_unmapped=true</code>, that entry's role is granted as a catch-all (e.g. read-only viewer for anyone who authenticates successfully but isn't in a privileged group).</li>
+                        <li data-i18n="docs.proplus.idp.role_mapping.dedup" data-i18n-html>The result is deduped before being applied to the user's role set. Roles already granted locally aren't touched — only the names that overlap with the mapping output get reconciled.</li>
+                    </ul>
+                </section>
+
+                <section>
+                    <h2 data-i18n="docs.proplus.idp.account.title" data-i18n-html>Linking sysmanage Accounts to External Identities</h2>
+                    <p data-i18n="docs.proplus.idp.account.intro" data-i18n-html>Existing sysmanage user rows pick up two new columns that link them to a directory:</p>
+                    <ul>
+                        <li data-i18n="docs.proplus.idp.account.provider" data-i18n-html><code>external_idp_provider_id</code> — FK to the provider row. <code>NULL</code> for local-only accounts (the default).</li>
+                        <li data-i18n="docs.proplus.idp.account.subject" data-i18n-html><code>external_subject</code> — IdP-side stable identifier. For LDAP this is the user's full DN; for OIDC it's the <code>sub</code> claim. Used to re-link if the userid changes.</li>
+                    </ul>
+                    <p data-i18n="docs.proplus.idp.account.first_login" data-i18n-html>OIDC users must have a sysmanage row provisioned before their first sign-in (the callback rejects unknown subjects with 403); LDAP users authenticate via the password form and follow the existing user-creation flow.</p>
+                </section>
+
+                <section>
+                    <h2 data-i18n="docs.proplus.idp.fallback.title" data-i18n-html>Local-Account Fallback</h2>
+                    <p data-i18n="docs.proplus.idp.fallback.intro" data-i18n-html>When the singleton <code>external_idp_settings</code> row has <code>local_account_fallback=true</code> and the engine declines (LDAP server unreachable, password rejected, etc.), the login flow falls through to local Argon2 verification. This is the break-glass admin path — the local password row stays usable even after a user is linked to an external IdP. Setting it to <code>false</code> hard-locks accounts to their external directory.</p>
+                </section>
+
+                <section>
+                    <h2 data-i18n="docs.proplus.idp.api.title" data-i18n-html>API Reference</h2>
+                    <p data-i18n="docs.proplus.idp.api.intro" data-i18n-html>Every route below returns 402 without <code>external_idp_engine</code> loaded.</p>
+                    <ul>
+                        <li><code>GET /api/idp-providers</code> — <span data-i18n="docs.proplus.idp.api.list" data-i18n-html>list providers</span></li>
+                        <li><code>POST /api/idp-providers</code> — <span data-i18n="docs.proplus.idp.api.create" data-i18n-html>create a provider</span></li>
+                        <li><code>GET /api/idp-providers/{id}</code> / <code>PUT</code> / <code>DELETE</code> — <span data-i18n="docs.proplus.idp.api.crud" data-i18n-html>CRUD on a single provider</span></li>
+                        <li><code>GET / POST /api/idp-providers/{id}/role-mappings</code> — <span data-i18n="docs.proplus.idp.api.mappings" data-i18n-html>role mappings for the provider</span></li>
+                        <li><code>DELETE /api/idp-providers/{id}/role-mappings/{mapping_id}</code> — <span data-i18n="docs.proplus.idp.api.delete_mapping" data-i18n-html>remove a mapping</span></li>
+                        <li><code>GET / PUT /api/settings/idp</code> — <span data-i18n="docs.proplus.idp.api.settings" data-i18n-html>cross-provider settings</span></li>
+                        <li><code>GET /api/auth/oidc/{provider_id}/start</code> — <span data-i18n="docs.proplus.idp.api.oidc_start" data-i18n-html>anonymous; redirects browser to IdP</span></li>
+                        <li><code>GET /api/auth/oidc/{provider_id}/callback</code> — <span data-i18n="docs.proplus.idp.api.oidc_callback" data-i18n-html>anonymous; exchanges code, returns session JWT</span></li>
+                    </ul>
+                </section>
+            </div>
+        </div>
+    </main>
+    <script src="/assets/js/components.js"></script>
+</body>
+</html>

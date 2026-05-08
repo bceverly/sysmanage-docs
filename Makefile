@@ -55,7 +55,7 @@ endif
 
 .PHONY: help install-dev install-browsers screenshot clean check-deps platform-info \
        test test-spelling test-markdown-lint test-vale test-accessibility test-links \
-       check-test-deps website-package
+       check-test-deps website-package i18n-validate i18n-seed i18n-extract
 
 # Default target
 help:
@@ -309,11 +309,27 @@ test-links:
 # Run all tests (mirrors full CI/CD test suite).
 # Front-loads check-test-deps so a missing tool fails with a clear install
 # hint instead of an opaque "make: <tool>: No such file or directory".
-test: check-test-deps test-spelling test-markdown-lint test-vale test-accessibility test-links
+test: check-test-deps test-spelling test-markdown-lint test-vale test-accessibility test-links i18n-validate
 	@echo ""
 	@echo "$(GREEN)========================================$(RESET)"
 	@echo "$(GREEN)  All tests passed$(RESET)"
 	@echo "$(GREEN)========================================$(RESET)"
+
+# i18n: collect data-i18n="..." attributes from every .html and verify
+# every key exists in every locale .json within budget.  Run
+# ``make i18n-seed`` to populate gaps with [TODO]-prefixed placeholders.
+i18n-validate:
+	@echo "=== i18n validation ==="
+	@python3 scripts/i18n_validate.py --validate
+	@echo "[OK] i18n validation completed"
+
+i18n-seed:
+	@echo "=== i18n seeding ==="
+	@python3 scripts/i18n_validate.py --seed
+	@echo "[OK] i18n seed completed"
+
+i18n-extract:
+	@python3 scripts/i18n_validate.py --extract
 
 # ============================================================================
 # Packaging target - build .deb for self-hosted sysmanage.org
