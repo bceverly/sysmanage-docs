@@ -39,8 +39,20 @@ PASSTHROUGH_BUDGET_PER_LOCALE = 290
 DATA_I18N = re.compile(r'data-i18n\s*=\s*"([^"]+)"')
 
 
+# Canonical locale set — anything else under ``assets/locales/`` (e.g.
+# leftover ``missing_keys_analysis.json`` from a translation-pass script)
+# is ignored.  Matches the 14 supported sysmanage locales.
+_CANONICAL_LOCALES = frozenset({
+    "ar", "de", "en", "es", "fr", "hi", "it", "ja",
+    "ko", "nl", "pt", "ru", "zh_CN", "zh_TW",
+})
+
+
 def list_locales() -> list[str]:
-    return sorted(p.stem for p in LOCALES_DIR.glob("*.json"))
+    return sorted(
+        p.stem for p in LOCALES_DIR.glob("*.json")
+        if p.stem in _CANONICAL_LOCALES
+    )
 
 
 def load_locale(lang: str) -> dict:

@@ -2650,6 +2650,87 @@
           "settings_title": "Configurações de administrador ( <code> /api/settings/mfa </code> )",
           "title": "Autenticação multifator (MFA)"
         }
+      },
+      "airgap": {
+        "page_title": "Implantação Air-Gap - SysManage",
+        "meta_description": "Phase 11 dual-server architecture for managing hosts on isolated networks. Collector / Repository roles, optical-media transfer, ed25519-signed manifests, and per-distro install dispatch via Copr / OBS / PPA.",
+        "breadcrumb": "Implantação Air-Gap",
+        "header": {
+          "title": "Implantação Air-Gap (Fase 11)",
+          "description": "Dual-server architecture for managing hosts on isolated networks that have no internet access. One server (Collector) lives on the public side, mirrors upstream package and CVE feeds, and burns the result to optical media. A second server (Repository) lives on the air-gapped side, ingests the media, serves it as a local mirror, and lets managed agents update normally without ever touching the internet."
+        },
+        "architecture": {
+          "title": "Arquitetura",
+          "summary": "Two servers, both running the same SysManage binary. The role: key in sysmanage.yaml picks which half of the air-gap pair this server runs as. License is the same Enterprise SKU on both — one license includes both engines.",
+          "collector": "Collector — public-side. Loads airgap_collector_engine. Captures package mirrors (apt-mirror, dnf reposync, pkg fetch), CVE / NVD snapshots, and CIS / STIG compliance feeds. Bundles the result into one or more ISO images, signs the manifest with ed25519, optionally burns to physical media.",
+          "repository": "Repository — private-side. Loads airgap_repository_engine. Ingests optical media, verifies the signature against the configured public key, verifies per-file SHA-256 hashes, copies the payload into a local mirror tree, and generates native repo metadata so each managed agent's package manager can consume it. Also rewrites each agent's APT / DNF / pkg config to point at the local mirror.",
+          "standard": "Standard — the default. No air-gap; manages hosts directly online. This is what every pre-Phase-11 deployment was, and what new deployments default to when role: is omitted from sysmanage.yaml.",
+          "no_shared_db": "The two halves never share a database. Collector and Repository communicate exclusively through the disc — there is no network connection between them by design. The Repository records the manifest's signer_fingerprint + collector_iso_label so audit trails can correlate runs across the gap by inspecting both halves' databases after the fact."
+        },
+        "config": {
+          "title": "A configuração role:",
+          "summary": "Add one key to /etc/sysmanage.yaml on each server:",
+          "validation": "The startup config loader validates the value at boot; an unknown role aborts startup with a clear error. The role is also exposed via the unauthenticated GET /api/v1/server-info endpoint, which the web UI uses to render a chip in the header bar so operators can see at a glance which half of an air-gap pair they're looking at.",
+          "degraded_chip": "If role: is set to collector or repository but the corresponding Pro+ engine isn't loaded (typically a license problem), the chip turns red and a tooltip explains what's missing. Server keeps running in degraded mode so you can fix the license without losing access to the rest of the UI."
+        },
+        "collection_cycle": {
+          "title": "Ciclo de coleta (lado Coletor)",
+          "summary": "Triggered by an operator (UI, API, or cron) on the public-side server. The engine emits a deployment plan that runs locally on the collector itself; it does not dispatch to managed agents.",
+          "step_request": "Request — POST /api/v1/airgap/collector/collection/runs with a body listing each distro/version/repo to capture, plus flags for CVE and compliance snapshot inclusion and target media size (one DVD, BD-R, etc.).",
+          "step_validate": "Validation — distros are checked against the supported list (13 families in v0.1.0); version strings are constrained to a tight regex so they cannot smuggle shell metacharacters into the dispatch templates; iso_label is constrained the same way.",
+          "step_mirror": "Mirror — per-distro dispatch templates run apt-mirror (Debian / Ubuntu), dnf reposync (RHEL family), zypper download (openSUSE / SLES), pkg fetch (FreeBSD), apk fetch (Alpine), or distribution-specific equivalents. Each command has a 4-hour timeout ceiling; the agent's in-flight journal (Phase 11.6) covers the multi-hour run across WebSocket reconnects.",
+          "step_cve": "CVE / compliance snapshot — if requested, NVD and vendor-advisory feeds are captured at the same instant so the resulting media set has a coherent point-in-time view of public vulnerability data.",
+          "step_iso": "ISO build — xorriso -as mkisofs bundles the staging tree into one ISO with the manifest embedded at /manifest.json. The post-build step computes the ISO's SHA-256 for the transfer log.",
+          "step_sign": "Sign — the manifest is canonicalized (sorted keys, no whitespace) and signed with the operator's ed25519 private key. The envelope carries the signature, the SHA-256 of the public key as a fingerprint, the algorithm identifier, and the manifest format version.",
+          "step_burn": "Burn — optional. POST /api/v1/airgap/collector/iso/burn wraps growisofs against the configured optical-drive device. The burn-step timeout ceiling is 4 hours so slow drives don't trip a watchdog mid-write.",
+          "multidisc_note": "Note on multi-disc spanning. v0.1.0 ships the single-disc happy path — if the staging tree exceeds the configured media size, the burn step fails at runtime. Multi-disc bin-packing is tracked as a Phase 11.1 follow-up. The schema already supports it (the manifest table carries disc_index + disc_count) so it lands additively."
+        },
+        "ingestion_cycle": {
+          "title": "Ciclo de ingestão (lado Repositório)",
+          "summary": "Operator inserts the optical media into the air-gapped server, then triggers ingestion via the UI or API. The repository engine refuses to serve any byte until the signature and file hashes have verified.",
+          "step_mount": "Mount — the engine emits a deployment plan that mounts the ISO read-only at /mnt/sysmanage-airgap-ingest.",
+          "step_verify_sig": "Verify signature — the manifest envelope is decoded; the engine refuses to ingest a manifest whose format_version is newer than its own software version (forward-compat fail-safe). The signature is verified against the public key configured in the repository's sysmanage.yaml. Strict mode (the default) rejects the HMAC-SHA-256 fallback envelope that the collector produces only when cryptography isn't installed.",
+          "step_verify_hashes": "Verify file hashes — every file listed in the manifest is streamed through SHA-256 and compared against the manifest's expected hash. The first mismatch aborts the entire ingestion; the partial copy is rolled back.",
+          "step_copy": "Copy — once verification passes, rsync -a --delete-after copies the payload from the mount point to the local repository root at /var/lib/sysmanage/airgap-repo.",
+          "step_metadata": "Generate native repo metadata — per distro family: apt-ftparchive packages | gzip > Packages.gz for APT, createrepo_c --update for DNF / zypper, pkg repo for FreeBSD, apk index for Alpine.",
+          "step_unmount": "Unmount — the ISO is unmounted; the operator can eject the disc.",
+          "step_repoint": "Repoint agents — the engine emits a per-host plan that rewrites each managed agent's package-manager configuration: /etc/apt/sources.list.d/sysmanage-airgap.list for Debian / Ubuntu, /etc/yum.repos.d/sysmanage-airgap.repo for RHEL family / openSUSE, /usr/local/etc/pkg/repos/sysmanage-airgap.conf for FreeBSD. Existing agents pick up the change on their next package operation."
+        },
+        "install_channels": {
+          "title": "Canais de instalação por distribuição",
+          "summary": "For new child hosts created on the air-gapped network, sysmanage-agent itself needs to install from a substitutable channel — direct GitHub-release downloads can't be substituted with a private mirror. Phase 11.8 switched the per-distro agent_install_commands to consume the published upstream channels instead:",
+          "apt": "Ubuntu / Debian — Launchpad PPA (ppa:bceverly/sysmanage-agent). Repository's build_agent_repoint_plan rewrites /etc/apt/sources.list.d/ to point at the local mirror before the install runs.",
+          "dnf": "Fedora / RHEL / Rocky / Alma / Oracle Linux / CentOS Stream — Fedora Copr (bceverly/sysmanage-agent). Substitutable via /etc/yum.repos.d/sysmanage-airgap.repo.",
+          "zypper": "openSUSE / SLES — Open Build Service (home:bceverly/sysmanage-agent). Substitutable via the same yum/zypper repo file pattern.",
+          "bsd": "FreeBSD / OpenBSD / NetBSD — currently direct downloads. The repository engine can still rewrite pkg.conf to point at the local mirror, so the agent comes up via a different path than its first-boot script expects but still without internet access. A formal upstream ports / pkgsrc submission is tracked as a follow-up."
+        },
+        "compliance": {
+          "title": "Contexto de conformidade através do gap",
+          "summary": "Phase 11.3 wires the repository's freshness state into compliance reports so operators can distinguish two failure modes that look identical without context:",
+          "not_applied": "not_applied — a newer version is on the local mirror but hasn't been installed on this host yet. Fix locally; cheap.",
+          "not_transferred": "not_transferred — the public CVE feed (captured by the collector at last media transfer) lists a fix that isn't on the local mirror at all. Fix requires a new collection / burn / ingest cycle; expensive.",
+          "current": "current — the host's installed version matches the mirror's latest, and no public-side CVE has surfaced since last transfer.",
+          "freshness": "Each repository tracks days since last ingest. Compliance UI surfaces a freshness label: current (≤ 7 days), stale (8–30 days), very_stale (> 30 days), or never. Use this to size the air-gap transfer cadence against your organization's tolerance for delayed patch availability."
+        },
+        "troubleshooting": {
+          "title": "Solução de problemas",
+          "signature": {
+            "title": "Ingestion fails with \"signature does not match manifest payload\"",
+            "body": "The repository's configured public key doesn't match the private key that signed this disc. Either the disc was tampered with in transit, or the operator regenerated the keypair on the collector without distributing the new public key to the repository. Re-export the public key from the collector and replace the value in the repository's sysmanage.yaml."
+          },
+          "format_version": {
+            "title": "Ingestion fails with \"manifest format_version exceeds repository's max\"",
+            "body": "The collector has been upgraded to a new SysManage version that changed the manifest format, but the repository hasn't been upgraded yet. Upgrade the repository server to the same version, then re-ingest. The format-version check is a deliberate forward-compat fail-safe — older repositories cannot be tricked into ingesting media with new fields they don't understand."
+          },
+          "role_chip_red": {
+            "title": "Role chip in the header bar is red",
+            "body": "The role: in sysmanage.yaml is set to collector or repository, but the corresponding Pro+ engine isn't loaded. Most common cause: the Enterprise license isn't valid (expired, missing, or doesn't include the air-gap engines). Check the License page in Settings; if the license is fine, check /var/log/sysmanage/server.log for module-loader errors."
+          },
+          "long_subprocess": {
+            "title": "Multi-hour collection cycle gets killed mid-run",
+            "body": "Should not happen as of Phase 11.6 — the agent now writes a per-plan in-flight journal at ~/.sysmanage-agent/inflight/<message_id>.json before each subprocess starts, with a 30-second heartbeat. If the agent process restarts (or the WebSocket bounces), the journal carries enough state for the agent to either re-attach to the still-live subprocess or emit a synthetic command_result so the server's mirror row clears. If you see a hung mirror anyway, file an issue with the contents of the inflight journal."
+          }
+        }
       }
     },
     "administration": {

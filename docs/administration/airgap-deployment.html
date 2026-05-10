@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en" data-i18n-title="docs.admin.airgap.page_title">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title data-i18n="docs.admin.airgap.page_title">Air-Gapped Deployment - SysManage</title>
+    <meta name="description" content="Phase 11 dual-server architecture for managing hosts on isolated networks. Collector / Repository roles, optical-media transfer, ed25519-signed manifests, and per-distro install dispatch via Copr / OBS / PPA." data-i18n-attr="content" data-i18n="docs.admin.airgap.meta_description">
+    <link rel="stylesheet" href="../../assets/css/style.css">
+    <link rel="icon" type="image/svg+xml" href="../../assets/images/favicon.svg">
+</head>
+<body data-auto-header="documentation" data-auto-footer>
+
+    <main class="docs-main">
+        <div class="container">
+            <div class="docs-breadcrumb">
+                <a href="../" data-i18n="nav.documentation">Documentation</a> &gt;
+                <a href="./" data-i18n="docs.admin.breadcrumb">Administration</a> &gt;
+                <span data-i18n="docs.admin.airgap.breadcrumb">Air-Gapped Deployment</span>
+            </div>
+
+            <div class="docs-header">
+                <h1 data-i18n="docs.admin.airgap.header.title">Air-Gapped Deployment (Phase 11)</h1>
+                <p data-i18n="docs.admin.airgap.header.description">Dual-server architecture for managing hosts on isolated networks that have no internet access. One server (Collector) lives on the public side, mirrors upstream package and CVE feeds, and burns the result to optical media. A second server (Repository) lives on the air-gapped side, ingests the media, serves it as a local mirror, and lets managed agents update normally without ever touching the internet.</p>
+            </div>
+
+            <div class="docs-content">
+
+                <section class="docs-section">
+                    <h2 data-i18n="docs.admin.airgap.architecture.title">Architecture</h2>
+                    <p data-i18n="docs.admin.airgap.architecture.summary">Two servers, both running the same SysManage binary. The <code>role:</code> key in <code>sysmanage.yaml</code> picks which half of the air-gap pair this server runs as. License is the same Enterprise SKU on both — one license includes both engines.</p>
+                    <ul>
+                        <li data-i18n="docs.admin.airgap.architecture.collector"><strong>Collector</strong> — public-side. Loads <code>airgap_collector_engine</code>. Captures package mirrors (apt-mirror, dnf reposync, pkg fetch), CVE / NVD snapshots, and CIS / STIG compliance feeds. Bundles the result into one or more ISO images, signs the manifest with ed25519, optionally burns to physical media.</li>
+                        <li data-i18n="docs.admin.airgap.architecture.repository"><strong>Repository</strong> — private-side. Loads <code>airgap_repository_engine</code>. Ingests optical media, verifies the signature against the configured public key, verifies per-file SHA-256 hashes, copies the payload into a local mirror tree, and generates native repo metadata so each managed agent's package manager can consume it. Also rewrites each agent's APT / DNF / pkg config to point at the local mirror.</li>
+                        <li data-i18n="docs.admin.airgap.architecture.standard"><strong>Standard</strong> — the default. No air-gap; manages hosts directly online. This is what every pre-Phase-11 deployment was, and what new deployments default to when <code>role:</code> is omitted from <code>sysmanage.yaml</code>.</li>
+                    </ul>
+                    <p data-i18n="docs.admin.airgap.architecture.no_shared_db">The two halves never share a database. Collector and Repository communicate exclusively through the disc — there is no network connection between them by design. The Repository records the manifest's <code>signer_fingerprint</code> + <code>collector_iso_label</code> so audit trails can correlate runs across the gap by inspecting both halves' databases after the fact.</p>
+                </section>
+
+                <section class="docs-section">
+                    <h2 data-i18n="docs.admin.airgap.config.title">The role: config setting</h2>
+                    <p data-i18n="docs.admin.airgap.config.summary">Add one key to <code>/etc/sysmanage.yaml</code> on each server:</p>
+                    <pre><code># Collector — public side
+role: collector
+
+# Repository — private side
+role: repository
+
+# Standard (default)
+role: standard
+# (or omit the key entirely)</code></pre>
+                    <p data-i18n="docs.admin.airgap.config.validation">The startup config loader validates the value at boot; an unknown role aborts startup with a clear error. The role is also exposed via the unauthenticated <code>GET /api/v1/server-info</code> endpoint, which the web UI uses to render a chip in the header bar so operators can see at a glance which half of an air-gap pair they're looking at.</p>
+                    <p data-i18n="docs.admin.airgap.config.degraded_chip">If <code>role:</code> is set to <code>collector</code> or <code>repository</code> but the corresponding Pro+ engine isn't loaded (typically a license problem), the chip turns red and a tooltip explains what's missing. Server keeps running in degraded mode so you can fix the license without losing access to the rest of the UI.</p>
+                </section>
+
+                <section class="docs-section">
+                    <h2 data-i18n="docs.admin.airgap.collection_cycle.title">Collection cycle (Collector side)</h2>
+                    <p data-i18n="docs.admin.airgap.collection_cycle.summary">Triggered by an operator (UI, API, or cron) on the public-side server. The engine emits a deployment plan that runs locally on the collector itself; it does not dispatch to managed agents.</p>
+                    <ol>
+                        <li data-i18n="docs.admin.airgap.collection_cycle.step_request"><strong>Request</strong> — <code>POST /api/v1/airgap/collector/collection/runs</code> with a body listing each distro/version/repo to capture, plus flags for CVE and compliance snapshot inclusion and target media size (one DVD, BD-R, etc.).</li>
+                        <li data-i18n="docs.admin.airgap.collection_cycle.step_validate"><strong>Validation</strong> — distros are checked against the supported list (13 families in v0.1.0); version strings are constrained to a tight regex so they cannot smuggle shell metacharacters into the dispatch templates; iso_label is constrained the same way.</li>
+                        <li data-i18n="docs.admin.airgap.collection_cycle.step_mirror"><strong>Mirror</strong> — per-distro dispatch templates run apt-mirror (Debian / Ubuntu), dnf reposync (RHEL family), zypper download (openSUSE / SLES), pkg fetch (FreeBSD), apk fetch (Alpine), or distribution-specific equivalents. Each command has a 4-hour timeout ceiling; the agent's in-flight journal (Phase 11.6) covers the multi-hour run across WebSocket reconnects.</li>
+                        <li data-i18n="docs.admin.airgap.collection_cycle.step_cve"><strong>CVE / compliance snapshot</strong> — if requested, NVD and vendor-advisory feeds are captured at the same instant so the resulting media set has a coherent point-in-time view of public vulnerability data.</li>
+                        <li data-i18n="docs.admin.airgap.collection_cycle.step_iso"><strong>ISO build</strong> — <code>xorriso -as mkisofs</code> bundles the staging tree into one ISO with the manifest embedded at <code>/manifest.json</code>. The post-build step computes the ISO's SHA-256 for the transfer log.</li>
+                        <li data-i18n="docs.admin.airgap.collection_cycle.step_sign"><strong>Sign</strong> — the manifest is canonicalized (sorted keys, no whitespace) and signed with the operator's ed25519 private key. The envelope carries the signature, the SHA-256 of the public key as a fingerprint, the algorithm identifier, and the manifest format version.</li>
+                        <li data-i18n="docs.admin.airgap.collection_cycle.step_burn"><strong>Burn</strong> — optional. <code>POST /api/v1/airgap/collector/iso/burn</code> wraps <code>growisofs</code> against the configured optical-drive device. The burn-step timeout ceiling is 4 hours so slow drives don't trip a watchdog mid-write.</li>
+                    </ol>
+                    <p data-i18n="docs.admin.airgap.collection_cycle.multidisc_note"><strong>Note on multi-disc spanning.</strong> v0.1.0 ships the single-disc happy path — if the staging tree exceeds the configured media size, the burn step fails at runtime. Multi-disc bin-packing is tracked as a Phase 11.1 follow-up. The schema already supports it (the manifest table carries <code>disc_index</code> + <code>disc_count</code>) so it lands additively.</p>
+                </section>
+
+                <section class="docs-section">
+                    <h2 data-i18n="docs.admin.airgap.ingestion_cycle.title">Ingestion cycle (Repository side)</h2>
+                    <p data-i18n="docs.admin.airgap.ingestion_cycle.summary">Operator inserts the optical media into the air-gapped server, then triggers ingestion via the UI or API. The repository engine refuses to serve any byte until the signature and file hashes have verified.</p>
+                    <ol>
+                        <li data-i18n="docs.admin.airgap.ingestion_cycle.step_mount"><strong>Mount</strong> — the engine emits a deployment plan that mounts the ISO read-only at <code>/mnt/sysmanage-airgap-ingest</code>.</li>
+                        <li data-i18n="docs.admin.airgap.ingestion_cycle.step_verify_sig"><strong>Verify signature</strong> — the manifest envelope is decoded; the engine refuses to ingest a manifest whose <code>format_version</code> is newer than its own software version (forward-compat fail-safe). The signature is verified against the public key configured in the repository's <code>sysmanage.yaml</code>. Strict mode (the default) rejects the HMAC-SHA-256 fallback envelope that the collector produces only when cryptography isn't installed.</li>
+                        <li data-i18n="docs.admin.airgap.ingestion_cycle.step_verify_hashes"><strong>Verify file hashes</strong> — every file listed in the manifest is streamed through SHA-256 and compared against the manifest's expected hash. The first mismatch aborts the entire ingestion; the partial copy is rolled back.</li>
+                        <li data-i18n="docs.admin.airgap.ingestion_cycle.step_copy"><strong>Copy</strong> — once verification passes, <code>rsync -a --delete-after</code> copies the payload from the mount point to the local repository root at <code>/var/lib/sysmanage/airgap-repo</code>.</li>
+                        <li data-i18n="docs.admin.airgap.ingestion_cycle.step_metadata"><strong>Generate native repo metadata</strong> — per distro family: <code>apt-ftparchive packages | gzip &gt; Packages.gz</code> for APT, <code>createrepo_c --update</code> for DNF / zypper, <code>pkg repo</code> for FreeBSD, <code>apk index</code> for Alpine.</li>
+                        <li data-i18n="docs.admin.airgap.ingestion_cycle.step_unmount"><strong>Unmount</strong> — the ISO is unmounted; the operator can eject the disc.</li>
+                        <li data-i18n="docs.admin.airgap.ingestion_cycle.step_repoint"><strong>Repoint agents</strong> — the engine emits a per-host plan that rewrites each managed agent's package-manager configuration: <code>/etc/apt/sources.list.d/sysmanage-airgap.list</code> for Debian / Ubuntu, <code>/etc/yum.repos.d/sysmanage-airgap.repo</code> for RHEL family / openSUSE, <code>/usr/local/etc/pkg/repos/sysmanage-airgap.conf</code> for FreeBSD. Existing agents pick up the change on their next package operation.</li>
+                    </ol>
+                </section>
+
+                <section class="docs-section">
+                    <h2 data-i18n="docs.admin.airgap.install_channels.title">Per-distro install channels</h2>
+                    <p data-i18n="docs.admin.airgap.install_channels.summary">For new child hosts created on the air-gapped network, sysmanage-agent itself needs to install from a substitutable channel — direct GitHub-release downloads can't be substituted with a private mirror. Phase 11.8 switched the per-distro <code>agent_install_commands</code> to consume the published upstream channels instead:</p>
+                    <ul>
+                        <li data-i18n="docs.admin.airgap.install_channels.apt"><strong>Ubuntu / Debian</strong> — Launchpad PPA (<code>ppa:bceverly/sysmanage-agent</code>). Repository's <code>build_agent_repoint_plan</code> rewrites <code>/etc/apt/sources.list.d/</code> to point at the local mirror before the install runs.</li>
+                        <li data-i18n="docs.admin.airgap.install_channels.dnf"><strong>Fedora / RHEL / Rocky / Alma / Oracle Linux / CentOS Stream</strong> — Fedora Copr (<code>bceverly/sysmanage-agent</code>). Substitutable via <code>/etc/yum.repos.d/sysmanage-airgap.repo</code>.</li>
+                        <li data-i18n="docs.admin.airgap.install_channels.zypper"><strong>openSUSE / SLES</strong> — Open Build Service (<code>home:bceverly/sysmanage-agent</code>). Substitutable via the same yum/zypper repo file pattern.</li>
+                        <li data-i18n="docs.admin.airgap.install_channels.bsd"><strong>FreeBSD / OpenBSD / NetBSD</strong> — currently direct downloads. The repository engine can still rewrite <code>pkg.conf</code> to point at the local mirror, so the agent comes up via a different path than its first-boot script expects but still without internet access. A formal upstream ports / pkgsrc submission is tracked as a follow-up.</li>
+                    </ul>
+                </section>
+
+                <section class="docs-section">
+                    <h2 data-i18n="docs.admin.airgap.compliance.title">Compliance context across the gap</h2>
+                    <p data-i18n="docs.admin.airgap.compliance.summary">Phase 11.3 wires the repository's freshness state into compliance reports so operators can distinguish two failure modes that look identical without context:</p>
+                    <ul>
+                        <li data-i18n="docs.admin.airgap.compliance.not_applied"><strong>not_applied</strong> — a newer version is on the local mirror but hasn't been installed on this host yet. Fix locally; cheap.</li>
+                        <li data-i18n="docs.admin.airgap.compliance.not_transferred"><strong>not_transferred</strong> — the public CVE feed (captured by the collector at last media transfer) lists a fix that isn't on the local mirror at all. Fix requires a new collection / burn / ingest cycle; expensive.</li>
+                        <li data-i18n="docs.admin.airgap.compliance.current"><strong>current</strong> — the host's installed version matches the mirror's latest, and no public-side CVE has surfaced since last transfer.</li>
+                    </ul>
+                    <p data-i18n="docs.admin.airgap.compliance.freshness">Each repository tracks <em>days since last ingest</em>. Compliance UI surfaces a freshness label: <code>current</code> (≤ 7 days), <code>stale</code> (8–30 days), <code>very_stale</code> (&gt; 30 days), or <code>never</code>. Use this to size the air-gap transfer cadence against your organization's tolerance for delayed patch availability.</p>
+                </section>
+
+                <section class="docs-section">
+                    <h2 data-i18n="docs.admin.airgap.troubleshooting.title">Troubleshooting</h2>
+                    <h3 data-i18n="docs.admin.airgap.troubleshooting.signature.title">Ingestion fails with "signature does not match manifest payload"</h3>
+                    <p data-i18n="docs.admin.airgap.troubleshooting.signature.body">The repository's configured public key doesn't match the private key that signed this disc. Either the disc was tampered with in transit, or the operator regenerated the keypair on the collector without distributing the new public key to the repository. Re-export the public key from the collector and replace the value in the repository's <code>sysmanage.yaml</code>.</p>
+
+                    <h3 data-i18n="docs.admin.airgap.troubleshooting.format_version.title">Ingestion fails with "manifest format_version exceeds repository's max"</h3>
+                    <p data-i18n="docs.admin.airgap.troubleshooting.format_version.body">The collector has been upgraded to a new SysManage version that changed the manifest format, but the repository hasn't been upgraded yet. Upgrade the repository server to the same version, then re-ingest. The format-version check is a deliberate forward-compat fail-safe — older repositories cannot be tricked into ingesting media with new fields they don't understand.</p>
+
+                    <h3 data-i18n="docs.admin.airgap.troubleshooting.role_chip_red.title">Role chip in the header bar is red</h3>
+                    <p data-i18n="docs.admin.airgap.troubleshooting.role_chip_red.body">The <code>role:</code> in <code>sysmanage.yaml</code> is set to <code>collector</code> or <code>repository</code>, but the corresponding Pro+ engine isn't loaded. Most common cause: the Enterprise license isn't valid (expired, missing, or doesn't include the air-gap engines). Check the License page in Settings; if the license is fine, check <code>/var/log/sysmanage/server.log</code> for module-loader errors.</p>
+
+                    <h3 data-i18n="docs.admin.airgap.troubleshooting.long_subprocess.title">Multi-hour collection cycle gets killed mid-run</h3>
+                    <p data-i18n="docs.admin.airgap.troubleshooting.long_subprocess.body">Should not happen as of Phase 11.6 — the agent now writes a per-plan in-flight journal at <code>~/.sysmanage-agent/inflight/&lt;message_id&gt;.json</code> before each subprocess starts, with a 30-second heartbeat. If the agent process restarts (or the WebSocket bounces), the journal carries enough state for the agent to either re-attach to the still-live subprocess or emit a synthetic command_result so the server's mirror row clears. If you see a hung mirror anyway, file an issue with the contents of the inflight journal.</p>
+                </section>
+
+            </div>
+        </div>
+    </main>
+
+</body>
+</html>
