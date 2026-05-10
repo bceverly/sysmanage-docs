@@ -30,10 +30,11 @@ LOCALES_DIR = REPO_ROOT / "assets" / "locales"
 
 # Hard limit on English-passthrough leaves per locale — i.e. the locale
 # value equals the en value verbatim, a strong signal that the translator
-# hasn't touched it.  Sized to "don't make it worse" against current
-# state (measured 2026-05-08); ratchet down as long-form descriptions get
-# real translations.
-PASSTHROUGH_BUDGET_PER_LOCALE = 3200
+# hasn't touched it.  Phase 10 close-out (May 2026) ratcheted this down
+# to current measured ceiling (max per-locale was fr=286) plus a tiny
+# 4-key cushion.  Drift up = CI fails; ratchet down further as long-form
+# descriptions get real translations.
+PASSTHROUGH_BUDGET_PER_LOCALE = 290
 
 DATA_I18N = re.compile(r'data-i18n\s*=\s*"([^"]+)"')
 
