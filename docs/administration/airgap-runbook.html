@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en" data-i18n-title="docs.admin.airgap_runbook.page_title">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title data-i18n="docs.admin.airgap_runbook.page_title">Air-Gap Operational Runbook - SysManage</title>
+    <meta name="description" content="Phase 11 operational SOP for air-gapped deployments: chain-of-custody for optical media, ed25519 key rotation cadence, disc labeling conventions, transport-loss procedures, signature-failure incident response." data-i18n-attr="content" data-i18n="docs.admin.airgap_runbook.meta_description">
+    <link rel="stylesheet" href="../../assets/css/style.css">
+    <link rel="icon" type="image/svg+xml" href="../../assets/images/favicon.svg">
+</head>
+<body data-auto-header="documentation" data-auto-footer>
+
+    <main class="docs-main">
+        <div class="container">
+            <div class="docs-breadcrumb">
+                <a href="../" data-i18n="nav.documentation">Documentation</a> &gt;
+                <a href="./" data-i18n="docs.admin.breadcrumb">Administration</a> &gt;
+                <span data-i18n="docs.admin.airgap_runbook.breadcrumb">Air-Gap Operational Runbook</span>
+            </div>
+
+            <div class="docs-header">
+                <h1 data-i18n="docs.admin.airgap_runbook.header.title">Air-Gap Operational Runbook</h1>
+                <p data-i18n="docs.admin.airgap_runbook.header.description">Operational procedures complementary to the <a href="airgap-deployment.html">Air-Gap Deployment guide</a>. Where the deployment guide explains the technical architecture, this runbook covers the day-to-day operational concerns: who handles which disc, how often keys rotate, what to do when transport goes wrong, and how to respond when a signature verification fails.</p>
+            </div>
+
+            <div class="docs-content">
+
+                <section class="docs-section">
+                    <h2 data-i18n="docs.admin.airgap_runbook.custody.title">Chain of custody</h2>
+                    <p data-i18n="docs.admin.airgap_runbook.custody.summary">Every air-gap disc is a privileged-access artifact: it carries the operator's ed25519 signature and, on the public→private direction, the union of every package the air-gapped fleet will install on its next update cycle. Treat each disc the same way you would treat a signed-installer USB key for production hosts.</p>
+                    <ul>
+                        <li data-i18n="docs.admin.airgap_runbook.custody.label">Label every disc immediately at burn time with: collector hostname, ISO label, run timestamp, and disc N of M (for multi-disc sets). The run timestamp matches what's in the manifest, so a misplaced disc can be cross-referenced against the collector's audit log.</li>
+                        <li data-i18n="docs.admin.airgap_runbook.custody.transport_log">Maintain a transport log (paper or air-gapped spreadsheet) listing: who carried each disc set, when it left the public-side facility, when it was inserted at the private-side facility, and the SHA-256 of each ISO at both ends.</li>
+                        <li data-i18n="docs.admin.airgap_runbook.custody.storage">Store unburned ISO masters on the collector for at least the retention window of one complete delta-collection cycle (default 30 days) so a lost-in-transit disc set can be re-burned without redoing the mirror sync.</li>
+                        <li data-i18n="docs.admin.airgap_runbook.custody.disposal">Destroy obsolete discs (older than two retention windows) by physical shredding rather than deletion — even ingested data carries the operator's signature, which has cryptographic value beyond the package contents themselves.</li>
+                    </ul>
+                </section>
+
+                <section class="docs-section">
+                    <h2 data-i18n="docs.admin.airgap_runbook.keys.title">Ed25519 keypair rotation</h2>
+                    <p data-i18n="docs.admin.airgap_runbook.keys.summary">The collector signs every manifest with an ed25519 private key; the repository verifies against the corresponding public key configured in <code>sysmanage.yaml</code>. Recommended cadence:</p>
+                    <ul>
+                        <li data-i18n="docs.admin.airgap_runbook.keys.annual_rotation"><strong>Annual rotation</strong> baseline. Generate a new keypair on the collector, distribute the new public key to the repository (over an existing trusted channel — sneakernet, signed email, or the previous trusted ingest), and run one transition disc that's signed by both keys before retiring the old key.</li>
+                        <li data-i18n="docs.admin.airgap_runbook.keys.compromise"><strong>Immediate rotation on suspected compromise.</strong> Symptoms include: a stolen / lost laptop that holds the collector's private key, an unauthorized signature appearing on a disc the operator didn't burn, or any indication the collector host was compromised. Rotate keys, and treat every disc signed by the old key as untrusted (re-collect + re-burn before ingesting on any repository).</li>
+                        <li data-i18n="docs.admin.airgap_runbook.keys.storage"><strong>Private-key storage.</strong> The collector's private key file should be readable only by the SysManage server process and never copied off the collector. PEM-encoded, mode 0400. Backup via a sealed-envelope hardware token (YubiKey, Nitrokey) stored in a different physical location from the collector itself — the same threat model as your CA's signing key.</li>
+                        <li data-i18n="docs.admin.airgap_runbook.keys.public_distribution"><strong>Public-key distribution.</strong> The repository's <code>sysmanage.yaml</code> can hold multiple trusted public keys during a rotation window. New ingestions verify against any of them; remove old keys only after the last disc signed by the retiring key has been ingested.</li>
+                    </ul>
+                </section>
+
+                <section class="docs-section">
+                    <h2 data-i18n="docs.admin.airgap_runbook.transport.title">Transport-loss procedures</h2>
+                    <p data-i18n="docs.admin.airgap_runbook.transport.summary">When a disc set fails to arrive at the air-gapped facility within its expected transit window:</p>
+                    <ol>
+                        <li data-i18n="docs.admin.airgap_runbook.transport.step_verify">Verify with the courier or carrier that the package was actually dispatched. Most "lost" discs are actually misrouted; reconcile the transport-log entry against tracking data.</li>
+                        <li data-i18n="docs.admin.airgap_runbook.transport.step_decide">Decide between waiting and re-burning based on operational urgency. If the air-gapped fleet has a fresh-enough mirror (compliance UI shows <code>current</code> or <code>stale</code>, not <code>very_stale</code>), waiting one additional courier cycle is acceptable.</li>
+                        <li data-i18n="docs.admin.airgap_runbook.transport.step_reburn">If re-burning: locate the matching ISO master in the collector's <code>/var/lib/sysmanage/airgap-iso/</code> retention window, re-burn from the same source ISO so the SHA-256 matches the lost disc's transport-log entry. <strong>Do not regenerate the manifest</strong> — that would make the new disc look like a separate run to the repository's audit trail.</li>
+                        <li data-i18n="docs.admin.airgap_runbook.transport.step_after_arrival">If the original disc arrives after a re-burn has been ingested, log both ingestions in the transport log; the second ingest will succeed (idempotent — same content) and creates an audit-trail crumb that helps reconcile the next cycle's gap analysis.</li>
+                        <li data-i18n="docs.admin.airgap_runbook.transport.step_destroy">Physically destroy any disc whose chain-of-custody is broken (carrier handover skipped, package found unsealed, etc.) regardless of whether the contents seem intact. The cost of re-burning is small; the cost of ingesting tampered media on the air-gapped network is large.</li>
+                    </ol>
+                </section>
+
+                <section class="docs-section">
+                    <h2 data-i18n="docs.admin.airgap_runbook.signature_failure.title">Signature verification failure</h2>
+                    <p data-i18n="docs.admin.airgap_runbook.signature_failure.summary">When the repository's ingestion endpoint reports <code>signature does not match manifest payload</code>, treat it as a security incident until proven otherwise:</p>
+                    <ol>
+                        <li data-i18n="docs.admin.airgap_runbook.signature_failure.step_isolate"><strong>Do not retry ingestion.</strong> Repeated signature-verification failures don't make the data more trustworthy. Set the disc aside in a tagged "pending-investigation" envelope.</li>
+                        <li data-i18n="docs.admin.airgap_runbook.signature_failure.step_check_keys"><strong>Verify the configured public key matches the collector's current public key.</strong> The most common (benign) cause is a key rotation that didn't propagate fully. Re-export the public key from the collector, compare to the repository's <code>sysmanage.yaml</code>, update if they differ, retry ingestion.</li>
+                        <li data-i18n="docs.admin.airgap_runbook.signature_failure.step_check_disc"><strong>If keys match, inspect the disc.</strong> Tampering would typically also break the per-file SHA-256 verification, so a signature-only failure on a disc whose hashes pass is suspicious. Inspect the disc surface for physical damage; mount the ISO read-only and verify file checksums against the manifest manually.</li>
+                        <li data-i18n="docs.admin.airgap_runbook.signature_failure.step_escalate"><strong>If the disc cannot be explained by key drift or physical damage, escalate.</strong> Quarantine the disc, file an incident with your security team, and rotate the collector's keypair as a precaution. The next collection cycle should be performed on a freshly-imaged collector if the original collector itself is suspect.</li>
+                    </ol>
+                </section>
+
+                <section class="docs-section">
+                    <h2 data-i18n="docs.admin.airgap_runbook.cadence.title">Recommended cadences</h2>
+                    <p data-i18n="docs.admin.airgap_runbook.cadence.summary">Defaults that work for most deployments — adjust against your organization's tolerance for delayed patch availability:</p>
+                    <ul>
+                        <li data-i18n="docs.admin.airgap_runbook.cadence.collection"><strong>Collection cycle:</strong> weekly, with a delta-mode top-up daily. The weekly full-snapshot ensures the cumulative disc set stays current; the daily delta keeps the air-gapped network within one business day of upstream security advisories.</li>
+                        <li data-i18n="docs.admin.airgap_runbook.cadence.transport"><strong>Transport:</strong> match collection cadence. A disc that sits in transit longer than the next collection cycle is wasteful — schedule courier pickups for the same day as the burn step.</li>
+                        <li data-i18n="docs.admin.airgap_runbook.cadence.ingestion"><strong>Ingestion:</strong> on arrival. Don't queue media; the repository's freshness label drifts toward <code>stale</code> the moment a disc is sitting on the operator's desk instead of being ingested.</li>
+                        <li data-i18n="docs.admin.airgap_runbook.cadence.key_rotation"><strong>Key rotation:</strong> annual baseline; immediate on compromise. Calendar a key-rotation event for the same date every year so it doesn't get forgotten.</li>
+                        <li data-i18n="docs.admin.airgap_runbook.cadence.audit_review"><strong>Audit review:</strong> quarterly. Reconcile the transport log against the collector's <code>AirgapCollectionRun</code> table and the repository's <code>AirgapIngestionRun</code> table. Each pair should match by <code>signer_fingerprint</code> + <code>collector_iso_label</code>; discrepancies surface ingestion gaps before they grow into compliance failures.</li>
+                    </ul>
+                </section>
+
+                <section class="docs-section">
+                    <h2 data-i18n="docs.admin.airgap_runbook.related.title">Related documentation</h2>
+                    <ul>
+                        <li><a href="airgap-deployment.html" data-i18n="docs.admin.airgap_runbook.related.deployment">Air-Gap Deployment guide</a> — technical architecture + role configuration</li>
+                        <li><a href="settings-guide.html" data-i18n="docs.admin.airgap_runbook.related.settings">Settings reference</a> — where to configure license, role, and trusted public keys</li>
+                        <li><a href="../security/database-security.html" data-i18n="docs.admin.airgap_runbook.related.security">Database Security reference</a> — applies to the on-disk persistence of ingested mirror state</li>
+                    </ul>
+                </section>
+
+            </div>
+        </div>
+    </main>
+
+</body>
+</html>

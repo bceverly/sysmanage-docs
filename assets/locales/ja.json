@@ -2731,6 +2731,63 @@
             "body": "Should not happen as of Phase 11.6 — the agent now writes a per-plan in-flight journal at ~/.sysmanage-agent/inflight/<message_id>.json before each subprocess starts, with a 30-second heartbeat. If the agent process restarts (or the WebSocket bounces), the journal carries enough state for the agent to either re-attach to the still-live subprocess or emit a synthetic command_result so the server's mirror row clears. If you see a hung mirror anyway, file an issue with the contents of the inflight journal."
           }
         }
+      },
+      "airgap_runbook": {
+        "page_title": "エアギャップ運用ランブック - SysManage",
+        "meta_description": "Phase 11 operational SOP for air-gapped deployments: chain-of-custody for optical media, ed25519 key rotation cadence, disc labeling conventions, transport-loss procedures, signature-failure incident response.",
+        "breadcrumb": "エアギャップ運用ランブック",
+        "header": {
+          "title": "エアギャップ運用ランブック",
+          "description": "Operational procedures complementary to the Air-Gap Deployment guide. Where the deployment guide explains the technical architecture, this runbook covers the day-to-day operational concerns: who handles which disc, how often keys rotate, what to do when transport goes wrong, and how to respond when a signature verification fails."
+        },
+        "custody": {
+          "title": "管理連鎖",
+          "summary": "Every air-gap disc is a privileged-access artifact: it carries the operator's ed25519 signature and, on the public→private direction, the union of every package the air-gapped fleet will install on its next update cycle. Treat each disc the same way you would treat a signed-installer USB key for production hosts.",
+          "label": "Label every disc immediately at burn time with: collector hostname, ISO label, run timestamp, and disc N of M (for multi-disc sets). The run timestamp matches what's in the manifest, so a misplaced disc can be cross-referenced against the collector's audit log.",
+          "transport_log": "Maintain a transport log (paper or air-gapped spreadsheet) listing: who carried each disc set, when it left the public-side facility, when it was inserted at the private-side facility, and the SHA-256 of each ISO at both ends.",
+          "storage": "Store unburned ISO masters on the collector for at least the retention window of one complete delta-collection cycle (default 30 days) so a lost-in-transit disc set can be re-burned without redoing the mirror sync.",
+          "disposal": "Destroy obsolete discs (older than two retention windows) by physical shredding rather than deletion — even ingested data carries the operator's signature, which has cryptographic value beyond the package contents themselves."
+        },
+        "keys": {
+          "title": "Ed25519鍵ペアのローテーション",
+          "summary": "The collector signs every manifest with an ed25519 private key; the repository verifies against the corresponding public key configured in sysmanage.yaml. Recommended cadence:",
+          "annual_rotation": "Annual rotation baseline. Generate a new keypair on the collector, distribute the new public key to the repository (over an existing trusted channel — sneakernet, signed email, or the previous trusted ingest), and run one transition disc that's signed by both keys before retiring the old key.",
+          "compromise": "Immediate rotation on suspected compromise. Symptoms include: a stolen / lost laptop that holds the collector's private key, an unauthorized signature appearing on a disc the operator didn't burn, or any indication the collector host was compromised. Rotate keys, and treat every disc signed by the old key as untrusted (re-collect + re-burn before ingesting on any repository).",
+          "storage": "Private-key storage. The collector's private key file should be readable only by the SysManage server process and never copied off the collector. PEM-encoded, mode 0400. Backup via a sealed-envelope hardware token (YubiKey, Nitrokey) stored in a different physical location from the collector itself — the same threat model as your CA's signing key.",
+          "public_distribution": "Public-key distribution. The repository's sysmanage.yaml can hold multiple trusted public keys during a rotation window. New ingestions verify against any of them; remove old keys only after the last disc signed by the retiring key has been ingested."
+        },
+        "transport": {
+          "title": "輸送中紛失手順",
+          "summary": "When a disc set fails to arrive at the air-gapped facility within its expected transit window:",
+          "step_verify": "Verify with the courier or carrier that the package was actually dispatched. Most \"lost\" discs are actually misrouted; reconcile the transport-log entry against tracking data.",
+          "step_decide": "Decide between waiting and re-burning based on operational urgency. If the air-gapped fleet has a fresh-enough mirror (compliance UI shows current or stale, not very_stale), waiting one additional courier cycle is acceptable.",
+          "step_reburn": "If re-burning: locate the matching ISO master in the collector's /var/lib/sysmanage/airgap-iso/ retention window, re-burn from the same source ISO so the SHA-256 matches the lost disc's transport-log entry. Do not regenerate the manifest — that would make the new disc look like a separate run to the repository's audit trail.",
+          "step_after_arrival": "If the original disc arrives after a re-burn has been ingested, log both ingestions in the transport log; the second ingest will succeed (idempotent — same content) and creates an audit-trail crumb that helps reconcile the next cycle's gap analysis.",
+          "step_destroy": "Physically destroy any disc whose chain-of-custody is broken (carrier handover skipped, package found unsealed, etc.) regardless of whether the contents seem intact. The cost of re-burning is small; the cost of ingesting tampered media on the air-gapped network is large."
+        },
+        "signature_failure": {
+          "title": "署名検証の失敗",
+          "summary": "When the repository's ingestion endpoint reports signature does not match manifest payload, treat it as a security incident until proven otherwise:",
+          "step_isolate": "Do not retry ingestion. Repeated signature-verification failures don't make the data more trustworthy. Set the disc aside in a tagged \"pending-investigation\" envelope.",
+          "step_check_keys": "Verify the configured public key matches the collector's current public key. The most common (benign) cause is a key rotation that didn't propagate fully. Re-export the public key from the collector, compare to the repository's sysmanage.yaml, update if they differ, retry ingestion.",
+          "step_check_disc": "If keys match, inspect the disc. Tampering would typically also break the per-file SHA-256 verification, so a signature-only failure on a disc whose hashes pass is suspicious. Inspect the disc surface for physical damage; mount the ISO read-only and verify file checksums against the manifest manually.",
+          "step_escalate": "If the disc cannot be explained by key drift or physical damage, escalate. Quarantine the disc, file an incident with your security team, and rotate the collector's keypair as a precaution. The next collection cycle should be performed on a freshly-imaged collector if the original collector itself is suspect."
+        },
+        "cadence": {
+          "title": "推奨頻度",
+          "summary": "Defaults that work for most deployments — adjust against your organization's tolerance for delayed patch availability:",
+          "collection": "Collection cycle: weekly, with a delta-mode top-up daily. The weekly full-snapshot ensures the cumulative disc set stays current; the daily delta keeps the air-gapped network within one business day of upstream security advisories.",
+          "transport": "Transport: match collection cadence. A disc that sits in transit longer than the next collection cycle is wasteful — schedule courier pickups for the same day as the burn step.",
+          "ingestion": "Ingestion: on arrival. Don't queue media; the repository's freshness label drifts toward stale the moment a disc is sitting on the operator's desk instead of being ingested.",
+          "key_rotation": "Key rotation: annual baseline; immediate on compromise. Calendar a key-rotation event for the same date every year so it doesn't get forgotten.",
+          "audit_review": "Audit review: quarterly. Reconcile the transport log against the collector's AirgapCollectionRun table and the repository's AirgapIngestionRun table. Each pair should match by signer_fingerprint + collector_iso_label; discrepancies surface ingestion gaps before they grow into compliance failures."
+        },
+        "related": {
+          "title": "関連ドキュメント",
+          "deployment": "Air-Gap Deployment guide",
+          "settings": "Settings reference",
+          "security": "Database Security reference"
+        }
       }
     },
     "administration": {
