@@ -12,34 +12,34 @@
     <main class="docs-main">
         <div class="container">
             <div class="docs-breadcrumb">
-                <a href="../">Documentation</a> > <a href="./">Architecture</a> > <span>Agent Deployment Protocol</span>
+                <a href="../" data-i18n="docs.auto.architecture.agent-deployment-protocol.001">Documentation</a> > <a href="./" data-i18n="docs.auto.architecture.agent-deployment-protocol.002">Architecture</a> > <span data-i18n="docs.auto.architecture.agent-deployment-protocol.003">Agent Deployment Protocol</span>
             </div>
 
             <div class="docs-header">
-                <h1>Agent Generic Deployment Protocol</h1>
-                <p>Server-to-agent message protocol for the three open-source deployment primitives every Pro+ engine builds on:  <code>deploy_files</code>, <code>execute_command_sequence</code>, and <code>service_control</code>.</p>
+                <h1 data-i18n="docs.auto.architecture.agent-deployment-protocol.004">Agent Generic Deployment Protocol</h1>
+                <p data-i18n="docs.auto.architecture.agent-deployment-protocol.005">Server-to-agent message protocol for the three open-source deployment primitives every Pro+ engine builds on:  <code>deploy_files</code>, <code>execute_command_sequence</code>, and <code>service_control</code>.</p>
             </div>
 
             <div class="docs-content">
 
                 <!-- ========================================================= -->
                 <section>
-                    <h2>Why these messages exist</h2>
-                    <p>The architectural decision made in Phase 3 split the deployment pipeline in two:</p>
+                    <h2 data-i18n="docs.auto.architecture.agent-deployment-protocol.006">Why these messages exist</h2>
+                    <p data-i18n="docs.auto.architecture.agent-deployment-protocol.007">The architectural decision made in Phase 3 split the deployment pipeline in two:</p>
                     <ul>
-                        <li><strong>Server side (Pro+ Cython modules)</strong> generates fully-baked configuration — firewall rule sets, AV deployment plans, OTEL collector configs, VM definitions.  This is where the proprietary value lives.</li>
-                        <li><strong>Agent side (open-source)</strong> just deploys files, runs commands, and controls services.  It has no knowledge of <em>what</em> any particular file means.</li>
+                        <li data-i18n="docs.auto.architecture.agent-deployment-protocol.008"><strong>Server side (Pro+ Cython modules)</strong> generates fully-baked configuration — firewall rule sets, AV deployment plans, OTEL collector configs, VM definitions.  This is where the proprietary value lives.</li>
+                        <li data-i18n="docs.auto.architecture.agent-deployment-protocol.009"><strong>Agent side (open-source)</strong> just deploys files, runs commands, and controls services.  It has no knowledge of <em>what</em> any particular file means.</li>
                     </ul>
-                    <p>The three messages documented here are the entire interface between the two halves.  They are deliberately generic — adding a new Pro+ feature does not require any agent code change.</p>
-                    <p>Agent implementation lives in <code>sysmanage-agent/src/sysmanage_agent/operations/generic_deployment.py</code> (deploy and command sequencing) and <code>sysmanage-agent/src/sysmanage_agent/core/agent_utils.py</code> (service control).  All three return a structured result dict; none of them ever raise out of the handler.</p>
+                    <p data-i18n="docs.auto.architecture.agent-deployment-protocol.010">The three messages documented here are the entire interface between the two halves.  They are deliberately generic — adding a new Pro+ feature does not require any agent code change.</p>
+                    <p data-i18n="docs.auto.architecture.agent-deployment-protocol.011">Agent implementation lives in <code>sysmanage-agent/src/sysmanage_agent/operations/generic_deployment.py</code> (deploy and command sequencing) and <code>sysmanage-agent/src/sysmanage_agent/core/agent_utils.py</code> (service control).  All three return a structured result dict; none of them ever raise out of the handler.</p>
                 </section>
 
                 <!-- ========================================================= -->
                 <section>
-                    <h2><code>deploy_files</code></h2>
-                    <p>Atomic file deployment.  Writes one or more files to the local filesystem using the temp-file-plus-rename pattern, with optional SHA-256 verification and backup/rollback support.</p>
+                    <h2 data-i18n="docs.auto.architecture.agent-deployment-protocol.012"><code>deploy_files</code></h2>
+                    <p data-i18n="docs.auto.architecture.agent-deployment-protocol.013">Atomic file deployment.  Writes one or more files to the local filesystem using the temp-file-plus-rename pattern, with optional SHA-256 verification and backup/rollback support.</p>
 
-                    <h3>Request</h3>
+                    <h3 data-i18n="docs.auto.architecture.agent-deployment-protocol.014">Request</h3>
 <pre class="json-example">
 {
     "message_type": "command",
@@ -62,21 +62,21 @@
 }
 </pre>
 
-                    <h3>File spec fields</h3>
+                    <h3 data-i18n="docs.auto.architecture.agent-deployment-protocol.015">File spec fields</h3>
                     <table>
-                        <thead><tr><th>Field</th><th>Required</th><th>Type</th><th>Notes</th></tr></thead>
+                        <thead><tr><th data-i18n="docs.auto.architecture.agent-deployment-protocol.016">Field</th><th data-i18n="docs.auto.architecture.agent-deployment-protocol.017">Required</th><th data-i18n="docs.auto.architecture.agent-deployment-protocol.018">Type</th><th data-i18n="docs.auto.architecture.agent-deployment-protocol.019">Notes</th></tr></thead>
                         <tbody>
-                            <tr><td><code>path</code></td><td>yes</td><td>string</td><td>Absolute destination path.  Parent dirs are created (mode 0755) if missing.</td></tr>
-                            <tr><td><code>content</code></td><td>yes</td><td>string</td><td>Full file contents.  The agent appends a trailing newline if the content does not end in one (POSIX text-file convention).</td></tr>
-                            <tr><td><code>permissions</code></td><td>no</td><td>octal string</td><td>Default <code>"0644"</code>.</td></tr>
-                            <tr><td><code>owner_uid</code></td><td>no</td><td>integer</td><td>Default <code>0</code>.  Skipped on Windows.</td></tr>
-                            <tr><td><code>owner_gid</code></td><td>no</td><td>integer</td><td>Default <code>0</code>.  Skipped on Windows.</td></tr>
-                            <tr><td><code>expected_sha256</code></td><td>no</td><td>hex string</td><td>If supplied, the agent verifies BOTH the pre-write content (to catch transport corruption) AND the on-disk file post-rename (to catch filesystem-level mutation).  Mismatch triggers rollback if a backup exists, otherwise removes the bad file.</td></tr>
-                            <tr><td><code>backup</code></td><td>no</td><td>boolean</td><td>Default <code>false</code>.  When true, an existing target is copied to <code>&lt;path&gt;.sysmanage.bak</code> before the new content is written.  The backup is left in place on success (admin can clean up); on post-write hash mismatch the backup is restored.</td></tr>
+                            <tr><td data-i18n="docs.auto.architecture.agent-deployment-protocol.020"><code>path</code></td><td data-i18n="docs.auto.architecture.agent-deployment-protocol.021">yes</td><td data-i18n="docs.auto.architecture.agent-deployment-protocol.022">string</td><td data-i18n="docs.auto.architecture.agent-deployment-protocol.023">Absolute destination path.  Parent dirs are created (mode 0755) if missing.</td></tr>
+                            <tr><td data-i18n="docs.auto.architecture.agent-deployment-protocol.024"><code>content</code></td><td data-i18n="docs.auto.architecture.agent-deployment-protocol.025">yes</td><td data-i18n="docs.auto.architecture.agent-deployment-protocol.026">string</td><td data-i18n="docs.auto.architecture.agent-deployment-protocol.027">Full file contents.  The agent appends a trailing newline if the content does not end in one (POSIX text-file convention).</td></tr>
+                            <tr><td data-i18n="docs.auto.architecture.agent-deployment-protocol.028"><code>permissions</code></td><td data-i18n="docs.auto.architecture.agent-deployment-protocol.029">no</td><td data-i18n="docs.auto.architecture.agent-deployment-protocol.030">octal string</td><td data-i18n="docs.auto.architecture.agent-deployment-protocol.031">Default <code>"0644"</code>.</td></tr>
+                            <tr><td data-i18n="docs.auto.architecture.agent-deployment-protocol.032"><code>owner_uid</code></td><td data-i18n="docs.auto.architecture.agent-deployment-protocol.033">no</td><td data-i18n="docs.auto.architecture.agent-deployment-protocol.034">integer</td><td data-i18n="docs.auto.architecture.agent-deployment-protocol.035">Default <code>0</code>.  Skipped on Windows.</td></tr>
+                            <tr><td data-i18n="docs.auto.architecture.agent-deployment-protocol.036"><code>owner_gid</code></td><td data-i18n="docs.auto.architecture.agent-deployment-protocol.037">no</td><td data-i18n="docs.auto.architecture.agent-deployment-protocol.038">integer</td><td data-i18n="docs.auto.architecture.agent-deployment-protocol.039">Default <code>0</code>.  Skipped on Windows.</td></tr>
+                            <tr><td data-i18n="docs.auto.architecture.agent-deployment-protocol.040"><code>expected_sha256</code></td><td data-i18n="docs.auto.architecture.agent-deployment-protocol.041">no</td><td data-i18n="docs.auto.architecture.agent-deployment-protocol.042">hex string</td><td data-i18n="docs.auto.architecture.agent-deployment-protocol.043">If supplied, the agent verifies BOTH the pre-write content (to catch transport corruption) AND the on-disk file post-rename (to catch filesystem-level mutation).  Mismatch triggers rollback if a backup exists, otherwise removes the bad file.</td></tr>
+                            <tr><td data-i18n="docs.auto.architecture.agent-deployment-protocol.044"><code>backup</code></td><td data-i18n="docs.auto.architecture.agent-deployment-protocol.045">no</td><td data-i18n="docs.auto.architecture.agent-deployment-protocol.046">boolean</td><td data-i18n="docs.auto.architecture.agent-deployment-protocol.047">Default <code>false</code>.  When true, an existing target is copied to <code>&lt;path&gt;.sysmanage.bak</code> before the new content is written.  The backup is left in place on success (admin can clean up); on post-write hash mismatch the backup is restored.</td></tr>
                         </tbody>
                     </table>
 
-                    <h3>Response</h3>
+                    <h3 data-i18n="docs.auto.architecture.agent-deployment-protocol.048">Response</h3>
 <pre class="json-example">
 {
     "success": true,
@@ -94,15 +94,15 @@
     "errors": []
 }
 </pre>
-                    <p><code>success</code> is true if at least one file was deployed.  Per-file outcomes are in <code>deployed_files</code> (each carries its own <code>success</code>) and <code>errors</code>.</p>
+                    <p data-i18n="docs.auto.architecture.agent-deployment-protocol.049"><code>success</code> is true if at least one file was deployed.  Per-file outcomes are in <code>deployed_files</code> (each carries its own <code>success</code>) and <code>errors</code>.</p>
                 </section>
 
                 <!-- ========================================================= -->
                 <section>
-                    <h2><code>execute_command_sequence</code></h2>
-                    <p>Run a sequence of steps in order.  Stops at the first failed step.  A "step" is a discriminated union of three types:  <code>shell</code> (run a command), <code>deploy_file</code> (one-off file deployment, same semantics as <code>deploy_files</code>), and <code>wait_condition</code> (poll a command's output until it matches a regex).</p>
+                    <h2 data-i18n="docs.auto.architecture.agent-deployment-protocol.050"><code>execute_command_sequence</code></h2>
+                    <p data-i18n="docs.auto.architecture.agent-deployment-protocol.051">Run a sequence of steps in order.  Stops at the first failed step.  A "step" is a discriminated union of three types:  <code>shell</code> (run a command), <code>deploy_file</code> (one-off file deployment, same semantics as <code>deploy_files</code>), and <code>wait_condition</code> (poll a command's output until it matches a regex).</p>
 
-                    <h3>Request</h3>
+                    <h3 data-i18n="docs.auto.architecture.agent-deployment-protocol.052">Request</h3>
 <pre class="json-example">
 {
     "message_type": "command",
@@ -139,18 +139,18 @@
 }
 </pre>
 
-                    <h3>Step types</h3>
+                    <h3 data-i18n="docs.auto.architecture.agent-deployment-protocol.053">Step types</h3>
                     <table>
-                        <thead><tr><th>type</th><th>Required fields</th><th>Optional fields</th><th>Behavior</th></tr></thead>
+                        <thead><tr><th data-i18n="docs.auto.architecture.agent-deployment-protocol.054">type</th><th data-i18n="docs.auto.architecture.agent-deployment-protocol.055">Required fields</th><th data-i18n="docs.auto.architecture.agent-deployment-protocol.056">Optional fields</th><th data-i18n="docs.auto.architecture.agent-deployment-protocol.057">Behavior</th></tr></thead>
                         <tbody>
-                            <tr><td><code>shell</code></td><td><code>command</code></td><td><code>timeout</code> (default 300s)</td><td>Runs via subprocess.  Step succeeds iff exit code is 0.</td></tr>
-                            <tr><td><code>deploy_file</code></td><td><code>path</code>, <code>content</code></td><td>same optional fields as in <code>deploy_files</code></td><td>Single-file atomic deploy with the same SHA-256 + backup semantics.</td></tr>
-                            <tr><td><code>wait_condition</code></td><td><code>command</code>, <code>match</code></td><td><code>timeout</code> (default 60s), <code>interval</code> (default 1s)</td><td>Re-runs <code>command</code> on the interval until its stdout matches the <code>match</code> regex, or times out.  Useful for waiting on services to become ready.</td></tr>
+                            <tr><td data-i18n="docs.auto.architecture.agent-deployment-protocol.058"><code>shell</code></td><td data-i18n="docs.auto.architecture.agent-deployment-protocol.059"><code>command</code></td><td data-i18n="docs.auto.architecture.agent-deployment-protocol.060"><code>timeout</code> (default 300s)</td><td data-i18n="docs.auto.architecture.agent-deployment-protocol.061">Runs via subprocess.  Step succeeds iff exit code is 0.</td></tr>
+                            <tr><td data-i18n="docs.auto.architecture.agent-deployment-protocol.062"><code>deploy_file</code></td><td data-i18n="docs.auto.architecture.agent-deployment-protocol.063"><code>path</code>, <code>content</code></td><td data-i18n="docs.auto.architecture.agent-deployment-protocol.064">same optional fields as in <code>deploy_files</code></td><td data-i18n="docs.auto.architecture.agent-deployment-protocol.065">Single-file atomic deploy with the same SHA-256 + backup semantics.</td></tr>
+                            <tr><td data-i18n="docs.auto.architecture.agent-deployment-protocol.066"><code>wait_condition</code></td><td data-i18n="docs.auto.architecture.agent-deployment-protocol.067"><code>command</code>, <code>match</code></td><td data-i18n="docs.auto.architecture.agent-deployment-protocol.068"><code>timeout</code> (default 60s), <code>interval</code> (default 1s)</td><td data-i18n="docs.auto.architecture.agent-deployment-protocol.069">Re-runs <code>command</code> on the interval until its stdout matches the <code>match</code> regex, or times out.  Useful for waiting on services to become ready.</td></tr>
                         </tbody>
                     </table>
 
-                    <h3>Optional progress streaming</h3>
-                    <p>If <code>progress_message_type</code> is supplied, the agent emits one progress message per step before executing it.  The message envelope uses the supplied type so callers can route progress without colliding with other in-flight commands.  Default type is <code>command_sequence_progress</code>.</p>
+                    <h3 data-i18n="docs.auto.architecture.agent-deployment-protocol.070">Optional progress streaming</h3>
+                    <p data-i18n="docs.auto.architecture.agent-deployment-protocol.071">If <code>progress_message_type</code> is supplied, the agent emits one progress message per step before executing it.  The message envelope uses the supplied type so callers can route progress without colliding with other in-flight commands.  Default type is <code>command_sequence_progress</code>.</p>
 <pre class="json-example">
 {
     "message_type": "command_sequence_progress",
@@ -164,7 +164,7 @@
 }
 </pre>
 
-                    <h3>Response</h3>
+                    <h3 data-i18n="docs.auto.architecture.agent-deployment-protocol.072">Response</h3>
 <pre class="json-example">
 {
     "success": true,
@@ -178,15 +178,15 @@
     "errors": []
 }
 </pre>
-                    <p>If a step fails, the sequence stops; <code>completed_steps</code> reflects the count of successful steps and <code>errors</code> contains the failure message.  The remaining steps are not attempted.</p>
+                    <p data-i18n="docs.auto.architecture.agent-deployment-protocol.073">If a step fails, the sequence stops; <code>completed_steps</code> reflects the count of successful steps and <code>errors</code> contains the failure message.  The remaining steps are not attempted.</p>
                 </section>
 
                 <!-- ========================================================= -->
                 <section>
-                    <h2><code>service_control</code></h2>
-                    <p>Start, stop, restart, enable, or disable one or more services.  The agent picks the appropriate service manager based on the host platform — <code>systemctl</code> on most modern Linux distros, <code>rc-service</code> + <code>rc-update</code> on Alpine/Gentoo (OpenRC), <code>launchctl</code> on macOS, or <code>sc.exe</code> on Windows.  The same message works across distros without the caller knowing which manager runs the host.</p>
+                    <h2 data-i18n="docs.auto.architecture.agent-deployment-protocol.074"><code>service_control</code></h2>
+                    <p data-i18n="docs.auto.architecture.agent-deployment-protocol.075">Start, stop, restart, enable, or disable one or more services.  The agent picks the appropriate service manager based on the host platform — <code>systemctl</code> on most modern Linux distros, <code>rc-service</code> + <code>rc-update</code> on Alpine/Gentoo (OpenRC), <code>launchctl</code> on macOS, or <code>sc.exe</code> on Windows.  The same message works across distros without the caller knowing which manager runs the host.</p>
 
-                    <h3>Request</h3>
+                    <h3 data-i18n="docs.auto.architecture.agent-deployment-protocol.076">Request</h3>
 <pre class="json-example">
 {
     "message_type": "command",
@@ -200,22 +200,22 @@
 }
 </pre>
 
-                    <h3>Action values</h3>
+                    <h3 data-i18n="docs.auto.architecture.agent-deployment-protocol.077">Action values</h3>
                     <table>
-                        <thead><tr><th>Action</th><th>Effect</th></tr></thead>
+                        <thead><tr><th data-i18n="docs.auto.architecture.agent-deployment-protocol.078">Action</th><th data-i18n="docs.auto.architecture.agent-deployment-protocol.079">Effect</th></tr></thead>
                         <tbody>
-                            <tr><td><code>start</code></td><td>Bring the service up now.  No-op if already running.</td></tr>
-                            <tr><td><code>stop</code></td><td>Take the service down now.  No-op if already stopped.</td></tr>
-                            <tr><td><code>restart</code></td><td>Stop, then start.</td></tr>
-                            <tr><td><code>enable</code></td><td>Mark the service to start on boot.  Does NOT start it now.</td></tr>
-                            <tr><td><code>disable</code></td><td>Mark the service to NOT start on boot.  Does NOT stop it now.</td></tr>
+                            <tr><td data-i18n="docs.auto.architecture.agent-deployment-protocol.080"><code>start</code></td><td data-i18n="docs.auto.architecture.agent-deployment-protocol.081">Bring the service up now.  No-op if already running.</td></tr>
+                            <tr><td data-i18n="docs.auto.architecture.agent-deployment-protocol.082"><code>stop</code></td><td data-i18n="docs.auto.architecture.agent-deployment-protocol.083">Take the service down now.  No-op if already stopped.</td></tr>
+                            <tr><td data-i18n="docs.auto.architecture.agent-deployment-protocol.084"><code>restart</code></td><td data-i18n="docs.auto.architecture.agent-deployment-protocol.085">Stop, then start.</td></tr>
+                            <tr><td data-i18n="docs.auto.architecture.agent-deployment-protocol.086"><code>enable</code></td><td data-i18n="docs.auto.architecture.agent-deployment-protocol.087">Mark the service to start on boot.  Does NOT start it now.</td></tr>
+                            <tr><td data-i18n="docs.auto.architecture.agent-deployment-protocol.088"><code>disable</code></td><td data-i18n="docs.auto.architecture.agent-deployment-protocol.089">Mark the service to NOT start on boot.  Does NOT stop it now.</td></tr>
                         </tbody>
                     </table>
 
-                    <h3>Privilege requirement</h3>
-                    <p>The handler refuses to operate when the agent is not running in privileged mode (<code>is_running_privileged()</code> returns false).  In unprivileged mode the response is <code>{"success": false, "error": "Service control requires privileged mode"}</code> — the caller is expected to surface that to the operator and request elevated re-deployment.</p>
+                    <h3 data-i18n="docs.auto.architecture.agent-deployment-protocol.090">Privilege requirement</h3>
+                    <p data-i18n="docs.auto.architecture.agent-deployment-protocol.091">The handler refuses to operate when the agent is not running in privileged mode (<code>is_running_privileged()</code> returns false).  In unprivileged mode the response is <code>{"success": false, "error": "Service control requires privileged mode"}</code> — the caller is expected to surface that to the operator and request elevated re-deployment.</p>
 
-                    <h3>Response</h3>
+                    <h3 data-i18n="docs.auto.architecture.agent-deployment-protocol.092">Response</h3>
 <pre class="json-example">
 {
     "success": true,
@@ -228,36 +228,36 @@
     "message": "Service restart completed for 2 services"
 }
 </pre>
-                    <p><code>success</code> is true iff EVERY service in the list completed successfully.  Per-service outcomes are in <code>results</code>.</p>
+                    <p data-i18n="docs.auto.architecture.agent-deployment-protocol.093"><code>success</code> is true iff EVERY service in the list completed successfully.  Per-service outcomes are in <code>results</code>.</p>
                 </section>
 
                 <!-- ========================================================= -->
                 <section>
-                    <h2>Versioning &amp; backwards compatibility</h2>
-                    <p>These three messages are the open-source contract every Pro+ release ships against.  Backwards-incompatible changes to any of the request or response shapes documented above require:</p>
+                    <h2 data-i18n="docs.auto.architecture.agent-deployment-protocol.094">Versioning &amp; backwards compatibility</h2>
+                    <p data-i18n="docs.auto.architecture.agent-deployment-protocol.095">These three messages are the open-source contract every Pro+ release ships against.  Backwards-incompatible changes to any of the request or response shapes documented above require:</p>
                     <ul>
-                        <li>A new <code>command_type</code> string (e.g., <code>deploy_files_v2</code>) — never an in-place schema change.</li>
-                        <li>A migration path documented in the agent release notes.</li>
-                        <li>A version-detection probe so older Pro+ engines can fall back to the previous wire format.</li>
+                        <li data-i18n="docs.auto.architecture.agent-deployment-protocol.096">A new <code>command_type</code> string (e.g., <code>deploy_files_v2</code>) — never an in-place schema change.</li>
+                        <li data-i18n="docs.auto.architecture.agent-deployment-protocol.097">A migration path documented in the agent release notes.</li>
+                        <li data-i18n="docs.auto.architecture.agent-deployment-protocol.098">A version-detection probe so older Pro+ engines can fall back to the previous wire format.</li>
                     </ul>
-                    <p>Adding optional new fields to existing messages is safe and does not require versioning, provided the agent treats unknown fields as no-ops.</p>
+                    <p data-i18n="docs.auto.architecture.agent-deployment-protocol.099">Adding optional new fields to existing messages is safe and does not require versioning, provided the agent treats unknown fields as no-ops.</p>
                 </section>
 
                 <!-- ========================================================= -->
                 <section>
-                    <h2>Implementation references</h2>
+                    <h2 data-i18n="docs.auto.architecture.agent-deployment-protocol.100">Implementation references</h2>
                     <ul>
-                        <li><strong>Agent handlers:</strong> <code>sysmanage-agent/src/sysmanage_agent/operations/generic_deployment.py</code> (<code>deploy_files</code>, <code>execute_command_sequence</code>); <code>sysmanage-agent/src/sysmanage_agent/core/agent_utils.py</code> (<code>_handle_service_control</code>, <code>_build_service_control_cmd</code>).</li>
-                        <li><strong>Tests:</strong> <code>sysmanage-agent/tests/test_generic_deployment.py</code>, <code>sysmanage-agent/tests/test_agent_utils_comprehensive.py::TestServiceControlNewActions</code>, <code>sysmanage-agent/tests/test_agent_utils_comprehensive.py::TestBuildServiceControlCmd</code>.</li>
-                        <li><strong>Pro+ callers:</strong> <code>av_management_engine</code>, <code>firewall_orchestration_engine</code>, and <code>container_engine</code> all generate plans that ultimately call these three messages.</li>
+                        <li data-i18n="docs.auto.architecture.agent-deployment-protocol.101"><strong>Agent handlers:</strong> <code>sysmanage-agent/src/sysmanage_agent/operations/generic_deployment.py</code> (<code>deploy_files</code>, <code>execute_command_sequence</code>); <code>sysmanage-agent/src/sysmanage_agent/core/agent_utils.py</code> (<code>_handle_service_control</code>, <code>_build_service_control_cmd</code>).</li>
+                        <li data-i18n="docs.auto.architecture.agent-deployment-protocol.102"><strong>Tests:</strong> <code>sysmanage-agent/tests/test_generic_deployment.py</code>, <code>sysmanage-agent/tests/test_agent_utils_comprehensive.py::TestServiceControlNewActions</code>, <code>sysmanage-agent/tests/test_agent_utils_comprehensive.py::TestBuildServiceControlCmd</code>.</li>
+                        <li data-i18n="docs.auto.architecture.agent-deployment-protocol.103"><strong>Pro+ callers:</strong> <code>av_management_engine</code>, <code>firewall_orchestration_engine</code>, and <code>container_engine</code> all generate plans that ultimately call these three messages.</li>
                     </ul>
                 </section>
 
                 <section class="docs-navigation">
-                    <h3>Navigation</h3>
+                    <h3 data-i18n="docs.auto.architecture.agent-deployment-protocol.104">Navigation</h3>
                     <div class="nav-links">
-                        <a href="websocket-protocol.html" class="nav-link">← WebSocket Protocol</a>
-                        <a href="message-flow.html" class="nav-link">Message Flow →</a>
+                        <a href="websocket-protocol.html" class="nav-link" data-i18n="docs.auto.architecture.agent-deployment-protocol.105">← WebSocket Protocol</a>
+                        <a href="message-flow.html" class="nav-link" data-i18n="docs.auto.architecture.agent-deployment-protocol.106">Message Flow →</a>
                     </div>
                 </section>
 
