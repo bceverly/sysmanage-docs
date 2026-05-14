@@ -185,7 +185,7 @@ Legend: ✅ documented · ⚠️ partial / generic mention only · ❌ missing.
 | firewall_orchestration_engine | `firewall-orchestration-engine.html` | ✅ |
 | fleet_engine | `fleet-engine.html` | ✅ |
 | health_engine | `health-analysis.html` | ✅ |
-| **observability_engine** | — | ❌ **CREATE** |
+| observability_engine | `professional-plus/observability-engine.html` | ✅ (covers v0.7.1: multiplatform deploy/remove, service control, Grafana connect/disconnect, Graylog Linux-autodetect / BSD-append / Windows-sidecar-no-token, dispatch model, audit-log fields) |
 | reporting_engine | `reporting.html` | ✅ |
 | secrets_engine | `secrets.html` | ✅ |
 | **virtualization_engine** | — | ❌ **CREATE** |
@@ -227,7 +227,7 @@ recently-added engines aren't yet placed:
 | automation_engine | Enterprise | ✅ |
 | fleet_engine | Enterprise | ✅ |
 | virtualization_engine | Enterprise | ❌ — only mentioned as bullet |
-| observability_engine | Enterprise | ❌ |
+| observability_engine | Enterprise | ✅ |
 
 ---
 
@@ -246,7 +246,7 @@ After fixing the gaps above we need to:
 ## 6. Priority ordering for fix-pass
 
 1. **virtualization_engine** doc — recently delivered Phase 10.1 work, no docs.
-2. **observability_engine** doc — Phase 10.2 work, no docs.
+2. ~~**observability_engine** doc — Phase 10.2 work, no docs.~~ — covered as of 2026-05-14, engine v0.7.1.
 3. **child-hosts UI walkthrough** — KVM/bhyve/VMM/LXD/WSL create/delete/start/stop dialogs are undocumented.
 4. **Settings page** — OpenTelemetry, Graylog, AV defaults, firewall defaults, branding, SMTP, auto-approve tokens, access groups, registration keys, upgrade profiles, package compliance.
 5. **OSS one-shot script run** + **OSS reboot button** — to disambiguate from Pro+ Automation / Reboot Orchestration.
