@@ -84,15 +84,32 @@
 
                 <section class="docs-section">
                     <h2 data-i18n="pro_plus.observability_engine.endpoints.title">API Endpoints</h2>
+                    <p data-i18n="pro_plus.observability_engine.endpoints.intro">All endpoints live under the <code>/api/v1/observability</code> prefix. Auth: bearer JWT. Each engine-driven endpoint also requires the corresponding Pro+ feature flag to be present in the active license; without it the route returns HTTP 402.</p>
+
+                    <h3 data-i18n="pro_plus.observability_engine.endpoints.otel.title">OpenTelemetry collector</h3>
                     <ul>
-                        <li data-i18n="docs.auto.professional-plus.observability-engine.001"><code>POST /api/v1/observability/otel/deploy</code> &mdash; deploy the collector to one or more hosts</li>
-                        <li data-i18n="docs.auto.professional-plus.observability-engine.002"><code>POST /api/v1/observability/otel/{action}</code> &mdash; lifecycle: start / stop / restart / uninstall</li>
-                        <li data-i18n="docs.auto.professional-plus.observability-engine.003"><code>GET  /api/v1/observability/otel/status</code> &mdash; per-host OTEL service status</li>
-                        <li data-i18n="docs.auto.professional-plus.observability-engine.004"><code>POST /api/v1/observability/graylog/attach</code> &mdash; attach a host (or set of hosts) to a Graylog input</li>
-                        <li data-i18n="docs.auto.professional-plus.observability-engine.005"><code>POST /api/v1/observability/graylog/detach</code> &mdash; detach</li>
-                        <li data-i18n="docs.auto.professional-plus.observability-engine.006"><code>GET  /api/v1/observability/graylog/status</code> &mdash; per-host attach state + source list</li>
-                        <li data-i18n="docs.auto.professional-plus.observability-engine.007"><code>POST /api/v1/observability/grafana/connect</code> &mdash; register a Grafana instance and provision dashboards</li>
-                        <li data-i18n="docs.auto.professional-plus.observability-engine.008"><code>GET  /api/v1/observability/grafana/dashboards</code> &mdash; list provisioned dashboards</li>
+                        <li data-i18n="docs.auto.professional-plus.observability-engine.001"><code>POST /api/v1/observability/otel/{host_id}/status</code> &mdash; queue a status-check plan against the host's OTEL collector.</li>
+                        <li data-i18n="docs.auto.professional-plus.observability-engine.002"><code>POST /api/v1/observability/otel/{host_id}/deploy</code> &mdash; deploy / re-deploy the collector config (assumes the binary is already installed on the host).</li>
+                        <li data-i18n="docs.auto.professional-plus.observability-engine.003"><code>POST /api/v1/observability/otel/{host_id}/remove</code> &mdash; stop, disable, and remove the OTEL config on a host.</li>
+                        <li data-i18n="pro_plus.observability_engine.endpoints.otel.multiplatform_deploy"><code>POST /api/v1/observability/otel/{host_id}/multiplatform-deploy</code> &mdash; full install + configure + start for any of seven platforms (<code>linux_apt</code>, <code>linux_dnf</code>, <code>freebsd</code>, <code>openbsd</code>, <code>netbsd</code>, <code>macos</code>, <code>windows</code>). Body: <code>{platform, grafana_url}</code>. FreeBSD installs Grafana Alloy (River-DSL config) instead of otelcol-contrib; every other platform installs the upstream <code>otelcol-contrib</code> via its native package manager.</li>
+                        <li data-i18n="pro_plus.observability_engine.endpoints.otel.multiplatform_remove"><code>POST /api/v1/observability/otel/{host_id}/{platform}/multiplatform-remove</code> &mdash; symmetric: stop service, uninstall package, remove config dir (Windows skips the explicit config-dir cleanup because Chocolatey owns it).</li>
+                    </ul>
+
+                    <h3 data-i18n="pro_plus.observability_engine.endpoints.graylog.title">Graylog deployment</h3>
+                    <ul>
+                        <li data-i18n="docs.auto.professional-plus.observability-engine.004"><code>POST /api/v1/observability/graylog/{host_id}/deploy</code> &mdash; deploy the Graylog Sidecar config (Linux + Windows).</li>
+                        <li data-i18n="docs.auto.professional-plus.observability-engine.005"><code>POST /api/v1/observability/graylog/{host_id}/status</code> &mdash; queue a sidecar status check.</li>
+                        <li data-i18n="docs.auto.professional-plus.observability-engine.006"><code>POST /api/v1/observability/graylog/{host_id}/{platform}/remove</code> &mdash; tear the sidecar down.</li>
+                        <li data-i18n="pro_plus.observability_engine.endpoints.graylog.rsyslog"><code>POST /api/v1/observability/graylog/{host_id}/rsyslog-deploy</code> &mdash; configure rsyslog to forward to Graylog. Body: <code>{graylog_server, port, mechanism}</code> where <code>mechanism</code> is <code>syslog_tcp</code>, <code>syslog_udp</code>, or <code>gelf_tcp</code>. Writes <code>/etc/rsyslog.d/60-graylog.conf</code> and restarts the daemon.</li>
+                        <li data-i18n="pro_plus.observability_engine.endpoints.graylog.syslog_ng"><code>POST /api/v1/observability/graylog/{host_id}/syslog-ng-deploy</code> &mdash; configure syslog-ng with the same three forwarder mechanisms. Writes <code>/etc/syslog-ng/conf.d/60-graylog.conf</code>.</li>
+                        <li data-i18n="pro_plus.observability_engine.endpoints.graylog.bsd_syslog"><code>POST /api/v1/observability/graylog/{host_id}/bsd-syslog-deploy</code> &mdash; configure BSD stock syslogd. Body adds <code>{bsd_variant, existing_config}</code>: caller fetches the host's current <code>/etc/syslog.conf</code> and passes it as <code>existing_config</code>; the engine performs an idempotent merge that preserves unrelated forwarding rules. <code>bsd_variant</code> selects the restart command (<code>service syslogd restart</code> on FreeBSD, <code>rcctl restart syslogd</code> on OpenBSD/NetBSD). GELF is rejected at the validator (stock BSD syslogd can't speak it).</li>
+                        <li data-i18n="pro_plus.observability_engine.endpoints.graylog.sidecar_install"><code>POST /api/v1/observability/graylog/{host_id}/sidecar-install</code> &mdash; Windows-only. Downloads the upstream <code>graylog-sidecar-installer-{amd64|386}.exe</code> from Graylog's GitHub releases and runs it silently (<code>/S</code>). Pair with the deploy endpoint above to drop <code>sidecar.yml</code> once the binary is present.</li>
+                    </ul>
+
+                    <h3 data-i18n="pro_plus.observability_engine.endpoints.grafana.title">Grafana / telemetry routing</h3>
+                    <ul>
+                        <li data-i18n="docs.auto.professional-plus.observability-engine.007"><code>POST /api/v1/observability/grafana/{host_id}/provision</code> &mdash; upload datasources + dashboards via the Grafana HTTP API on behalf of the server.</li>
+                        <li data-i18n="docs.auto.professional-plus.observability-engine.008"><code>POST /api/v1/observability/routing/{host_id}/apply</code> &mdash; apply per-host telemetry routing rules; merges with the host's base OTEL pipelines.</li>
                     </ul>
                 </section>
 
