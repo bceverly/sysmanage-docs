@@ -16705,6 +16705,18 @@
           },
           "title": "🛡 ️ Schwachstellenscan",
           "link": "Leitfaden zum Scannen von Sicherheitslücken &#8594;"
+        },
+        "federation": {
+          "title": "🌐 Multi-Site-Föderation",
+          "description": "Hierarchische Multi-Server-Architektur für geografisch verteilte Unternehmen. Ein koordinierender Föderations-Controller aggregiert Host-Inventar, Compliance und Befehlsversand über viele untergeordnete Standortserver hinweg.",
+          "features": {
+            "registry": "Standortserver-Registry + sichere mTLS-Einschreibung",
+            "directory": "Host-Directory-Tier für 1M-Host-Flotten dimensioniert",
+            "policy": "Polymorphe Richtlinien-Übertragung mit Erkennung veralteter Versionen",
+            "dispatch": "Standortübergreifender Befehlsversand mit Terminal-Status-FSM",
+            "audit": "Föderations-Auditprotokoll + geografische Standortkarte"
+          },
+          "link": "Multi-Site-Föderation Leitfaden →"
         }
       },
       "overview": {
@@ -17926,6 +17938,99 @@
           "risk": "Gesamtrisikobewertung und Risikostufe",
           "title": "Scan-Ergebnisse anzeigen"
         }
+      }
+    },
+    "federation": {
+      "page_title": "Multi-Site-Föderation - SysManage Professional+",
+      "meta_description": "Hierarchische Multi-Server-Architektur für geografisch verteilte Unternehmensbereitstellungen — ein koordinierender Server aggregiert Host-Inventar, Compliance und Befehlsversand über viele untergeordnete Standortserver hinweg.",
+      "breadcrumb": "Multi-Site-Föderation",
+      "header": {
+        "title": "Multi-Site-Föderation",
+        "description": "Ein koordinierender SysManage-Server aggregiert Host-Inventar, Compliance-Status, Schwachstellenexposition und ausgegebene Befehle über viele untergeordnete Standortserver hinweg, die unabhängig in jedem Rechenzentrum, jeder Niederlassung oder Cloud-Region laufen."
+      },
+      "overview": {
+        "title": "Übersicht",
+        "problem": "Große Unternehmen betreiben Rechenzentren, Niederlassungen und Cloud-Regionen an verschiedenen geografischen Standorten. Die Verwaltung tausender Hosts von einem einzigen SysManage-Server erzeugt Skalierungsengpässe, Netzwerklatenz und Single-Point-of-Failure-Risiken.",
+        "solution": "Die Föderations-Pro+ Enterprise SKU führt eine hierarchische Architektur ein: viele untergeordnete Standortserver arbeiten autonom an jedem Standort, während ein Föderations-Controller Daten aggregiert und Befehle über das gesamte Unternehmen verteilt. Der Controller spricht nie direkt mit Agenten — alles fließt über Standortserver, was die lokale Autonomie bei Netzwerktrennungen bewahrt."
+      },
+      "modules": {
+        "title": "Engine-Module",
+        "intro": "Föderation wird als zwei Pro+ Engines in einer Enterprise-Lizenz ausgeliefert — ein Server läuft jeweils in genau einer Rolle, ausgewählt durch role: in sysmanage.yaml.",
+        "controller": {
+          "title": "Föderations-Controller-Engine",
+          "description": "Wird auf dem koordinierenden Server geladen. Besitzt die Standort-Registry, akzeptiert Upstream-Rollup-Pushes von Standorten, stellt standortübergreifende Host-Suche bereit, treibt Richtlinien-Push und Befehlsversand an und schreibt das Föderations-Auditprotokoll.",
+          "features": {
+            "registry": "Standortserver-Registry: einschreiben, aussetzen, fortsetzen, entfernen",
+            "enrollment": "Sicherer Einschreibe-Workflow mit gegenseitiger TLS-Zertifikatsbindung",
+            "directory": "Host-Directory-Tier (~1 KB × 1M-Host-Ziel ≈ 1 GB)",
+            "rollup": "Aggregat-Rollups: Hostanzahl, Compliance-Scores, CVE-Exposition",
+            "policy": "Polymorphe Richtlinien-Übertragung (Update-Profile, Firewall-Rollen, Compliance-Baselines) mit Veraltete-Versions-Erkennung",
+            "dispatch": "Befehlsversand mit strikter FSM (in Warteschlange → in Bearbeitung → Terminal)"
+          }
+        },
+        "site": {
+          "title": "Föderations-Standort-Engine",
+          "description": "Wird auf jedem untergeordneten Standortserver geladen. Verwaltet die eingehende Seite des Föderationsprotokolls (Einschreibung, Annahme von Richtlinien-Pushes, Annahme verteilter Befehle) und leert eine ausgehende Sync-Queue stromaufwärts.",
+          "features": {
+            "enrollment": "Koordinator-Einschreibung + Handshake",
+            "upstream": "Upstream-Datensynchronisation (Host-Deltas, Compliance- + Schwachstellen-Snapshots)",
+            "downstream": "Downstream-Richtlinien- + Befehls-Posteingänge",
+            "offline": "Offline-Queue mit Deduplizierung bei Wiedergabe",
+            "autonomy": "Lokaler Autonomie-Modus — Agenten berichten weiter und Befehle laufen lokal, wenn der Koordinator nicht erreichbar ist"
+          }
+        }
+      },
+      "architecture": {
+        "title": "Datenarchitektur",
+        "intro": "Föderationsdaten sind in drei Schichten aufgeteilt, absichtlich so partitioniert, dass der Koordinator linear mit Standorten statt mit Hosts skaliert:",
+        "aggregate": {
+          "title": "Aggregat-Schicht",
+          "body": " (Koordinator) — eine Zeile pro Standort pro Metrik. Hostanzahl, gesund/ungesund-Verhältnis, Compliance %, Top-CVEs nach Schweregrad, Alarmzahlen, Zeitstempel der letzten Synchronisation."
+        },
+        "directory": {
+          "title": "Host-Directory-Schicht",
+          "body": " (Koordinator) — eine Zeile pro Host flottenweit, die nur die Spalten enthält, nach denen Operatoren filtern. Dimensioniert für ~1 KB × 1M Hosts."
+        },
+        "detail": {
+          "title": "Detail-Schicht",
+          "body": " (Standorte) — vollständiges Software-Inventar, Zertifikatsketten, Auditprotokoll-Inhalte, OS-spezifische Fakten. Wird nie stromaufwärts repliziert; Drill-Down-Abfragen werden an den Ursprungsstandort weitergeleitet."
+        }
+      },
+      "ui": {
+        "title": "Koordinator-UI",
+        "intro": "Wenn die Föderations-Controller-Engine geladen ist, werden mehrere neue Seiten in der SysManage-Web-UI verfügbar:",
+        "sites": {
+          "title": "Standorte",
+          "body": " (/sites) — Kartenraster eingeschriebener Standorte mit Status-Ampel, letzter Sync, Hostanzahl. „Standort einschreiben\"-Schaltfläche erzeugt einen einmaligen Einschreibetoken zur Übergabe an den neuen Standortserver."
+        },
+        "detail": {
+          "title": "Standortdetail",
+          "body": " (/sites/:siteId) — Standortmetadaten, Verbindungskarte und Lebenszyklusaktionen (Aussetzen / Fortsetzen / Entfernen). „Hosts anzeigen\" verlinkt in die Hosts-Seite gefiltert nach diesem Standort; „Auditprotokoll anzeigen\" verlinkt vorgefiltert ins Auditprotokoll."
+        },
+        "map": {
+          "title": "Standortkarte",
+          "body": " (/sites/map) — geografische Leaflet-Karte jedes Standorts an seinen (lat, lng)-Koordinaten. Klicken Sie auf Marker für Popup-Details + Deep-Link in Standortdetail."
+        },
+        "policies": {
+          "title": "Richtlinien",
+          "body": " (/federation/policies) — CRUD für koordinator-definierte Richtlinien (Update-Profile, Firewall-Rollen, Compliance-Baselines). Mehreren Standorten zuweisen, sofort übertragen, deaktivieren."
+        },
+        "audit": {
+          "title": "Föderations-Auditprotokoll",
+          "body": " (/audit/federation) — jede standortübergreifende Operation (Einschreibung, Aussetzen/Fortsetzen/Entfernen, Richtlinien-Push, Befehlsversand) mit URL-teilbaren Filtern nach Standort, Operation und Akteur."
+        }
+      },
+      "enrollment": {
+        "title": "Einen Standort einschreiben",
+        "step1": "Klicken Sie auf der Sites-Seite des Koordinators auf „Standort einschreiben\" und füllen Sie Name, URL und eine optionale Standortbezeichnung aus. Die Standard-Token-TTL beträgt 24 Stunden.",
+        "step2": "Kopieren Sie den angezeigten Einschreibetoken einmalig — er ist danach nicht wiederherstellbar.",
+        "step3": "Führen Sie auf dem neuen Standortserver den Föderations-Einschreibebefehl mit Koordinator-URL + Token aus. Die Standort-Engine präsentiert den Token über mTLS zum Abschluss des Handshakes.",
+        "step4": "Nach erfolgreichem Handshake wechselt der Standort beim Koordinator in den Status „enrolled\", der Token-Hash wird gelöscht und der enrolled_at-Zeitstempel gesetzt.",
+        "regenerate": "Wenn der Token leakt oder abläuft, bevor der Standort die Einschreibung abschließt, verwenden Sie „Token regenerieren\" auf der Standortdetailseite, um den alten zu invalidieren und einen neuen Wert auszustellen."
+      },
+      "licensing": {
+        "title": "Lizenzierung",
+        "body": "Föderation ist Teil der SysManage Enterprise-Stufe. Die Enterprise-Lizenz berechtigt eine Bereitstellung, entweder die Föderations-Controller-Engine oder die Föderations-Standort-Engine auf jedem Server zu laden — die Rolle wird in sysmanage.yaml konfiguriert. Bei Community / Professional-Installationen geben die Föderations-API-Endpunkte 403 pro_plus_required zurück, und die UI rendert auf jeder Föderationsseite ein Enterprise-Upsell."
       }
     }
   },

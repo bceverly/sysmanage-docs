@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en" data-i18n-title="pro_plus.federation.page_title">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title data-i18n="pro_plus.federation.page_title">Multi-Site Federation - SysManage Professional+</title>
+    <meta name="description" content="Hierarchical multi-server architecture for geographically distributed enterprise deployments — a coordinating server aggregates host inventory, compliance, and command dispatch across many subordinate site servers." data-i18n-attr="content" data-i18n="pro_plus.federation.meta_description">
+    <link rel="stylesheet" href="../../assets/css/style.css">
+    <link rel="icon" type="image/svg+xml" href="../../assets/images/favicon.svg">
+</head>
+<body data-auto-header="documentation" data-auto-footer>
+
+    <main class="docs-main">
+        <div class="container">
+            <div class="docs-breadcrumb">
+                <a href="../" data-i18n="nav.documentation">Documentation</a> &gt;
+                <a href="./" data-i18n="pro_plus.breadcrumb">Professional+</a> &gt;
+                <span data-i18n="pro_plus.federation.breadcrumb">Multi-Site Federation</span>
+            </div>
+
+            <div class="docs-header">
+                <div class="pro-plus-badge">&#11088; PRO+ ENTERPRISE</div>
+                <h1 data-i18n="pro_plus.federation.header.title">Multi-Site Federation</h1>
+                <p data-i18n="pro_plus.federation.header.description">A coordinating SysManage server aggregates host inventory, compliance posture, vulnerability exposure, and dispatched commands across many subordinate site servers running independently at each data center, branch office, or cloud region.</p>
+            </div>
+
+            <div class="docs-content">
+
+                <section class="docs-overview">
+                    <h2 data-i18n="pro_plus.federation.overview.title">Overview</h2>
+                    <p data-i18n="pro_plus.federation.overview.problem">Large enterprises operate data centers, branch offices, and cloud regions across multiple geographic locations. Managing thousands of hosts from a single SysManage server creates scalability bottlenecks, network latency issues, and single-point-of-failure risk.</p>
+                    <p data-i18n="pro_plus.federation.overview.solution">The federation Pro+ Enterprise SKU introduces a hierarchical architecture: many <strong>subordinate site servers</strong> operate autonomously at each site, while a <strong>Federation Controller</strong> aggregates data and dispatches commands across the entire enterprise. The controller never talks to agents directly &mdash; everything flows through site servers, preserving local-autonomy semantics if a network partition isolates a site.</p>
+                </section>
+
+                <section class="docs-section">
+                    <h2 data-i18n="pro_plus.federation.modules.title">Engine Modules</h2>
+                    <p data-i18n="pro_plus.federation.modules.intro">Federation ships as two Pro+ engines in one Enterprise license &mdash; a server runs exactly one role at a time, picked by <code>role:</code> in <code>sysmanage.yaml</code>.</p>
+
+                    <div class="docs-section-card">
+                        <h3 data-i18n="pro_plus.federation.modules.controller.title">Federation Controller Engine</h3>
+                        <p data-i18n="pro_plus.federation.modules.controller.description">Loaded on the coordinating server. Owns the site registry, accepts upstream rollup pushes from sites, exposes cross-site host search, drives policy push and command dispatch, and writes the federation audit log.</p>
+                        <ul>
+                            <li data-i18n="pro_plus.federation.modules.controller.features.registry">Site server registry: enroll, suspend, resume, remove</li>
+                            <li data-i18n="pro_plus.federation.modules.controller.features.enrollment">Secure enrollment workflow with mutual-TLS certificate pinning</li>
+                            <li data-i18n="pro_plus.federation.modules.controller.features.directory">Host-directory tier (~1&nbsp;KB &times; 1M-host target &asymp; 1&nbsp;GB)</li>
+                            <li data-i18n="pro_plus.federation.modules.controller.features.rollup">Aggregate rollups: host counts, compliance scores, CVE exposure</li>
+                            <li data-i18n="pro_plus.federation.modules.controller.features.policy">Polymorphic policy push (update profiles, firewall roles, compliance baselines) with stale-version detection</li>
+                            <li data-i18n="pro_plus.federation.modules.controller.features.dispatch">Command dispatch with a strict FSM (queued &rarr; in-progress &rarr; terminal)</li>
+                        </ul>
+                    </div>
+
+                    <div class="docs-section-card">
+                        <h3 data-i18n="pro_plus.federation.modules.site.title">Federation Site Engine</h3>
+                        <p data-i18n="pro_plus.federation.modules.site.description">Loaded on every subordinate site server. Handles the inbound side of the federation protocol (enroll, accept policy pushes, accept dispatched commands) and drains an outbound sync queue back upstream.</p>
+                        <ul>
+                            <li data-i18n="pro_plus.federation.modules.site.features.enrollment">Coordinator enrollment + handshake</li>
+                            <li data-i18n="pro_plus.federation.modules.site.features.upstream">Upstream data sync (host deltas, compliance + vulnerability snapshots)</li>
+                            <li data-i18n="pro_plus.federation.modules.site.features.downstream">Downstream policy + command inboxes</li>
+                            <li data-i18n="pro_plus.federation.modules.site.features.offline">Offline queue with deduplication-on-replay</li>
+                            <li data-i18n="pro_plus.federation.modules.site.features.autonomy">Local autonomy mode &mdash; agents continue reporting and commands run locally when the coordinator is unreachable</li>
+                        </ul>
+                    </div>
+                </section>
+
+                <section class="docs-section">
+                    <h2 data-i18n="pro_plus.federation.architecture.title">Data Architecture</h2>
+                    <p data-i18n="pro_plus.federation.architecture.intro">Federation data is split into three tiers, deliberately partitioned so the coordinator scales linearly with sites rather than with hosts:</p>
+                    <ol>
+                        <li>
+                            <strong data-i18n="pro_plus.federation.architecture.aggregate.title">Aggregate tier</strong>
+                            <span data-i18n="pro_plus.federation.architecture.aggregate.body"> (coordinator) &mdash; one row per site per metric. Host count, healthy/unhealthy ratio, compliance %, top CVEs by severity, alert counts, last-sync timestamp.</span>
+                        </li>
+                        <li>
+                            <strong data-i18n="pro_plus.federation.architecture.directory.title">Host-directory tier</strong>
+                            <span data-i18n="pro_plus.federation.architecture.directory.body"> (coordinator) &mdash; one row per host fleet-wide, holding only the columns operators filter on (hostname, IP, OS, status, geo, tags). Sized for ~1&nbsp;KB &times; 1M hosts.</span>
+                        </li>
+                        <li>
+                            <strong data-i18n="pro_plus.federation.architecture.detail.title">Detail tier</strong>
+                            <span data-i18n="pro_plus.federation.architecture.detail.body"> (sites) &mdash; full software inventory, certificate chains, audit log bodies, OS-specific facts. Never replicated upstream; drill-down queries are proxied to the originating site.</span>
+                        </li>
+                    </ol>
+                </section>
+
+                <section class="docs-section">
+                    <h2 data-i18n="pro_plus.federation.ui.title">Coordinator UI</h2>
+                    <p data-i18n="pro_plus.federation.ui.intro">When the federation controller engine is loaded, several new pages become available in the SysManage web UI:</p>
+                    <ul>
+                        <li>
+                            <strong data-i18n="pro_plus.federation.ui.sites.title">Sites</strong>
+                            <span data-i18n="pro_plus.federation.ui.sites.body"> (<code>/sites</code>) &mdash; card grid of enrolled sites with status traffic light, last-sync, host count. "Enroll Site" button generates a one-time enrollment token for delivery to the new site server.</span>
+                        </li>
+                        <li>
+                            <strong data-i18n="pro_plus.federation.ui.detail.title">Site detail</strong>
+                            <span data-i18n="pro_plus.federation.ui.detail.body"> (<code>/sites/:siteId</code>) &mdash; per-site metadata, connection card, and lifecycle actions (Suspend / Resume / Remove). "See hosts" deep-links into the Hosts page filtered by this site; "View audit log" deep-links the audit log viewer pre-filtered.</span>
+                        </li>
+                        <li>
+                            <strong data-i18n="pro_plus.federation.ui.map.title">Sites map</strong>
+                            <span data-i18n="pro_plus.federation.ui.map.body"> (<code>/sites/map</code>) &mdash; geographic Leaflet map of every site at its operator-supplied <code>(lat, lng)</code>. Click markers for popup details + deep-link into site detail.</span>
+                        </li>
+                        <li>
+                            <strong data-i18n="pro_plus.federation.ui.policies.title">Policies</strong>
+                            <span data-i18n="pro_plus.federation.ui.policies.body"> (<code>/federation/policies</code>) &mdash; CRUD on coordinator-defined policies (update profiles, firewall roles, compliance baselines). Assign to multiple sites, push immediately, deactivate.</span>
+                        </li>
+                        <li>
+                            <strong data-i18n="pro_plus.federation.ui.audit.title">Federation audit log</strong>
+                            <span data-i18n="pro_plus.federation.ui.audit.body"> (<code>/audit/federation</code>) &mdash; every cross-site operation (enrollment, suspend/resume/remove, policy push, command dispatch) with URL-shareable filters by site, operation, and actor.</span>
+                        </li>
+                    </ul>
+                </section>
+
+                <section class="docs-section">
+                    <h2 data-i18n="pro_plus.federation.enrollment.title">Enrolling a Site</h2>
+                    <ol>
+                        <li data-i18n="pro_plus.federation.enrollment.step1">On the coordinator's Sites page, click <strong>Enroll Site</strong> and fill in name, URL, and an optional location label. The default token TTL is 24 hours.</li>
+                        <li data-i18n="pro_plus.federation.enrollment.step2">Copy the displayed enrollment token <strong>once</strong> &mdash; it is not retrievable afterwards.</li>
+                        <li data-i18n="pro_plus.federation.enrollment.step3">On the new site server, run the federation enroll command with the coordinator URL + the token. The site engine presents the token over mutual TLS to complete the handshake.</li>
+                        <li data-i18n="pro_plus.federation.enrollment.step4">After successful handshake, the site flips to <code>enrolled</code> status on the coordinator, the token hash is scrubbed, and the <code>enrolled_at</code> timestamp is stamped.</li>
+                    </ol>
+                    <p data-i18n="pro_plus.federation.enrollment.regenerate">If the token leaks or expires before the site completes enrollment, use <strong>Regenerate token</strong> on the site detail page to invalidate the old one and issue a fresh value.</p>
+                </section>
+
+                <section class="docs-section">
+                    <h2 data-i18n="pro_plus.federation.licensing.title">Licensing</h2>
+                    <p data-i18n="pro_plus.federation.licensing.body">Federation is part of the SysManage Enterprise tier. The Enterprise license entitles a deployment to load <strong>either</strong> the federation controller engine or the federation site engine on any server &mdash; the role is configured in <code>sysmanage.yaml</code>. On Community / Professional installs, the federation API endpoints return <code>403 pro_plus_required</code> and the UI renders an Enterprise upsell on every federation page.</p>
+                </section>
+
+            </div>
+        </div>
+    </main>
+
+</body>
+</html>
