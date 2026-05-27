@@ -2683,7 +2683,10 @@
           "step_iso": "ISO build — xorriso -as mkisofs bundles the staging tree into one ISO with the manifest embedded at /manifest.json. The post-build step computes the ISO's SHA-256 for the transfer log.",
           "step_sign": "Sign — the manifest is canonicalized (sorted keys, no whitespace) and signed with the operator's ed25519 private key. The envelope carries the signature, the SHA-256 of the public key as a fingerprint, the algorithm identifier, and the manifest format version.",
           "step_burn": "Burn — optional. POST /api/v1/airgap/collector/iso/burn wraps growisofs against the configured optical-drive device. The burn-step timeout ceiling is 4 hours so slow drives don't trip a watchdog mid-write.",
-          "multidisc_note": "Note on multi-disc spanning. v0.1.0 ships the single-disc happy path — if the staging tree exceeds the configured media size, the burn step fails at runtime. Multi-disc bin-packing is tracked as a Phase 11.1 follow-up. The schema already supports it (the manifest table carries disc_index + disc_count) so it lands additively."
+          "multidisc_note": "Note on multi-disc spanning. v0.1.0 ships the single-disc happy path — if the staging tree exceeds the configured media size, the burn step fails at runtime. Multi-disc bin-packing is tracked as a Phase 11.1 follow-up. The schema already supports it (the manifest table carries disc_index + disc_count) so it lands additively.",
+          "step_snapshot": "<strong>Auto-snapshot</strong> — at run creation, one snapshot is dispatched per target mirror. Each <code>AirgapCollectionTarget</code> row pins its <code>source_snapshot_id</code> to the placeholder snapshot row so the orchestrator knows which snapshot to bundle once the agent reports completion. Snapshots run in parallel; the run sits at <code>QUEUED</code> until every target's <code>last_snapshot_message_id</code> clears.",
+          "step_download": "<strong>Download</strong> — <code>GET /api/v1/airgap/collector/runs/{id}/iso</code> streams the ISO file. For multi-disc runs, <code>GET /runs/{id}/discs</code> lists the disc files and <code>/iso?disc=N</code> picks a specific one. The Air-Gap Collections UI auto-detects multi-disc runs and pops a picker dialog when the operator clicks Download.",
+          "lifecycle": "<strong>Lifecycle states the <code>airgap_run_tick</code> orchestrator drives:</strong> <code>QUEUED</code> (waiting on per-target snapshots) → <code>MIRRORING</code> (rsync from snapshot trees into staging) → <code>STAGING_COMPLETE</code> (single-disc only; multi-disc skips this) → <code>BUILDING_ISO</code> (xorriso) → <code>ISO_BUILT</code> → <code>BURNING</code> (only when <code>burn_device</code> set) → <code>COMPLETE</code>. Any failure transitions the run to <code>FAILED</code> with the surfaced error message visible in the UI status column."
         },
         "ingestion_cycle": {
           "title": "取り込みサイクル (リポジトリ側)",
@@ -3691,7 +3694,8 @@
           "gc": "スナップショットの保持は、 <code> snapshot_count_to_keep </code> によって管理されます。ガベージ コレクション プランは、スナップショットをアルファベット順 (= 時系列) にリストし、キープ カウントより古いものをすべて削除し、読み取り専用フラグを緩和した後、残りを <code> rm -rf </code> s で削除します。",
           "intro": "スナップショットは、ライブ ツリーの <code> rsync -aH --delete </code> を <code> {mirror_root}/{name}/.snapshots/{snapshot_id} </code> の兄弟読み取り専用ディレクトリにコピーします。スナップショット ID は並べ替え可能なタイムスタンプ ( <code> YYYYMMDDTHHMMSS </code> ) です。 rsync の後、エンジンは <code> chmod -R a-w </code> を実行するため、スナップショットをその場で変更することはできません。",
           "restore": "復元はその逆で、選択したスナップショットからライブ ツリーに rsync を戻します。ほとんどのミラー サーバー (httpd、nginx) はキャッシュオンステータスであり、ワーカー プロセス全体で反転を調整するよりもインプレース rsync のほうが推論が簡単であるため、エンジンはシンボリックリンクの反転を行いません。",
-          "title": "スナップショットと復元"
+          "title": "スナップショットと復元",
+          "sudoers": "<strong>Sudoers requirement.</strong> Both snapshot and restore plans invoke <code>sudo rsync</code> + <code>sudo chmod</code>. The sysmanage-agent's packaged sudoers fragment (<code>/etc/sudoers.d/sysmanage-agent</code> on Linux, <code>/etc/doas.d/sysmanage-agent</code> on OpenBSD) explicitly allows these — a missing rsync entry would surface as a fast-failing plan with sudo's \"user not allowed to run\" message in the agent's command_result. If you bake your own sudoers locally, mirror the allowlist from the installer's packaged file."
         },
         "supported": {
           "apt": "<strong> APT </strong> ( Debian / Ubuntu ) — <code> apt-mirror </code> とオプションの GPG 署名キーのフェッチを使用します。",
@@ -3728,6 +3732,16 @@
           "pkg": "<strong> パッケージ: </strong> <code> /usr/local/etc/pkg/repos/sysmanage-mirror.conf </code> FreeBSD リポジトリをオーバーライド + <code> パッケージ更新 -f </code>",
           "revert": "元に戻すは対称的です。各プランはオーバーライド ファイルを削除し、パッケージ マネージャーのメタデータ キャッシュを更新します。オペレーターが編集した構成 (元の <code>sources.list </code> 、ベンダー出荷の <code> .repo </code> ファイル) は決して変更されないため、適用と元に戻す間の手動編集は保持されます。",
           "api": "API サーフェス: カタログ ドロップダウンの場合は <code> GET /api/mirror-known-versions </code>、割り当てテーブルの場合は <code> GET /api/host-defaults/mirrors </code>、<code> PUT /api/host-defaults/mirrors/ {platform}/{version_key}/{os_family} <code> {mirror_id} </code> 本体を割り当てた </code>、またはクラウドに戻す <code> {mirror_id: null} </code>。"
+        },
+        "ux": {
+          "title": "Mirror status UX",
+          "intro": "The Settings → Repository Mirroring page renders one status chip per action (sync / snapshot / restore) on each mirror row, rather than collapsing every plan outcome onto a single \"Status\" column. Each chip carries its own state:",
+          "chip_idle": "<strong>Idle (muted)</strong> — that action has never run on this mirror.",
+          "chip_inflight": "<strong>In flight (spinner + elapsed)</strong> — the dispatch endpoint stamped a <code>last_&lt;action&gt;_message_id</code> at dispatch; the result handler clears it. The chip shows a tiny spinner and \"Nm ago\" so operators can see at a glance that a long sync hasn't stalled.",
+          "chip_success": "<strong>Success</strong> — chip is green; hover reveals the timestamp of the last successful run for that action.",
+          "chip_failed": "<strong>Failed</strong> — chip is red and shows a help-cursor underline; hover reveals the full stderr / error text in monospace. The error attribution walks the agent's per-command results to pick the actually-failed command's stderr, not the first command's (which is typically empty when a later step in the plan failed).",
+          "expand_row": "Each mirror row has an expand chevron that reveals a sub-table of that mirror's snapshots — snapshot id, taken-at timestamp, size (human-readable from <code>--stats</code>), file count, and a Restore icon-button per row. The sub-table polls every 10s while open so a freshly-taken snapshot shows up automatically. Restore prompts for confirmation, then dispatches the restore plan and surfaces progress through the same in-flight chip pattern.",
+          "action_independence": "Per-action columns mean a successful sync followed by a failed snapshot no longer overwrites the sync's chip with FAILED — the sync stays green, the snapshot chip turns red. Restoring (or rerunning sync) clears each action's state independently."
         }
       },
       "airgap": {
