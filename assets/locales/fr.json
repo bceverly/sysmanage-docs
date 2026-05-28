@@ -2671,7 +2671,11 @@
           "title": "Le paramètre role:",
           "summary": "Add one key to /etc/sysmanage.yaml on each server:",
           "validation": "The startup config loader validates the value at boot; an unknown role aborts startup with a clear error. The role is also exposed via the unauthenticated GET /api/v1/server-info endpoint, which the web UI uses to render a chip in the header bar so operators can see at a glance which half of an air-gap pair they're looking at.",
-          "degraded_chip": "If role: is set to collector or repository but the corresponding Pro+ engine isn't loaded (typically a license problem), the chip turns red and a tooltip explains what's missing. Server keeps running in degraded mode so you can fix the license without losing access to the rest of the UI."
+          "degraded_chip": "If role: is set to collector or repository but the corresponding Pro+ engine isn't loaded (typically a license problem), the chip turns red and a tooltip explains what's missing. Server keeps running in degraded mode so you can fix the license without losing access to the rest of the UI.",
+          "opt_standard": "<strong>Standard (no air gap)",
+          "opt_collector": "<strong>Air-Gap Collector (online side)",
+          "opt_repository": "<strong>Air-Gap Repository (disconnected side)",
+          "persistence": "The choice is stored in the server's database (the <code>server_configuration"
         },
         "collection_cycle": {
           "title": "Cycle de collecte (côté Collecteur)",
@@ -2753,11 +2757,11 @@
         },
         "keys": {
           "title": "Rotation des paires de clés Ed25519",
-          "summary": "The collector signs every manifest with an ed25519 private key; the repository verifies against the corresponding public key configured in sysmanage.yaml. Recommended cadence:",
+          "summary": "The collector signs every manifest with an ed25519 private key; the repository verifies against the corresponding public key stored in its trusted-collector keyring directory (/var/lib/sysmanage/airgap/trusted-collectors/). The keypair is generated automatically the first time you set the server role to collector (no manual keygen step). Recommended cadence:",
           "annual_rotation": "Annual rotation baseline. Generate a new keypair on the collector, distribute the new public key to the repository (over an existing trusted channel — sneakernet, signed email, or the previous trusted ingest), and run one transition disc that's signed by both keys before retiring the old key.",
           "compromise": "Immediate rotation on suspected compromise. Symptoms include: a stolen / lost laptop that holds the collector's private key, an unauthorized signature appearing on a disc the operator didn't burn, or any indication the collector host was compromised. Rotate keys, and treat every disc signed by the old key as untrusted (re-collect + re-burn before ingesting on any repository).",
-          "storage": "Private-key storage. The collector's private key file should be readable only by the SysManage server process and never copied off the collector. PEM-encoded, mode 0400. Backup via a sealed-envelope hardware token (YubiKey, Nitrokey) stored in a different physical location from the collector itself — the same threat model as your CA's signing key.",
-          "public_distribution": "Public-key distribution. The repository's sysmanage.yaml can hold multiple trusted public keys during a rotation window. New ingestions verify against any of them; remove old keys only after the last disc signed by the retiring key has been ingested."
+          "storage": "Private-key storage. The collector's private key (/var/lib/sysmanage/airgap/collector-ed25519.pem, generated automatically on role selection, mode 0600) should be readable only by the SysManage server process and never copied off the collector. The ensure_collector_keypair step never overwrites an existing key, so re-selecting the collector role is safe. Backup via a sealed-envelope hardware token (YubiKey, Nitrokey) stored in a different physical location from the collector itself — the same threat model as your CA's signing key.",
+          "public_distribution": "Public-key distribution. The repository's keyring directory can hold multiple trusted public keys during a rotation window — each as a separate .pub file. New ingestions verify against any key in the directory; remove a retired key only after the last disc signed by it has been ingested. To rotate, drop the new collector's .pub into the keyring (additive — existing keys are never cleared)."
         },
         "transport": {
           "title": "Procédures de perte en transport",
@@ -2772,7 +2776,7 @@
           "title": "Échec de vérification de signature",
           "summary": "When the repository's ingestion endpoint reports signature does not match manifest payload, treat it as a security incident until proven otherwise:",
           "step_isolate": "Do not retry ingestion. Repeated signature-verification failures don't make the data more trustworthy. Set the disc aside in a tagged \"pending-investigation\" envelope.",
-          "step_check_keys": "Verify the configured public key matches the collector's current public key. The most common (benign) cause is a key rotation that didn't propagate fully. Re-export the public key from the collector, compare to the repository's sysmanage.yaml, update if they differ, retry ingestion.",
+          "step_check_keys": "Verify the collector's public key is present in the repository keyring. The most common (benign) cause is a key rotation that didn't propagate fully. Re-export the public key from the collector (/var/lib/sysmanage/airgap/collector-ed25519.pub), compare to the .pub files in the repository's /var/lib/sysmanage/airgap/trusted-collectors/ keyring, drop in the missing key if absent, retry ingestion.",
           "step_check_disc": "If keys match, inspect the disc. Tampering would typically also break the per-file SHA-256 verification, so a signature-only failure on a disc whose hashes pass is suspicious. Inspect the disc surface for physical damage; mount the ISO read-only and verify file checksums against the manifest manually.",
           "step_escalate": "If the disc cannot be explained by key drift or physical damage, escalate. Quarantine the disc, file an incident with your security team, and rotate the collector's keypair as a precaution. The next collection cycle should be performed on a freshly-imaged collector if the original collector itself is suspect."
         },
@@ -2788,8 +2792,16 @@
         "related": {
           "title": "Documentation associée",
           "deployment": "Air-Gap Deployment guide",
-          "settings": "Settings reference",
+          "settings": "Settings reference — license config and the Settings → Server Role selector (collector / repository / standard)",
           "security": "Database Security reference"
+        },
+        "keyprov": {
+          "title": "Automated key provisioning & ingestion",
+          "summary": "Recent releases automate the key-distribution and ingestion steps that the rotation procedures above describe manually. Understanding the automated path tells you what to check when something doesn't work:",
+          "keygen": "Keygen on role selection. Setting the server role to collector in Settings → Server Role mints the ed25519 keypair at the canonical path. The role lives in the database (not sysmanage.yaml), so a fresh server boots as standard and the key is created the moment you choose the collector role.",
+          "embed": "Public key rides the install bundle. When the Pro+ air-gap bundle is built on the collector (scripts/buildAirGapBundle.sh server), it embeds the collector's .pub into the bundle. The repository's overlay installer drops it into /var/lib/sysmanage/airgap/trusted-collectors/ automatically — so a repository provisioned from that bundle trusts the collector with no separate key exchange. Only the public key travels; the private signing key never leaves the collector.",
+          "strict": "Strict verification by default. The repository rejects unsigned and HMAC-fallback manifests unless airgap.verify_strict is set to false in sysmanage.yaml. Leave it strict in production; loosen it only for a dev loop where cryptography isn't installed on the collector.",
+          "ingest": "Ingestion is driven, not manual. POSTing an ISO path to the repository's ingest endpoint inserts a QUEUED AirgapIngestionRun; a background orchestrator then loop-mounts the ISO read-only, verifies the embedded /manifest.json signature against the keyring, rsyncs the verified payload into /var/lib/sysmanage/airgap-repo, and registers a per-distro local repository. Watch a stuck run's status: VERIFYING_SIG means the signature step is running or failed (check the keyring), COPYING means verification passed and the rsync is in flight."
         }
       }
     },
