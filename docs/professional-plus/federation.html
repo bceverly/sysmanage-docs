@@ -105,7 +105,63 @@
                             <strong data-i18n="pro_plus.federation.ui.audit.title">Federation audit log</strong>
                             <span data-i18n="pro_plus.federation.ui.audit.body"> (<code>/audit/federation</code>) &mdash; every cross-site operation (enrollment, suspend/resume/remove, policy push, command dispatch) with URL-shareable filters by site, operation, and actor.</span>
                         </li>
+                        <li>
+                            <strong data-i18n="pro_plus.federation.ui.timeline.title">Sync timeline</strong>
+                            <span data-i18n="pro_plus.federation.ui.timeline.body"> &mdash; the site detail page renders a per-site upstream-sync latency sparkline, the site's reported SysManage version and loaded engine capabilities, and an "Operating independently" banner when the site reports that it is offline from the coordinator (local-autonomy mode).</span>
+                        </li>
+                        <li>
+                            <strong data-i18n="pro_plus.federation.ui.actions.title">Per-site actions</strong>
+                            <span data-i18n="pro_plus.federation.ui.actions.body"> &mdash; the site detail header offers a one-click <strong>Dispatch command</strong> (batch command to the site's hosts) and <strong>Push policies</strong> (re-queue every policy assigned to the site for re-delivery on the next push tick). Both are gated to actively enrolled sites.</span>
+                        </li>
+                        <li>
+                            <strong data-i18n="pro_plus.federation.ui.reports.title">Cross-site reports</strong>
+                            <span data-i18n="pro_plus.federation.ui.reports.body"> (<code>/reports#federation</code>) &mdash; a <em>Federation</em> tab on the Reports page with a site multi-select that produces a cross-site rollup table (per-site host counts, worst compliance baseline, CVE-severity counts) plus enterprise-wide totals.</span>
+                        </li>
                     </ul>
+                </section>
+
+                <section class="docs-section">
+                    <h2 data-i18n="pro_plus.federation.health.title">Connection Health &amp; Local Autonomy</h2>
+                    <p data-i18n="pro_plus.federation.health.intro">Each site server continuously classifies the health of its own uplink to the coordinator and keeps operating regardless of that uplink's state. The site engine&rsquo;s sync tick records every attempt and derives a connection state:</p>
+                    <ul>
+                        <li>
+                            <strong data-i18n="pro_plus.federation.health.online.title">online</strong>
+                            <span data-i18n="pro_plus.federation.health.online.body"> &mdash; the last upstream sync succeeded.</span>
+                        </li>
+                        <li>
+                            <strong data-i18n="pro_plus.federation.health.degraded.title">degraded</strong>
+                            <span data-i18n="pro_plus.federation.health.degraded.body"> &mdash; one or two consecutive sync failures; usually a transient blip, not worth paging on.</span>
+                        </li>
+                        <li>
+                            <strong data-i18n="pro_plus.federation.health.offline.title">offline</strong>
+                            <span data-i18n="pro_plus.federation.health.offline.body"> &mdash; three or more consecutive failures. The site enters <strong>local autonomy mode</strong>: agents keep reporting, OS upgrades keep running, and local deltas keep queuing for replay &mdash; nothing blocks on the coordinator.</span>
+                        </li>
+                    </ul>
+                    <p data-i18n="pro_plus.federation.health.reconnect">While offline, the site does not hammer a down coordinator every interval &mdash; it backs off with an exponential, capped reconnect schedule and resumes draining its queue automatically once the coordinator answers. On reconnect, deduplication-on-replay ensures queued deltas don&rsquo;t create duplicates upstream.</p>
+                    <p data-i18n="pro_plus.federation.health.metadata">Every tick the site also reports lightweight <strong>metadata</strong> upstream &mdash; its SysManage version, active-host count and OS breakdown, loaded engine capabilities, and its self-reported connection state &mdash; which the coordinator caches on the site&rsquo;s registry row and surfaces on the site detail page.</p>
+                </section>
+
+                <section class="docs-section">
+                    <h2 data-i18n="pro_plus.federation.alerts.title">Rollup Alerting</h2>
+                    <p data-i18n="pro_plus.federation.alerts.intro">The coordinator evaluates every enrolled site against three built-in cross-site conditions on each push-worker cycle, opening, refreshing, or auto-resolving alerts so there is at most one open alert per site per condition:</p>
+                    <ul>
+                        <li data-i18n="pro_plus.federation.alerts.offline">Site offline &mdash; a site hasn&rsquo;t synced within a multiple of its configured sync interval.</li>
+                        <li data-i18n="pro_plus.federation.alerts.compliance">Compliance below threshold &mdash; a compliance baseline&rsquo;s score dropped under a configured percentage.</li>
+                        <li data-i18n="pro_plus.federation.alerts.vulnerabilities">Vulnerabilities high &mdash; a site&rsquo;s critical-CVE count crossed a configured threshold.</li>
+                    </ul>
+                    <p data-i18n="pro_plus.federation.alerts.thresholds">The thresholds for all three conditions are <strong>operator-configurable</strong>. An <em>Alert thresholds</em> card on the Federation Policies page lets you override any subset; a blank field reverts that threshold to its built-in default. Open alerts appear on the relevant site&rsquo;s detail page with an acknowledge action.</p>
+                </section>
+
+                <section class="docs-section">
+                    <h2 data-i18n="pro_plus.federation.secrets.title">Federation-Aware Dynamic Secrets</h2>
+                    <p data-i18n="pro_plus.federation.secrets.intro">The coordinator owns the master OpenBAO/Vault, so restricted sites never need direct Vault access. A site can request a short-lived dynamic credential on behalf of one of its hosts, and the coordinator issues and rotates it centrally.</p>
+                    <ol>
+                        <li data-i18n="pro_plus.federation.secrets.step1">The site <strong>enqueues</strong> a lease request upstream (it never calls the coordinator directly &mdash; queue-everything), naming the host, the secret, the Vault backend role, and a TTL.</li>
+                        <li data-i18n="pro_plus.federation.secrets.step2">The coordinator records the request and, on its next reconcile pass, <strong>issues</strong> the lease from the master Vault.</li>
+                        <li data-i18n="pro_plus.federation.secrets.step3">The lease result is echoed back to the requesting site&rsquo;s inbox so the site engine can deliver the credential to the host over the agent&rsquo;s secure channel.</li>
+                    </ol>
+                    <p data-i18n="pro_plus.federation.secrets.reconcile">A single coordinator-side reconcile loop services every site&rsquo;s leases &mdash; issuing pending requests, expiring leases whose TTL has elapsed, and pruning old terminal records. There are no per-site sweepers because every lease lives in the one master Vault. Leases are viewable (and revocable) at <code>/api/v1/federation/secret-leases</code>.</p>
+                    <p data-i18n="pro_plus.federation.secrets.security">The credential <strong>value</strong> is never persisted in the federation tables &mdash; only the Vault lease id (for renew/revoke) and non-sensitive metadata such as a generated username.</p>
                 </section>
 
                 <section class="docs-section">
