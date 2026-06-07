@@ -34,7 +34,7 @@
 
                 <section class="docs-section">
                     <h2 data-i18n="pro_plus.federation.modules.title">Engine Modules</h2>
-                    <p data-i18n="pro_plus.federation.modules.intro">Federation ships as two Pro+ engines in one Enterprise license &mdash; a server runs exactly one role at a time, picked by <code>role:</code> in <code>sysmanage.yaml</code>.</p>
+                    <p data-i18n="pro_plus.federation.modules.intro">Federation ships as two Pro+ engines in one Enterprise license &mdash; a server runs exactly one role at a time, set via Settings &rarr; Server Role (stored in the database, not a config file).</p>
 
                     <div class="docs-section-card">
                         <h3 data-i18n="pro_plus.federation.modules.controller.title">Federation Controller Engine</h3>
@@ -169,15 +169,62 @@
                     <ol>
                         <li data-i18n="pro_plus.federation.enrollment.step1">On the coordinator's Sites page, click <strong>Enroll Site</strong> and fill in name, URL, and an optional location label. The default token TTL is 24 hours.</li>
                         <li data-i18n="pro_plus.federation.enrollment.step2">Copy the displayed enrollment token <strong>once</strong> &mdash; it is not retrievable afterwards.</li>
-                        <li data-i18n="pro_plus.federation.enrollment.step3">On the new site server, run the federation enroll command with the coordinator URL + the token. The site engine presents the token over mutual TLS to complete the handshake.</li>
+                        <li data-i18n="pro_plus.federation.enrollment.step3">On the new site server, open <strong>Settings &rarr; Server Role</strong>, set the federation role to <strong>Site</strong>, and use the <strong>Enroll with coordinator</strong> action: paste the coordinator URL and the token, then click Enroll. That is the whole form &mdash; the site auto-presents its own certificate and auto-fetches the coordinator's to pin, so there are no certificates to mint or paste.</li>
                         <li data-i18n="pro_plus.federation.enrollment.step4">After successful handshake, the site flips to <code>enrolled</code> status on the coordinator, the token hash is scrubbed, and the <code>enrolled_at</code> timestamp is stamped.</li>
                     </ol>
                     <p data-i18n="pro_plus.federation.enrollment.regenerate">If the token leaks or expires before the site completes enrollment, use <strong>Regenerate token</strong> on the site detail page to invalidate the old one and issue a fresh value.</p>
                 </section>
 
                 <section class="docs-section">
+                    <h2 data-i18n="pro_plus.federation.deploy.title">Deployment &amp; Operations</h2>
+                    <p data-i18n="pro_plus.federation.deploy.intro">A federated estate is one coordinator and N site servers. Each server plays exactly one role, chosen at install time and fixed thereafter unless re-provisioned.</p>
+                    <h3 data-i18n="pro_plus.federation.deploy.roles.title">Choosing a role</h3>
+                    <p data-i18n="pro_plus.federation.deploy.roles.body">The role is set in the web UI under <strong>Settings &rarr; Server Role</strong> (persisted in the database) &mdash; coordinator or site, never both. It is a separate axis from the air-gap server role, so a server can be, e.g., an air-gap collector AND a federation site. A server with the role left at <code>none</code> is a standalone install. The Enterprise license entitles the engines; you pick the role per server.</p>
+                    <h3 data-i18n="pro_plus.federation.deploy.sequence.title">Bring-up sequence</h3>
+                    <ol>
+                        <li data-i18n="pro_plus.federation.deploy.sequence.step1">Stand up the <strong>coordinator</strong> first and confirm its federation pages load (<code>/sites</code> renders the empty registry rather than the Enterprise upsell).</li>
+                        <li data-i18n="pro_plus.federation.deploy.sequence.step2">Stand up each <strong>site</strong> server as a normal SysManage install with the site engine loaded; let its local agents enroll and report as usual — a site is fully operational before it ever joins the federation.</li>
+                        <li data-i18n="pro_plus.federation.deploy.sequence.step3">Enroll each site into the coordinator (see <em>Enrolling a Site</em> above and the mutual-TLS procedure below). Sites can be added incrementally; there is no big-bang cutover.</li>
+                        <li data-i18n="pro_plus.federation.deploy.sequence.step4">Define centrally-managed policies (update profiles, firewall roles) on the coordinator and assign them to sites; the coordinator pushes them on its next cycle.</li>
+                    </ol>
+                    <h3 data-i18n="pro_plus.federation.deploy.ops.title">Day-2 operations</h3>
+                    <ul>
+                        <li data-i18n="pro_plus.federation.deploy.ops.monitor">Watch site health on the Sites page and the per-site sync timeline; an "Operating independently" banner means that site is in local autonomy mode (cut off from the coordinator but running normally).</li>
+                        <li data-i18n="pro_plus.federation.deploy.ops.lifecycle">Suspend a site to stop it pulling policy/commands while keeping its registry row; resume to re-attach; remove to disenroll (the row is retained with <code>status=removed</code> for audit).</li>
+                        <li data-i18n="pro_plus.federation.deploy.ops.intervals">Tune a bandwidth-constrained site's <code>sync_interval_seconds</code> so it syncs less often; the coordinator's offline-alert threshold scales off that interval.</li>
+                        <li data-i18n="pro_plus.federation.deploy.ops.alerts">Adjust the cross-site alert thresholds (offline multiple, compliance floor, critical-CVE ceiling) on the Federation Policies page; leave a field blank to use the built-in default.</li>
+                    </ul>
+                    <h3 data-i18n="pro_plus.federation.deploy.trouble.title">Troubleshooting</h3>
+                    <ul>
+                        <li data-i18n="pro_plus.federation.deploy.trouble.offline">Site shows offline: check the site engine's last-sync error on its detail page. The site backs off and auto-reconnects on an exponential schedule, so transient outages clear themselves; queued deltas replay (deduplicated) on reconnect.</li>
+                        <li data-i18n="pro_plus.federation.deploy.trouble.backlog">Growing upstream-queue depth: the site is producing deltas faster than it can ship them (usually a coordinator outage). It is not data loss — the queue drains when connectivity returns.</li>
+                        <li data-i18n="pro_plus.federation.deploy.trouble.enroll">Enrollment fails: the most common causes are an expired or already-used token, or a TLS certificate the other side won't pin. Regenerate the token and re-run the enroll command.</li>
+                    </ul>
+                </section>
+
+                <section class="docs-section">
+                    <h2 data-i18n="pro_plus.federation.mtls.title">Mutual-TLS Enrollment Procedures</h2>
+                    <p data-i18n="pro_plus.federation.mtls.intro">Federation traffic is authenticated in both directions. Enrollment establishes the trust material; every subsequent sync and push rides on it.</p>
+                    <h3 data-i18n="pro_plus.federation.mtls.certs.title">Certificate pinning</h3>
+                    <p data-i18n="pro_plus.federation.mtls.certs.body">Each server auto-mints a self-signed federation certificate the first time it is given a federation role &mdash; the operator never generates or pastes one. At enrollment the site presents its own certificate and fetches the coordinator's from the coordinator's public <code>/api/v1/federation/tls-cert</code> endpoint; the coordinator pins the site's certificate on the registry row and the site pins the coordinator's. Each side thereafter rejects a request whose signature doesn't match the pinned certificate &mdash; a leaked bearer token alone can't impersonate either party.</p>
+                    <h3 data-i18n="pro_plus.federation.mtls.tokens.title">Bearer tokens</h3>
+                    <p data-i18n="pro_plus.federation.mtls.tokens.body">A successful handshake mints two long-lived bearer tokens, one per direction. The site presents its token on every upstream sync POST; the coordinator presents a separate token on every downstream push. Each side stores only the SHA-256 hash of the token it <em>verifies</em>, and the plaintext only of the token it <em>sends</em> — so a database leak on the verifying side never yields a usable credential.</p>
+                    <h3 data-i18n="pro_plus.federation.mtls.flow.title">Handshake flow</h3>
+                    <ol>
+                        <li data-i18n="pro_plus.federation.mtls.flow.step1">The operator generates a one-time enrollment token on the coordinator (default 24-hour TTL); only its SHA-256 hash is stored.</li>
+                        <li data-i18n="pro_plus.federation.mtls.flow.step2">On the site, the <strong>Enroll with coordinator</strong> action POSTs the token to the coordinator; the site's certificate is attached automatically and the coordinator's is auto-fetched to pin.</li>
+                        <li data-i18n="pro_plus.federation.mtls.flow.step3">The coordinator validates the token (unused + unexpired), pins the site certificate, assigns the site a UUID, mints the two bearer tokens, and returns them once.</li>
+                        <li data-i18n="pro_plus.federation.mtls.flow.step4">The site stores its assigned id + bearers, flips to <code>enrolled</code>, and the coordinator scrubs the enrollment-token hash. From here, only the bearer-authenticated sync/push endpoints are used.</li>
+                    </ol>
+                    <h3 data-i18n="pro_plus.federation.mtls.rotation.title">Rotation &amp; revocation</h3>
+                    <p data-i18n="pro_plus.federation.mtls.rotation.body">Re-running enrollment (or migrating a site to a different coordinator via <code>clear_enrollment</code>) replaces the bearer tokens and re-pins certificates — the critical step that prevents a stale token from continuing to fire at a former coordinator. Removing a site on the coordinator scrubs its credentials so a disenrolled site can no longer authenticate.</p>
+                    <h3 data-i18n="pro_plus.federation.mtls.enforcement.title">Signature enforcement (HTTP vs HTTPS)</h3>
+                    <p data-i18n="pro_plus.federation.mtls.enforcement.body">Every sync and push request is signed with the sender's federation private key and verified against the pinned certificate. Enforcement is derived from the deployment posture automatically &mdash; no configuration flag. A server running plain <strong>HTTP</strong> (no <code>certFile</code>/<code>keyFile</code> in <code>sysmanage.yaml</code>) is treated as a development deployment: requests are still signed, but signatures are not rejected, so local testing is never blocked. Configure TLS so the API serves <strong>HTTPS</strong> and signature verification activates on its own &mdash; a request with a missing or invalid signature is then rejected with <code>401</code>. Production federation deployments should always run HTTPS.</p>
+                </section>
+
+                <section class="docs-section">
                     <h2 data-i18n="pro_plus.federation.licensing.title">Licensing</h2>
-                    <p data-i18n="pro_plus.federation.licensing.body">Federation is part of the SysManage Enterprise tier. The Enterprise license entitles a deployment to load <strong>either</strong> the federation controller engine or the federation site engine on any server &mdash; the role is configured in <code>sysmanage.yaml</code>. On Community / Professional installs, the federation API endpoints return <code>403 pro_plus_required</code> and the UI renders an Enterprise upsell on every federation page.</p>
+                    <p data-i18n="pro_plus.federation.licensing.body">Federation is part of the SysManage Enterprise tier. The Enterprise license entitles a deployment to load <strong>either</strong> the federation controller engine or the federation site engine on any server &mdash; the role is chosen in the web UI under <strong>Settings &rarr; Server Role</strong>. On Community / Professional installs, the federation API endpoints return <code>403 pro_plus_required</code> and the UI renders an Enterprise upsell on every federation page.</p>
                 </section>
 
             </div>

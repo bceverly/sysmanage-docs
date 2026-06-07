@@ -18111,7 +18111,7 @@
       },
       "modules": {
         "title": "Engine Modules",
-        "intro": "Federation ships as two Pro+ engines in one Enterprise license — a server runs exactly one role at a time, picked by role: in sysmanage.yaml.",
+        "intro": "Federation ships as two Pro+ engines in one Enterprise license — a server runs exactly one role at a time, set via Settings → Server Role (stored in the database, not a config file).",
         "controller": {
           "title": "Federation Controller Engine",
           "description": "Loaded on the coordinating server. Owns the site registry, accepts upstream rollup pushes from sites, exposes cross-site host search, drives policy push and command dispatch, and writes the federation audit log.",
@@ -18192,13 +18192,13 @@
         "title": "Enrolling a Site",
         "step1": "On the coordinator's Sites page, click Enroll Site and fill in name, URL, and an optional location label. The default token TTL is 24 hours.",
         "step2": "Copy the displayed enrollment token once — it is not retrievable afterwards.",
-        "step3": "On the new site server, run the federation enroll command with the coordinator URL + the token. The site engine presents the token over mutual TLS to complete the handshake.",
+        "step3": "On the new site server, open Settings → Server Role, set the federation role to Site, and use the Enroll with coordinator action: paste the coordinator URL and the token, then click Enroll. That is the whole form — the site auto-presents its own certificate and auto-fetches the coordinator's to pin, so there are no certificates to mint or paste.",
         "step4": "After successful handshake, the site flips to enrolled status on the coordinator, the token hash is scrubbed, and the enrolled_at timestamp is stamped.",
         "regenerate": "If the token leaks or expires before the site completes enrollment, use Regenerate token on the site detail page to invalidate the old one and issue a fresh value."
       },
       "licensing": {
         "title": "Licensing",
-        "body": "Federation is part of the SysManage Enterprise tier. The Enterprise license entitles a deployment to load either the federation controller engine or the federation site engine on any server — the role is configured in sysmanage.yaml. On Community / Professional installs, the federation API endpoints return 403 pro_plus_required and the UI renders an Enterprise upsell on every federation page."
+        "body": "Federation is part of the SysManage Enterprise tier. The Enterprise license entitles a deployment to load the federation controller or site engine on any server — the role is chosen in the web UI under Settings → Server Role. On Community / Professional installs, the federation API endpoints return 403 pro_plus_required and the UI renders an Enterprise upsell on every federation page."
       },
       "health": {
         "title": "Connection Health & Local Autonomy",
@@ -18234,6 +18234,61 @@
         "step3": "The lease result is echoed back to the requesting site's inbox so the site engine can deliver the credential to the host over the agent's secure channel.",
         "reconcile": "A single coordinator-side reconcile loop services every site's leases — issuing pending requests, expiring leases whose TTL has elapsed, and pruning old terminal records. There are no per-site sweepers because every lease lives in the one master Vault. Leases are viewable (and revocable) at /api/v1/federation/secret-leases.",
         "security": "The credential value is never persisted in the federation tables — only the Vault lease id (for renew/revoke) and non-sensitive metadata such as a generated username."
+      },
+      "deploy": {
+        "title": "Deployment & Operations",
+        "intro": "A federated estate is one coordinator and N site servers. Each server plays exactly one role, chosen at install time and fixed thereafter unless re-provisioned.",
+        "roles": {
+          "title": "Choosing a role",
+          "body": "The role is set in the web UI under Settings → Server Role (persisted in the database) — coordinator or site, never both. It is a separate axis from the air-gap server role, so a server can be, e.g., an air-gap collector AND a federation site. A server with the role left at 'none' is a standalone install. The Enterprise license entitles the engines; you pick the role per server."
+        },
+        "sequence": {
+          "title": "Bring-up sequence",
+          "step1": "Stand up the coordinator first and confirm its federation pages load (/sites renders the empty registry rather than the Enterprise upsell).",
+          "step2": "Stand up each site server as a normal SysManage install with the site engine loaded; let its local agents enroll and report as usual — a site is fully operational before it ever joins the federation.",
+          "step3": "Enroll each site into the coordinator (see Enrolling a Site above and the mutual-TLS procedure below). Sites can be added incrementally; there is no big-bang cutover.",
+          "step4": "Define centrally-managed policies (update profiles, firewall roles) on the coordinator and assign them to sites; the coordinator pushes them on its next cycle."
+        },
+        "ops": {
+          "title": "Day-2 operations",
+          "monitor": "Watch site health on the Sites page and the per-site sync timeline; an “Operating independently” banner means that site is in local autonomy mode (cut off from the coordinator but running normally).",
+          "lifecycle": "Suspend a site to stop it pulling policy/commands while keeping its registry row; resume to re-attach; remove to disenroll (the row is retained with status=removed for audit).",
+          "intervals": "Tune a bandwidth-constrained site's sync_interval_seconds so it syncs less often; the coordinator's offline-alert threshold scales off that interval.",
+          "alerts": "Adjust the cross-site alert thresholds (offline multiple, compliance floor, critical-CVE ceiling) on the Federation Policies page; leave a field blank to use the built-in default."
+        },
+        "trouble": {
+          "title": "Troubleshooting",
+          "offline": "Site shows offline: check the site engine's last-sync error on its detail page. The site backs off and auto-reconnects on an exponential schedule, so transient outages clear themselves; queued deltas replay (deduplicated) on reconnect.",
+          "backlog": "Growing upstream-queue depth: the site is producing deltas faster than it can ship them (usually a coordinator outage). It is not data loss — the queue drains when connectivity returns.",
+          "enroll": "Enrollment fails: the most common causes are an expired or already-used token, or a TLS certificate the other side won't pin. Regenerate the token and re-run the enroll command."
+        }
+      },
+      "mtls": {
+        "title": "Mutual-TLS Enrollment Procedures",
+        "intro": "Federation traffic is authenticated in both directions. Enrollment establishes the trust material; every subsequent sync and push rides on it.",
+        "certs": {
+          "title": "Certificate pinning",
+          "body": "Each server auto-mints a self-signed federation certificate the first time it is given a federation role — the operator never generates or pastes one. At enrollment the site presents its own certificate and fetches the coordinator's from the coordinator's public /api/v1/federation/tls-cert endpoint; the coordinator pins the site's certificate on the registry row and the site pins the coordinator's. Each side thereafter rejects a request whose signature doesn't match the pinned certificate — a leaked bearer token alone can't impersonate either party."
+        },
+        "tokens": {
+          "title": "Bearer tokens",
+          "body": "A successful handshake mints two long-lived bearer tokens, one per direction. The site presents its token on every upstream sync POST; the coordinator presents a separate token on every downstream push. Each side stores only the SHA-256 hash of the token it verifies, and the plaintext only of the token it sends — so a database leak on the verifying side never yields a usable credential."
+        },
+        "flow": {
+          "title": "Handshake flow",
+          "step1": "The operator generates a one-time enrollment token on the coordinator (default 24-hour TTL); only its SHA-256 hash is stored.",
+          "step2": "On the site, the Enroll with coordinator action POSTs the token to the coordinator; the site's certificate is attached automatically and the coordinator's is auto-fetched to pin.",
+          "step3": "The coordinator validates the token (unused + unexpired), pins the site certificate, assigns the site a UUID, mints the two bearer tokens, and returns them once.",
+          "step4": "The site stores its assigned id + bearers, flips to enrolled, and the coordinator scrubs the enrollment-token hash. From here, only the bearer-authenticated sync/push endpoints are used."
+        },
+        "rotation": {
+          "title": "Rotation & revocation",
+          "body": "Re-running enrollment (or migrating a site to a different coordinator via clear_enrollment) replaces the bearer tokens and re-pins certificates — the critical step that prevents a stale token from continuing to fire at a former coordinator. Removing a site on the coordinator scrubs its credentials so a disenrolled site can no longer authenticate."
+        },
+        "enforcement": {
+          "title": "Signature enforcement (HTTP vs HTTPS)",
+          "body": "Every sync and push request is signed with the sender's federation private key and verified against the pinned certificate. Enforcement is derived from the deployment posture automatically — no configuration flag. A server running plain HTTP (no certFile/keyFile in sysmanage.yaml) is treated as a development deployment: requests are still signed, but signatures are not rejected, so local testing is never blocked. Configure TLS so the API serves HTTPS and signature verification activates on its own — a request with a missing or invalid signature is then rejected with 401. Production federation deployments should always run HTTPS."
+        }
       }
     }
   },

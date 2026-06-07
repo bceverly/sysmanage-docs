@@ -18307,6 +18307,61 @@
         "step2": "[TODO] The coordinator records the request and, on its next reconcile pass, issues the lease from the master Vault.",
         "step3": "[TODO] The lease result is echoed back to the requesting site's inbox so the site engine can deliver the credential to the host over the agent's secure channel.",
         "title": "[TODO] Federation-Aware Dynamic Secrets"
+      },
+      "deploy": {
+        "intro": "[TODO] A federated estate is one coordinator and N site servers. Each server plays exactly one role, chosen at install time and fixed thereafter unless re-provisioned.",
+        "ops": {
+          "alerts": "[TODO] Adjust the cross-site alert thresholds (offline multiple, compliance floor, critical-CVE ceiling) on the Federation Policies page; leave a field blank to use the built-in default.",
+          "intervals": "[TODO] Tune a bandwidth-constrained site's sync_interval_seconds so it syncs less often; the coordinator's offline-alert threshold scales off that interval.",
+          "lifecycle": "[TODO] Suspend a site to stop it pulling policy/commands while keeping its registry row; resume to re-attach; remove to disenroll (the row is retained with status=removed for audit).",
+          "monitor": "[TODO] Watch site health on the Sites page and the per-site sync timeline; an “Operating independently” banner means that site is in local autonomy mode (cut off from the coordinator but running normally).",
+          "title": "[TODO] Day-2 operations"
+        },
+        "roles": {
+          "body": "[TODO] The role is set in sysmanage.yaml: a server loads either the federation_controller_engine (coordinator) or the federation_site_engine (site), never both. A plain SysManage server with neither engine is simply a standalone install. The Enterprise license entitles both engines; you pick per server.",
+          "title": "[TODO] Choosing a role"
+        },
+        "sequence": {
+          "step1": "[TODO] Stand up the coordinator first and confirm its federation pages load (/sites renders the empty registry rather than the Enterprise upsell).",
+          "step2": "[TODO] Stand up each site server as a normal SysManage install with the site engine loaded; let its local agents enroll and report as usual — a site is fully operational before it ever joins the federation.",
+          "step3": "[TODO] Enroll each site into the coordinator (see Enrolling a Site above and the mutual-TLS procedure below). Sites can be added incrementally; there is no big-bang cutover.",
+          "step4": "[TODO] Define centrally-managed policies (update profiles, firewall roles) on the coordinator and assign them to sites; the coordinator pushes them on its next cycle.",
+          "title": "[TODO] Bring-up sequence"
+        },
+        "title": "[TODO] Deployment & Operations",
+        "trouble": {
+          "backlog": "[TODO] Growing upstream-queue depth: the site is producing deltas faster than it can ship them (usually a coordinator outage). It is not data loss — the queue drains when connectivity returns.",
+          "enroll": "[TODO] Enrollment fails: the most common causes are an expired or already-used token, or a TLS certificate the other side won't pin. Regenerate the token and re-run the enroll command.",
+          "offline": "[TODO] Site shows offline: check the site engine's last-sync error on its detail page. The site backs off and auto-reconnects on an exponential schedule, so transient outages clear themselves; queued deltas replay (deduplicated) on reconnect.",
+          "title": "[TODO] Troubleshooting"
+        }
+      },
+      "mtls": {
+        "certs": {
+          "body": "[TODO] At enrollment the site presents its TLS leaf certificate and the operator supplies the coordinator's certificate. The coordinator pins the site's certificate on the registry row; the site pins the coordinator's. Each side thereafter rejects a handshake whose certificate doesn't match the pinned value — a leaked URL alone can't impersonate either party.",
+          "title": "[TODO] Certificate pinning"
+        },
+        "flow": {
+          "step1": "[TODO] The operator generates a one-time enrollment token on the coordinator (default 24-hour TTL); only its SHA-256 hash is stored.",
+          "step2": "[TODO] On the site, the enroll command POSTs the token + the site's TLS certificate to the coordinator over mutual TLS.",
+          "step3": "[TODO] The coordinator validates the token (unused + unexpired), pins the site certificate, assigns the site a UUID, mints the two bearer tokens, and returns them once.",
+          "step4": "[TODO] The site stores its assigned id + bearers, flips to enrolled, and the coordinator scrubs the enrollment-token hash. From here, only the bearer-authenticated sync/push endpoints are used.",
+          "title": "[TODO] Handshake flow"
+        },
+        "intro": "[TODO] Federation traffic is authenticated in both directions. Enrollment establishes the trust material; every subsequent sync and push rides on it.",
+        "rotation": {
+          "body": "[TODO] Re-running enrollment (or migrating a site to a different coordinator via clear_enrollment) replaces the bearer tokens and re-pins certificates — the critical step that prevents a stale token from continuing to fire at a former coordinator. Removing a site on the coordinator scrubs its credentials so a disenrolled site can no longer authenticate.",
+          "title": "[TODO] Rotation & revocation"
+        },
+        "title": "[TODO] Mutual-TLS Enrollment Procedures",
+        "tokens": {
+          "body": "[TODO] A successful handshake mints two long-lived bearer tokens, one per direction. The site presents its token on every upstream sync POST; the coordinator presents a separate token on every downstream push. Each side stores only the SHA-256 hash of the token it verifies, and the plaintext only of the token it sends — so a database leak on the verifying side never yields a usable credential.",
+          "title": "[TODO] Bearer tokens"
+        },
+        "enforcement": {
+          "body": "[TODO] Every sync and push request is signed with the sender's federation private key and verified against the pinned certificate. Enforcement is derived from the deployment posture automatically — no configuration flag. A server running plain HTTP (no certFile/keyFile in sysmanage.yaml) is treated as a development deployment: requests are still signed, but signatures are not rejected, so local testing is never blocked. Configure TLS so the API serves HTTPS and signature verification activates on its own — a request with a missing or invalid signature is then rejected with 401. Production federation deployments should always run HTTPS.",
+          "title": "[TODO] Signature enforcement (HTTP vs HTTPS)"
+        }
       }
     }
   },
