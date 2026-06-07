@@ -18216,11 +18216,11 @@
       },
       "enrollment": {
         "title": "تسجيل موقع",
-        "step1": "في صفحة المواقع للمنسق، انقر على «تسجيل موقع» واملأ الاسم وعنوان URL وملصق موقع اختياري. TTL الافتراضي للرمز هو 24 ساعة.",
         "step2": "انسخ رمز التسجيل المعروض مرة واحدة — لا يمكن استرداده بعد ذلك.",
-        "step3": "على خادم الموقع الجديد، شغّل أمر تسجيل الاتحاد باستخدام عنوان URL للمنسق + الرمز. يقدم محرك الموقع الرمز عبر TLS متبادل لإكمال المصافحة.",
         "step4": "بعد المصافحة الناجحة، يتحول الموقع إلى حالة «مسجَّل» على المنسق، ويُمسح تجزئة الرمز، ويُختم طابع enrolled_at.",
-        "regenerate": "إذا تسرّب الرمز أو انتهت صلاحيته قبل أن يُكمل الموقع التسجيل، استخدم «إعادة إنشاء الرمز» في صفحة تفاصيل الموقع لإبطال القديم وإصدار قيمة جديدة."
+        "regenerate": "إذا تسرّب الرمز أو انتهت صلاحيته قبل أن يُكمل الموقع التسجيل، استخدم «إعادة إنشاء الرمز» في صفحة تفاصيل الموقع لإبطال القديم وإصدار قيمة جديدة.",
+        "step1": "[TODO] On the coordinator's Sites page, click <strong>Enroll Site</strong> and fill in name, URL, an optional location label, and the <strong>site's identity public key</strong> &mdash; copied out of band from the site's <strong>Settings &rarr; Server Role</strong> page. The identity key is required: it is what the coordinator uses to authenticate the site at enrollment. The default token TTL is 24 hours.",
+        "step3": "[TODO] On the new site server, open <strong>Settings &rarr; Server Role</strong>, set the federation role to <strong>Site</strong>, and use the <strong>Enroll with coordinator</strong> action: paste the coordinator URL, the token, and the <strong>coordinator's identity public key</strong> (copied out of band from the coordinator's Server Role page), then click Enroll. The TLS certificates are still auto-presented and auto-fetched &mdash; you never mint or paste a cert &mdash; but each side must additionally prove its out-of-band identity key signed the cert being pinned, which is what defeats an enrollment-time man-in-the-middle."
       },
       "licensing": {
         "title": "الترخيص",
@@ -18284,22 +18284,22 @@
         "title": "[TODO] Deployment & Operations",
         "trouble": {
           "backlog": "[TODO] Growing upstream-queue depth: the site is producing deltas faster than it can ship them (usually a coordinator outage). It is not data loss — the queue drains when connectivity returns.",
-          "enroll": "[TODO] Enrollment fails: the most common causes are an expired or already-used token, or a TLS certificate the other side won't pin. Regenerate the token and re-run the enroll command.",
           "offline": "[TODO] Site shows offline: check the site engine's last-sync error on its detail page. The site backs off and auto-reconnects on an exponential schedule, so transient outages clear themselves; queued deltas replay (deduplicated) on reconnect.",
-          "title": "[TODO] Troubleshooting"
+          "title": "[TODO] Troubleshooting",
+          "enroll": "[TODO] Enrollment fails: the most common causes are an expired or already-used token, or an identity-key mismatch (a <code>401</code> identity-verification error means the pre-registered identity public key doesn't match the peer's actual key &mdash; re-copy it from the peer's Server Role page). Regenerate the token and re-run the enroll action after correcting the key."
         }
       },
       "mtls": {
         "certs": {
-          "body": "[TODO] At enrollment the site presents its TLS leaf certificate and the operator supplies the coordinator's certificate. The coordinator pins the site's certificate on the registry row; the site pins the coordinator's. Each side thereafter rejects a handshake whose certificate doesn't match the pinned value — a leaked URL alone can't impersonate either party.",
-          "title": "[TODO] Certificate pinning"
+          "title": "[TODO] Certificate pinning",
+          "body": "[TODO] Each server auto-mints a self-signed federation certificate the first time it is given a federation role &mdash; the operator never generates or pastes one. At enrollment the site presents its own certificate and fetches the coordinator's from the coordinator's public <code>/api/v1/federation/tls-cert</code> endpoint; the coordinator pins the site's certificate on the registry row and the site pins the coordinator's. Each side thereafter rejects a request whose signature doesn't match the pinned certificate &mdash; a leaked bearer token alone can't impersonate either party. The certificate fetched at enrollment is not trusted blindly, though &mdash; see <em>Out-of-band identity verification</em> below."
         },
         "flow": {
           "step1": "[TODO] The operator generates a one-time enrollment token on the coordinator (default 24-hour TTL); only its SHA-256 hash is stored.",
-          "step2": "[TODO] On the site, the enroll command POSTs the token + the site's TLS certificate to the coordinator over mutual TLS.",
-          "step3": "[TODO] The coordinator validates the token (unused + unexpired), pins the site certificate, assigns the site a UUID, mints the two bearer tokens, and returns them once.",
           "step4": "[TODO] The site stores its assigned id + bearers, flips to enrolled, and the coordinator scrubs the enrollment-token hash. From here, only the bearer-authenticated sync/push endpoints are used.",
-          "title": "[TODO] Handshake flow"
+          "title": "[TODO] Handshake flow",
+          "step2": "[TODO] On the site, the <strong>Enroll with coordinator</strong> action fetches the coordinator's certificate and its identity proof, and verifies the proof against the coordinator identity key the operator pre-registered out of band &mdash; aborting if it doesn't match. It then POSTs the token to the coordinator with its own certificate and an identity proof attached.",
+          "step3": "[TODO] The coordinator validates the token (unused + unexpired), verifies the site's identity proof against the site identity key registered when the site row was created, pins the site certificate, assigns the site a UUID, mints the two bearer tokens, and returns them once. A missing or invalid identity proof is rejected with <code>401</code>."
         },
         "intro": "[TODO] Federation traffic is authenticated in both directions. Enrollment establishes the trust material; every subsequent sync and push rides on it.",
         "rotation": {
@@ -18314,6 +18314,10 @@
         "enforcement": {
           "body": "[TODO] Every sync and push request is signed with the sender's federation private key and verified against the pinned certificate. Enforcement is derived from the deployment posture automatically — no configuration flag. A server running plain HTTP (no certFile/keyFile in sysmanage.yaml) is treated as a development deployment: requests are still signed, but signatures are not rejected, so local testing is never blocked. Configure TLS so the API serves HTTPS and signature verification activates on its own — a request with a missing or invalid signature is then rejected with 401. Production federation deployments should always run HTTPS.",
           "title": "[TODO] Signature enforcement (HTTP vs HTTPS)"
+        },
+        "identity": {
+          "body": "[TODO] Pinning the certificate that is fetched over the network would, on its own, be trust-on-first-use: an attacker who intercepts the enrollment could present its own certificate and be pinned. The enrollment token cannot close this gap because it is a shared secret that travels over the same channel. SysManage therefore anchors enrollment on each server's long-lived <strong>Ed25519 identity key</strong>, whose <em>private</em> half never leaves the box. Before enrolling, the operator exchanges the two servers' identity <em>public</em> keys out of band (they are public, so any channel works &mdash; the Server Role page shows each key and its fingerprint). During enrollment each side signs the exact certificate it is presenting with its identity private key, and the other side verifies that signature against the pre-shared identity public key before pinning. A man-in-the-middle that swaps a certificate cannot forge the matching signature, so enrollment is refused rather than pinned. This verification is <strong>strict and mandatory</strong>: enrollment fails if an identity key was not pre-registered or the proof does not verify. Because the proof is over the certificate fingerprint, rotating a TLS certificate later is just a re-sign by the same identity key &mdash; no second out-of-band exchange.",
+          "title": "[TODO] Out-of-band identity verification"
         }
       }
     }
