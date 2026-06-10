@@ -16,10 +16,12 @@ This repository contains the complete documentation for SysManage, an open-sourc
 - **[Getting Started](docs/getting-started/)** - Quick start guide and tutorials
 - **[Server Documentation](docs/server/)** - Installation, configuration, and deployment
 - **[Agent Documentation](docs/agent/)** - Cross-platform agent setup and management
+- **[Deployment](docs/deployment/)** - Deployment guides and topologies
+- **[Professional+](docs/professional-plus/)** - Pro+ engines, air-gap deployment, and multi-site federation
 - **[API Reference](docs/api/)** - Complete REST API documentation
 - **[Security](docs/security/)** - Authentication, mTLS, and best practices
 - **[Architecture](docs/architecture/)** - System design and scaling strategies
-- **[Administration](docs/administration/)** - Backup, maintenance, and troubleshooting
+- **[Administration](docs/administration/)** - Backup, maintenance, air-gap runbooks, and troubleshooting
 
 ## 🚀 Quick Start
 
