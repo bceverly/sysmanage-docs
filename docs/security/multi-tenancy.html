@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Multi-Tenant Security - SysManage</title>
+    <meta name="description" content="The security treatment of SysManage multi-tenancy: physical per-tenant database isolation, OpenBAO-brokered dynamic credentials, least-privilege provisioning, fail-loud routing, and the identity boundary that make the Enterprise SaaS edition exceptionally hard to attack.">
+    <link rel="stylesheet" href="/assets/css/style.css">
+    <link rel="icon" type="image/svg+xml" href="/assets/images/favicon.svg">
+    <style>
+        .sec-banner {
+            background: linear-gradient(135deg, #1b5e20 0%, #00695c 100%);
+            color: white;
+            padding: 2rem;
+            border-radius: 12px;
+            margin: 2rem 0;
+        }
+        .sec-banner h2 { color: #fff; margin-top: 0; }
+        .sec-banner p { opacity: 0.96; line-height: 1.6; }
+        .sec-layers { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1.25rem; margin: 1.5rem 0; }
+        .sec-layer {
+            border: 1px solid #e0e0e0; border-left: 4px solid #2e7d32;
+            border-radius: 0 10px 10px 0; padding: 1.25rem 1.4rem; background: #fff;
+        }
+        .sec-layer h3 { margin-top: 0; color: #1b5e20; font-size: 1.08rem; }
+        .sec-layer .num { display: inline-block; background: #2e7d32; color: #fff; border-radius: 50%; width: 1.6rem; height: 1.6rem; line-height: 1.6rem; text-align: center; font-weight: bold; margin-right: 0.5rem; }
+        .attack {
+            background: #f8f9fa; border-left: 4px solid #c62828; padding: 1.1rem 1.4rem;
+            margin: 1rem 0; border-radius: 0 8px 8px 0;
+        }
+        .attack h4 { margin: 0 0 0.4rem; color: #c62828; }
+        .attack .verdict { font-weight: bold; color: #1b5e20; }
+        table.sec-table { width: 100%; border-collapse: collapse; margin: 1rem 0; }
+        table.sec-table th, table.sec-table td { border: 1px solid #e0e0e0; padding: 0.6rem 0.8rem; text-align: left; font-size: 0.92rem; vertical-align: top; }
+        table.sec-table th { background: #e8f5e9; color: #1b5e20; }
+        table.sec-table td.bad { color: #b71c1c; }
+        table.sec-table td.good { color: #1b5e20; }
+    </style>
+</head>
+<body data-auto-header="documentation" data-auto-footer>
+    <!-- Header injected automatically by components.js -->
+
+    <main class="docs-main">
+        <div class="container">
+            <div class="docs-breadcrumb">
+                <a href="../" data-i18n="docs.auto.security.multi-tenancy.001">Documentation</a> &gt; <a href="./" data-i18n="docs.auto.security.multi-tenancy.002">Security</a> &gt; <span data-i18n="docs.auto.security.multi-tenancy.003">Multi-Tenancy</span>
+            </div>
+
+            <div class="docs-header">
+                <h1 data-i18n="docs.auto.security.multi-tenancy.004">Multi-Tenant Security</h1>
+                <p data-i18n="docs.auto.security.multi-tenancy.005">How the Enterprise SaaS edition keeps every tenant's data provably separate &mdash; and why that separation holds even when something goes wrong.</p>
+            </div>
+
+            <div class="docs-content">
+                <div class="sec-banner">
+                    <h2 data-i18n="docs.auto.security.multi-tenancy.006">The strongest isolation boundary is a different database</h2>
+                    <p data-i18n="docs.auto.security.multi-tenancy.007">Shared-schema multi-tenancy &mdash; everyone's rows in one table, separated by a <code>tenant_id</code> column &mdash; is one forgotten <code>WHERE</code> clause away from a cross-tenant data breach. SysManage refuses that risk by construction: <strong>every tenant gets its own physically separate database</strong>. There is no shared table to filter, no <code>tenant_id</code> to forget, and no connection from one tenant's silo to another. Isolation is the default state, not something the application has to remember to enforce on every query.</p>
+                </div>
+
+                <section class="docs-overview">
+                    <h2 data-i18n="docs.auto.security.multi-tenancy.008">Defense in depth, by design</h2>
+                    <p data-i18n="docs.auto.security.multi-tenancy.009">Tenant isolation in SysManage is not one feature &mdash; it is a stack of independent layers, each of which would contain a breach on its own. An attacker has to defeat all of them, simultaneously, to cross a tenant boundary.</p>
+
+                    <div class="sec-layers">
+                        <div class="sec-layer">
+                            <h3 data-i18n="docs.auto.security.multi-tenancy.010"><span class="num">1</span>Physical database isolation</h3>
+                            <p data-i18n="docs.auto.security.multi-tenancy.011">Each tenant's operational data lives in its own PostgreSQL database. A SQL injection or a missing tenant filter in one tenant's request can, at worst, reach that tenant's own data &mdash; the other tenants' data is in databases the request holds no connection to.</p>
+                        </div>
+                        <div class="sec-layer">
+                            <h3 data-i18n="docs.auto.security.multi-tenancy.012"><span class="num">2</span>Per-tenant dynamic credentials</h3>
+                            <p data-i18n="docs.auto.security.multi-tenancy.013">Database credentials are issued on demand by <strong>OpenBAO</strong>: short-lived, automatically expiring, and scoped to a single tenant. There is no long-lived, shared database password to steal. A leaked credential is useless to reach any other tenant and stops working on its own.</p>
+                        </div>
+                        <div class="sec-layer">
+                            <h3 data-i18n="docs.auto.security.multi-tenancy.014"><span class="num">3</span>Least-privilege provisioning</h3>
+                            <p data-i18n="docs.auto.security.multi-tenancy.015">Tenants are created by a dedicated, least-privilege <strong>provisioner identity</strong> &mdash; not by a database superuser. The running server never holds the keys to the whole cluster, so compromising the server does not hand an attacker every tenant's database.</p>
+                        </div>
+                        <div class="sec-layer">
+                            <h3 data-i18n="docs.auto.security.multi-tenancy.016"><span class="num">4</span>Fail-loud routing</h3>
+                            <p data-i18n="docs.auto.security.multi-tenancy.017">The routing seam that maps a request to a tenant database <strong>never guesses</strong>. If it cannot resolve a tenant, it logs with full context and refuses the operation rather than silently falling back to a default database. A misroute is treated as a correctness bug, not a soft failure.</p>
+                        </div>
+                        <div class="sec-layer">
+                            <h3 data-i18n="docs.auto.security.multi-tenancy.018"><span class="num">5</span>No cross-partition foreign keys</h3>
+                            <p data-i18n="docs.auto.security.multi-tenancy.019">Because partitions can live in separate databases, no foreign key crosses a tenant boundary. Cross-partition references are stored as <strong>soft references</strong> (a GUID, no enforced constraint), so each database is self-contained &mdash; there is no schema-level path from one tenant's data into another's.</p>
+                        </div>
+                        <div class="sec-layer">
+                            <h3 data-i18n="docs.auto.security.multi-tenancy.020"><span class="num">6</span>The identity boundary</h3>
+                            <p data-i18n="docs.auto.security.multi-tenancy.021">Authentication, users, and roles are server-global; managed data is per-tenant. A person authenticates once, but every action on managed data is served from <em>their active tenant's</em> database. Authorization is evaluated on the control plane, independently of which tenant database is in play.</p>
+                        </div>
+                    </div>
+                </section>
+
+                <section>
+                    <h2 data-i18n="docs.auto.security.multi-tenancy.022">Why it is hard to attack</h2>
+                    <p data-i18n="docs.auto.security.multi-tenancy.023">The clearest way to judge an isolation model is to walk the attacks against it.</p>
+
+                    <div class="attack">
+                        <h4 data-i18n="docs.auto.security.multi-tenancy.024">&ldquo;I'll inject SQL or drop a tenant filter to read another customer's hosts.&rdquo;</h4>
+                        <p data-i18n="docs.auto.security.multi-tenancy.025">Your request is bound to <em>your</em> tenant's database connection. The other tenants' data is in other databases. There is no query &mdash; malicious or accidental &mdash; that can reach across, because the connection simply isn't there. <span class="verdict">Contained to your own data.</span></p>
+                    </div>
+                    <div class="attack">
+                        <h4 data-i18n="docs.auto.security.multi-tenancy.026">&ldquo;I'll steal the database password from config or memory.&rdquo;</h4>
+                        <p data-i18n="docs.auto.security.multi-tenancy.027">There is no shared, long-lived password to steal. Credentials are leased per tenant from OpenBAO, expire automatically, and are scoped to a single tenant's database. A captured credential is narrow and short-lived by construction. <span class="verdict">Blast radius is one tenant, briefly.</span></p>
+                    </div>
+                    <div class="attack">
+                        <h4 data-i18n="docs.auto.security.multi-tenancy.028">&ldquo;I'll compromise the SysManage server process itself.&rdquo;</h4>
+                        <p data-i18n="docs.auto.security.multi-tenancy.029">The server does not hold superuser rights to the database cluster, and it does not cache every tenant's credentials. It leases narrowly scoped credentials as needed. Server compromise is serious, but it does not hand over the whole estate at once. <span class="verdict">No master key to seize.</span></p>
+                    </div>
+                    <div class="attack">
+                        <h4 data-i18n="docs.auto.security.multi-tenancy.030">&ldquo;I'll point my agent at a tenant I don't belong to.&rdquo;</h4>
+                        <p data-i18n="docs.auto.security.multi-tenancy.031">A host is bound to exactly one tenant at registration via a tenant-scoped enrollment token that is validated and consumed server-side. The agent never chooses a database; the server routes its reports to the bound tenant's silo. <span class="verdict">Binding is server-enforced.</span></p>
+                    </div>
+                </section>
+
+                <section>
+                    <h2 data-i18n="docs.auto.security.multi-tenancy.032">Shared-schema vs SysManage</h2>
+                    <table class="sec-table">
+                        <thead>
+                            <tr><th data-i18n="docs.auto.security.multi-tenancy.033">Concern</th><th data-i18n="docs.auto.security.multi-tenancy.034">Typical shared-schema SaaS</th><th data-i18n="docs.auto.security.multi-tenancy.035">SysManage Enterprise SaaS</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td data-i18n="docs.auto.security.multi-tenancy.036">Isolation mechanism</td>
+                                <td class="bad" data-i18n="docs.auto.security.multi-tenancy.037">A <code>tenant_id</code> column; correctness depends on every query.</td>
+                                <td class="good" data-i18n="docs.auto.security.multi-tenancy.038">A separate database per tenant; isolation is the default.</td>
+                            </tr>
+                            <tr>
+                                <td data-i18n="docs.auto.security.multi-tenancy.039">Impact of a query bug</td>
+                                <td class="bad" data-i18n="docs.auto.security.multi-tenancy.040">Potential cross-tenant data exposure.</td>
+                                <td class="good" data-i18n="docs.auto.security.multi-tenancy.041">Limited to the tenant whose request it is.</td>
+                            </tr>
+                            <tr>
+                                <td data-i18n="docs.auto.security.multi-tenancy.042">Database credentials</td>
+                                <td class="bad" data-i18n="docs.auto.security.multi-tenancy.043">Often one shared, long-lived password.</td>
+                                <td class="good" data-i18n="docs.auto.security.multi-tenancy.044">Short-lived, per-tenant, OpenBAO-brokered.</td>
+                            </tr>
+                            <tr>
+                                <td data-i18n="docs.auto.security.multi-tenancy.045">&ldquo;Noisy neighbor&rdquo; / data residency</td>
+                                <td class="bad" data-i18n="docs.auto.security.multi-tenancy.046">All tenants share one database and location.</td>
+                                <td class="good" data-i18n="docs.auto.security.multi-tenancy.047">Each tenant database can be placed independently &mdash; by host, region, or jurisdiction.</td>
+                            </tr>
+                            <tr>
+                                <td data-i18n="docs.auto.security.multi-tenancy.048">Per-tenant backup / export / delete</td>
+                                <td class="bad" data-i18n="docs.auto.security.multi-tenancy.049">Surgery on shared tables.</td>
+                                <td class="good" data-i18n="docs.auto.security.multi-tenancy.050">Operate on a single, self-contained database.</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </section>
+
+                <section>
+                    <h2 data-i18n="docs.auto.security.multi-tenancy.051">Compliance and data residency</h2>
+                    <p data-i18n="docs.auto.security.multi-tenancy.052">Per-tenant databases are not just a security property &mdash; they are an operational and regulatory one. Because a tenant's data is a single self-contained database, you can <strong>place it where it must live</strong> (a specific region or jurisdiction for data-residency rules), <strong>back it up and restore it independently</strong>, <strong>export it</strong> on request, and <strong>delete it completely</strong> when a customer leaves &mdash; all without touching, or risking, any other tenant. Right-to-be-forgotten and data-residency obligations become a per-database operation instead of a careful surgery on shared tables.</p>
+                </section>
+
+                <section>
+                    <h2 data-i18n="docs.auto.security.multi-tenancy.053">Part of a larger security posture</h2>
+                    <p data-i18n="docs.auto.security.multi-tenancy.054">Multi-tenant isolation sits on top of the security SysManage already brings to every deployment. The same protections apply per tenant:</p>
+                    <ul>
+                        <li data-i18n="docs.auto.security.multi-tenancy.055"><strong>Mutual TLS</strong> for agent communication, with certificate-based identity. See <a href="mtls.html">mTLS</a>.</li>
+                        <li data-i18n="docs.auto.security.multi-tenancy.056"><strong>Role-based access control</strong> evaluated on the control plane for every operation. See <a href="rbac.html">RBAC</a>.</li>
+                        <li data-i18n="docs.auto.security.multi-tenancy.057"><strong>OpenBAO secrets management</strong> &mdash; the same vault that brokers tenant credentials manages certificates and SSH keys. See <a href="secrets-management.html">Secrets Management</a>.</li>
+                        <li data-i18n="docs.auto.security.multi-tenancy.058"><strong>JWT authentication</strong> with token rotation. See <a href="authentication.html">Authentication</a>.</li>
+                        <li data-i18n="docs.auto.security.multi-tenancy.059"><strong>Database security</strong> hardening that applies to every tenant database. See <a href="database-security.html">Database Security</a>.</li>
+                    </ul>
+                </section>
+
+                <section>
+                    <h2 data-i18n="docs.auto.security.multi-tenancy.060">Related documentation</h2>
+                    <div class="docs-grid">
+                        <div class="docs-section-card">
+                            <h3 data-i18n="docs.auto.security.multi-tenancy.061">🏗️ Multi-Tenancy Architecture</h3>
+                            <p data-i18n="docs.auto.security.multi-tenancy.062">The control plane, the registry/shared/tenant partitions, the routing seam, and the topology diagram.</p>
+                            <a href="../architecture/multi-tenancy.html" class="section-link" data-i18n="docs.auto.security.multi-tenancy.063">Architecture &rarr;</a>
+                        </div>
+                        <div class="docs-section-card">
+                            <h3 data-i18n="docs.auto.security.multi-tenancy.064">🚀 Enterprise SaaS</h3>
+                            <p data-i18n="docs.auto.security.multi-tenancy.065">The hosted, multi-tenant edition &mdash; what it includes and who it is for.</p>
+                            <a href="../professional-plus/enterprise-saas.html" class="section-link" data-i18n="docs.auto.security.multi-tenancy.066">Enterprise SaaS &rarr;</a>
+                        </div>
+                        <div class="docs-section-card">
+                            <h3 data-i18n="docs.auto.security.multi-tenancy.067">⚙️ Deploy Multi-Tenancy</h3>
+                            <p data-i18n="docs.auto.security.multi-tenancy.068">Registry and tenant databases, OpenBAO, migrations, and tenant provisioning.</p>
+                            <a href="../deployment/multi-tenancy.html" class="section-link" data-i18n="docs.auto.security.multi-tenancy.069">Deployment &rarr;</a>
+                        </div>
+                    </div>
+                </section>
+            </div>
+        </div>
+    </main>
+
+    <!-- Footer injected automatically by components.js -->
+    <script src="/assets/js/components.js"></script>
+    <script src="/assets/js/i18n.js"></script>
+    <script src="/assets/js/navbar.js"></script>
+    <script src="/assets/js/main.js"></script>
+</body>
+</html>

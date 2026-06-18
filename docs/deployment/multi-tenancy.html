@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Deploying Multi-Tenancy - SysManage</title>
+    <meta name="description" content="How to set up a multi-tenant SysManage deployment: the registry and tenant databases, OpenBAO, the three migration chains, tenant provisioning, and host enrollment - for both development and production.">
+    <link rel="stylesheet" href="/assets/css/style.css">
+    <link rel="icon" type="image/svg+xml" href="/assets/images/favicon.svg">
+    <style>
+        .mtd-banner { background: linear-gradient(135deg, #5e35b1 0%, #3949ab 100%); color: #fff; padding: 2rem; border-radius: 12px; margin: 2rem 0; }
+        .mtd-banner h2 { color: #fff; margin-top: 0; }
+        .mtd-banner p { opacity: 0.95; line-height: 1.6; }
+        .mtd-section { background: #f8f9fa; border-left: 4px solid #5e35b1; padding: 1.25rem 1.5rem; margin: 1.25rem 0; border-radius: 0 8px 8px 0; }
+        .mtd-section h3 { margin-top: 0; color: #4527a0; }
+        .mtd-steps { counter-reset: step; list-style: none; padding-left: 0; }
+        .mtd-steps > li { position: relative; padding: 0.5rem 0 1rem 2.6rem; }
+        .mtd-steps > li::before { counter-increment: step; content: counter(step); position: absolute; left: 0; top: 0.4rem; background: #5e35b1; color: #fff; width: 1.8rem; height: 1.8rem; border-radius: 50%; text-align: center; line-height: 1.8rem; font-weight: bold; }
+        pre { background: #1e1e2e; color: #e0e0f0; padding: 1rem 1.2rem; border-radius: 8px; overflow-x: auto; font-size: 0.86rem; line-height: 1.5; }
+        pre code { background: none; color: inherit; padding: 0; }
+        .note { background: #fff3e0; border-left: 4px solid #fb8c00; padding: 0.9rem 1.2rem; border-radius: 0 8px 8px 0; margin: 1rem 0; font-size: 0.94rem; }
+        .note.warn { background: #ffebee; border-left-color: #c62828; }
+        table.dbs { width: 100%; border-collapse: collapse; margin: 1rem 0; }
+        table.dbs th, table.dbs td { border: 1px solid #e0e0e0; padding: 0.6rem 0.8rem; text-align: left; font-size: 0.92rem; }
+        table.dbs th { background: #ede7f6; color: #4527a0; }
+    </style>
+</head>
+<body data-auto-header="documentation" data-auto-footer>
+    <!-- Header injected automatically by components.js -->
+
+    <main class="docs-main">
+        <div class="container">
+            <div class="docs-breadcrumb">
+                <a href="../" data-i18n="docs.auto.deployment.multi-tenancy.001">Documentation</a> &gt; <a href="./" data-i18n="docs.auto.deployment.multi-tenancy.002">Deployment</a> &gt; <span data-i18n="docs.auto.deployment.multi-tenancy.003">Multi-Tenancy</span>
+            </div>
+
+            <div class="docs-header">
+                <h1 data-i18n="docs.auto.deployment.multi-tenancy.004">Deploying Multi-Tenancy</h1>
+                <p data-i18n="docs.auto.deployment.multi-tenancy.005">Standing up a multi-tenant SysManage deployment &mdash; the databases, OpenBAO, the migration chains, and tenant provisioning &mdash; for development and production.</p>
+            </div>
+
+            <div class="docs-content">
+                <div class="mtd-banner">
+                    <h2 data-i18n="docs.auto.deployment.multi-tenancy.006">Before you start</h2>
+                    <p data-i18n="docs.auto.deployment.multi-tenancy.007">Multi-tenancy is the <a href="../professional-plus/enterprise-saas.html" style="color:#fff;text-decoration:underline;">Enterprise SaaS</a> deployment model: a control plane plus an isolated database per tenant. It is <strong>opt-in and licensed</strong> &mdash; with it off, SysManage installs exactly as the single-tenant guide describes (<a href="../server/installation.html" style="color:#fff;text-decoration:underline;">Server Installation</a>). Read the <a href="../architecture/multi-tenancy.html" style="color:#fff;text-decoration:underline;">architecture</a> first so the pieces below make sense.</p>
+                </div>
+
+                <section class="docs-overview">
+                    <h2 data-i18n="docs.auto.deployment.multi-tenancy.008">What you will set up</h2>
+                    <p data-i18n="docs.auto.deployment.multi-tenancy.009">A multi-tenant deployment introduces databases beyond the single application database of a normal install:</p>
+                    <table class="dbs">
+                        <thead><tr><th data-i18n="docs.auto.deployment.multi-tenancy.010">Database</th><th data-i18n="docs.auto.deployment.multi-tenancy.011">Partition</th><th data-i18n="docs.auto.deployment.multi-tenancy.012">Purpose</th></tr></thead>
+                        <tbody>
+                            <tr><td data-i18n="docs.auto.deployment.multi-tenancy.013">Registry / bootstrap</td><td data-i18n="docs.auto.deployment.multi-tenancy.014"><code>registry_*</code></td><td data-i18n="docs.auto.deployment.multi-tenancy.015">The tenant catalog and per-tenant database placements. This is the database <code>sysmanage.yaml</code> points at.</td></tr>
+                            <tr><td data-i18n="docs.auto.deployment.multi-tenancy.016">Shared</td><td data-i18n="docs.auto.deployment.multi-tenancy.017"><code>shared_*</code></td><td data-i18n="docs.auto.deployment.multi-tenancy.018">Canonical reference data identical for every tenant (collapses onto the bootstrap database until the dedicated shared engine is configured).</td></tr>
+                            <tr><td data-i18n="docs.auto.deployment.multi-tenancy.019">Tenant (one per tenant)</td><td data-i18n="docs.auto.deployment.multi-tenancy.020"><em>unprefixed</em></td><td data-i18n="docs.auto.deployment.multi-tenancy.021">Each tenant's host-scoped operational data, in its own database.</td></tr>
+                        </tbody>
+                    </table>
+                    <p data-i18n="docs.auto.deployment.multi-tenancy.022">Three things make this work: <strong>PostgreSQL</strong> (one or more instances), <strong>OpenBAO</strong> (to broker per-tenant database credentials), and the licensed <strong>multitenancy engine</strong> (the routing logic). Without the engine loaded, a deployment configured for multi-tenancy fails loudly with a licensing error rather than misrouting.</p>
+                </section>
+
+                <section>
+                    <h2 data-i18n="docs.auto.deployment.multi-tenancy.023">Development setup</h2>
+                    <p data-i18n="docs.auto.deployment.multi-tenancy.024">The fastest way to develop against multi-tenancy locally. By default a dev checkout runs <em>collapsed</em> &mdash; multi-tenancy off, all three migration chains applied to one database &mdash; which is the normal single-tenant experience. Turn it on explicitly:</p>
+
+                    <ol class="mtd-steps">
+                        <li data-i18n="docs.auto.deployment.multi-tenancy.025">
+                            <strong>Install the dev environment and PostgreSQL</strong> as in the <a href="../server/installation.html">Server Installation</a> guide (clone, <code>make install-dev</code>, create the <code>sysmanage</code> role and database).
+                        </li>
+                        <li data-i18n="docs.auto.deployment.multi-tenancy.026">
+                            <strong>Enable multi-tenancy</strong> in <code>sysmanage-dev.yaml</code>. Point the bootstrap/registry block at your registry database, turn the feature on, and configure the local OpenBAO (the dev config already ships a <code>vault:</code> block):
+                            <pre><code>registry:
+  host: localhost
+  port: 5432
+  name: sysmanage_registry
+  user: sysmanage
+  password: DEV_Change_Me_ABC123!
+
+multitenancy:
+  enabled: true
+  self_service_provisioning: true
+
+vault:
+  # OpenBAO brokers per-tenant database credentials
+  url: http://localhost:8200
+  bootstrap:
+    config_file: ./openbao.hcl
+    data_path: ./data/openbao</code></pre>
+                        </li>
+                        <li data-i18n="docs.auto.deployment.multi-tenancy.027">
+                            <strong>Run the migrations.</strong> <code>make migrate</code> drives <code>scripts/sysmanage_migrate.py</code> &mdash; the same tool operators run in production. With multi-tenancy on it automatically starts OpenBAO for the per-tenant fan-out, applies the registry, shared, and tenant chains, then stops OpenBAO again:
+                            <pre><code>make migrate</code></pre>
+                        </li>
+                        <li data-i18n="docs.auto.deployment.multi-tenancy.028">
+                            <strong>Provision the bootstrap provisioner identity</strong> &mdash; a scoped Postgres role plus OpenBAO policy so the server can create tenants without holding superuser:
+                            <pre><code>make provision-bootstrap ARGS='--bao-token $BAO_TOKEN'</code></pre>
+                        </li>
+                        <li data-i18n="docs.auto.deployment.multi-tenancy.029">
+                            <strong>Start the stack and create a tenant.</strong> <code>make start</code>, then create a tenant from the control-plane UI (Settings &rarr; Tenants). With <code>self_service_provisioning</code> on, the server provisions the tenant's database and OpenBAO credentials for you.
+                        </li>
+                        <li data-i18n="docs.auto.deployment.multi-tenancy.030">
+                            <strong>Fan the tenant chain out</strong> to the newly created tenant database(s):
+                            <pre><code>make migrate-tenants</code></pre>
+                        </li>
+                    </ol>
+
+                    <div class="note">
+                        <strong data-i18n="docs.auto.deployment.multi-tenancy.031">Want the full distributed topology?</strong> The server repository ships <code>scripts/buildMultiTenantTestNetwork.sh</code>, which provisions separate VMs for the registry, shared, and per-tenant databases plus a control plane &mdash; a faithful multi-database environment for exercising real routing instead of the collapsed single-database dev default.
+                    </div>
+                </section>
+
+                <section>
+                    <h2 data-i18n="docs.auto.deployment.multi-tenancy.032">Production setup</h2>
+                    <p data-i18n="docs.auto.deployment.multi-tenancy.033">Production follows the same shape, with real databases, a hardened OpenBAO, and least-privilege provisioning.</p>
+
+                    <ol class="mtd-steps">
+                        <li data-i18n="docs.auto.deployment.multi-tenancy.034">
+                            <strong>Provision the registry database and a login role.</strong> On your PostgreSQL instance, create the <code>sysmanage</code> role and the registry database it owns (see the <a href="../server/installation.html">Server Installation</a> database step). The server connects as this role; it is <em>not</em> a superuser.
+                        </li>
+                        <li data-i18n="docs.auto.deployment.multi-tenancy.035">
+                            <strong>Stand up OpenBAO</strong> and configure its database secrets engine so it can issue short-lived, per-tenant PostgreSQL credentials. OpenBAO is the broker that keeps the server from ever holding a long-lived, shared database password. (Build and start it with the repository's <code>scripts/build-openbao.sh</code> and <code>scripts/start-openbao.sh</code>, or your own managed instance.)
+                        </li>
+                        <li data-i18n="docs.auto.deployment.multi-tenancy.036">
+                            <strong>Configure <code>/etc/sysmanage.yaml</code></strong> &mdash; point the registry block at the registry database, enable multi-tenancy, and configure the vault:
+                            <pre><code>registry:
+  host: db-registry.internal
+  port: 5432
+  name: sysmanage_registry
+  user: sysmanage
+  password: &lt;from your secret store&gt;
+
+multitenancy:
+  enabled: true
+  self_service_provisioning: true
+
+vault:
+  url: https://openbao.internal:8200
+  # token / auth configured per your OpenBAO setup</code></pre>
+                            <div class="note warn"><strong>Licensing:</strong> per-tenant routing requires the licensed multitenancy engine (the <code>MULTITENANT_SAAS</code> tier). Without it, the server refuses to run multi-tenant rather than silently misrouting &mdash; this is intentional.</div>
+                        </li>
+                        <li data-i18n="docs.auto.deployment.multi-tenancy.037">
+                            <strong>Run the migrations</strong> with the operator tool. <code>make migrate</code> (or <code>scripts/sysmanage_migrate.py</code> directly) applies the registry, shared, and tenant chains and shows per-database progress; with multi-tenancy on it brings OpenBAO up for the fan-out:
+                            <pre><code>make migrate</code></pre>
+                        </li>
+                        <li data-i18n="docs.auto.deployment.multi-tenancy.038">
+                            <strong>Provision the least-privilege provisioner identity</strong> so self-service tenant creation works without cluster-superuser rights:
+                            <pre><code>make provision-bootstrap ARGS='--bao-token $BAO_TOKEN'</code></pre>
+                        </li>
+                        <li data-i18n="docs.auto.deployment.multi-tenancy.039">
+                            <strong>Create your tenants</strong> from the control-plane UI (Settings &rarr; Tenants). Each tenant gets its own database and its own OpenBAO-brokered credentials. Place each tenant's database where it needs to live &mdash; by host, region, or jurisdiction.
+                        </li>
+                        <li data-i18n="docs.auto.deployment.multi-tenancy.040">
+                            <strong>Fan the tenant chain out</strong> to every provisioned tenant database (OpenBAO must be running):
+                            <pre><code>make migrate-tenants</code></pre>
+                        </li>
+                        <li data-i18n="docs.auto.deployment.multi-tenancy.041">
+                            <strong>Bind hosts to tenants.</strong> Issue a tenant-scoped enrollment token per tenant (Tenants &rarr; token), drop it into that host's agent configuration under <code>security.enrollment_token</code>, and register the agent. From then on the host's data lands in its tenant's database automatically.
+                        </li>
+                    </ol>
+                </section>
+
+                <section>
+                    <h2 data-i18n="docs.auto.deployment.multi-tenancy.042">Migrations in production</h2>
+                    <p data-i18n="docs.auto.deployment.multi-tenancy.043">Schema changes use an <strong>expand-contract</strong> discipline so a migration is always safe to apply while the previous version of the server is still running. Each partition (registry, shared, tenant) has its own linear, idempotent Alembic chain with a separate version table, and the operator tool applies them across the bootstrap database and every tenant database, reporting progress. The same <code>sysmanage_migrate.py</code> you run in development is what runs in production &mdash; there is no separate, riskier production path.</p>
+                </section>
+
+                <section>
+                    <h2 data-i18n="docs.auto.deployment.multi-tenancy.044">Verify routing</h2>
+                    <p data-i18n="docs.auto.deployment.multi-tenancy.045">Confirm a bound host's data really lands in its tenant database rather than the bootstrap one &mdash; switch the active tenant in the UI and compare host counts, or query the tenant databases directly:</p>
+                    <pre><code>psql 'postgresql://sysmanage@db-tenant-a:5432/tenant_a' -c 'SELECT count(*) FROM hosts;'
+psql 'postgresql://sysmanage@db-tenant-b:5432/tenant_b' -c 'SELECT count(*) FROM hosts;'</code></pre>
+                    <p data-i18n="docs.auto.deployment.multi-tenancy.046">Each tenant's hosts appear only in that tenant's database. If the router cannot resolve a tenant for a piece of work, it logs loudly with full context rather than guessing &mdash; check the server logs.</p>
+                </section>
+
+                <section>
+                    <h2 data-i18n="docs.auto.deployment.multi-tenancy.047">Related documentation</h2>
+                    <div class="docs-grid">
+                        <div class="docs-section-card">
+                            <h3 data-i18n="docs.auto.deployment.multi-tenancy.048">🏗️ Architecture</h3>
+                            <p data-i18n="docs.auto.deployment.multi-tenancy.049">The control plane, partitions, routing seam, and topology diagram.</p>
+                            <a href="../architecture/multi-tenancy.html" class="section-link" data-i18n="docs.auto.deployment.multi-tenancy.050">Multi-tenancy architecture &rarr;</a>
+                        </div>
+                        <div class="docs-section-card">
+                            <h3 data-i18n="docs.auto.deployment.multi-tenancy.051">🔐 Security</h3>
+                            <p data-i18n="docs.auto.deployment.multi-tenancy.052">Why per-database isolation and OpenBAO credentials are hard to attack.</p>
+                            <a href="../security/multi-tenancy.html" class="section-link" data-i18n="docs.auto.deployment.multi-tenancy.053">Multi-tenant security &rarr;</a>
+                        </div>
+                        <div class="docs-section-card">
+                            <h3 data-i18n="docs.auto.deployment.multi-tenancy.054">🖥️ Server Installation</h3>
+                            <p data-i18n="docs.auto.deployment.multi-tenancy.055">The base single-tenant install: prerequisites, database setup, and configuration.</p>
+                            <a href="../server/installation.html" class="section-link" data-i18n="docs.auto.deployment.multi-tenancy.056">Server installation &rarr;</a>
+                        </div>
+                    </div>
+                </section>
+            </div>
+        </div>
+    </main>
+
+    <!-- Footer injected automatically by components.js -->
+    <script src="/assets/js/components.js"></script>
+    <script src="/assets/js/i18n.js"></script>
+    <script src="/assets/js/navbar.js"></script>
+    <script src="/assets/js/main.js"></script>
+</body>
+</html>

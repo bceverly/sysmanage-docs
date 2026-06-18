@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Multi-Tenancy Architecture - SysManage</title>
+    <meta name="description" content="How SysManage implements multi-tenancy: a control-plane plus per-tenant isolated databases, the registry/shared/tenant partitioning model, request routing, and the Enterprise SaaS deployment.">
+    <link rel="stylesheet" href="/assets/css/style.css">
+    <link rel="icon" type="image/svg+xml" href="/assets/images/favicon.svg">
+    <style>
+        .mt-banner {
+            background: linear-gradient(135deg, #5e35b1 0%, #3949ab 100%);
+            color: white;
+            padding: 2rem;
+            border-radius: 12px;
+            margin: 2rem 0;
+        }
+        .mt-banner h2 { color: #fff; margin-top: 0; }
+        .mt-banner p { opacity: 0.95; line-height: 1.6; }
+        .mt-figure {
+            text-align: center;
+            margin: 2rem 0;
+            background: #f8f9fa;
+            padding: 1rem;
+            border-radius: 8px;
+        }
+        .mt-figure img {
+            max-width: 100%;
+            height: auto;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        .mt-figure .caption { margin-top: 0.5rem; font-size: 0.9rem; color: #666; }
+        .mt-compare {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 1.5rem;
+            margin: 1.5rem 0;
+        }
+        .mt-card {
+            border: 1px solid #e0e0e0;
+            border-radius: 10px;
+            padding: 1.5rem;
+            background: #fff;
+        }
+        .mt-card.single { border-top: 4px solid #3f51b5; }
+        .mt-card.multi { border-top: 4px solid #5e35b1; }
+        .mt-card h3 { margin-top: 0; }
+        .mt-section {
+            background: #f8f9fa;
+            border-left: 4px solid #5e35b1;
+            padding: 1.5rem;
+            margin: 1.25rem 0;
+            border-radius: 0 8px 8px 0;
+        }
+        .mt-section h3 { margin-top: 0; color: #4527a0; }
+        table.mt-table { width: 100%; border-collapse: collapse; margin: 1rem 0; }
+        table.mt-table th, table.mt-table td {
+            border: 1px solid #e0e0e0; padding: 0.6rem 0.8rem; text-align: left; font-size: 0.92rem;
+        }
+        table.mt-table th { background: #ede7f6; color: #4527a0; }
+        .mt-pill { display: inline-block; background: #ede7f6; color: #5e35b1; border-radius: 12px; padding: 0.15rem 0.7rem; font-size: 0.8rem; font-weight: bold; }
+    </style>
+</head>
+<body data-auto-header="documentation" data-auto-footer>
+    <!-- Header injected automatically by components.js -->
+
+    <main class="docs-main">
+        <div class="container">
+            <div class="docs-breadcrumb">
+                <a href="../" data-i18n="docs.auto.architecture.multi-tenancy.001">Documentation</a> &gt; <a href="./" data-i18n="docs.auto.architecture.multi-tenancy.002">Architecture</a> &gt; <span data-i18n="docs.auto.architecture.multi-tenancy.003">Multi-Tenancy</span>
+            </div>
+
+            <div class="docs-header">
+                <h1 data-i18n="docs.auto.architecture.multi-tenancy.004">Multi-Tenancy Architecture</h1>
+                <p data-i18n="docs.auto.architecture.multi-tenancy.005">How SysManage isolates many tenants on one deployment &mdash; a control plane plus a dedicated database per tenant &mdash; and how that powers the Enterprise SaaS edition.</p>
+            </div>
+
+            <div class="docs-content">
+                <div class="mt-banner">
+                    <h2 data-i18n="docs.auto.architecture.multi-tenancy.006">Isolation by separation, not by column</h2>
+                    <p data-i18n="docs.auto.architecture.multi-tenancy.007">Most multi-tenant products put every customer's rows in one shared database and filter by a <code>tenant_id</code> column. SysManage does the opposite: <strong>each tenant gets its own physically separate PostgreSQL database</strong>. A missing <code>WHERE tenant_id = ?</code> can never leak one customer's data to another, because the data was never in the same database to begin with. Multi-tenancy is <strong>opt-in and licensed</strong> (the Enterprise SaaS tier); when it is disabled, SysManage runs as an ordinary single-database server.</p>
+                </div>
+
+                <section class="docs-overview">
+                    <h2 data-i18n="docs.auto.architecture.multi-tenancy.008">The two topologies</h2>
+                    <p data-i18n="docs.auto.architecture.multi-tenancy.009">The same SysManage codebase runs in two shapes. The diagram below contrasts the classic single-tenant deployment (Community, Professional, and on-prem Enterprise) with the multi-tenant topology behind Enterprise SaaS.</p>
+
+                    <div class="mt-figure">
+                        <img src="/assets/images/multi-tenancy-topology.svg"
+                             alt="SysManage database topology: single-tenant (one server, one database) versus multi-tenant (control plane plus one isolated database per tenant, with OpenBAO brokering per-tenant credentials)"
+                             onclick="window.open('/assets/images/multi-tenancy-topology.svg', '_blank')"
+                             title="Click to open the full-size diagram in a new tab"/>
+                        <p class="caption" data-i18n="docs.auto.architecture.multi-tenancy.010"><em>Click the diagram to open the full-size version in a new tab.</em></p>
+                    </div>
+
+                    <div class="mt-compare">
+                        <div class="mt-card single">
+                            <h3 data-i18n="docs.auto.architecture.multi-tenancy.011">Single-tenant</h3>
+                            <p data-i18n="docs.auto.architecture.multi-tenancy.012">One SysManage server talks to one PostgreSQL database. Hosts, users, inventory, and audit all live together. This is the Community Edition and the on-prem Professional and Enterprise deployments, and it is the only topology an air-gapped appliance ever uses.</p>
+                            <p data-i18n="docs.auto.architecture.multi-tenancy.013"><span class="mt-pill">Default</span> Nothing about multi-tenancy is active unless you turn it on.</p>
+                        </div>
+                        <div class="mt-card multi">
+                            <h3 data-i18n="docs.auto.architecture.multi-tenancy.014">Multi-tenant</h3>
+                            <p data-i18n="docs.auto.architecture.multi-tenancy.015">A control plane fronts many tenants. Control-plane metadata lives in a registry database; each tenant's operational data lives in its own database. The server resolves the caller to their tenant and routes every query to that tenant's database. OpenBAO brokers a short-lived, least-privilege credential per tenant.</p>
+                            <p data-i18n="docs.auto.architecture.multi-tenancy.016"><span class="mt-pill">Enterprise SaaS</span> Licensed and enabled per deployment.</p>
+                        </div>
+                    </div>
+                </section>
+
+                <section>
+                    <h2 data-i18n="docs.auto.architecture.multi-tenancy.017">Control plane and tenant silos</h2>
+                    <p data-i18n="docs.auto.architecture.multi-tenancy.018">A multi-tenant deployment is split into a small <strong>control plane</strong> and any number of <strong>tenant silos</strong>:</p>
+
+                    <div class="mt-section">
+                        <h3 data-i18n="docs.auto.architecture.multi-tenancy.019">Control plane</h3>
+                        <p data-i18n="docs.auto.architecture.multi-tenancy.020">The control plane is the SysManage server itself plus the licensed <code>multitenancy_engine</code>. It owns the tenant <strong>registry</strong> &mdash; which tenants exist and which database each one is placed in &mdash; and it is the only component that decides, per request, which tenant database to use. It also holds the small amount of genuinely cross-tenant state: the catalog of tenants and their placements.</p>
+                    </div>
+
+                    <div class="mt-section">
+                        <h3 data-i18n="docs.auto.architecture.multi-tenancy.021">Tenant silos</h3>
+                        <p data-i18n="docs.auto.architecture.multi-tenancy.022">Each tenant is a silo: its own database, reached with its own credentials. A tenant silo contains everything host-scoped &mdash; hosts, packages, hardware inventory, compliance results, the agent message queue, and the tenant's own audit-relevant operational data. One tenant can never see another tenant's silo because it never holds a connection to it.</p>
+                    </div>
+                </section>
+
+                <section>
+                    <h2 data-i18n="docs.auto.architecture.multi-tenancy.023">Database partitioning</h2>
+                    <p data-i18n="docs.auto.architecture.multi-tenancy.024">SysManage organizes tables into three <strong>partitions</strong>, distinguished by table-name prefix, so it is unambiguous at the schema level where each table belongs:</p>
+
+                    <table class="mt-table">
+                        <thead>
+                            <tr><th data-i18n="docs.auto.architecture.multi-tenancy.025">Partition</th><th data-i18n="docs.auto.architecture.multi-tenancy.026">Prefix</th><th data-i18n="docs.auto.architecture.multi-tenancy.027">Lives in</th><th data-i18n="docs.auto.architecture.multi-tenancy.028">Holds</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td data-i18n="docs.auto.architecture.multi-tenancy.029">Registry</td><td data-i18n="docs.auto.architecture.multi-tenancy.030"><code>registry_*</code></td><td data-i18n="docs.auto.architecture.multi-tenancy.031">Control plane (registry DB)</td><td data-i18n="docs.auto.architecture.multi-tenancy.032">The tenant catalog and per-tenant database placements.</td></tr>
+                            <tr><td data-i18n="docs.auto.architecture.multi-tenancy.033">Shared</td><td data-i18n="docs.auto.architecture.multi-tenancy.034"><code>shared_*</code></td><td data-i18n="docs.auto.architecture.multi-tenancy.035">Control plane (shared DB)</td><td data-i18n="docs.auto.architecture.multi-tenancy.036">Canonical reference data that is identical for every tenant (for example the CVE/NVD catalog).</td></tr>
+                            <tr><td data-i18n="docs.auto.architecture.multi-tenancy.037">Tenant</td><td data-i18n="docs.auto.architecture.multi-tenancy.038"><em>(unprefixed)</em></td><td data-i18n="docs.auto.architecture.multi-tenancy.039">Each tenant's database</td><td data-i18n="docs.auto.architecture.multi-tenancy.040">All host-scoped operational data &mdash; one copy per tenant.</td></tr>
+                        </tbody>
+                    </table>
+
+                    <div class="mt-section">
+                        <h3 data-i18n="docs.auto.architecture.multi-tenancy.041">No cross-partition foreign keys</h3>
+                        <p data-i18n="docs.auto.architecture.multi-tenancy.042">Because the partitions can live in physically separate databases, a foreign key can never point across a partition boundary &mdash; PostgreSQL cannot enforce a constraint into another database. Where a logical reference is needed across partitions (for example a row that records <em>which server-global user</em> created it), SysManage stores a <strong>soft reference</strong>: the GUID is kept, but no database-level foreign key is declared. This keeps each database self-contained and independently migratable.</p>
+                    </div>
+
+                    <div class="mt-section">
+                        <h3 data-i18n="docs.auto.architecture.multi-tenancy.043">Three migration chains</h3>
+                        <p data-i18n="docs.auto.architecture.multi-tenancy.044">Each partition has its <strong>own</strong> Alembic migration chain &mdash; registry, shared, and tenant &mdash; with separate version tables. The registry and shared chains run once against the control-plane databases; the tenant chain is applied to <em>every</em> tenant database. Schema is open-source and identical for all tenants; only the routing logic that decides <em>which</em> database to touch is licensed.</p>
+                    </div>
+                </section>
+
+                <section>
+                    <h2 data-i18n="docs.auto.architecture.multi-tenancy.045">Request routing</h2>
+                    <p data-i18n="docs.auto.architecture.multi-tenancy.046">Routing is the heart of the data plane. Every request carries an <strong>active tenant</strong> &mdash; established from the authenticated session and JWT &mdash; and a single routing seam turns that into the right database connection:</p>
+                    <ul>
+                        <li data-i18n="docs.auto.architecture.multi-tenancy.047"><strong>User requests.</strong> Middleware binds the active tenant for the request; data-plane endpoints resolve their database session from it, so a tenant user only ever reads and writes their own database.</li>
+                        <li data-i18n="docs.auto.architecture.multi-tenancy.048"><strong>Server-wide background work.</strong> Jobs that must touch every host &mdash; the heartbeat sweep, the store-and-forward queue processors, the repository-mirror and upgrade-profile schedulers &mdash; fan out across the bootstrap database and every provisioned tenant database, one isolated session each.</li>
+                        <li data-i18n="docs.auto.architecture.multi-tenancy.049"><strong>Agent traffic.</strong> Agent reports flow through a durable, per-tenant message queue. Each inbound message is resolved to its host's tenant and written into that tenant's database; a bound host's data always lands in its own silo.</li>
+                    </ul>
+                    <div class="mt-section">
+                        <h3 data-i18n="docs.auto.architecture.multi-tenancy.050">Fail loud, never guess</h3>
+                        <p data-i18n="docs.auto.architecture.multi-tenancy.051">If the router cannot resolve a tenant for a piece of work, it logs loudly with full context and stops &mdash; it never silently falls back to a default database. Misrouting tenant data is treated as a correctness bug, not something to paper over.</p>
+                    </div>
+                </section>
+
+                <section>
+                    <h2 data-i18n="docs.auto.architecture.multi-tenancy.052">The identity boundary</h2>
+                    <p data-i18n="docs.auto.architecture.multi-tenancy.053">Not everything is per-tenant. SysManage draws a deliberate line:</p>
+                    <table class="mt-table">
+                        <thead><tr><th data-i18n="docs.auto.architecture.multi-tenancy.054">Server-global (control plane)</th><th data-i18n="docs.auto.architecture.multi-tenancy.055">Per-tenant (silo)</th></tr></thead>
+                        <tbody>
+                            <tr>
+                                <td data-i18n="docs.auto.architecture.multi-tenancy.056">User accounts, authentication, roles/RBAC, MFA, password-reset and external-IdP state, the tenant registry, licensing.</td>
+                                <td data-i18n="docs.auto.architecture.multi-tenancy.057">Hosts and their inventory, packages, compliance results, the agent message queue, and the tenant's operational data.</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                    <p data-i18n="docs.auto.architecture.multi-tenancy.058">Login is not per-tenant &mdash; a person authenticates once against the server &mdash; but the moment they act on managed data, that data is served from the active tenant's database. Keeping identity server-global while keeping managed data per-tenant is what lets one operator administer many tenants without ever mixing their fleets.</p>
+                </section>
+
+                <section>
+                    <h2 data-i18n="docs.auto.architecture.multi-tenancy.059">Binding a host to a tenant</h2>
+                    <p data-i18n="docs.auto.architecture.multi-tenancy.060">A host belongs to exactly one tenant, decided at registration. An operator issues a tenant-scoped <strong>enrollment token</strong> from the control-plane UI and drops it into that host's agent configuration. When the agent registers, the server validates and consumes the token and records the host&rarr;tenant binding in the registry. From then on the agent is oblivious to tenancy: it just reports, and the server routes its data to the right silo. See the <a href="../security/multi-tenancy.html">multi-tenant security</a> and <a href="../deployment/multi-tenancy.html">deployment</a> guides for the operator workflow.</p>
+                </section>
+
+                <section>
+                    <h2 data-i18n="docs.auto.architecture.multi-tenancy.061">Provisioning and credentials</h2>
+                    <p data-i18n="docs.auto.architecture.multi-tenancy.062">New tenants can be provisioned self-service from the control-plane UI. A least-privilege <strong>provisioner identity</strong> creates the tenant's database and registers it &mdash; the server never holds database-superuser rights. At run time, the tenant's database credentials are <strong>brokered by OpenBAO</strong>: short-lived, dynamically issued, and scoped to a single tenant. The full security treatment &mdash; why this design is hard to attack &mdash; is covered in the <a href="../security/multi-tenancy.html">Multi-Tenant Security</a> guide.</p>
+                </section>
+
+                <section>
+                    <h2 data-i18n="docs.auto.architecture.multi-tenancy.063">Opt-in and licensing</h2>
+                    <p data-i18n="docs.auto.architecture.multi-tenancy.064">Multi-tenancy is entirely opt-in. With it disabled, none of the routing, registry, or per-tenant machinery is active and SysManage behaves exactly like the single-tenant topology &mdash; the same code, the same one database. The multi-tenant routing engine is part of the licensed <strong>Enterprise SaaS</strong> tier (<code>MULTITENANT_SAAS</code>); the database schema and partitioning themselves remain open-source. Without the licensed engine, a deployment configured for multi-tenancy fails loudly with a clear licensing error rather than misrouting.</p>
+                </section>
+
+                <section>
+                    <h2 data-i18n="docs.auto.architecture.multi-tenancy.065">Related documentation</h2>
+                    <div class="docs-grid">
+                        <div class="docs-section-card">
+                            <h3 data-i18n="docs.auto.architecture.multi-tenancy.066">🔐 Multi-Tenant Security</h3>
+                            <p data-i18n="docs.auto.architecture.multi-tenancy.067">Why per-database isolation, OpenBAO-brokered credentials, and the identity boundary make this design exceptionally hard to attack.</p>
+                            <a href="../security/multi-tenancy.html" class="section-link" data-i18n="docs.auto.architecture.multi-tenancy.068">Security treatment &rarr;</a>
+                        </div>
+                        <div class="docs-section-card">
+                            <h3 data-i18n="docs.auto.architecture.multi-tenancy.069">🚀 Enterprise SaaS</h3>
+                            <p data-i18n="docs.auto.architecture.multi-tenancy.070">The multi-tenant, hosted edition: what it includes, who it is for, and how it compares to Community, Professional, and Enterprise.</p>
+                            <a href="../professional-plus/enterprise-saas.html" class="section-link" data-i18n="docs.auto.architecture.multi-tenancy.071">Enterprise SaaS edition &rarr;</a>
+                        </div>
+                        <div class="docs-section-card">
+                            <h3 data-i18n="docs.auto.architecture.multi-tenancy.072">⚙️ Deployment</h3>
+                            <p data-i18n="docs.auto.architecture.multi-tenancy.073">Standing up a multi-tenant deployment: the registry and tenant databases, OpenBAO, the three migration chains, and provisioning.</p>
+                            <a href="../deployment/multi-tenancy.html" class="section-link" data-i18n="docs.auto.architecture.multi-tenancy.074">Deploy multi-tenancy &rarr;</a>
+                        </div>
+                        <div class="docs-section-card">
+                            <h3 data-i18n="docs.auto.architecture.multi-tenancy.075">🗄️ Database Design</h3>
+                            <p data-i18n="docs.auto.architecture.multi-tenancy.076">The underlying schema, entity relationships, and persistence patterns that the partitions are built on.</p>
+                            <a href="database-design.html" class="section-link" data-i18n="docs.auto.architecture.multi-tenancy.077">Database design &rarr;</a>
+                        </div>
+                    </div>
+                </section>
+            </div>
+        </div>
+    </main>
+
+    <!-- Footer injected automatically by components.js -->
+    <script src="/assets/js/components.js"></script>
+    <script src="/assets/js/i18n.js"></script>
+    <script src="/assets/js/navbar.js"></script>
+    <script src="/assets/js/main.js"></script>
+</body>
+</html>
