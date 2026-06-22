@@ -55,7 +55,8 @@ endif
 
 .PHONY: help install-dev install-browsers screenshot clean check-deps platform-info \
        test test-spelling test-markdown-lint test-vale test-accessibility test-links \
-       check-test-deps website-package i18n-validate i18n-seed i18n-extract
+       check-test-deps website-package i18n-validate i18n-seed i18n-extract \
+       translate translate-dry translate-check
 
 # Default target
 help:
@@ -330,6 +331,25 @@ i18n-seed:
 
 i18n-extract:
 	@python3 scripts/i18n_validate.py --extract
+
+# i18n translation backfill via the GPU translation service (lives in the
+# sysmanage repo at scripts/translation-service/).  Idempotent: only the
+# untranslated [TODO] strings are sent, so re-run any time to fill new gaps.
+# Point at your running service with either:
+#   export TRANSLATION_SERVICE_URL=http://beast:8765
+#   or:  make translate SERVICE=http://beast:8765
+SERVICE ?= $(or $(TRANSLATION_SERVICE_URL),http://localhost:8765)
+
+translate:
+	@python3 scripts/translate_i18n.py --service "$(SERVICE)" --fail-on-gaps
+
+translate-dry:
+	@python3 scripts/translate_i18n.py --dry-run
+
+# Offline completeness GATE — no service, no writes, no network.  Fails loudly
+# (non-zero) if any locale string is still untranslated.  Safe for CI / release.
+translate-check:
+	@python3 scripts/translate_i18n.py --check
 
 # ============================================================================
 # Packaging target - build .deb for self-hosted sysmanage.org
