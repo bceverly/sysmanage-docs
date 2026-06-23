@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Federation API - SysManage</title>
+    <meta name="description" content="REST endpoint reference for SysManage federation: identity key exchange, role selection, the coordinator surface, and the site surface.">
+    <link rel="stylesheet" href="/assets/css/style.css">
+    <link rel="icon" type="image/svg+xml" href="/assets/images/favicon.svg">
+</head>
+<body data-auto-header="documentation" data-auto-footer>
+
+    <main class="docs-main">
+        <div class="container">
+            <div class="docs-breadcrumb">
+                <a href="../" data-i18n="docs.auto.api.federation.001">Documentation</a> &gt;
+                <a href="./" data-i18n="docs.auto.api.federation.002">API</a> &gt;
+                <span data-i18n="docs.auto.api.federation.003">Federation</span>
+            </div>
+
+            <div class="docs-header">
+                <h1 data-i18n="docs.auto.api.federation.004">Federation API</h1>
+                <p data-i18n="docs.auto.api.federation.005">Endpoint reference for federating multiple SysManage servers. The open-source core ships the identity surface (key exchange, certificate pinning, role selection) so peers can establish trust. The substantive coordinator and site surfaces are Professional+ features implemented in the licensed federation engines; when those engines are not loaded the routes are mounted as stubs that report they are unlicensed. All coordinator/site endpoints require Bearer-token auth except enrollment completion and the site-to-coordinator ingest endpoints, which authenticate with a site token instead.</p>
+            </div>
+
+            <div class="docs-content">
+
+                <section class="docs-section">
+                    <h2 data-i18n="docs.auto.api.federation.006">Identity and Role (Open Source)</h2>
+                    <p data-i18n="docs.auto.api.federation.007">The identity surface is thin and lives in the OSS core. It handles key exchange between peers, exposes the federation TLS certificate for pinning (unauthenticated, since it is public), and lets an operator select this server's federation role. The valid roles are <code>none</code>, <code>coordinator</code>, and <code>site</code>.</p>
+                    <ul>
+                        <li data-i18n="docs.auto.api.federation.008"><code>GET /api/v1/federation/identity-key</code> &mdash; this server's federation public identity key and fingerprint</li>
+                        <li data-i18n="docs.auto.api.federation.009"><code>GET /api/v1/federation/trusted-peers</code> &mdash; list trusted federation peer keys</li>
+                        <li data-i18n="docs.auto.api.federation.010"><code>POST /api/v1/federation/trusted-peers</code> &mdash; import a peer's public key into the trusted keyring</li>
+                        <li data-i18n="docs.auto.api.federation.011"><code>DELETE /api/v1/federation/trusted-peers/{name}</code> &mdash; remove a trusted peer key</li>
+                        <li data-i18n="docs.auto.api.federation.012"><code>GET /api/v1/federation/tls-cert</code> &mdash; this server's federation TLS certificate (unauthenticated, public)</li>
+                        <li data-i18n="docs.auto.api.federation.013"><code>GET /api/v1/federation-role</code> / <code>PUT /api/v1/federation-role</code> &mdash; read or set the federation role</li>
+                    </ul>
+                </section>
+
+                <section class="docs-section">
+                    <h2 data-i18n="docs.auto.api.federation.014">Coordinator: Sites Registry (Pro+)</h2>
+                    <p data-i18n="docs.auto.api.federation.015">The coordinator enrolls and manages the sites it federates. Enrollment completion is token-authenticated so a new site can finish the handshake before it holds operator credentials.</p>
+                    <ul>
+                        <li data-i18n="docs.auto.api.federation.016"><code>GET /api/v1/federation/sites</code> / <code>POST /api/v1/federation/sites</code> &mdash; list or enroll federation sites</li>
+                        <li data-i18n="docs.auto.api.federation.017"><code>POST /api/v1/federation/sites/enrollment/{token}/complete</code> &mdash; complete the enrollment handshake (token-authenticated)</li>
+                        <li data-i18n="docs.auto.api.federation.018"><code>GET /api/v1/federation/sites/{site_id}</code> / <code>PATCH</code> &mdash; get or update a site</li>
+                        <li data-i18n="docs.auto.api.federation.019"><code>POST /api/v1/federation/sites/{site_id}/suspend</code> / <code>resume</code> &mdash; suspend or resume a site</li>
+                        <li data-i18n="docs.auto.api.federation.020"><code>DELETE /api/v1/federation/sites/{site_id}</code> &mdash; remove a site</li>
+                        <li data-i18n="docs.auto.api.federation.021"><code>GET /api/v1/federation/sites/{site_id}/sync-status</code> &mdash; site sync status</li>
+                        <li data-i18n="docs.auto.api.federation.022"><code>GET /api/v1/federation/sites/{site_id}/sync-timeline</code> &mdash; site sync event timeline</li>
+                        <li data-i18n="docs.auto.api.federation.023"><code>POST /api/v1/federation/sites/{site_id}/repush-policies</code> &mdash; repush policies to a site</li>
+                    </ul>
+                </section>
+
+                <section class="docs-section">
+                    <h2 data-i18n="docs.auto.api.federation.024">Coordinator: Host Directory and Rollups (Pro+)</h2>
+                    <p data-i18n="docs.auto.api.federation.025">Cross-site visibility. The host directory searches hosts across all federated sites; the rollups aggregate host, compliance, and vulnerability data into coordinator-level dashboards and reports.</p>
+                    <ul>
+                        <li data-i18n="docs.auto.api.federation.026"><code>GET /api/v1/federation/hosts</code> &mdash; search hosts across federation sites</li>
+                        <li data-i18n="docs.auto.api.federation.027"><code>GET /api/v1/federation/hosts/{host_id}</code> &mdash; host details from the federated directory</li>
+                        <li data-i18n="docs.auto.api.federation.028"><code>GET /api/v1/federation/rollups/dashboard</code> &mdash; rollup dashboard data</li>
+                        <li data-i18n="docs.auto.api.federation.029"><code>GET /api/v1/federation/reports/rollup</code> &mdash; rollup report</li>
+                        <li data-i18n="docs.auto.api.federation.030"><code>GET /api/v1/federation/rollups/hosts</code> &mdash; host rollups across sites</li>
+                        <li data-i18n="docs.auto.api.federation.031"><code>GET /api/v1/federation/rollups/compliance</code> &mdash; compliance rollups across sites</li>
+                        <li data-i18n="docs.auto.api.federation.032"><code>GET /api/v1/federation/rollups/vulnerabilities</code> &mdash; vulnerability rollups across sites</li>
+                    </ul>
+                </section>
+
+                <section class="docs-section">
+                    <h2 data-i18n="docs.auto.api.federation.033">Coordinator: Policies and Commands (Pro+)</h2>
+                    <p data-i18n="docs.auto.api.federation.034">Policies are authored at the coordinator, assigned to sites, and pushed out. Commands are dispatched to sites and tracked centrally.</p>
+                    <ul>
+                        <li data-i18n="docs.auto.api.federation.035"><code>GET /api/v1/federation/policies</code> / <code>POST</code> &mdash; list or create policies</li>
+                        <li data-i18n="docs.auto.api.federation.036"><code>GET /api/v1/federation/policies/{policy_id}</code> / <code>PATCH</code> / <code>DELETE</code> &mdash; get, update, or deactivate a policy</li>
+                        <li data-i18n="docs.auto.api.federation.037"><code>POST /api/v1/federation/policies/{policy_id}/assign</code> &mdash; assign a policy to sites</li>
+                        <li data-i18n="docs.auto.api.federation.038"><code>POST /api/v1/federation/policies/{policy_id}/push</code> &mdash; push a policy to enrolled sites</li>
+                        <li data-i18n="docs.auto.api.federation.039"><code>POST /api/v1/federation/commands/dispatch</code> &mdash; dispatch a command to sites</li>
+                        <li data-i18n="docs.auto.api.federation.040"><code>GET /api/v1/federation/commands</code> &mdash; list dispatched commands</li>
+                        <li data-i18n="docs.auto.api.federation.041"><code>GET /api/v1/federation/commands/{command_id}</code> &mdash; command details</li>
+                    </ul>
+                </section>
+
+                <section class="docs-section">
+                    <h2 data-i18n="docs.auto.api.federation.042">Coordinator: Audit, Alerts, and Secret Leases (Pro+)</h2>
+                    <p data-i18n="docs.auto.api.federation.043">Cross-site audit log, rollup alerting with acknowledgement and configuration, and the federation-aware view of dynamic secret leases.</p>
+                    <ul>
+                        <li data-i18n="docs.auto.api.federation.044"><code>GET /api/v1/federation/audit</code> &mdash; list federation audit entries</li>
+                        <li data-i18n="docs.auto.api.federation.045"><code>GET /api/v1/federation/audit/{entry_id}</code> &mdash; audit entry details</li>
+                        <li data-i18n="docs.auto.api.federation.046"><code>GET /api/v1/federation/alerts</code> &mdash; list rollup alerts</li>
+                        <li data-i18n="docs.auto.api.federation.047"><code>POST /api/v1/federation/alerts/{alert_id}/acknowledge</code> &mdash; acknowledge an alert</li>
+                        <li data-i18n="docs.auto.api.federation.048"><code>GET /api/v1/federation/alert-config</code> / <code>PUT</code> &mdash; read or update alert configuration</li>
+                        <li data-i18n="docs.auto.api.federation.049"><code>GET /api/v1/federation/secret-leases</code> &mdash; list federation-aware secret leases</li>
+                        <li data-i18n="docs.auto.api.federation.050"><code>POST /api/v1/federation/secret-leases/{lease_id}/revoke</code> &mdash; revoke a secret lease</li>
+                    </ul>
+                </section>
+
+                <section class="docs-section">
+                    <h2 data-i18n="docs.auto.api.federation.051">Coordinator: Site Ingest (Pro+)</h2>
+                    <p data-i18n="docs.auto.api.federation.052">The inbound surface where sites push their rollups, host directory, command results, metadata, and secret-lease requests up to the coordinator. These endpoints authenticate with the site's long-lived sync token rather than an operator JWT.</p>
+                    <ul>
+                        <li data-i18n="docs.auto.api.federation.053"><code>POST /api/v1/federation/sites/{site_id}/rollups/hosts</code> &mdash; ingest host rollup from a site</li>
+                        <li data-i18n="docs.auto.api.federation.054"><code>POST /api/v1/federation/sites/{site_id}/rollups/compliance</code> &mdash; ingest compliance rollup from a site</li>
+                        <li data-i18n="docs.auto.api.federation.055"><code>POST /api/v1/federation/sites/{site_id}/rollups/vulnerabilities</code> &mdash; ingest vulnerability rollup from a site</li>
+                        <li data-i18n="docs.auto.api.federation.056"><code>POST /api/v1/federation/sites/{site_id}/host-directory</code> &mdash; ingest host directory from a site</li>
+                        <li data-i18n="docs.auto.api.federation.057"><code>POST /api/v1/federation/sites/{site_id}/command-results</code> &mdash; ingest command results from a site</li>
+                        <li data-i18n="docs.auto.api.federation.058"><code>POST /api/v1/federation/sites/{site_id}/metadata</code> &mdash; ingest site metadata</li>
+                        <li data-i18n="docs.auto.api.federation.059"><code>POST /api/v1/federation/sites/{site_id}/secret-lease-requests</code> &mdash; ingest secret-lease requests</li>
+                    </ul>
+                </section>
+
+                <section class="docs-section">
+                    <h2 data-i18n="docs.auto.api.federation.060">Site Surface (Pro+)</h2>
+                    <p data-i18n="docs.auto.api.federation.061">The site-side surface: enroll with a coordinator, receive policy/command/secret-lease pushes from it, and expose local sync status and the inbound queue to the site operator.</p>
+                    <ul>
+                        <li data-i18n="docs.auto.api.federation.062"><code>POST /api/v1/federation/site/enroll</code> &mdash; initiate enrollment with a coordinator</li>
+                        <li data-i18n="docs.auto.api.federation.063"><code>GET /api/v1/federation/site/enrollment-status</code> &mdash; site enrollment status</li>
+                        <li data-i18n="docs.auto.api.federation.064"><code>POST /api/v1/federation/site/policies</code> &mdash; receive a policy push from the coordinator</li>
+                        <li data-i18n="docs.auto.api.federation.065"><code>POST /api/v1/federation/site/commands</code> &mdash; receive a command dispatch from the coordinator</li>
+                        <li data-i18n="docs.auto.api.federation.066"><code>POST /api/v1/federation/site/secret-leases</code> &mdash; receive a secret lease from the coordinator</li>
+                        <li data-i18n="docs.auto.api.federation.067"><code>GET /api/v1/federation/site/sync-status</code> &mdash; sync status with the coordinator</li>
+                        <li data-i18n="docs.auto.api.federation.068"><code>GET /api/v1/federation/site/sync-queue/depth</code> &mdash; depth of the outbound sync queue</li>
+                        <li data-i18n="docs.auto.api.federation.069"><code>GET /api/v1/federation/site/received-policies</code> &mdash; list policies received from the coordinator</li>
+                        <li data-i18n="docs.auto.api.federation.070"><code>GET /api/v1/federation/site/received-commands</code> &mdash; list commands received from the coordinator</li>
+                    </ul>
+                </section>
+
+            </div>
+        </div>
+    </main>
+
+</body>
+</html>

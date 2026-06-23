@@ -53,7 +53,7 @@ else
     RESET :=
 endif
 
-.PHONY: help install-dev install-browsers screenshot clean check-deps platform-info \
+.PHONY: help install-dev install-vm-deps install-browsers screenshot clean check-deps platform-info \
        test test-spelling test-markdown-lint test-vale test-accessibility test-links \
        check-test-deps website-package i18n-validate i18n-seed i18n-extract \
        translate translate-dry translate-check
@@ -171,11 +171,51 @@ install-dev: check-deps
 	}
 	@echo "$(GREEN)✓ Vale installed$(RESET)"
 	@echo ""
+	@# --- Screenshot VM prerequisites (Vagrant + libvirt) ---
+	@$(MAKE) install-vm-deps
+	@echo ""
 	@echo "$(GREEN)✓ All development dependencies installed$(RESET)"
 	@echo ""
 	@echo "$(BLUE)Next steps:$(RESET)"
 	@echo "1. Run 'make install-browsers' to install Playwright browser binaries (for screenshots)"
 	@echo "2. Run 'make test' to run the full local test suite"
+	@echo "3. If you were just added to the 'libvirt' group, log out/in (or 'newgrp libvirt') before 'make screenshots'"
+
+# Screenshot-pipeline VM prerequisites: Vagrant + libvirt/KVM + the vagrant-libvirt
+# plugin. Idempotent (skips what's already present). apt/Linux only — on other
+# platforms it prints manual guidance (see screenshots/README.md) without failing.
+# Called by install-dev; also runnable standalone.
+install-vm-deps:
+	@echo "$(YELLOW)Installing screenshot VM prerequisites (Vagrant + libvirt)...$(RESET)"
+	@if ! command -v apt-get >/dev/null 2>&1; then \
+		echo "$(YELLOW)Not an apt-based system — install Vagrant + a VM provider manually:$(RESET)"; \
+		echo "  see screenshots/README.md -> Prerequisites"; \
+	else \
+		if command -v vagrant >/dev/null 2>&1; then \
+			echo "$(GREEN)✓ vagrant already installed$(RESET)"; \
+		else \
+			echo "Adding HashiCorp apt repo + installing Vagrant..."; \
+			wget -qO- https://apt.releases.hashicorp.com/gpg | sudo gpg --dearmor -o /usr/share/keyrings/hashicorp-archive-keyring.gpg; \
+			echo "deb [signed-by=/usr/share/keyrings/hashicorp-archive-keyring.gpg] https://apt.releases.hashicorp.com $$(lsb_release -cs) main" | sudo tee /etc/apt/sources.list.d/hashicorp.list >/dev/null; \
+			sudo apt-get update; \
+			sudo apt-get install -y vagrant; \
+		fi; \
+		echo "Installing libvirt/KVM provider packages..."; \
+		sudo apt-get install -y qemu-system-x86 libvirt-daemon-system libvirt-clients libvirt-dev ebtables dnsmasq-base build-essential; \
+		if id -nG "$$USER" | tr ' ' '\n' | grep -qx libvirt; then \
+			echo "$(GREEN)✓ already in libvirt group$(RESET)"; \
+		else \
+			sudo usermod -aG libvirt "$$USER"; \
+			echo "$(YELLOW)Added $$USER to 'libvirt' — log out/in (or 'newgrp libvirt') before 'make screenshots'.$(RESET)"; \
+		fi; \
+		if vagrant plugin list 2>/dev/null | grep -q vagrant-libvirt; then \
+			echo "$(GREEN)✓ vagrant-libvirt plugin already installed$(RESET)"; \
+		else \
+			echo "Installing vagrant-libvirt plugin..."; \
+			vagrant plugin install vagrant-libvirt; \
+		fi; \
+	fi
+	@echo "$(GREEN)✓ Screenshot VM prerequisites done$(RESET)"
 
 # Install Playwright browsers
 install-browsers:
@@ -202,6 +242,222 @@ screenshot:
 	@echo "$(YELLOW)Running screenshot generator...$(RESET)"
 	@$(NODE) screenshot-generator.js
 	@echo "$(GREEN)✓ Screenshot generated successfully$(RESET)"
+
+# ---- Automated documentation screenshots (screenshots/ pipeline) ------------
+# Reproducible screenshots: provision a VM, seed demo data (REST + WS), drive the
+# UI with Playwright, write PNGs into assets/images/. See screenshots/README.md.
+.PHONY: screenshots screenshots-seed screenshots-capture screenshots-vm-up screenshots-vm-down screenshots-pro-build screenshots-pro-seed screenshots-pro-capture screenshots-ent-build screenshots-ent-seed screenshots-ent-capture screenshots-ent-roles
+
+SHOTS_DIR := screenshots
+# Load screenshots/config.env (targets, admin + demo creds) if present.
+-include $(SHOTS_DIR)/config.env
+# Targets default to EMPTY: the seed/capture recipes then auto-resolve the VM's
+# private (libvirt) IP and hit it directly. We can't use localhost: the VM forwards
+# 8080/3000 to the host, but if you also run sysmanage on the host those ports
+# collide and localhost answers from the wrong instance. Hitting the VM by IP is
+# unambiguous. Set these in config.env to point seed/capture at any other instance.
+SCREENSHOT_TARGET_API ?=
+SCREENSHOT_TARGET_WEB ?=
+SCREENSHOT_ADMIN ?= admin@sysmanage.org
+# Capture as the built-in admin: it holds all security roles, so RBAC-gated UI
+# (the host-detail "eye" icon, the audit-log viewer, etc.) actually renders. A
+# role-less demo user would have those controls hidden. The demo users still appear
+# on the Users page; we just don't log in as one.
+SCREENSHOT_USER ?= admin@sysmanage.org
+# Throwaway-VM dev defaults (not secrets): the admin password matches provision.sh's
+# SYSMANAGE_ADMIN_PW fallback. Override in screenshots/config.env for a non-default instance.
+SCREENSHOT_ADMIN_PW ?= ChangeMe-Dev-Only!
+SCREENSHOT_PW ?= ChangeMe-Dev-Only!
+
+# Lifecycle toggle:
+#   FRESH=0 (default, while we get it working) — reuse/keep the VM. Idempotent:
+#       re-running just re-seeds + re-captures against the running VM, and leaves
+#       it up so you can inspect it. `vagrant up` won't re-provision a live VM.
+#   FRESH=1 (once a full end-to-end run works) — destroy any existing VM first for
+#       a clean slate, then tear it down again at the end. This is the intended
+#       steady state (run at the end of a feature phase); flip the default below
+#       to 1 when you're ready, or run `make screenshots FRESH=1`.
+FRESH ?= 0
+
+# Full pass: (optional clean) -> VM up -> seed -> capture into assets/images/.
+screenshots:
+	@if [ "$(FRESH)" = "1" ]; then \
+		echo "$(YELLOW)FRESH=1: destroying any existing VM for a clean run...$(RESET)"; \
+		$(MAKE) screenshots-vm-down; \
+	fi
+	@$(MAKE) screenshots-vm-up
+	@$(MAKE) screenshots-seed
+	@$(MAKE) screenshots-capture
+	@echo "$(GREEN)✓ Screenshots refreshed in assets/images/$(RESET)"
+	@if [ "$(FRESH)" = "1" ]; then \
+		echo "$(YELLOW)FRESH=1: tearing down the VM...$(RESET)"; \
+		$(MAKE) screenshots-vm-down; \
+	else \
+		echo "$(BLUE)VM left running (FRESH=0). Re-run 'make screenshots' to iterate, or 'make screenshots-vm-down' to remove it.$(RESET)"; \
+	fi
+
+screenshots-vm-up:
+	@command -v vagrant >/dev/null 2>&1 || { \
+		echo "$(RED)Vagrant is not installed.$(RESET)"; \
+		echo "Install Vagrant + a VM provider (libvirt recommended on Linux) —"; \
+		echo "see screenshots/README.md → Prerequisites. Quick version:"; \
+		echo "  wget -O- https://apt.releases.hashicorp.com/gpg | sudo gpg --dearmor -o /usr/share/keyrings/hashicorp-archive-keyring.gpg"; \
+		echo "  echo \"deb [signed-by=/usr/share/keyrings/hashicorp-archive-keyring.gpg] https://apt.releases.hashicorp.com $$(lsb_release -cs) main\" | sudo tee /etc/apt/sources.list.d/hashicorp.list"; \
+		echo "  sudo apt update && sudo apt install -y vagrant qemu-system-x86 libvirt-daemon-system libvirt-clients libvirt-dev ebtables dnsmasq-base build-essential"; \
+		echo "  sudo usermod -aG libvirt $$USER   # then re-login (or: newgrp libvirt)"; \
+		echo "  vagrant plugin install vagrant-libvirt"; \
+		exit 1; \
+	}
+	@echo "$(BLUE)Bringing up the screenshot VM...$(RESET)"
+	@cd $(SHOTS_DIR) && SCREENSHOT_ADMIN_PW="$(SCREENSHOT_ADMIN_PW)" vagrant up
+	@echo "$(YELLOW)Waiting for backend...$(RESET)"
+	@cd $(SHOTS_DIR) && API="$(SCREENSHOT_TARGET_API)"; \
+		[ -n "$$API" ] || API="http://$$(vagrant ssh -c 'hostname -I' 2>/dev/null | awk '{print $$1}' | tr -d '\r'):8080"; \
+		echo "  backend target: $$API"; \
+		for i in $$(seq 1 30); do curl -fsS $$API/api/health >/dev/null 2>&1 && { echo "  backend up"; break; }; sleep 5; done
+
+screenshots-vm-down:
+	@cd $(SHOTS_DIR) && vagrant destroy -f
+
+# Professional tier (checkpoint): (re)provision the VM with SYSMANAGE_PRO=1 so the
+# provisioner syncs sysmanage-professional-plus, Cython-builds + installs the engines,
+# self-signs a Professional license, and verifies the engines load (then reverts the
+# box to OSS state). Needs the sysmanage-professional-plus sibling repo present.
+# For a clean build, run 'make screenshots-vm-down' first.
+screenshots-pro-build:
+	@command -v vagrant >/dev/null 2>&1 || { echo "$(RED)Vagrant not installed (see screenshots/README.md).$(RESET)"; exit 1; }
+	@[ -d ../sysmanage-professional-plus ] || { echo "$(RED)../sysmanage-professional-plus not found.$(RESET)"; exit 1; }
+	@echo "$(BLUE)Provisioning a Professional-tier VM (engine build + self-signed license)...$(RESET)"
+	@cd $(SHOTS_DIR) && SYSMANAGE_PRO=1 SYSMANAGE_TIER=professional SCREENSHOT_ADMIN_PW="$(SCREENSHOT_ADMIN_PW)" vagrant up --provision
+
+# Provision an ENTERPRISE-tier VM: same prebuilt-bundle mechanism, but installs the
+# full Enterprise engine set (federation, air-gap, virtualization, observability,
+# fleet, automation, IdP, mirroring, AV, firewall) and signs a tier=enterprise
+# self-signed license. Engine/feature lists are derived from the tier, so this and
+# screenshots-pro-build share one provision path.
+screenshots-ent-build:
+	@command -v vagrant >/dev/null 2>&1 || { echo "$(RED)Vagrant not installed (see screenshots/README.md).$(RESET)"; exit 1; }
+	@[ -d ../sysmanage-professional-plus ] || { echo "$(RED)../sysmanage-professional-plus not found.$(RESET)"; exit 1; }
+	@echo "$(BLUE)Provisioning an Enterprise-tier VM (all engines + self-signed enterprise license)...$(RESET)"
+	@cd $(SHOTS_DIR) && SYSMANAGE_PRO=1 SYSMANAGE_TIER=enterprise SCREENSHOT_ADMIN_PW="$(SCREENSHOT_ADMIN_PW)" vagrant up --provision
+
+# Seed demo data. REST (seed.py, stdlib-only) creates hosts/updates/tags/users/
+# scripts; the rest of the inventory (OS, hardware, storage, network, software) is
+# written straight into the DB by gen_seed_sql.py -> seed_inventory.sql, applied
+# inside the VM. Targets SCREENSHOT_TARGET_API if set, else the running VM's IP.
+screenshots-seed:
+	@cd $(SHOTS_DIR) && API="$(SCREENSHOT_TARGET_API)"; \
+		if [ -z "$$API" ]; then \
+			VMIP=$$(vagrant ssh -c 'hostname -I' 2>/dev/null | awk '{print $$1}' | tr -d '\r'); \
+			[ -n "$$VMIP" ] || { echo "$(RED)Screenshot VM not running. Run 'make screenshots' (creates+provisions it), or 'cd screenshots && vagrant up'.$(RESET)"; exit 1; }; \
+			API="http://$$VMIP:8080"; \
+		fi; \
+		echo "$(BLUE)Seeding demo data -> $$API$(RESET)"; \
+		SCREENSHOT_TARGET="$$API" SCREENSHOT_ADMIN="$(SCREENSHOT_ADMIN)" SCREENSHOT_ADMIN_PW="$(SCREENSHOT_ADMIN_PW)" \
+			python3 seed.py; \
+		python3 gen_seed_sql.py; \
+		if [ -z "$(SCREENSHOT_TARGET_API)" ]; then \
+			echo "$(BLUE)Applying inventory + map coordinates directly (seed_inventory.sql, seed_geo.sql)...$(RESET)"; \
+			cat seed_inventory.sql seed_geo.sql | vagrant ssh -c "sudo -u postgres psql -d sysmanage -v ON_ERROR_STOP=1 -q" 2>/dev/null \
+				| sed 's/^/  /' || echo "$(YELLOW)direct seed skipped (could not reach VM psql)$(RESET)"; \
+		else \
+			echo "$(YELLOW)External target set — skipping direct SQL seed (VM-only).$(RESET)"; \
+		fi
+
+# Seed Professional-tier engine demo data (vulnerabilities, compliance, health,
+# alerts, containers, secrets) straight into the engine result tables via the
+# ORM, run INSIDE the Pro VM. Requires a Pro-licensed VM (make screenshots-pro-build)
+# AND the OSS hosts seeded first (make screenshots-seed) — engine data attaches to
+# those demo hosts. VM-only (needs the in-VM DB + models).
+screenshots-pro-seed:
+	@cd $(SHOTS_DIR) && VMIP=$$(vagrant ssh -c 'hostname -I' 2>/dev/null | awk '{print $$1}' | tr -d '\r'); \
+		[ -n "$$VMIP" ] || { echo "$(RED)Screenshot VM not running. Run 'make screenshots-pro-build' first.$(RESET)"; exit 1; }; \
+		echo "$(BLUE)Seeding Professional engine demo data (in-VM ORM)...$(RESET)"; \
+		cat seed_pro.py | vagrant ssh -c "cd /opt/sysmanage && sudo env PYTHONPATH=/opt/sysmanage /opt/sysmanage/.venv/bin/python - 2>&1" 2>/dev/null \
+			| sed 's/^/  /' || echo "$(YELLOW)pro seed failed (is the Pro-licensed VM up and OSS-seeded?)$(RESET)"
+
+# Seed Enterprise-tier engine demo data (antivirus, firewall, fleet, automation,
+# mirroring, access-groups, virtualization, observability, IdP, federation,
+# air-gap) into their tables via the ORM, run INSIDE the Enterprise VM. Requires
+# an Enterprise-licensed VM (make screenshots-ent-build) + the OSS hosts seeded
+# first (make screenshots-seed); run after screenshots-pro-seed for the shared
+# Pro engine data. VM-only.
+screenshots-ent-seed:
+	@cd $(SHOTS_DIR) && VMIP=$$(vagrant ssh -c 'hostname -I' 2>/dev/null | awk '{print $$1}' | tr -d '\r'); \
+		[ -n "$$VMIP" ] || { echo "$(RED)Screenshot VM not running. Run 'make screenshots-ent-build' first.$(RESET)"; exit 1; }; \
+		echo "$(BLUE)Seeding Enterprise engine demo data (in-VM ORM)...$(RESET)"; \
+		cat seed_ent.py | vagrant ssh -c "cd /opt/sysmanage && sudo env PYTHONPATH=/opt/sysmanage /opt/sysmanage/.venv/bin/python - 2>&1" 2>/dev/null \
+			| sed 's/^/  /' || echo "$(YELLOW)ent seed failed (is the Enterprise-licensed VM up and OSS-seeded?)$(RESET)"
+
+# Capture into assets/images/. Targets SCREENSHOT_TARGET_WEB if set, else the
+# running VM's private IP (resolved via vagrant ssh).
+screenshots-capture: install-browsers
+	@echo "$(BLUE)Capturing screenshots -> assets/images/$(RESET)"
+	@cd $(SHOTS_DIR) && WEB="$(SCREENSHOT_TARGET_WEB)"; \
+		if [ -z "$$WEB" ]; then \
+			VMIP=$$(vagrant ssh -c 'hostname -I' 2>/dev/null | awk '{print $$1}' | tr -d '\r'); \
+			[ -n "$$VMIP" ] || { echo "$(RED)Screenshot VM not running. Run 'make screenshots' (creates+provisions it), or 'cd screenshots && vagrant up'.$(RESET)"; exit 1; }; \
+			WEB="http://$$VMIP:3000"; \
+		fi; \
+		echo "  web target: $$WEB"; \
+		SCREENSHOT_TARGET="$$WEB" SCREENSHOT_USER="$(SCREENSHOT_USER)" SCREENSHOT_PW="$(SCREENSHOT_PW)" \
+			$(NODE) capture.mjs
+
+# Capture the Professional-tier shots (tier=pro in shotlist.json) against the
+# Pro-licensed VM. Run AFTER: screenshots-pro-build, screenshots-seed,
+# screenshots-pro-seed. Identical to screenshots-capture but with SCREENSHOT_TIER=pro,
+# so it only captures the Pro pages and leaves the OSS shots untouched.
+screenshots-pro-capture: install-browsers
+	@echo "$(BLUE)Capturing Professional-tier screenshots -> assets/images/$(RESET)"
+	@cd $(SHOTS_DIR) && WEB="$(SCREENSHOT_TARGET_WEB)"; \
+		if [ -z "$$WEB" ]; then \
+			VMIP=$$(vagrant ssh -c 'hostname -I' 2>/dev/null | awk '{print $$1}' | tr -d '\r'); \
+			[ -n "$$VMIP" ] || { echo "$(RED)Screenshot VM not running. Run 'make screenshots-pro-build' first.$(RESET)"; exit 1; }; \
+			WEB="http://$$VMIP:3000"; \
+		fi; \
+		echo "  web target: $$WEB"; \
+		SCREENSHOT_TIER=pro SCREENSHOT_TARGET="$$WEB" SCREENSHOT_USER="$(SCREENSHOT_USER)" SCREENSHOT_PW="$(SCREENSHOT_PW)" \
+			$(NODE) capture.mjs
+
+# Capture the Enterprise-tier shots (tier=enterprise in shotlist.json) against the
+# Enterprise-licensed VM. Run AFTER: screenshots-ent-build, screenshots-seed,
+# screenshots-pro-seed, screenshots-ent-seed.
+screenshots-ent-capture: install-browsers
+	@echo "$(BLUE)Capturing Enterprise-tier screenshots -> assets/images/$(RESET)"
+	@cd $(SHOTS_DIR) && WEB="$(SCREENSHOT_TARGET_WEB)"; \
+		if [ -z "$$WEB" ]; then \
+			VMIP=$$(vagrant ssh -c 'hostname -I' 2>/dev/null | awk '{print $$1}' | tr -d '\r'); \
+			[ -n "$$VMIP" ] || { echo "$(RED)Screenshot VM not running. Run 'make screenshots-ent-build' first.$(RESET)"; exit 1; }; \
+			WEB="http://$$VMIP:3000"; \
+		fi; \
+		echo "  web target: $$WEB"; \
+		SCREENSHOT_TIER=enterprise SCREENSHOT_TARGET="$$WEB" SCREENSHOT_USER="$(SCREENSHOT_USER)" SCREENSHOT_PW="$(SCREENSHOT_PW)" \
+			$(NODE) capture.mjs
+
+# Re-capture the role-gated Enterprise shots (federation Sites + air-gap), which
+# render real content only when the server's federation_role/air_gap_role match
+# (route mounting happens at backend startup, so each role change needs a
+# restart). Two passes: (A) coordinator+collector -> Sites x3 + Air-Gap
+# Collections; (B) repository -> Air-Gap Repositories. Run after screenshots-ent-seed.
+screenshots-ent-roles: install-browsers
+	@cd $(SHOTS_DIR) && VMIP=$$(vagrant ssh -c 'hostname -I' 2>/dev/null | awk '{print $$1}' | tr -d '\r'); \
+		[ -n "$$VMIP" ] || { echo "$(RED)Screenshot VM not running.$(RESET)"; exit 1; }; \
+		WEB="http://$$VMIP:3000"; \
+		echo "$(BLUE)Pass A: federation_role=coordinator, air_gap_role=collector$(RESET)"; \
+		cat set_roles.py | vagrant ssh -c "cd /opt/sysmanage && sudo env PYTHONPATH=/opt/sysmanage FEDERATION_ROLE=coordinator AIR_GAP_ROLE=collector /opt/sysmanage/.venv/bin/python - 2>&1" 2>/dev/null | sed 's/^/  /'; \
+		echo "$(BLUE)  restarting backend to re-mount role routes...$(RESET)"; \
+		vagrant ssh -c "cd /opt/sysmanage && sudo make stop >/dev/null 2>&1; sudo bash -c 'cd /opt/sysmanage && setsid make start >/var/log/sysmanage-start.log 2>&1 </dev/null &'" 2>/dev/null; \
+		sleep 45; \
+		SCREENSHOT_TIER=enterprise SCREENSHOT_ONLY=ent-sites,ent-sites-map,ent-sites-tiles,ent-airgap-collections \
+			SCREENSHOT_TARGET="$$WEB" SCREENSHOT_USER="$(SCREENSHOT_USER)" SCREENSHOT_PW="$(SCREENSHOT_PW)" $(NODE) capture.mjs || true; \
+		echo "$(BLUE)Pass B: air_gap_role=repository, federation_role=none$(RESET)"; \
+		cat set_roles.py | vagrant ssh -c "cd /opt/sysmanage && sudo env PYTHONPATH=/opt/sysmanage AIR_GAP_ROLE=repository FEDERATION_ROLE=none /opt/sysmanage/.venv/bin/python - 2>&1" 2>/dev/null | sed 's/^/  /'; \
+		echo "$(BLUE)  restarting backend...$(RESET)"; \
+		vagrant ssh -c "cd /opt/sysmanage && sudo make stop >/dev/null 2>&1; sudo bash -c 'cd /opt/sysmanage && setsid make start >/var/log/sysmanage-start.log 2>&1 </dev/null &'" 2>/dev/null; \
+		sleep 45; \
+		SCREENSHOT_TIER=enterprise SCREENSHOT_ONLY=ent-airgap-repositories \
+			SCREENSHOT_TARGET="$$WEB" SCREENSHOT_USER="$(SCREENSHOT_USER)" SCREENSHOT_PW="$(SCREENSHOT_PW)" $(NODE) capture.mjs || true; \
+		echo "$(GREEN)Role-gated re-capture done. (Box left as air_gap_role=repository / federation_role=none.)$(RESET)"
 
 # Clean generated files and dependencies
 clean:

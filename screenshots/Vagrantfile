@@ -1,0 +1,61 @@
+# Vagrant VM for the SysManage documentation screenshots.
+#
+# Brings up a throwaway Ubuntu VM, installs sysmanage + sysmanage-agent from the
+# sibling working copies (synced in), and exposes the backend (8080) and web UI
+# (3000) to the host so seed.py / fixture_agent.py / capture.mjs can drive it.
+#
+# Providers: libvirt (preferred on Linux) or virtualbox. The repos are mounted
+# read-only and copied inside, so the VM never mutates your working trees.
+#
+# This is the environment layer; the seed + capture scripts are independent of it
+# and can run against any instance via SCREENSHOT_TARGET_*.
+
+Vagrant.configure("2") do |config|
+  # Override with SCREENSHOT_BOX if you prefer a different image. The default is a
+  # libvirt-capable Ubuntu LTS box (the `generic/` namespace has no 24.04 image, so
+  # don't use generic/ubuntu2404 — it 404s). The OS version inside the VM doesn't
+  # matter much; sysmanage installs its deps via apt regardless.
+  # Other libvirt-friendly options: generic/ubuntu2304, alvistack/ubuntu-24.04.
+  config.vm.box = ENV["SCREENSHOT_BOX"] || "generic/ubuntu2204"
+  config.vm.hostname = "sysmanage-shots"
+
+  # Expose the stack to the host for seeding + capture.
+  config.vm.network "forwarded_port", guest: 8080, host: 8080, auto_correct: true  # backend API
+  config.vm.network "forwarded_port", guest: 3000, host: 3000, auto_correct: true  # web UI
+
+  # Mount the sibling repos read-only; provision.sh copies them to /opt inside.
+  config.vm.synced_folder "../../sysmanage",       "/srv/src/sysmanage",       type: "rsync", rsync__exclude: [".git/", ".venv/", "node_modules/"]
+  config.vm.synced_folder "../../sysmanage-agent", "/srv/src/sysmanage-agent", type: "rsync", rsync__exclude: [".git/", ".venv/", "node_modules/"]
+  config.vm.synced_folder ".", "/vagrant", disabled: false
+
+  # Professional tier (opt-in via SYSMANAGE_PRO=1): also sync the Pro+ engine repo
+  # so provision.sh can Cython-build + install the engines. Only synced when present
+  # and requested, so the default OSS run is unaffected. Pre-built plugin bundles
+  # (storage/modules/**/*.iife.js) ARE kept; only .git/.venv/node_modules excluded.
+  pro = ENV["SYSMANAGE_PRO"] == "1" && File.directory?("../../sysmanage-professional-plus")
+  if pro
+    config.vm.synced_folder "../../sysmanage-professional-plus", "/srv/src/sysmanage-professional-plus",
+      type: "rsync", rsync__exclude: [".git/", ".venv/", "node_modules/"]
+  end
+
+  %w[libvirt virtualbox].each do |prov|
+    config.vm.provider prov do |v|
+      v.memory = 4096
+      v.cpus = 2
+    end
+  end
+
+  # Admin password for the seeded instance is passed in from config.env so it is
+  # never baked into the box. Falls back to a dev default if unset.
+  admin_pw = ENV["SCREENSHOT_ADMIN_PW"] || "ChangeMe-Dev-Only!"
+
+  config.vm.provision "shell" do |s|
+    s.path = "provision/provision.sh"
+    s.env = {
+      "SYSMANAGE_ADMIN_PW" => admin_pw,
+      "SYSMANAGE_PRO" => (pro ? "1" : "0"),
+      # Which licensed tier to install/sign: professional (default) | enterprise.
+      "SYSMANAGE_TIER" => (ENV["SYSMANAGE_TIER"] || "professional"),
+    }
+  end
+end

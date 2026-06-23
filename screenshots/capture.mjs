@@ -1,0 +1,182 @@
+// Playwright capture driver for the SysManage documentation screenshots.
+//
+// Logs into a running instance, walks shotlist.json, and writes PNGs straight to
+// ../assets/images/ (the exact paths the docs already <img>), so pass-one just
+// refreshes the existing manually-made screenshots. Environment-agnostic: point it
+// at the VM or any dev instance via SCREENSHOT_TARGET.
+//
+// Reuses the proven login flow from the repo's existing screenshot-generator.js
+// (input[name="userid"] / input[name="password"] / button[type="submit"]).
+//
+//   SCREENSHOT_TARGET=http://localhost:3000 \
+//   SCREENSHOT_USER=alice.admin@demo.sysmanage.org SCREENSHOT_PW=Demo-Pass-1! \
+//   node capture.mjs
+//
+// Notes:
+//  - SCREENSHOT_TARGET should point at the WEB UI (frontend) origin.
+//  - Report shots drive the Reports page by visible name; if the UI labels differ,
+//    tune `reportName` in shotlist.json (no code change needed).
+
+import { chromium } from 'playwright';
+import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+import { dirname, join } from 'node:path';
+
+const __dir = dirname(fileURLToPath(import.meta.url));
+const TARGET = (process.env.SCREENSHOT_TARGET || 'http://localhost:3000').replace(/\/$/, '');
+const USER = process.env.SCREENSHOT_USER || process.env.SCREENSHOT_ADMIN || 'admin@sysmanage.org';
+const PW = process.env.SCREENSHOT_PW || process.env.SCREENSHOT_ADMIN_PW || '';
+const OUT_DIR = join(__dir, '..', 'assets', 'images');
+// Which tier to capture. OSS shots come from the unlicensed box, Pro shots from
+// the Professional-licensed box — one shotlist, two runs, never mixed. A shot
+// with no `tier` counts as oss (back-compat with the original OSS-only list).
+const TIER = (process.env.SCREENSHOT_TIER || 'oss').toLowerCase();
+// SCREENSHOT_ONLY=<name[,name...]> re-captures just those shots (handy for fixing
+// a few failed shots, or the role-gated federation/air-gap pages that need a
+// server-role flip + restart between passes). Matches by the shot's `name`,
+// still within the selected tier.
+const ONLY = (process.env.SCREENSHOT_ONLY || '').split(',').map(s => s.trim()).filter(Boolean);
+const inTier = (s) =>
+  (s.tier || 'oss').toLowerCase() === TIER && (ONLY.length === 0 || ONLY.includes(s.name));
+
+const shotlist = JSON.parse(readFileSync(join(__dir, 'shotlist.json'), 'utf8'));
+
+// fqdn -> host id, written by seed.py, used to deep-link host-detail shots.
+let hostIds = {};
+try { hostIds = JSON.parse(readFileSync(join(__dir, 'host_ids.json'), 'utf8')); } catch { /* optional */ }
+
+async function login(page) {
+  await page.goto(`${TARGET}/login`, { waitUntil: 'domcontentloaded', timeout: 60000 });
+  await page.waitForTimeout(1500);
+  const userField = await page.$('input[name="userid"]');
+  if (userField) {
+    await page.fill('input[name="userid"]', USER);
+    await page.fill('input[name="password"]', PW);
+    await page.click('button[type="submit"]');
+    await page.waitForTimeout(5000); // let the SPA route to the dashboard
+  } else {
+    console.warn('  [login] no login form found — assuming already authenticated');
+  }
+  if (await page.$('input[name="password"]')) {
+    throw new Error('login appears to have failed (still on login page) — check SCREENSHOT_USER/PW');
+  }
+}
+
+async function captureRoute(page, shot, vp) {
+  await page.setViewportSize(shot.viewport || vp);
+  await page.goto(`${TARGET}${shot.route}`, { waitUntil: 'domcontentloaded', timeout: 60000 });
+  await page.waitForTimeout(shotlist.settleMs || 2500);
+  // Some pages (Settings, Scripts) group content into MUI tabs; switch first.
+  if (shot.tab) {
+    await page.getByRole('tab', { name: shot.tab, exact: false }).first().click({ timeout: 15000 });
+    await page.waitForTimeout(1200);
+  }
+  const out = join(OUT_DIR, shot.out);
+  await page.screenshot({ path: out, fullPage: false });
+  console.log(`  ✓ ${shot.out}  (${shot.route}${shot.tab ? ' #' + shot.tab : ''})`);
+}
+
+// Open a host detail view by deep-linking to /hosts/<id> (id resolved from the
+// seed-written host_ids.json by the row's FQDN). The detail page reads its active
+// tab from the URL hash, so `#<tabHash>` lands directly on a tab — far more robust
+// than clicking a role-gated row icon or a scrollable MUI tab. Requires logging in
+// as a user that can view host details (the admin has the VIEW_HOST_DETAILS role).
+async function captureDetail(page, shot, vp) {
+  await page.setViewportSize(shot.viewport || vp);
+  const id = hostIds[shot.rowText];
+  if (!id) throw new Error(`no host id for ${shot.rowText} (run seed first so host_ids.json exists)`);
+  const url = `${TARGET}${shot.base || '/hosts'}/${id}${shot.tabHash ? '#' + shot.tabHash : ''}`;
+  await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 60000 });
+  await page.waitForTimeout((shotlist.settleMs || 2500) + 1500);
+  // Plugin-injected host-detail tabs (Health, Vulnerabilities, ...) don't use a
+  // URL hash, so click them by visible name — Playwright scrolls the MUI tab
+  // strip into view before clicking.
+  if (shot.tab) {
+    await page.getByRole('tab', { name: shot.tab, exact: false }).first().click({ timeout: 15000 });
+    await page.waitForTimeout((shotlist.settleMs || 2500));
+  }
+  const out = join(OUT_DIR, shot.out);
+  await page.screenshot({ path: out, fullPage: false });
+  console.log(`  ✓ ${shot.out}  (detail: ${shot.rowText}${shot.tabHash ? ' #' + shot.tabHash : shot.tab ? ' tab:' + shot.tab : ''})`);
+}
+
+async function captureReport(page, shot, vp) {
+  await page.setViewportSize(shot.viewport || vp);
+  await page.goto(`${TARGET}/reports`, { waitUntil: 'domcontentloaded', timeout: 60000 });
+  await page.waitForTimeout(2000);
+  // Reports are grouped into tabs (Hosts, Users, ...). Cards on a non-default tab
+  // aren't in the DOM until that tab is selected, so switch first if specified.
+  if (shot.tab) {
+    await page.getByRole('tab', { name: shot.tab, exact: false }).first().click({ timeout: 15000 });
+    await page.waitForTimeout(1000);
+  }
+  // Click the report card by its visible name, then the View action.
+  const card = page.getByText(shot.reportName, { exact: false }).first();
+  await card.click({ timeout: 15000 });
+  await page.waitForTimeout(1000);
+  // The viewer may expose a "View Report" button; click it if present.
+  const viewBtn = page.getByRole('button', { name: /view report|view|preview/i }).first();
+  if (await viewBtn.count()) {
+    await viewBtn.click().catch(() => {});
+  }
+  await page.waitForTimeout(shotlist.settleMs || 3000);
+  const out = join(OUT_DIR, shot.out);
+  await page.screenshot({ path: out, fullPage: false });
+  console.log(`  ✓ ${shot.out}  (report: ${shot.reportName})`);
+}
+
+async function main() {
+  if (!PW) {
+    console.error('ERROR: set SCREENSHOT_PW (a seeded user, e.g. from fixtures.json) or SCREENSHOT_ADMIN_PW.');
+    process.exit(2);
+  }
+  const vp = { width: shotlist.viewportDefaults.width, height: shotlist.viewportDefaults.height };
+  const browser = await chromium.launch();
+  const context = await browser.newContext({
+    viewport: vp,
+    deviceScaleFactor: shotlist.viewportDefaults.deviceScaleFactor || 2,
+    colorScheme: 'light',
+  });
+  const page = await context.newPage();
+
+  console.log(`Capturing from ${TARGET} as ${USER} -> ${OUT_DIR}`);
+
+  let ok = 0, fail = 0;
+  // Pre-auth shots (e.g. the login page) — captured before we authenticate, on
+  // the fresh unauthenticated page (after login the app redirects away from /login).
+  for (const shot of shotlist.shots.filter((s) => s.type === 'login' && inTier(s))) {
+    try {
+      await page.setViewportSize(shot.viewport || vp);
+      await page.goto(`${TARGET}${shot.route}`, { waitUntil: 'domcontentloaded', timeout: 60000 });
+      await page.waitForTimeout(shotlist.settleMs || 2500);
+      await page.screenshot({ path: join(OUT_DIR, shot.out), fullPage: false });
+      console.log(`  ✓ ${shot.out}  (${shot.route}, pre-auth)`);
+      ok++;
+    } catch (err) {
+      console.error(`  ✗ ${shot.out}: ${err.message}`);
+      fail++;
+    }
+  }
+
+  await login(page);
+
+  for (const shot of shotlist.shots) {
+    if (shot.type === 'skip' || shot.type === 'login') continue;
+    if (!inTier(shot)) continue;
+    try {
+      if (shot.type === 'report') await captureReport(page, shot, vp);
+      else if (shot.type === 'detail') await captureDetail(page, shot, vp);
+      else await captureRoute(page, shot, vp);
+      ok++;
+    } catch (err) {
+      console.error(`  ✗ ${shot.out}: ${err.message}`);
+      fail++;
+    }
+  }
+  await browser.close();
+  const total = shotlist.shots.filter(s => s.type !== 'skip' && inTier(s)).length;
+  console.log(`\nCaptured ${ok}/${total} ${TIER} screenshots (${fail} failed).`);
+  process.exit(fail ? 1 : 0);
+}
+
+main();

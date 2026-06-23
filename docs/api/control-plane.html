@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Control-Plane API - SysManage</title>
+    <meta name="description" content="REST endpoint reference for the SysManage multi-tenancy control plane: tenants, placement, provisioning, enrollment tokens, users, and grants.">
+    <link rel="stylesheet" href="/assets/css/style.css">
+    <link rel="icon" type="image/svg+xml" href="/assets/images/favicon.svg">
+</head>
+<body data-auto-header="documentation" data-auto-footer>
+
+    <main class="docs-main">
+        <div class="container">
+            <div class="docs-breadcrumb">
+                <a href="../" data-i18n="docs.auto.api.control-plane.001">Documentation</a> &gt;
+                <a href="./" data-i18n="docs.auto.api.control-plane.002">API</a> &gt;
+                <span data-i18n="docs.auto.api.control-plane.003">Control-Plane</span>
+            </div>
+
+            <div class="docs-header">
+                <h1 data-i18n="docs.auto.api.control-plane.004">Control-Plane API</h1>
+                <p data-i18n="docs.auto.api.control-plane.005">Endpoint reference for the multi-tenancy control plane: the surface that manages tenants, their database placement and provisioning, enrollment tokens that bind agents to a tenant, and the users and grants that authorize access. In the open-source core this surface is a thin stub; the working logic is a Professional+ feature (the licensed multitenancy engine, MULTITENANT_SAAS tier). The routes documented below are the engine surface, mounted under <code>/api/control-plane</code> when multi-tenancy is enabled and the engine is loaded. Every endpoint is gated by a JWT bearer token at the router level.</p>
+            </div>
+
+            <div class="docs-content">
+
+                <section class="docs-section">
+                    <h2 data-i18n="docs.auto.api.control-plane.006">Open-Source Behavior</h2>
+                    <p data-i18n="docs.auto.api.control-plane.007">The OSS core ships only a stub router. When multi-tenancy is configured (<code>multitenancy.enabled</code>) but the licensed engine is not loaded, every path under the prefix is served by a single catch-all that returns HTTP 501 Not Implemented, indicating the licensed engine is required.</p>
+                    <ul>
+                        <li data-i18n="docs.auto.api.control-plane.008"><code>ANY /api/control-plane/{path}</code> &mdash; catch-all stub; returns 501 when the licensed multitenancy engine is not loaded</li>
+                    </ul>
+                    <p data-i18n="docs.auto.api.control-plane.009">When the engine is loaded it replaces this stub with the full router below. The route table is defined inside the compiled engine module; the paths shown here reflect that surface.</p>
+                </section>
+
+                <section class="docs-section">
+                    <h2 data-i18n="docs.auto.api.control-plane.010">Status</h2>
+                    <p data-i18n="docs.auto.api.control-plane.011">A single read of overall control-plane state: tenant count, whether multi-tenancy is enabled, and whether self-service provisioning is turned on.</p>
+                    <ul>
+                        <li data-i18n="docs.auto.api.control-plane.012"><code>GET /api/control-plane/status</code> &mdash; control-plane status (tenant count, feature flags)</li>
+                    </ul>
+                </section>
+
+                <section class="docs-section">
+                    <h2 data-i18n="docs.auto.api.control-plane.013">Tenants</h2>
+                    <p data-i18n="docs.auto.api.control-plane.014">Tenant lifecycle. Listing accepts a status filter; deletion requires a confirmation slug and an explicit flag to drop the underlying database.</p>
+                    <ul>
+                        <li data-i18n="docs.auto.api.control-plane.015"><code>GET /api/control-plane/tenants</code> &mdash; list tenants (filterable by status)</li>
+                        <li data-i18n="docs.auto.api.control-plane.016"><code>POST /api/control-plane/tenants</code> &mdash; create a tenant</li>
+                        <li data-i18n="docs.auto.api.control-plane.017"><code>GET /api/control-plane/tenants/{tenant_id}</code> &mdash; get tenant details</li>
+                        <li data-i18n="docs.auto.api.control-plane.018"><code>DELETE /api/control-plane/tenants/{tenant_id}</code> &mdash; delete a tenant (confirmation slug + drop_database flag)</li>
+                    </ul>
+                </section>
+
+                <section class="docs-section">
+                    <h2 data-i18n="docs.auto.api.control-plane.019">Placement and Provisioning</h2>
+                    <p data-i18n="docs.auto.api.control-plane.020">Placement records where a tenant's database lives (host, port, dbname, region, tier, OpenBAO role). Provisioning then stands up that database and its OpenBAO identity. Manual provisioning requires placement to be set first; auto-provision is the self-service path that creates placement and provisions in one step.</p>
+                    <ul>
+                        <li data-i18n="docs.auto.api.control-plane.021"><code>GET /api/control-plane/tenants/{tenant_id}/placement</code> / <code>PUT</code> &mdash; read or upsert tenant database placement</li>
+                        <li data-i18n="docs.auto.api.control-plane.022"><code>POST /api/control-plane/tenants/{tenant_id}/provision</code> &mdash; manually provision (placement required first)</li>
+                        <li data-i18n="docs.auto.api.control-plane.023"><code>POST /api/control-plane/tenants/{tenant_id}/auto-provision</code> &mdash; self-service auto-provision</li>
+                        <li data-i18n="docs.auto.api.control-plane.024"><code>GET /api/control-plane/migration-status</code> &mdash; pending tenant-migration status</li>
+                    </ul>
+                </section>
+
+                <section class="docs-section">
+                    <h2 data-i18n="docs.auto.api.control-plane.025">Enrollment Tokens</h2>
+                    <p data-i18n="docs.auto.api.control-plane.026">Tenant-scoped tokens that bind an enrolling agent to a specific tenant. Created and revoked per tenant; consumed at agent registration.</p>
+                    <ul>
+                        <li data-i18n="docs.auto.api.control-plane.027"><code>GET /api/control-plane/tenants/{tenant_id}/enrollment-tokens</code> &mdash; list a tenant's enrollment tokens</li>
+                        <li data-i18n="docs.auto.api.control-plane.028"><code>POST /api/control-plane/tenants/{tenant_id}/enrollment-tokens</code> &mdash; create an enrollment token</li>
+                        <li data-i18n="docs.auto.api.control-plane.029"><code>DELETE /api/control-plane/tenants/{tenant_id}/enrollment-tokens/{token_id}</code> &mdash; revoke an enrollment token</li>
+                    </ul>
+                </section>
+
+                <section class="docs-section">
+                    <h2 data-i18n="docs.auto.api.control-plane.030">Email Domains</h2>
+                    <p data-i18n="docs.auto.api.control-plane.031">Per-tenant allowlist of email domains, used to scope which users may belong to a tenant.</p>
+                    <ul>
+                        <li data-i18n="docs.auto.api.control-plane.032"><code>GET /api/control-plane/tenants/{tenant_id}/email-domains</code> &mdash; list allowed email domains</li>
+                        <li data-i18n="docs.auto.api.control-plane.033"><code>POST /api/control-plane/tenants/{tenant_id}/email-domains</code> &mdash; add an allowed email domain</li>
+                        <li data-i18n="docs.auto.api.control-plane.034"><code>DELETE /api/control-plane/tenants/{tenant_id}/email-domains/{domain_id}</code> &mdash; remove an email domain</li>
+                    </ul>
+                </section>
+
+                <section class="docs-section">
+                    <h2 data-i18n="docs.auto.api.control-plane.035">Users and Grants</h2>
+                    <p data-i18n="docs.auto.api.control-plane.036">Control-plane users and the grants that bind a user to a tenant with a role. User and grant listings accept email and user_id filters respectively.</p>
+                    <ul>
+                        <li data-i18n="docs.auto.api.control-plane.037"><code>GET /api/control-plane/users</code> &mdash; list users (filterable by email)</li>
+                        <li data-i18n="docs.auto.api.control-plane.038"><code>POST /api/control-plane/users</code> &mdash; create a user</li>
+                        <li data-i18n="docs.auto.api.control-plane.039"><code>GET /api/control-plane/grants</code> &mdash; list grants (filterable by user_id)</li>
+                        <li data-i18n="docs.auto.api.control-plane.040"><code>POST /api/control-plane/grants</code> &mdash; create a user-tenant grant (role assignment)</li>
+                        <li data-i18n="docs.auto.api.control-plane.041"><code>DELETE /api/control-plane/grants/{grant_id}</code> &mdash; remove a grant</li>
+                    </ul>
+                </section>
+
+            </div>
+        </div>
+    </main>
+
+</body>
+</html>

@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Air-Gap API - SysManage</title>
+    <meta name="description" content="REST endpoint reference for SysManage air-gap collection, bundle building, repository mirroring, device import, and trusted-key management.">
+    <link rel="stylesheet" href="/assets/css/style.css">
+    <link rel="icon" type="image/svg+xml" href="/assets/images/favicon.svg">
+</head>
+<body data-auto-header="documentation" data-auto-footer>
+
+    <main class="docs-main">
+        <div class="container">
+            <div class="docs-breadcrumb">
+                <a href="../" data-i18n="docs.auto.api.airgap.001">Documentation</a> &gt;
+                <a href="./" data-i18n="docs.auto.api.airgap.002">API</a> &gt;
+                <span data-i18n="docs.auto.api.airgap.003">Air-Gap</span>
+            </div>
+
+            <div class="docs-header">
+                <h1 data-i18n="docs.auto.api.airgap.004">Air-Gap API</h1>
+                <p data-i18n="docs.auto.api.airgap.005">Endpoint reference for moving package and repository data into and out of disconnected (air-gapped) environments. Covers the collector that builds signed ISOs, the bundle builder, repository mirroring, removable-device ingest, and the trusted-key keyrings that establish trust between a collector and a repository. All endpoints require Bearer-token auth except the explicitly token-authenticated download streams noted below.</p>
+            </div>
+
+            <div class="docs-content">
+
+                <section class="docs-section">
+                    <h2 data-i18n="docs.auto.api.airgap.006">Collector Schedules</h2>
+                    <p data-i18n="docs.auto.api.airgap.007">Recurring collection jobs that build signed ISOs on a cron-style cadence. The tick endpoint is the driver hook an external scheduler calls to fire any schedules that are due.</p>
+                    <ul>
+                        <li data-i18n="docs.auto.api.airgap.008"><code>GET /api/v1/airgap/collector/schedules</code> &mdash; list all collection schedules</li>
+                        <li data-i18n="docs.auto.api.airgap.009"><code>POST /api/v1/airgap/collector/schedules</code> &mdash; create a new collection schedule</li>
+                        <li data-i18n="docs.auto.api.airgap.010"><code>GET /api/v1/airgap/collector/schedules/{schedule_id}</code> &mdash; get a specific schedule</li>
+                        <li data-i18n="docs.auto.api.airgap.011"><code>PUT /api/v1/airgap/collector/schedules/{schedule_id}</code> &mdash; update a schedule</li>
+                        <li data-i18n="docs.auto.api.airgap.012"><code>DELETE /api/v1/airgap/collector/schedules/{schedule_id}</code> &mdash; delete a schedule</li>
+                        <li data-i18n="docs.auto.api.airgap.013"><code>POST /api/v1/airgap/collector/schedules/tick</code> &mdash; driver hook; fire all due schedules</li>
+                    </ul>
+                </section>
+
+                <section class="docs-section">
+                    <h2 data-i18n="docs.auto.api.airgap.014">Collector Runs</h2>
+                    <p data-i18n="docs.auto.api.airgap.015">One-shot collection runs. A run produces one or more disc ISOs and a set of signed manifests. ISOs can be streamed with header auth, or downloaded natively via a short-lived minted token so a browser or native tool can pull the stream without a Bearer header.</p>
+                    <ul>
+                        <li data-i18n="docs.auto.api.airgap.016"><code>POST /api/v1/airgap/collector/runs</code> &mdash; create a one-shot collection run</li>
+                        <li data-i18n="docs.auto.api.airgap.017"><code>GET /api/v1/airgap/collector/runs</code> &mdash; list collection runs (newest first)</li>
+                        <li data-i18n="docs.auto.api.airgap.018"><code>GET /api/v1/airgap/collector/runs/{run_id}</code> &mdash; get a run's status</li>
+                        <li data-i18n="docs.auto.api.airgap.019"><code>GET /api/v1/airgap/collector/runs/{run_id}/discs</code> &mdash; list disc ISOs for multi-disc runs</li>
+                        <li data-i18n="docs.auto.api.airgap.020"><code>GET /api/v1/airgap/collector/runs/{run_id}/iso</code> &mdash; stream the run ISO (header-authenticated)</li>
+                        <li data-i18n="docs.auto.api.airgap.021"><code>POST /api/v1/airgap/collector/runs/{run_id}/iso-token</code> &mdash; mint a token for native ISO download</li>
+                        <li data-i18n="docs.auto.api.airgap.022"><code>GET /api/v1/airgap/collector/runs/{run_id}/iso-download</code> &mdash; stream the run ISO (token-authenticated)</li>
+                        <li data-i18n="docs.auto.api.airgap.023"><code>DELETE /api/v1/airgap/collector/runs/{run_id}</code> &mdash; delete a run and its data</li>
+                        <li data-i18n="docs.auto.api.airgap.024"><code>GET /api/v1/airgap/collector/runs/{run_id}/manifests</code> &mdash; list signed manifests for a run</li>
+                        <li data-i18n="docs.auto.api.airgap.025"><code>GET /api/v1/airgap/collector/manifests/{manifest_id}/download</code> &mdash; stream the signed ISO referenced by a manifest</li>
+                    </ul>
+                </section>
+
+                <section class="docs-section">
+                    <h2 data-i18n="docs.auto.api.airgap.026">Air-Gap Bundles</h2>
+                    <p data-i18n="docs.auto.api.airgap.027">The bundle builder produces a self-contained ISO for installing or updating a fully disconnected server. Build jobs run in Docker and return a job ID; resource and Docker readiness can be checked before kicking off a build. Like collector runs, the ISO can be streamed with header auth or via a minted download token.</p>
+                    <ul>
+                        <li data-i18n="docs.auto.api.airgap.028"><code>GET /api/airgap-bundles/docker-status</code> &mdash; check Docker installation and readiness</li>
+                        <li data-i18n="docs.auto.api.airgap.029"><code>GET /api/airgap-bundles/resource-status</code> &mdash; check RAM, swap, and disk for a build</li>
+                        <li data-i18n="docs.auto.api.airgap.030"><code>POST /api/airgap-bundles</code> &mdash; trigger a new bundle build (returns a job ID)</li>
+                        <li data-i18n="docs.auto.api.airgap.031"><code>GET /api/airgap-bundles</code> &mdash; list all bundles (newest first)</li>
+                        <li data-i18n="docs.auto.api.airgap.032"><code>GET /api/airgap-bundles/{bundle_id}</code> &mdash; get a bundle's status</li>
+                        <li data-i18n="docs.auto.api.airgap.033"><code>GET /api/airgap-bundles/{bundle_id}/download</code> &mdash; stream the bundle ISO (header-authenticated)</li>
+                        <li data-i18n="docs.auto.api.airgap.034"><code>POST /api/airgap-bundles/{bundle_id}/download-token</code> &mdash; mint a token for native ISO download</li>
+                        <li data-i18n="docs.auto.api.airgap.035"><code>GET /api/airgap-bundles/{bundle_id}/download-stream</code> &mdash; stream the bundle ISO (token-authenticated)</li>
+                        <li data-i18n="docs.auto.api.airgap.036"><code>DELETE /api/airgap-bundles/{bundle_id}</code> &mdash; remove the bundle and its on-disk artifacts</li>
+                    </ul>
+                </section>
+
+                <section class="docs-section">
+                    <h2 data-i18n="docs.auto.api.airgap.037">Device Import</h2>
+                    <p data-i18n="docs.auto.api.airgap.038">On the repository (disconnected) side, ISOs arrive on removable media. These endpoints enumerate candidate drives, persist the chosen import device, probe its readiness, and queue ingest of its contents into the repository.</p>
+                    <ul>
+                        <li data-i18n="docs.auto.api.airgap.039"><code>GET /api/v1/airgap/block-devices</code> &mdash; enumerate candidate import drives</li>
+                        <li data-i18n="docs.auto.api.airgap.040"><code>PUT /api/v1/airgap/import-device</code> &mdash; persist the chosen import drive (or clear it)</li>
+                        <li data-i18n="docs.auto.api.airgap.041"><code>GET /api/v1/airgap/import-device/status</code> &mdash; probe device readiness for import</li>
+                        <li data-i18n="docs.auto.api.airgap.042"><code>POST /api/v1/airgap/repository/ingest-device</code> &mdash; queue ingest from the selected drive</li>
+                        <li data-i18n="docs.auto.api.airgap.043"><code>GET /api/v1/airgap/repository/ingest-runs</code> &mdash; list recent ingestion runs</li>
+                    </ul>
+                </section>
+
+                <section class="docs-section">
+                    <h2 data-i18n="docs.auto.api.airgap.044">Repository Status</h2>
+                    <p data-i18n="docs.auto.api.airgap.045">Read-only views of repository state: per-host compliance buckets that classify packages by transfer/apply status, the list of mirrored repositories with their freshness, and a global freshness label for the air-gapped mirror set.</p>
+                    <ul>
+                        <li data-i18n="docs.auto.api.airgap.046"><code>GET /api/v1/airgap/repository/host/{host_id}/compliance-buckets</code> &mdash; classify packages (not_applied / not_transferred / current)</li>
+                        <li data-i18n="docs.auto.api.airgap.047"><code>GET /api/v1/airgap/repository/repositories</code> &mdash; list air-gap repositories with freshness</li>
+                        <li data-i18n="docs.auto.api.airgap.048"><code>GET /api/v1/airgap/repository/freshness</code> &mdash; global air-gap mirror freshness label</li>
+                    </ul>
+                </section>
+
+                <section class="docs-section">
+                    <h2 data-i18n="docs.auto.api.airgap.049">Trusted Keys</h2>
+                    <p data-i18n="docs.auto.api.airgap.050">Trust between a collector and a repository is established by exchanging public keys. The repository side imports collector public keys into its trusted keyring; signed ISOs are only accepted from trusted collectors.</p>
+                    <ul>
+                        <li data-i18n="docs.auto.api.airgap.051"><code>GET /api/v1/airgap/collector-key</code> &mdash; get this server's collector public key and fingerprint</li>
+                        <li data-i18n="docs.auto.api.airgap.052"><code>GET /api/v1/airgap/trusted-collectors</code> &mdash; list trusted collector keys</li>
+                        <li data-i18n="docs.auto.api.airgap.053"><code>POST /api/v1/airgap/trusted-collectors</code> &mdash; import a collector public key</li>
+                        <li data-i18n="docs.auto.api.airgap.054"><code>DELETE /api/v1/airgap/trusted-collectors/{name}</code> &mdash; remove a trusted collector key</li>
+                    </ul>
+                </section>
+
+                <section class="docs-section">
+                    <h2 data-i18n="docs.auto.api.airgap.055">Repository Mirroring</h2>
+                    <p data-i18n="docs.auto.api.airgap.056">Local mirrors of upstream package repositories, with snapshot/restore and per-platform configuration. The tick endpoint is the cron driver hook that fires any mirrors due for sync; the setup-status and setup-install endpoints detect and install the mirror tooling on a target host. Endpoints carry the <code>/api</code> prefix directly rather than a versioned path.</p>
+                    <ul>
+                        <li data-i18n="docs.auto.api.airgap.057"><code>GET /api/mirror-repositories</code> &mdash; list mirrors (optionally by platform_config_id)</li>
+                        <li data-i18n="docs.auto.api.airgap.058"><code>POST /api/mirror-repositories</code> &mdash; create a mirror</li>
+                        <li data-i18n="docs.auto.api.airgap.059"><code>GET /api/mirror-repositories/{mirror_id}</code> &mdash; get a mirror</li>
+                        <li data-i18n="docs.auto.api.airgap.060"><code>PUT /api/mirror-repositories/{mirror_id}</code> &mdash; update a mirror</li>
+                        <li data-i18n="docs.auto.api.airgap.061"><code>DELETE /api/mirror-repositories/{mirror_id}</code> &mdash; delete a mirror</li>
+                        <li data-i18n="docs.auto.api.airgap.062"><code>POST /api/mirror-repositories/{mirror_id}/sync</code> &mdash; fire a sync immediately</li>
+                        <li data-i18n="docs.auto.api.airgap.063"><code>POST /api/mirror-repositories/{mirror_id}/snapshot</code> &mdash; take a snapshot</li>
+                        <li data-i18n="docs.auto.api.airgap.064"><code>POST /api/mirror-repositories/{mirror_id}/restore/{snapshot_id}</code> &mdash; restore from a snapshot</li>
+                        <li data-i18n="docs.auto.api.airgap.065"><code>GET /api/mirror-repositories/{mirror_id}/snapshots</code> &mdash; list snapshots for a mirror</li>
+                        <li data-i18n="docs.auto.api.airgap.066"><code>POST /api/mirror-repositories/tick</code> &mdash; cron driver hook; fire due syncs</li>
+                        <li data-i18n="docs.auto.api.airgap.067"><code>GET /api/settings/mirror</code> / <code>PUT /api/settings/mirror</code> &mdash; singleton mirror settings</li>
+                        <li data-i18n="docs.auto.api.airgap.068"><code>GET /api/mirror-repositories/setup-status/{host_id}</code> &mdash; mirror tool detection status</li>
+                        <li data-i18n="docs.auto.api.airgap.069"><code>POST /api/mirror-repositories/setup-status/{host_id}/refresh</code> &mdash; queue a tool-presence probe</li>
+                        <li data-i18n="docs.auto.api.airgap.070"><code>POST /api/mirror-repositories/setup-install/{host_id}</code> &mdash; queue mirror-tools install</li>
+                        <li data-i18n="docs.auto.api.airgap.071"><code>GET /api/mirror-platform-configs</code> / <code>POST /api/mirror-platform-configs</code> &mdash; platform config list / upsert</li>
+                        <li data-i18n="docs.auto.api.airgap.072"><code>GET /api/mirror-platform-configs/{cfg_id}</code> / <code>PUT</code> / <code>DELETE</code> &mdash; platform config read / update / delete</li>
+                        <li data-i18n="docs.auto.api.airgap.073"><code>GET /api/mirror-known-versions</code> &mdash; list known OS versions (optionally by platform)</li>
+                        <li data-i18n="docs.auto.api.airgap.074"><code>GET /api/host-defaults/mirrors</code> &mdash; list default mirror assignments per (platform, version, os_family)</li>
+                        <li data-i18n="docs.auto.api.airgap.075"><code>PUT /api/host-defaults/mirrors/{platform}/{version_key}/{os_family}</code> &mdash; assign / unassign a default mirror</li>
+                    </ul>
+                </section>
+
+            </div>
+        </div>
+    </main>
+
+</body>
+</html>
