@@ -55,12 +55,12 @@ NOW = _now()
 
 # Demo hosts seeded by the OSS pass (seed.py). Engine data is attached to these.
 DEMO_FQDNS = [
-    "web-01.demo.sysmanage.org",
-    "db-01.demo.sysmanage.org",
-    "app-02.demo.sysmanage.org",
-    "build-bsd.demo.sysmanage.org",
-    "win-01.demo.sysmanage.org",
-    "mac-01.demo.sysmanage.org",
+    "ubuntu-web-01.corp.northstar.io",
+    "rhel-db-01.corp.northstar.io",
+    "debian-app-01.corp.northstar.io",
+    "freebsd-build-01.corp.northstar.io",
+    "win11-ws-01.corp.northstar.io",
+    "macos-studio-01.corp.northstar.io",
 ]
 
 # ---- shared CVE catalogue (real-ish ids) ----------------------------------
@@ -79,21 +79,21 @@ CVES = [
 # ---- per-host engine profiles ---------------------------------------------
 # vuln: (total_packages, vulnerable_packages, crit, high, med, low, risk_score, risk_level)
 VULN = {
-    "web-01.demo.sysmanage.org": (320, 14, 2, 5, 8, 4, 82, "CRITICAL"),
-    "db-01.demo.sysmanage.org": (280, 11, 1, 3, 6, 5, 68, "HIGH"),
-    "app-02.demo.sysmanage.org": (260, 9, 0, 2, 5, 7, 45, "MEDIUM"),
-    "build-bsd.demo.sysmanage.org": (190, 6, 1, 1, 3, 4, 55, "HIGH"),
-    "win-01.demo.sysmanage.org": (410, 8, 3, 4, 2, 1, 88, "CRITICAL"),
-    "mac-01.demo.sysmanage.org": (150, 4, 0, 1, 2, 3, 30, "LOW"),
+    "ubuntu-web-01.corp.northstar.io": (320, 14, 2, 5, 8, 4, 82, "CRITICAL"),
+    "rhel-db-01.corp.northstar.io": (280, 11, 1, 3, 6, 5, 68, "HIGH"),
+    "debian-app-01.corp.northstar.io": (260, 9, 0, 2, 5, 7, 45, "MEDIUM"),
+    "freebsd-build-01.corp.northstar.io": (190, 6, 1, 1, 3, 4, 55, "HIGH"),
+    "win11-ws-01.corp.northstar.io": (410, 8, 3, 4, 2, 1, 88, "CRITICAL"),
+    "macos-studio-01.corp.northstar.io": (150, 4, 0, 1, 2, 3, 30, "LOW"),
 }
 # compliance: (total, passed, failed, error, n/a, score, grade, crit, high, med, low)
 COMPLIANCE = {
-    "web-01.demo.sysmanage.org": (120, 102, 15, 1, 2, 85, "B", 2, 4, 6, 3),
-    "db-01.demo.sysmanage.org": (120, 110, 8, 0, 2, 92, "A", 0, 2, 4, 2),
-    "app-02.demo.sysmanage.org": (110, 88, 20, 1, 1, 78, "C", 3, 5, 8, 4),
-    "build-bsd.demo.sysmanage.org": (100, 85, 12, 1, 2, 84, "B", 1, 3, 5, 3),
-    "win-01.demo.sysmanage.org": (130, 95, 30, 2, 3, 71, "C", 4, 8, 12, 6),
-    "mac-01.demo.sysmanage.org": (90, 82, 6, 0, 2, 90, "A", 0, 1, 3, 2),
+    "ubuntu-web-01.corp.northstar.io": (120, 102, 15, 1, 2, 85, "B", 2, 4, 6, 3),
+    "rhel-db-01.corp.northstar.io": (120, 110, 8, 0, 2, 92, "A", 0, 2, 4, 2),
+    "debian-app-01.corp.northstar.io": (110, 88, 20, 1, 1, 78, "C", 3, 5, 8, 4),
+    "freebsd-build-01.corp.northstar.io": (100, 85, 12, 1, 2, 84, "B", 1, 3, 5, 3),
+    "win11-ws-01.corp.northstar.io": (130, 95, 30, 2, 3, 71, "C", 4, 8, 12, 6),
+    "macos-studio-01.corp.northstar.io": (90, 82, 6, 0, 2, 90, "A", 0, 1, 3, 2),
 }
 # Rule-level results for the Pro /compliance/<host> drill-down grid
 # (ComplianceHostDetail reads scan.results = [{rule_id, rule_name, category,
@@ -161,31 +161,31 @@ PKG_PROFILES = [
 ]
 # per host: {profile_name: (status, [(package, reason), ...])}
 PKG_STATUS = {
-    "web-01.demo.sysmanage.org": {
+    "ubuntu-web-01.corp.northstar.io": {
         "Production Baseline": ("NON_COMPLIANT", [
             ("nginx", "installed 1.24.0 < required 1.25.3"),
             ("telnet", "blocked package is installed"),
         ]),
         "Security Hardening": ("COMPLIANT", []),
     },
-    "db-01.demo.sysmanage.org": {
+    "rhel-db-01.corp.northstar.io": {
         "Production Baseline": ("COMPLIANT", []),
         "Security Hardening": ("COMPLIANT", []),
     },
-    "app-02.demo.sysmanage.org": {
+    "debian-app-01.corp.northstar.io": {
         "Production Baseline": ("NON_COMPLIANT", [("openssl", "installed 3.0.11 < required 3.0.13")]),
         "Security Hardening": ("NON_COMPLIANT", [("fail2ban", "required package is not installed")]),
     },
-    "build-bsd.demo.sysmanage.org": {
+    "freebsd-build-01.corp.northstar.io": {
         "Production Baseline": ("COMPLIANT", []),
     },
-    "win-01.demo.sysmanage.org": {
+    "win11-ws-01.corp.northstar.io": {
         "Security Hardening": ("NON_COMPLIANT", [
             ("ufw", "required package is not installed"),
             ("fail2ban", "required package is not installed"),
         ]),
     },
-    "mac-01.demo.sysmanage.org": {
+    "macos-studio-01.corp.northstar.io": {
         "Production Baseline": ("COMPLIANT", []),
         "Security Hardening": ("COMPLIANT", []),
     },
@@ -193,34 +193,34 @@ PKG_STATUS = {
 
 # health: (score, grade, issues[], recommendations[])
 HEALTH = {
-    "web-01.demo.sysmanage.org": (82, "B",
+    "ubuntu-web-01.corp.northstar.io": (82, "B",
         ["CPU utilisation sustained at 87%", "12 packages out of date", "Reboot required after kernel update"],
         ["Investigate the nginx worker load", "Apply pending package updates", "Schedule a maintenance reboot"]),
-    "db-01.demo.sysmanage.org": (91, "A",
+    "rhel-db-01.corp.northstar.io": (91, "A",
         ["3 packages out of date", "Last backup completed 26h ago"],
         ["Apply pending updates during the next window", "Verify the nightly backup schedule"]),
-    "app-02.demo.sysmanage.org": (74, "C",
+    "debian-app-01.corp.northstar.io": (74, "C",
         ["Disk / at 78% capacity", "23 packages out of date", "Swap usage elevated"],
         ["Reclaim space under /var/log", "Apply pending updates", "Add memory or tune the app heap"]),
-    "build-bsd.demo.sysmanage.org": (88, "B",
+    "freebsd-build-01.corp.northstar.io": (88, "B",
         ["7 ports out of date", "High I/O wait during builds"],
         ["Run pkg upgrade", "Move build artefacts to faster storage"]),
-    "win-01.demo.sysmanage.org": (69, "C",
+    "win11-ws-01.corp.northstar.io": (69, "C",
         ["Pending Windows updates (8)", "Defender signatures 4 days old", "Reboot required"],
         ["Install pending updates", "Force a Defender signature refresh", "Schedule a reboot"]),
-    "mac-01.demo.sysmanage.org": (93, "A",
+    "macos-studio-01.corp.northstar.io": (93, "A",
         ["2 App Store updates available"],
         ["Apply the pending App Store updates"]),
 }
 
 # Map each host's findings to a slice of the CVE catalogue (for the drill-down page).
 FINDINGS = {
-    "web-01.demo.sysmanage.org": [0, 1, 2, 3, 5, 6],
-    "db-01.demo.sysmanage.org": [1, 3, 4, 6],
-    "app-02.demo.sysmanage.org": [2, 3, 6, 7],
-    "build-bsd.demo.sysmanage.org": [1, 3, 6],
-    "win-01.demo.sysmanage.org": [0, 1, 4, 5],
-    "mac-01.demo.sysmanage.org": [3, 7],
+    "ubuntu-web-01.corp.northstar.io": [0, 1, 2, 3, 5, 6],
+    "rhel-db-01.corp.northstar.io": [1, 3, 4, 6],
+    "debian-app-01.corp.northstar.io": [2, 3, 6, 7],
+    "freebsd-build-01.corp.northstar.io": [1, 3, 6],
+    "win11-ws-01.corp.northstar.io": [0, 1, 4, 5],
+    "macos-studio-01.corp.northstar.io": [3, 7],
 }
 
 INSTALLED = {  # plausible installed (vulnerable) version per CVE index
@@ -231,12 +231,12 @@ INSTALLED = {  # plausible installed (vulnerable) version per CVE index
 # Container children — ONLY container types (lxd/wsl); VM types are Enterprise.
 # (parent_fqdn, child_name, child_type, distribution, status)
 CONTAINERS = [
-    ("web-01.demo.sysmanage.org", "web-app-01", "lxd", "ubuntu-22.04", "running"),
-    ("web-01.demo.sysmanage.org", "web-app-02", "lxd", "ubuntu-22.04", "running"),
-    ("db-01.demo.sysmanage.org", "db-backup", "lxd", "debian-12", "running"),
-    ("app-02.demo.sysmanage.org", "app-cache", "lxd", "alpine-3.20", "stopped"),
-    ("win-01.demo.sysmanage.org", "wsl-ubuntu", "wsl", "Ubuntu-24.04", "running"),
-    ("win-01.demo.sysmanage.org", "wsl-debian", "wsl", "Debian", "running"),
+    ("ubuntu-web-01.corp.northstar.io", "web-app-01", "lxd", "ubuntu-22.04", "running"),
+    ("ubuntu-web-01.corp.northstar.io", "web-app-02", "lxd", "ubuntu-22.04", "running"),
+    ("rhel-db-01.corp.northstar.io", "db-backup", "lxd", "debian-12", "running"),
+    ("debian-app-01.corp.northstar.io", "app-cache", "lxd", "alpine-3.20", "stopped"),
+    ("win11-ws-01.corp.northstar.io", "wsl-ubuntu", "wsl", "Ubuntu-24.04", "running"),
+    ("win11-ws-01.corp.northstar.io", "wsl-debian", "wsl", "Debian", "running"),
 ]
 
 # Secrets metadata (vault_token/path are demo placeholders — the analytics page
@@ -274,17 +274,17 @@ ALERT_RULES = [
 # Fired alerts: (host_fqdn, rule_name, severity, title, message, age_minutes, state)
 #   state: "active" | "acked" | "resolved"
 ALERTS = [
-    ("win-01.demo.sysmanage.org", "Critical CVE Detected", "critical",
+    ("win11-ws-01.corp.northstar.io", "Critical CVE Detected", "critical",
      "Critical CVE on win-01", "CVE-2024-3094 (CVSS 10.0) detected in xz-utils.", 35, "active"),
-    ("web-01.demo.sysmanage.org", "Disk Usage High", "high",
+    ("ubuntu-web-01.corp.northstar.io", "Disk Usage High", "high",
      "Disk usage high on web-01", "Filesystem / is at 91% capacity.", 120, "active"),
-    ("db-01.demo.sysmanage.org", "Reboot Required", "high",
+    ("rhel-db-01.corp.northstar.io", "Reboot Required", "high",
      "Reboot required on db-01", "A kernel update needs a reboot to take effect.", 240, "acked"),
-    ("app-02.demo.sysmanage.org", "Updates Available", "medium",
+    ("debian-app-01.corp.northstar.io", "Updates Available", "medium",
      "Updates available on app-02", "23 package updates are pending.", 480, "active"),
-    ("web-01.demo.sysmanage.org", "Critical CVE Detected", "critical",
+    ("ubuntu-web-01.corp.northstar.io", "Critical CVE Detected", "critical",
      "Critical CVE on web-01", "CVE-2024-1086 (CVSS 7.8) detected in linux-image.", 15, "active"),
-    ("build-bsd.demo.sysmanage.org", "Host Down — Production", "critical",
+    ("freebsd-build-01.corp.northstar.io", "Host Down — Production", "critical",
      "Host down: build-bsd", "No agent check-in for 12 minutes.", 720, "resolved"),
 ]
 
@@ -408,7 +408,7 @@ def main():
         # --- alerting ---
         channel = NotificationChannel(
             name="Ops Email", channel_type="email",
-            config={"recipients": ["ops@demo.sysmanage.org"]}, enabled=True,
+            config={"recipients": ["ops@corp.northstar.io"]}, enabled=True,
             created_at=NOW, updated_at=NOW,
         )
         session.add(channel)

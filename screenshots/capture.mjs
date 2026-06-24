@@ -18,7 +18,7 @@
 //    tune `reportName` in shotlist.json (no code change needed).
 
 import { chromium } from 'playwright';
-import { readFileSync } from 'node:fs';
+import { readFileSync, existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 
@@ -40,6 +40,21 @@ const inTier = (s) =>
   (s.tier || 'oss').toLowerCase() === TIER && (ONLY.length === 0 || ONLY.includes(s.name));
 
 const shotlist = JSON.parse(readFileSync(join(__dir, 'shotlist.json'), 'utf8'));
+
+// Highlight freshly-added screenshots — a shot whose PNG did NOT exist before
+// this run is printed in green with a `[new]` tag so new images (e.g. ones added
+// for new docs) are easy to spot among the re-generated ones.
+const GREEN = '\x1b[32m';
+const RESET = '\x1b[0m';
+let newCount = 0;
+function logShot(shot, isNew, detail) {
+  if (isNew) {
+    newCount++;
+    console.log(`  ${GREEN}✓ ${shot.out} [new]  (${detail})${RESET}`);
+  } else {
+    console.log(`  ✓ ${shot.out}  (${detail})`);
+  }
+}
 
 // fqdn -> host id, written by seed.py, used to deep-link host-detail shots.
 let hostIds = {};
@@ -72,8 +87,9 @@ async function captureRoute(page, shot, vp) {
     await page.waitForTimeout(1200);
   }
   const out = join(OUT_DIR, shot.out);
+  const isNew = !existsSync(out);
   await page.screenshot({ path: out, fullPage: false });
-  console.log(`  ✓ ${shot.out}  (${shot.route}${shot.tab ? ' #' + shot.tab : ''})`);
+  logShot(shot, isNew, `${shot.route}${shot.tab ? ' #' + shot.tab : ''}`);
 }
 
 // Open a host detail view by deep-linking to /hosts/<id> (id resolved from the
@@ -96,8 +112,9 @@ async function captureDetail(page, shot, vp) {
     await page.waitForTimeout((shotlist.settleMs || 2500));
   }
   const out = join(OUT_DIR, shot.out);
+  const isNew = !existsSync(out);
   await page.screenshot({ path: out, fullPage: false });
-  console.log(`  ✓ ${shot.out}  (detail: ${shot.rowText}${shot.tabHash ? ' #' + shot.tabHash : shot.tab ? ' tab:' + shot.tab : ''})`);
+  logShot(shot, isNew, `detail: ${shot.rowText}${shot.tabHash ? ' #' + shot.tabHash : shot.tab ? ' tab:' + shot.tab : ''}`);
 }
 
 async function captureReport(page, shot, vp) {
@@ -121,8 +138,9 @@ async function captureReport(page, shot, vp) {
   }
   await page.waitForTimeout(shotlist.settleMs || 3000);
   const out = join(OUT_DIR, shot.out);
+  const isNew = !existsSync(out);
   await page.screenshot({ path: out, fullPage: false });
-  console.log(`  ✓ ${shot.out}  (report: ${shot.reportName})`);
+  logShot(shot, isNew, `report: ${shot.reportName}`);
 }
 
 async function main() {
@@ -149,8 +167,10 @@ async function main() {
       await page.setViewportSize(shot.viewport || vp);
       await page.goto(`${TARGET}${shot.route}`, { waitUntil: 'domcontentloaded', timeout: 60000 });
       await page.waitForTimeout(shotlist.settleMs || 2500);
-      await page.screenshot({ path: join(OUT_DIR, shot.out), fullPage: false });
-      console.log(`  ✓ ${shot.out}  (${shot.route}, pre-auth)`);
+      const out = join(OUT_DIR, shot.out);
+      const isNew = !existsSync(out);
+      await page.screenshot({ path: out, fullPage: false });
+      logShot(shot, isNew, `${shot.route}, pre-auth`);
       ok++;
     } catch (err) {
       console.error(`  ✗ ${shot.out}: ${err.message}`);
@@ -161,7 +181,8 @@ async function main() {
   await login(page);
 
   for (const shot of shotlist.shots) {
-    if (shot.type === 'skip' || shot.type === 'login') continue;
+    // Skip non-shot entries: `_note` doc objects (no `out`) and skip/login types.
+    if (!shot.out || shot.type === 'skip' || shot.type === 'login') continue;
     if (!inTier(shot)) continue;
     try {
       if (shot.type === 'report') await captureReport(page, shot, vp);
@@ -174,8 +195,11 @@ async function main() {
     }
   }
   await browser.close();
-  const total = shotlist.shots.filter(s => s.type !== 'skip' && inTier(s)).length;
+  const total = shotlist.shots.filter(s => s.out && s.type !== 'skip' && inTier(s)).length;
   console.log(`\nCaptured ${ok}/${total} ${TIER} screenshots (${fail} failed).`);
+  if (newCount) {
+    console.log(`${GREEN}${newCount} new screenshot(s) generated this run (marked [new] above).${RESET}`);
+  }
   process.exit(fail ? 1 : 0);
 }
 

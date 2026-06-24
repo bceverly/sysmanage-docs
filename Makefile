@@ -246,7 +246,7 @@ screenshot:
 # ---- Automated documentation screenshots (screenshots/ pipeline) ------------
 # Reproducible screenshots: provision a VM, seed demo data (REST + WS), drive the
 # UI with Playwright, write PNGs into assets/images/. See screenshots/README.md.
-.PHONY: screenshots screenshots-seed screenshots-capture screenshots-vm-up screenshots-vm-down screenshots-pro-build screenshots-pro-seed screenshots-pro-capture screenshots-ent-build screenshots-ent-seed screenshots-ent-capture screenshots-ent-roles
+.PHONY: screenshots screenshots-community screenshots-seed screenshots-capture screenshots-vm-up screenshots-vm-down screenshots-pro-build screenshots-pro-seed screenshots-pro-capture screenshots-ent-build screenshots-ent-seed screenshots-ent-capture screenshots-ent-roles screenshots-fleet-seed
 
 SHOTS_DIR := screenshots
 # Load screenshots/config.env (targets, admin + demo creds) if present.
@@ -280,7 +280,45 @@ SCREENSHOT_PW ?= ChangeMe-Dev-Only!
 FRESH ?= 0
 
 # Full pass: (optional clean) -> VM up -> seed -> capture into assets/images/.
+# Capture EVERY tier in sequence — Community Edition (OSS) -> Professional ->
+# Enterprise — re-provisioning + re-licensing the VM between each, then DESTROY the
+# VM at the end on success. Long run: each tier re-provisions the box and
+# Cython-builds the engines. A failure stops the chain and LEAVES the VM up for
+# debugging (teardown only runs on full success). For quick single-tier iteration
+# use screenshots-community / screenshots-pro-* / screenshots-ent-*.
+#
+# (Multi-Tenant SaaS is the planned 4th tier; it still needs saas shots in
+# shotlist.json + a VM build that stands up OpenBAO + a provisioned tenant. Add a
+# [4/4] block here once those exist.)
 screenshots:
+	@echo "$(BLUE)=== All-tier screenshots: Community Edition -> Professional -> Enterprise ===$(RESET)"
+	@echo "$(YELLOW)Destroying any existing VM for a clean start...$(RESET)"
+	@$(MAKE) screenshots-vm-down 2>/dev/null || true
+	@echo "$(BLUE)--- [1/3] Community Edition ---$(RESET)"
+	@$(MAKE) screenshots-vm-up
+	@$(MAKE) screenshots-seed
+	@$(MAKE) screenshots-capture
+	@echo "$(BLUE)--- [2/3] Professional ---$(RESET)"
+	@$(MAKE) screenshots-pro-build
+	@$(MAKE) screenshots-seed
+	@$(MAKE) screenshots-pro-seed
+	@$(MAKE) screenshots-pro-capture
+	@echo "$(BLUE)--- [3/3] Enterprise ---$(RESET)"
+	@$(MAKE) screenshots-ent-build
+	@$(MAKE) screenshots-seed
+	@$(MAKE) screenshots-pro-seed
+	@$(MAKE) screenshots-ent-seed
+	@$(MAKE) screenshots-fleet-seed
+	@$(MAKE) screenshots-ent-capture
+	@$(MAKE) screenshots-ent-roles
+	@echo "$(BLUE)All tiers captured — destroying the VM...$(RESET)"
+	@$(MAKE) screenshots-vm-down
+	@echo "$(GREEN)✓ All-tier screenshots refreshed in assets/images/; VM destroyed.$(RESET)"
+
+# Community Edition (OSS) tier only — quick single-tier iteration. The VM is left
+# running for fast re-runs; FRESH=1 destroys + reprovisions first and tears down
+# after. (This was the old behavior of `make screenshots`.)
+screenshots-community:
 	@if [ "$(FRESH)" = "1" ]; then \
 		echo "$(YELLOW)FRESH=1: destroying any existing VM for a clean run...$(RESET)"; \
 		$(MAKE) screenshots-vm-down; \
@@ -288,12 +326,12 @@ screenshots:
 	@$(MAKE) screenshots-vm-up
 	@$(MAKE) screenshots-seed
 	@$(MAKE) screenshots-capture
-	@echo "$(GREEN)✓ Screenshots refreshed in assets/images/$(RESET)"
+	@echo "$(GREEN)✓ Community Edition screenshots refreshed in assets/images/$(RESET)"
 	@if [ "$(FRESH)" = "1" ]; then \
 		echo "$(YELLOW)FRESH=1: tearing down the VM...$(RESET)"; \
 		$(MAKE) screenshots-vm-down; \
 	else \
-		echo "$(BLUE)VM left running (FRESH=0). Re-run 'make screenshots' to iterate, or 'make screenshots-vm-down' to remove it.$(RESET)"; \
+		echo "$(BLUE)VM left running (FRESH=0). Re-run for quick iteration, or 'make screenshots-vm-down' to remove it.$(RESET)"; \
 	fi
 
 screenshots-vm-up:
@@ -345,6 +383,22 @@ screenshots-ent-build:
 # scripts; the rest of the inventory (OS, hardware, storage, network, software) is
 # written straight into the DB by gen_seed_sql.py -> seed_inventory.sql, applied
 # inside the VM. Targets SCREENSHOT_TARGET_API if set, else the running VM's IP.
+# Seed fleet_engine demo data (groups / bulk / rolling) via the licensed Pro+ fleet
+# REST API so the host-detail Fleet tab isn't empty. fleet_engine owns its tables
+# internally (no ORM model / no migration in source), so unlike the other seeders this
+# MUST go through the engine's own endpoints. seed_fleet.py is defensive — it skips on
+# 402/errors and never fails — so this is safe to call in the Enterprise pass only.
+screenshots-fleet-seed:
+	@cd $(SHOTS_DIR) && API="$(SCREENSHOT_TARGET_API)"; \
+		if [ -z "$$API" ]; then \
+			VMIP=$$(vagrant ssh -c 'hostname -I' 2>/dev/null | awk '{print $$1}' | tr -d '\r'); \
+			[ -n "$$VMIP" ] || { echo "$(RED)Screenshot VM not running.$(RESET)"; exit 1; }; \
+			API="http://$$VMIP:8080"; \
+		fi; \
+		echo "$(BLUE)Seeding fleet data -> $$API$(RESET)"; \
+		SCREENSHOT_TARGET="$$API" SCREENSHOT_ADMIN="$(SCREENSHOT_ADMIN)" SCREENSHOT_ADMIN_PW="$(SCREENSHOT_ADMIN_PW)" \
+			python3 seed_fleet.py || true
+
 screenshots-seed:
 	@cd $(SHOTS_DIR) && API="$(SCREENSHOT_TARGET_API)"; \
 		if [ -z "$$API" ]; then \
@@ -448,7 +502,7 @@ screenshots-ent-roles: install-browsers
 		echo "$(BLUE)  restarting backend to re-mount role routes...$(RESET)"; \
 		vagrant ssh -c "cd /opt/sysmanage && sudo make stop >/dev/null 2>&1; sudo bash -c 'cd /opt/sysmanage && setsid make start >/var/log/sysmanage-start.log 2>&1 </dev/null &'" 2>/dev/null; \
 		sleep 45; \
-		SCREENSHOT_TIER=enterprise SCREENSHOT_ONLY=ent-sites,ent-sites-map,ent-sites-tiles,ent-airgap-collections \
+		SCREENSHOT_TIER=enterprise SCREENSHOT_ONLY=ent-sites,ent-sites-map,ent-sites-tiles,ent-airgap-collections,ent-federation-hosts \
 			SCREENSHOT_TARGET="$$WEB" SCREENSHOT_USER="$(SCREENSHOT_USER)" SCREENSHOT_PW="$(SCREENSHOT_PW)" $(NODE) capture.mjs || true; \
 		echo "$(BLUE)Pass B: air_gap_role=repository, federation_role=none$(RESET)"; \
 		cat set_roles.py | vagrant ssh -c "cd /opt/sysmanage && sudo env PYTHONPATH=/opt/sysmanage AIR_GAP_ROLE=repository FEDERATION_ROLE=none /opt/sysmanage/.venv/bin/python - 2>&1" 2>/dev/null | sed 's/^/  /'; \

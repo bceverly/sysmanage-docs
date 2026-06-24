@@ -75,12 +75,12 @@ def _now():
 NOW = _now()
 
 DEMO_FQDNS = [
-    "web-01.demo.sysmanage.org",
-    "db-01.demo.sysmanage.org",
-    "app-02.demo.sysmanage.org",
-    "build-bsd.demo.sysmanage.org",
-    "win-01.demo.sysmanage.org",
-    "mac-01.demo.sysmanage.org",
+    "ubuntu-web-01.corp.northstar.io",
+    "rhel-db-01.corp.northstar.io",
+    "debian-app-01.corp.northstar.io",
+    "freebsd-build-01.corp.northstar.io",
+    "win11-ws-01.corp.northstar.io",
+    "macos-studio-01.corp.northstar.io",
 ]
 
 # ---- antivirus -------------------------------------------------------------
@@ -90,11 +90,11 @@ AV_DEFAULTS = [  # (os_name, antivirus_package)
 ]
 # per host: (software_name, version, enabled) — linux/bsd/mac use ClamAV
 AV_STATUS = {
-    "web-01.demo.sysmanage.org": ("ClamAV", "1.0.5", True),
-    "db-01.demo.sysmanage.org": ("ClamAV", "1.0.5", True),
-    "app-02.demo.sysmanage.org": ("ClamAV", "1.0.3", True),
-    "build-bsd.demo.sysmanage.org": ("ClamAV", "1.0.5", True),
-    "mac-01.demo.sysmanage.org": ("ClamAV", "1.0.5", False),
+    "ubuntu-web-01.corp.northstar.io": ("ClamAV", "1.0.5", True),
+    "rhel-db-01.corp.northstar.io": ("ClamAV", "1.0.5", True),
+    "debian-app-01.corp.northstar.io": ("ClamAV", "1.0.3", True),
+    "freebsd-build-01.corp.northstar.io": ("ClamAV", "1.0.5", True),
+    "macos-studio-01.corp.northstar.io": ("ClamAV", "1.0.5", False),
 }
 
 # ---- firewall --------------------------------------------------------------
@@ -106,12 +106,12 @@ FW_ROLES = [  # (name, [(port, tcp, udp)])
 ]
 # per host: (firewall_name, enabled, ipv4_ports[list of {port,protocols}], role)
 FW_STATUS = {
-    "web-01.demo.sysmanage.org": ("ufw", True, ["22", "80", "443"], "web-server"),
-    "db-01.demo.sysmanage.org": ("ufw", True, ["22", "5432"], "db-server"),
-    "app-02.demo.sysmanage.org": ("firewalld", True, ["22", "8080"], "ssh-admin"),
-    "build-bsd.demo.sysmanage.org": ("pf", True, ["22"], "ssh-admin"),
-    "win-01.demo.sysmanage.org": ("Windows Firewall", True, ["3389", "445"], None),
-    "mac-01.demo.sysmanage.org": ("pf", False, ["22"], None),
+    "ubuntu-web-01.corp.northstar.io": ("ufw", True, ["22", "80", "443"], "web-server"),
+    "rhel-db-01.corp.northstar.io": ("ufw", True, ["22", "5432"], "db-server"),
+    "debian-app-01.corp.northstar.io": ("firewalld", True, ["22", "8080"], "ssh-admin"),
+    "freebsd-build-01.corp.northstar.io": ("pf", True, ["22"], "ssh-admin"),
+    "win11-ws-01.corp.northstar.io": ("Windows Firewall", True, ["3389", "445"], None),
+    "macos-studio-01.corp.northstar.io": ("pf", False, ["22"], None),
 }
 
 # ---- automation ------------------------------------------------------------
@@ -128,11 +128,11 @@ SCRIPTS = [  # (name, shell, platform, content, description)
 ]
 # (host_fqdn, script_name, status, exit_code, stdout, age_min)
 SCRIPT_RUNS = [
-    ("web-01.demo.sysmanage.org", "Restart Nginx", "completed", 0, "nginx restarted", 30),
-    ("db-01.demo.sysmanage.org", "Disk Usage Report", "completed", 0, "12% /", 90),
-    ("app-02.demo.sysmanage.org", "Pending Reboot Check", "completed", 0, "REBOOT", 200),
-    ("win-01.demo.sysmanage.org", "Windows Update Status", "completed", 0, "Count: 8", 45),
-    ("web-01.demo.sysmanage.org", "Disk Usage Report", "running", None, "", 2),
+    ("ubuntu-web-01.corp.northstar.io", "Restart Nginx", "completed", 0, "nginx restarted", 30),
+    ("rhel-db-01.corp.northstar.io", "Disk Usage Report", "completed", 0, "12% /", 90),
+    ("debian-app-01.corp.northstar.io", "Pending Reboot Check", "completed", 0, "REBOOT", 200),
+    ("win11-ws-01.corp.northstar.io", "Windows Update Status", "completed", 0, "Count: 8", 45),
+    ("ubuntu-web-01.corp.northstar.io", "Disk Usage Report", "running", None, "", 2),
 ]
 
 # ---- upgrade profiles ------------------------------------------------------
@@ -190,10 +190,10 @@ FED_SITES = [  # (name, location, url, status, conn, host_count, lat, lon, cc)
 
 # ---- virtualization (VM child hosts; seed_pro owns the lxd/wsl containers) --
 VMS = [  # (parent_fqdn, child_name, child_type, distribution, status)
-    ("db-01.demo.sysmanage.org", "vm-pg-replica", "kvm", "ubuntu-22.04", "running"),
-    ("db-01.demo.sysmanage.org", "vm-pg-analytics", "kvm", "rocky-9", "running"),
-    ("web-01.demo.sysmanage.org", "vm-staging", "kvm", "ubuntu-24.04", "stopped"),
-    ("build-bsd.demo.sysmanage.org", "vm-bsd-ci", "bhyve", "freebsd-14", "running"),
+    ("rhel-db-01.corp.northstar.io", "vm-pg-replica", "kvm", "ubuntu-22.04", "running"),
+    ("rhel-db-01.corp.northstar.io", "vm-pg-analytics", "kvm", "rocky-9", "running"),
+    ("ubuntu-web-01.corp.northstar.io", "vm-staging", "kvm", "ubuntu-24.04", "stopped"),
+    ("freebsd-build-01.corp.northstar.io", "vm-bsd-ci", "bhyve", "freebsd-14", "running"),
 ]
 
 # ---- air-gap ---------------------------------------------------------------
@@ -270,9 +270,9 @@ def main():
                 install_path="/usr/bin/clamscan", version=ver,
                 enabled=enabled, last_updated=NOW - timedelta(hours=6),
             ))
-        if "win-01.demo.sysmanage.org" in hosts:
+        if "win11-ws-01.corp.northstar.io" in hosts:
             session.add(CommercialAntivirusStatus(
-                host_id=hosts["win-01.demo.sysmanage.org"].id,
+                host_id=hosts["win11-ws-01.corp.northstar.io"].id,
                 product_name="Microsoft Defender", product_version="4.18.24010",
                 service_enabled=True, antivirus_enabled=True,
                 realtime_protection_enabled=True, antispyware_enabled=True,
@@ -388,12 +388,12 @@ def main():
         # --- observability integrations ---
         session.add(GrafanaIntegrationSettings(
             id=1, enabled=True, use_managed_server=True,
-            manual_url="https://grafana.demo.sysmanage.org",
+            manual_url="https://grafana.corp.northstar.io",
             created_at=NOW, updated_at=NOW,
         ))
         session.add(GraylogIntegrationSettings(
             enabled=True, use_managed_server=True,
-            manual_url="https://graylog.demo.sysmanage.org",
+            manual_url="https://graylog.corp.northstar.io",
             has_gelf_tcp=True, gelf_tcp_port=12201,
             has_syslog_udp=True, syslog_udp_port=1514,
             inputs_last_checked=NOW - timedelta(minutes=10),

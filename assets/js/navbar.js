@@ -19,6 +19,12 @@
                 activePattern: /\/docs\//
             },
             {
+                href: '/roadmap/',
+                text: 'Roadmap',
+                i18n: 'nav.roadmap',
+                activePattern: /\/roadmap\//
+            },
+            {
                 href: '/config-builder.html',
                 text: 'Configuration Builder',
                 i18n: 'nav.config_builder'

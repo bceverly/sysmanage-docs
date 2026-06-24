@@ -14,6 +14,16 @@ jobs:
         uses: actions/setup-node@6044e13b5dc448c55e2357c09f80417699197238 # v6
         with:
           node-version: '20'
+      - name: Free up disk space
+        run: |
+          echo "Disk before:"; df -h /
+          # pa11y pulls puppeteer's ~400MB Chrome; ubuntu-latest's small disk
+          # (~14GB free) overflows ("ENOSPC"). Drop unused preinstalled
+          # toolchains first to make room.
+          sudo rm -rf /usr/local/lib/android /usr/share/dotnet /opt/ghc \
+            /usr/local/.ghcup /opt/hostedtoolcache/CodeQL /usr/share/swift || true
+          sudo docker image prune -af || true
+          echo "Disk after:"; df -h /
       - name: Install pa11y and http-server
         run: |
           npm install -g pa11y http-server

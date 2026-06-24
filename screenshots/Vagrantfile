@@ -28,12 +28,20 @@ Vagrant.configure("2") do |config|
   config.vm.synced_folder "../../sysmanage-agent", "/srv/src/sysmanage-agent", type: "rsync", rsync__exclude: [".git/", ".venv/", "node_modules/"]
   config.vm.synced_folder ".", "/vagrant", disabled: false
 
-  # Professional tier (opt-in via SYSMANAGE_PRO=1): also sync the Pro+ engine repo
-  # so provision.sh can Cython-build + install the engines. Only synced when present
-  # and requested, so the default OSS run is unaffected. Pre-built plugin bundles
+  # Professional tier: sync the Pro+ engine repo so provision.sh can Cython-build +
+  # install the engines. The MOUNT is unconditional (whenever the repo is present on
+  # the host) but the BUILD/LICENSE is still gated by SYSMANAGE_PRO=1 in the
+  # provisioner env below. This matters for the all-tier `make screenshots` run,
+  # which reuses ONE VM: the Community step boots it without SYSMANAGE_PRO, and
+  # rsync synced folders are configured at `vagrant up` — NOT re-added on a later
+  # `vagrant up --provision`. Mounting only when SYSMANAGE_PRO=1 left the folder
+  # missing when pro-build re-provisioned the already-running box. Mounting whenever
+  # the repo exists is inert for OSS (provision.sh skips the build) and guarantees
+  # the folder is present for any later tier escalation. Pre-built plugin bundles
   # (storage/modules/**/*.iife.js) ARE kept; only .git/.venv/node_modules excluded.
-  pro = ENV["SYSMANAGE_PRO"] == "1" && File.directory?("../../sysmanage-professional-plus")
-  if pro
+  pro_dir_present = File.directory?("../../sysmanage-professional-plus")
+  pro = ENV["SYSMANAGE_PRO"] == "1" && pro_dir_present
+  if pro_dir_present
     config.vm.synced_folder "../../sysmanage-professional-plus", "/srv/src/sysmanage-professional-plus",
       type: "rsync", rsync__exclude: [".git/", ".venv/", "node_modules/"]
   end

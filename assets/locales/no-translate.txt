@@ -1,0 +1,95 @@
+# i18n "do not translate" list — the JSON-friendly equivalent of a `# nosec`
+# marker.  Leaves matched here are intentionally identical to English in every
+# locale and are excluded from BOTH the translation pass (scripts/translate_i18n.py
+# never sends them to the GPU service) AND the passthrough budget check
+# (scripts/i18n_validate.py never counts them).  See scripts/i18n_no_translate.py.
+#
+# One rule per line:
+#   some.dotted.key          exact dotted key
+#   section.*.endpoints.*    fnmatch glob on the dotted key path
+#   re:<regex>               regex matched against the ENGLISH value
+# A full-line comment starts with '#'.  Keep value regexes tight (anchor with
+# ^ / $) so a rule doesn't suppress real prose that merely mentions a product.
+#
+# To find candidates to add here, run:
+#   python3 scripts/i18n_validate.py --report-passthrough
+
+# --- file-system paths (always literal) ------------------------------------
+re:^~?/                       # absolute or home-relative paths: /opt/..., ~/...
+re:\.(ya?ml|json|db|sh|py|log|conf|toml|ini|service|sock|pid|cfg|env|so|deb|rpm|pkg|msi|apk|tgz)\b
+
+# --- URLs / scheme fragments ------------------------------------------------
+re://                         # http://, file://, ws://, any scheme
+
+# --- code & field identifiers (real prose never contains foo_bar) -----------
+re:^[A-Za-z][A-Za-z0-9]*(_[A-Za-z0-9]+)+$    # snake_case: owner_uid, verify_ssl
+re:^[a-z][a-z0-9]+(\.[a-z][a-z0-9]+)+$       # dotted lowercase: rustup.rs
+
+# --- product / OS / tool labels (a value that *starts* with one of these is a
+#     product label, not prose; refine if a real sentence gets caught) -------
+re:^(Unix|Linux|BSD|GNU|Ubuntu|Debian|RHEL|CentOS|Fedora|Rocky|AlmaLinux|Oracle Linux|openSUSE|SLES|Alpine|Arch|Gentoo|NixOS|macOS|Windows|FreeBSD|OpenBSD|NetBSD|PostgreSQL|SQLite|MySQL|MariaDB|Redis|Homebrew|Chocolatey|Scoop|winget|Snap|Flatpak|systemd|OpenRC|launchd|rc\.d|Grafana|Prometheus|OpenTelemetry|Graylog|Docker|Podman|Kubernetes|Helm|Ansible|Terraform|Vagrant|libvirt|KVM|QEMU|bhyve|VMM|WSL|LXD|LXC|OpenBAO|Vault|Keycloak|Okta|Entra|NGINX|Apache|PowerShell|WebSocket|OAuth|OpenID|GraphQL|gRPC|Bandit|SonarQube|SaltStack)\b
+
+# --- HTTP status lines / standards / version+codename labels ----------------
+re:^\d{3} [A-Z]               # 400 Bad Request, 404 Not Found
+re:^ISO \d                    # ISO 27001
+re:^[A-Z][A-Za-z]+ \d+(\.\d+)* \(  # "Debian 12 (Bookworm)" style codenames
+re:^\d+\.\d+(\.\d+)+          # IPv4 / kernel / semver: 192.168.1.1, 6.14.0-29-generic
+re:^([0-9A-Fa-f]{2}:){5}[0-9A-Fa-f]{2}$   # MAC addresses
+re:^[A-Z][A-Za-z.+-]* \d+(\.\d+)*\+?$      # "Python 3.12+", "Node 20" version labels
+
+# --- seeding markers (not real content; flagged by --validate / --seed) ------
+re:^\[(MISSING|TODO)
+
+# --- slash-separated product / tool lists -----------------------------------
+re:^[A-Z][A-Za-z0-9.+-]*\s?/\s?[A-Z]   # ServiceNow/Remedy, LDAP/Active Directory, Jira/Linear/...
+
+# --- brand, SaaS/dev tooling, protocols (value starts with the name) --------
+re:^(SysManage|Enterprise SaaS|TypeScript|JavaScript|React|Node\.js|WebSockets?|REST|JSON|YAML|gRPC|GitHub|GitLab|Bitbucket|ServiceNow|Remedy|PagerDuty|Opsgenie|Jira|Linear|Slack|Discord|WireGuard|OpenVPN|Tailscale|Cloudflare|AWS|Azure|GCP|LDAP|SAML|SCIM|JWT|TOTP|Keycloak|Trivy|Snyk|Semgrep|TruffleHog|ESLint|Prettier|Pytest|Playwright|Vitest|FastAPI|SQLAlchemy|Alembic|Pydantic|Uvicorn|Gunicorn|Vite|IPv4|IPv6)\b
+
+# --- more global identity patterns -----------------------------------------
+re:^[A-Za-z]:\\                              # Windows paths: C:\ProgramData\...
+re:@[\w.-]+\.[A-Za-z]{2,}                    # emails: security@sysmanage.org
+re:\b[a-z0-9][a-z0-9-]*\.(com|org|net|io|rs|dev|gov|edu)\b   # domains: git-scm.com
+re:_\*                                       # glob tokens: registry_*
+re:^[A-Z]{2,6}\b                             # acronym-led labels: SOC 2, PCI DSS, UFW, OWASP, API
+re:\b(i18n|l10n)\b                           # i18n / l10n
+re:^<strong>[^<]+</strong>\s*[—-]\s*\d       # <strong>Ubuntu</strong> — 22.04 OS labels
+re:^(MacPorts|Firewalld|DragonFly|Material-UI|Visual Studio|Google|Microsoft|Amazon|Pylint|Mypy|Sphinx)\b
+
+# --- per-locale COGNATES: words correctly identical to English in this locale
+#     but which DO differ in others, so they can't be flagged globally.  French
+#     shares many -tion/-ture/-ance/-ence words verbatim; German/Spanish/etc. do
+#     not (de "Dokumentation", es "Documentación").  Only list words VERIFIED
+#     identical in the given language.  Find candidates with:
+#       python3 scripts/i18n_validate.py --report-passthrough --lang fr
+fr: re:(?i)^(← )?(Documentation|Architecture|Administration|Navigation|Description|Configuration|Performance|Application|Maintenance|Permissions?|Installation|Idempotent|Partition|Pagination|Limitations?|Destination|Discussions?|Information|Migration|Notifications?|Orchestration|Sections?|Options?|Versions?|Modules?|Services?|Interfaces?|Transactions?|Exceptions?|Actions?|Solutions?|Conditions?|Restrictions?|Format)( →)?$
+fr: re:^\d+ minutes$                         # durations are valid French verbatim
+
+# --- specs / metrics with units (global) ------------------------------------
+re:\b\d[\d,]*\+?\s?(GB|MB|KB|TB|GHz|MHz|TPS|RPS|QPS|ms|servers?|agents?|cores?)\b
+re:\b\d+\s?[-–]\s?\d+\s?(servers?|agents?|GB|MB)\b
+
+# --- product tiers / editions / planes (global brand labels) ----------------
+re:^(Enterprise|Community Edition|Professional\+?|Open[- ]?[Ss]ource|Self-hosted|Single-tenant|Multi-tenant|Control[- ]Plane|Data[- ]Plane)\b
+
+# --- protocols / libs / standards kept English everywhere (global) ----------
+re:^(← )?Mutual TLS\b                          # mTLS protocol name
+re:\bCI/CD\b                                   # Multi-OS CI/CD Pipeline
+re:\b(musl|glibc)\b                            # musl libc:, glibc
+
+# --- "Label: code/product" rows + all-caps constants (global) ---------------
+re:^(Frontend|Backend|Database|Repository|Project|Browsers?|Containers?|Tap Repo|Tap User|Uptime):\s
+re:^[A-Z][A-Z0-9_]{3,}$                       # HEARTBEAT, COMPLETED, COMMERCIAL
+
+# --- shared English tech loanwords kept verbatim across European locales -----
+de,nl,es,it,pt,fr: re:(?i)^(← )?(Firewall|Backup|Dashboard|Plugin|Cache|Pipeline|Software|Hardware|Setup|Framework|Heartbeat|Handshake|Bearer|Token|Webhook|Endpoint|Middleware|Proxy|Gateway|Daemon|Socket|Buffer|Worker|Scheduler|Logging|Tracing|Cluster|Node|Container)( →|:)?$
+
+# --- German (de) cognates / loanwords verified identical to English ----------
+de: re:(?i)^(← )?(Navigation|Installation|Administrator|Idempotent|Partition|Innovation|Parameter|Information|Optional|Pagination|Community|Best Practices|Tutorials|Standard|Format|Version|Option|Service|Server|Status|Monitor|Monitoring|Update|Deployment|Engine|Repository|Element|Modul|Funktion|Audit Log)( →|:)?$
+
+# --- Dutch (nl) keeps many English tech terms (loanwords) --------------------
+nl: re:(?i)^(← )?(Tutorials|Licensing|Audit Log( Viewer)?|Server|Status|Update|Deployment|Engine|Repository|Monitoring|Enterprise|Browsers?|Collector Runs|Feature Toggles|Agent (Setup|Logs|Status|Updates)|Database (Host|Logging)|Web UI (Host|Port)|Bearer tokens)( →|:)?$
+
+# --- explicit keys / subtrees: add more via
+#     `python3 scripts/i18n_validate.py --report-passthrough --lang <xx>`
+# api.reference.*.example

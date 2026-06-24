@@ -29,6 +29,9 @@ import urllib.request
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from i18n_no_translate import is_no_translate  # noqa: E402
+
 # ===== per-project configuration (the ONLY part that differs per repo) =====
 PROJECT = "sysmanage-docs"
 FORMAT = "json"                 # "json" | "po"
@@ -146,6 +149,23 @@ def _is_json_gap(value: Optional[str]) -> bool:
     return value is None or (isinstance(value, str) and value.startswith("[TODO]"))
 
 
+def _is_passthrough(en_src: str, value: Optional[str]) -> bool:
+    """A non-en leaf left identical to the English source — and long enough to be
+    real prose/a label rather than a trivial cognate — is an untranslated
+    passthrough.  Treat it as a gap so the service gets a chance to translate it
+    (autotagged ``docs.auto.*`` keys land as raw English without a ``[TODO]``
+    prefix, so they're otherwise invisible to this pass).  Mirrors the
+    ``i18n_validate`` budget check (len > 8); the ``_accept`` guard still refuses
+    to write an unchanged result, so genuinely-invariant terms (acronyms, proper
+    nouns) simply stay as-is instead of churning or becoming ``[TODO]`` gaps."""
+    return (
+        isinstance(value, str)
+        and value == en_src
+        and len(en_src) > 8
+        and bool(_HAS_LETTER.search(en_src))
+    )
+
+
 def run_json(base: Path, template: str, langs: List[str], service: Optional[str],
              client_batch: int, limit: Optional[int]) -> None:
     en_path = base / template.format(lang="en")
@@ -163,7 +183,11 @@ def run_json(base: Path, template: str, langs: List[str], service: Optional[str]
         gaps: List[Tuple[str, str]] = [
             (key, en_src)
             for key, en_src in en_flat.items()
-            if _is_json_gap(lang_flat.get(key))
+            if (
+                _is_json_gap(lang_flat.get(key))
+                or _is_passthrough(en_src, lang_flat.get(key))
+            )
+            and not is_no_translate(key, en_src, lang)  # flagged intentionally-English
         ]
         if limit:
             gaps = gaps[:limit]
