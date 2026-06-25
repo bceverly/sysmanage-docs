@@ -563,7 +563,15 @@ test-markdown-lint:
 # Vale documentation style (mirrors .github/workflows/vale.yml)
 test-vale:
 	@echo "$(BLUE)=== Vale Documentation Style ===$(RESET)"
-	vale docs
+	@# Vale's exit code only reflects ERRORS; warnings (MinAlertLevel=warning in
+	@# .vale.ini) are displayed but don't fail the build, so they can scroll past
+	@# unnoticed. Capture the run and fail if the summary reports any warnings or
+	@# errors — no warning hides.
+	@out=$$(vale docs 2>&1); echo "$$out"; \
+		if echo "$$out" | grep -qE '[1-9][0-9]* (error|warning)'; then \
+			echo "$(RED)✗ Vale reported warnings/errors (failing — warnings are not allowed to hide)$(RESET)"; \
+			exit 1; \
+		fi
 	@echo "$(GREEN)✓ Vale style check passed$(RESET)"
 
 # Accessibility testing (mirrors .github/workflows/accessibility.yml)

@@ -72,20 +72,20 @@ class I18n {
         }
 
         try {
-            // Determine the correct path based on current location
-            let basePath = '';
+            // Determine the relative path back to the site root, for ANY page
+            // depth — not just /docs/. (The old code only handled /docs/, so
+            // pages like /roadmap/ fetched /roadmap/assets/locales/*.json → 404
+            // → every string fell back to its raw key.)
+            //
+            // Depth = number of directory levels below root. A path ending in
+            // '/' is a directory (index.html); a path ending in a filename
+            // (contains a dot in the last segment) does not count that segment.
             const path = window.location.pathname;
-
-            // Count directory depth from root
-            if (path.includes('/docs/')) {
-                // If we're in a subdirectory of docs (like /docs/architecture/), need to go back more
-                const pathParts = path.split('/');
-                const docsIndex = pathParts.indexOf('docs');
-                if (docsIndex >= 0) {
-                    const depthFromDocs = pathParts.length - docsIndex - 2; // -2 for 'docs' and filename
-                    basePath = '../'.repeat(depthFromDocs + 1); // +1 to get out of docs directory
-                }
-            }
+            const segments = path.split('/').filter(Boolean);
+            const lastIsFile =
+                segments.length > 0 && segments[segments.length - 1].includes('.');
+            const depth = lastIsFile ? segments.length - 1 : segments.length;
+            const basePath = '../'.repeat(depth);
 
             const response = await fetch(`${basePath}assets/locales/${langCode}.json`);
             if (response.ok) {
