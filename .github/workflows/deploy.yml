@@ -1,0 +1,66 @@
+name: Deploy to GitHub Pages
+
+# Replaces GitHub's auto "pages-build-deployment" (which runs the deprecated
+# Node 20 actions/checkout@v4 + actions/upload-artifact@v4) with a controlled
+# build on the current action versions, and stages ONLY the published site so
+# the upload doesn't include .git / node_modules / dev tooling.
+#
+# IMPORTANT: in repo Settings → Pages, set "Build and deployment → Source" to
+# "GitHub Actions" so this workflow is what deploys (otherwise the legacy
+# branch auto-build keeps running alongside it).
+#
+# The published site still includes repo/ (the apt/rpm/... package repo). Keep
+# it under the 1 GB Pages limit with scripts/prune-package-repo.sh.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# One in-flight deployment at a time; don't cancel a running deploy.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+
+      - name: Stage published site (exclude dev/build dirs)
+        run: |
+          mkdir -p _site
+          rsync -a \
+            --exclude '.git' \
+            --exclude '.github' \
+            --exclude 'node_modules' \
+            --exclude 'screenshots' \
+            --exclude 'scripts' \
+            --exclude 'Presentations' \
+            --exclude 'SignPath' \
+            --exclude '_site' \
+            ./ _site/
+          echo "Staged site size:"
+          du -sh _site
+
+      - name: Configure Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
