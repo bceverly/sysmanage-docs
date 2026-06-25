@@ -56,7 +56,7 @@ endif
 .PHONY: help install-dev install-vm-deps install-browsers screenshot clean check-deps platform-info \
        test test-spelling test-markdown-lint test-vale test-accessibility test-links \
        check-test-deps website-package i18n-validate i18n-seed i18n-extract \
-       translate translate-dry translate-check
+       translate translate-dry translate-check lint
 
 # Default target
 help:
@@ -633,6 +633,13 @@ test: check-test-deps test-spelling test-markdown-lint test-vale test-accessibil
 	@echo "$(GREEN)========================================$(RESET)"
 	@echo "$(GREEN)  All tests passed$(RESET)"
 	@echo "$(GREEN)========================================$(RESET)"
+
+# Lightweight gate the shared pre-push hook runs (it invokes ``make lint`` in
+# every repo with a ``lint:`` target).  Keeps the i18n checks — key existence
+# AND offline translation completeness — out of the heavy ``test`` target so an
+# untranslated string is caught before a push, with no translation service.
+lint: i18n-validate translate-check
+	@echo "[OK] docs lint (i18n) passed"
 
 # i18n: collect data-i18n="..." attributes from every .html and verify
 # every key exists in every locale .json within budget.  Run

@@ -104,6 +104,14 @@ SysManage documentation is available in 14 languages:
 
 Translation files are located in `assets/locales/` and contributions are welcome!
 
+`make lint` runs an **offline** i18n gate (`i18n-validate` + `translate-check`,
+no translation service needed): it fails if any `data-i18n` key is missing
+from a locale or left untranslated, so gaps are caught locally at `pre-push`
+rather than in CI. After editing pages, run `make i18n-autotag` to tag + seed
+new strings, fill them on your model rig (`make translate SERVICE=http://<host>:8765`),
+then re-run `make lint`. (Mirrors the same gate in `sysmanage`,
+`sysmanage-agent`, and `sysmanage-professional-plus`.)
+
 ## 📸 Screenshots
 
 Automated screenshots are generated for:

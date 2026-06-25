@@ -173,6 +173,24 @@ psql 'postgresql://sysmanage@db-tenant-b:5432/tenant_b' -c 'SELECT count(*) FROM
                 </section>
 
                 <section>
+                    <h2 data-i18n="docs.auto.deployment.multi-tenancy.057">Per-tenant editions</h2>
+                    <p data-i18n="docs.auto.deployment.multi-tenancy.058">Multi-tenancy does not force every tenant onto the same plan. From the control-plane Tenants page, a Platform Operator assigns each tenant an independent edition &mdash; <strong>Community</strong>, <strong>Professional</strong>, or <strong>Enterprise</strong> &mdash; and module and feature gating resolves against that tenant's edition rather than one global license tier. A downgraded tenant cleanly loses the features above its edition (the UI hides them and the API returns a clear "upgrade required"); an upgrade lights them up on the next request, with no redeploy. The server itself is licensed at the top tier and physically hosts every engine; the edition simply narrows what each tenant may use, and gating can only ever narrow &mdash; never exceed &mdash; the server's own license.</p>
+                    <p data-i18n="docs.auto.deployment.multi-tenancy.059">The same page lets a Platform Operator suspend or resume a tenant and set per-tenant quotas &mdash; for example a <code>max_hosts</code> cap that rejects further agent enrollments once a tenant is full.</p>
+                </section>
+
+                <section>
+                    <h2 data-i18n="docs.auto.deployment.multi-tenancy.060">Per-tenant backups and RPO</h2>
+                    <p data-i18n="docs.auto.deployment.multi-tenancy.061">Because every tenant has its own database, SysManage tracks each tenant's backup recovery-point objective (RPO) independently. SysManage <em>orchestrates</em> backups &mdash; it does not store the backup bytes itself. You configure a backup command once, server-side, in <code>sysmanage.yaml</code>; SysManage runs it on each tenant's RPO cadence, records every run, verifies each backup's integrity, and periodically runs a full restore-verify. The control-plane Tenants page shows each tenant's RPO compliance (compliant, at risk, or breached), its recent runs, and a "back up now" trigger.</p>
+                    <p data-i18n="docs.auto.deployment.multi-tenancy.062">The backup command is server configuration, never per-tenant editable, so a tenant can never inject a command to run on your server. Templated placeholders &mdash; <code>{tenant_id}</code>, <code>{slug}</code>, <code>{host}</code>, <code>{port}</code>, <code>{dbname}</code>, <code>{region}</code> &mdash; let one command target every tenant's database. Point it at whatever backup tool you already run (pgBackRest, wal-g, or a <code>pg_dump</code> wrapper):</p>
+                    <pre><code>backup:
+  command: "pgbackrest --stanza={slug} backup"
+  verify_command: "pgbackrest --stanza={slug} verify"
+  default_rpo_seconds: 86400            # 24h target RPO
+  full_verify_interval_seconds: 604800  # weekly full restore-verify
+  tick_interval_seconds: 300</code></pre>
+                </section>
+
+                <section>
                     <h2 data-i18n="docs.auto.deployment.multi-tenancy.047">Related documentation</h2>
                     <div class="docs-grid">
                         <div class="docs-section-card">
