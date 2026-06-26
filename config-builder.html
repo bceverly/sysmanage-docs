@@ -375,6 +375,7 @@
 
                     <div class="section-group">
                         <h3 data-i18n="docs.auto.home.config-builder.021">Security Settings</h3>
+                        <div class="help-text" style="margin-bottom: 1rem;">As of v3.0 these are <strong>not written to <code>sysmanage.yaml</code></strong> — the secure-installation step generates the admin account, JWT secret, and password salt into OpenBAO. The fields stay here as a reference for the values the installer creates; the generated YAML below intentionally omits them.</div>
                         <div class="form-group">
                             <label for="admin-email" data-i18n="docs.auto.home.config-builder.022">Admin Email</label>
                             <input type="email" id="admin-email" value="admin@sysmanage.org" placeholder="admin@example.com">
@@ -407,6 +408,7 @@
 
                     <div class="section-group">
                         <h3 data-i18n="docs.auto.home.config-builder.031">Password Policy</h3>
+                        <div class="help-text" style="margin-bottom: 1rem;">The password policy is <strong>operational config</strong> (v3.0+) — set it per tenant in <strong>Settings → Configuration</strong> after first login. It is not part of the bootstrap YAML and is omitted from the generated file below.</div>
                         <div class="form-group">
                             <label for="min-length" data-i18n="docs.auto.home.config-builder.032">Minimum Password Length</label>
                             <input type="number" id="min-length" value="8" min="4" max="128">
@@ -878,28 +880,15 @@
             lines.push('  password: ' + yamlVal(document.getElementById('db-password').value));
             lines.push('');
 
-            // Security
+            // Security — MINIMAL (v3.0, Phase 13.1.H config classification).
+            // Secrets (jwt_secret, password_salt, admin_password) are generated
+            // into OpenBAO by the secure-installation step, NOT written here.
+            // The admin user is seeded into the DB at install.  The password
+            // policy + JWT timeouts are operational config — set them in
+            // Settings → Configuration (per tenant) after first login.  Only the
+            // non-secret jwt_algorithm stays in YAML (needed at token verify).
             lines.push('security:');
-            // backend/api/auth.py reads security.admin_userid (not
-            // admin_email) for the recovery-account login path.  Keeping
-            // the form field id as 'admin-email' since users typically
-            // supply an email-shaped string here.
-            lines.push('  admin_userid: ' + yamlVal(document.getElementById('admin-email').value));
-            lines.push('  admin_password: ' + yamlVal(document.getElementById('admin-password').value));
             lines.push('  jwt_algorithm: HS256');
-            // jwt_auth_timeout / jwt_refresh_timeout moved to the DB-backed
-            // Settings table (v3.0) — configure them in Settings → Configuration,
-            // not here.  See docs/planning/config-classification.md.
-            lines.push('  jwt_secret: ' + yamlVal(document.getElementById('jwt-secret').value));
-            lines.push('  password_salt: ' + yamlVal(document.getElementById('password-salt').value));
-            lines.push('  password_policy:');
-            lines.push('    min_length: ' + parseInt(document.getElementById('min-length').value, 10));
-            lines.push('    max_length: ' + parseInt(document.getElementById('max-length').value, 10));
-            lines.push('    require_uppercase: ' + yamlVal(document.getElementById('require-uppercase').checked));
-            lines.push('    require_lowercase: ' + yamlVal(document.getElementById('require-lowercase').checked));
-            lines.push('    require_numbers: ' + yamlVal(document.getElementById('require-numbers').checked));
-            lines.push('    require_special_chars: ' + yamlVal(document.getElementById('require-special').checked));
-            lines.push('    password_history: ' + parseInt(document.getElementById('password-history').value, 10));
             lines.push('');
 
             // Vault
