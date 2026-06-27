@@ -130,7 +130,7 @@ install-dev: check-deps
 		echo "$(YELLOW)(npm prefix $$NPM_PREFIX is not user-writable; using sudo)$(RESET)"; \
 	fi; \
 	command -v markdownlint-cli2 >/dev/null 2>&1 && echo "$(GREEN)✓ markdownlint-cli2 already installed$(RESET)" || $$SUDO $(NPM) install -g markdownlint-cli2; \
-	command -v pa11y >/dev/null 2>&1 && echo "$(GREEN)✓ pa11y already installed$(RESET)" || $$SUDO $(NPM) install -g pa11y; \
+	command -v pa11y >/dev/null 2>&1 && echo "$(GREEN)✓ pa11y already installed$(RESET)" || $$SUDO $(NPM) install -g pa11y || echo "$(YELLOW)⊘ pa11y unavailable (no OpenBSD Chrome) — skipping$(RESET)"; \
 	command -v http-server >/dev/null 2>&1 && echo "$(GREEN)✓ http-server already installed$(RESET)" || $$SUDO $(NPM) install -g http-server
 	@echo "$(GREEN)✓ npm global tools installed$(RESET)"
 	@echo ""
@@ -140,19 +140,23 @@ install-dev: check-deps
 	@# from `make install-browsers` lives in a different cache dir and isn't
 	@# discoverable by puppeteer-core.
 	@echo "$(YELLOW)Installing puppeteer Chrome for pa11y...$(RESET)"
-	@if [ -d "$$HOME/.cache/puppeteer/chrome" ] && [ -n "$$(ls -A $$HOME/.cache/puppeteer/chrome 2>/dev/null)" ]; then \
+	@if ! command -v pa11y >/dev/null 2>&1; then \
+		echo "$(YELLOW)⊘ pa11y not installed (no OpenBSD Chrome) — skipping puppeteer Chrome$(RESET)"; \
+	elif [ -d "$$HOME/.cache/puppeteer/chrome" ] && [ -n "$$(ls -A $$HOME/.cache/puppeteer/chrome 2>/dev/null)" ]; then \
 		echo "$(GREEN)✓ puppeteer Chrome already installed in ~/.cache/puppeteer$(RESET)"; \
 	else \
-		$(NPX) puppeteer browsers install chrome; \
+		$(NPX) puppeteer browsers install chrome || echo "$(YELLOW)⊘ puppeteer Chrome install failed — skipping (accessibility tests will skip)$(RESET)"; \
 	fi
-	@echo "$(GREEN)✓ puppeteer Chrome installed$(RESET)"
 	@echo ""
 	@# --- Cargo tools (typos, lychee) ---
 	@echo "$(YELLOW)Installing cargo tools (typos-cli, lychee)...$(RESET)"
-	@command -v cargo >/dev/null 2>&1 || { echo "$(RED)Error: cargo is not installed. Install Rust from https://rustup.rs$(RESET)"; exit 1; }
-	@command -v typos >/dev/null 2>&1 && echo "$(GREEN)✓ typos already installed$(RESET)" || cargo install typos-cli@1.42.3 --locked
-	@command -v lychee >/dev/null 2>&1 && echo "$(GREEN)✓ lychee already installed$(RESET)" || cargo install lychee
-	@echo "$(GREEN)✓ Cargo tools installed$(RESET)"
+	@if ! command -v cargo >/dev/null 2>&1; then \
+		echo "$(YELLOW)⊘ cargo not installed — skipping typos/lychee (Rust tools; unavailable on OpenBSD). Their checks will be skipped by 'make test'.$(RESET)"; \
+	else \
+		command -v typos >/dev/null 2>&1 && echo "$(GREEN)✓ typos already installed$(RESET)" || cargo install typos-cli@1.42.3 --locked; \
+		command -v lychee >/dev/null 2>&1 && echo "$(GREEN)✓ lychee already installed$(RESET)" || cargo install lychee; \
+		echo "$(GREEN)✓ Cargo tools installed$(RESET)"; \
+	fi
 	@echo ""
 	@# --- Vale (platform-specific) ---
 	@echo "$(YELLOW)Installing Vale...$(RESET)"
@@ -164,12 +168,10 @@ install-dev: check-deps
 			echo "Installing vale via snap..."; \
 			sudo snap install vale; \
 		else \
-			echo "$(RED)Error: Could not auto-install vale.$(RESET)"; \
-			echo "$(YELLOW)Please install manually: https://vale.sh/docs/install$(RESET)"; \
-			exit 1; \
+			echo "$(YELLOW)⊘ vale not auto-installable on this platform (no OpenBSD build) — skipping. Manual: https://vale.sh/docs/install$(RESET)"; \
 		fi; \
 	}
-	@echo "$(GREEN)✓ Vale installed$(RESET)"
+	@echo "$(GREEN)✓ Vale step complete$(RESET)"
 	@echo ""
 	@# --- Screenshot VM prerequisites (Vagrant + libvirt) ---
 	@$(MAKE) install-vm-deps
@@ -539,20 +541,20 @@ setup: install-dev install-browsers
 check-test-deps:
 	@echo "$(BLUE)Checking testing dependencies...$(RESET)"
 	@MISSING=0; \
-	command -v typos >/dev/null 2>&1 && echo "$(GREEN)✓ typos found$(RESET)" || { echo "$(RED)✗ typos not found (install: cargo install typos-cli)$(RESET)"; MISSING=1; }; \
 	command -v markdownlint-cli2 >/dev/null 2>&1 && echo "$(GREEN)✓ markdownlint-cli2 found$(RESET)" || { echo "$(RED)✗ markdownlint-cli2 not found (install: npm install -g markdownlint-cli2)$(RESET)"; MISSING=1; }; \
-	command -v vale >/dev/null 2>&1 && echo "$(GREEN)✓ vale found$(RESET)" || { echo "$(RED)✗ vale not found (install: brew install vale / snap install vale)$(RESET)"; MISSING=1; }; \
-	command -v pa11y >/dev/null 2>&1 && echo "$(GREEN)✓ pa11y found$(RESET)" || { echo "$(RED)✗ pa11y not found (install: npm install -g pa11y)$(RESET)"; MISSING=1; }; \
 	command -v http-server >/dev/null 2>&1 && echo "$(GREEN)✓ http-server found$(RESET)" || { echo "$(RED)✗ http-server not found (install: npm install -g http-server)$(RESET)"; MISSING=1; }; \
-	command -v lychee >/dev/null 2>&1 && echo "$(GREEN)✓ lychee found$(RESET)" || { echo "$(RED)✗ lychee not found (install: cargo install lychee)$(RESET)"; MISSING=1; }; \
-	if [ $$MISSING -ne 0 ]; then echo ""; echo "$(YELLOW)Some tools are missing. Install them before running 'make test'.$(RESET)"; exit 1; fi
-	@echo "$(GREEN)All testing tools are available$(RESET)"
+	for t in typos vale pa11y lychee; do \
+		if command -v $$t >/dev/null 2>&1; then echo "$(GREEN)✓ $$t found$(RESET)"; \
+		else echo "$(YELLOW)○ $$t not found — its checks will be skipped (no build for this platform, e.g. OpenBSD)$(RESET)"; fi; \
+	done; \
+	if [ $$MISSING -ne 0 ]; then echo ""; echo "$(YELLOW)Required tools (markdownlint-cli2, http-server) missing — install them before 'make test'.$(RESET)"; exit 1; fi
+	@echo "$(GREEN)Testing dependency check complete (browser/Rust tools optional)$(RESET)"
 
 # Spell checking (mirrors .github/workflows/spellcheck.yml)
 test-spelling:
 	@echo "$(BLUE)=== Spell Check ===$(RESET)"
-	typos
-	@echo "$(GREEN)✓ Spell check passed$(RESET)"
+	@command -v typos >/dev/null 2>&1 || { echo "$(YELLOW)⊘ typos not installed — skipping (no OpenBSD/BSD build)$(RESET)"; exit 0; }; \
+	typos && echo "$(GREEN)✓ Spell check passed$(RESET)"
 
 # Markdown linting (mirrors .github/workflows/markdown-lint.yml)
 test-markdown-lint:
@@ -567,12 +569,13 @@ test-vale:
 	@# .vale.ini) are displayed but don't fail the build, so they can scroll past
 	@# unnoticed. Capture the run and fail if the summary reports any warnings or
 	@# errors — no warning hides.
-	@out=$$(vale docs 2>&1); echo "$$out"; \
+	@command -v vale >/dev/null 2>&1 || { echo "$(YELLOW)⊘ vale not installed — skipping (no OpenBSD build)$(RESET)"; exit 0; }; \
+	out=$$(vale docs 2>&1); echo "$$out"; \
 		if echo "$$out" | grep -qE '[1-9][0-9]* (error|warning)'; then \
 			echo "$(RED)✗ Vale reported warnings/errors (failing — warnings are not allowed to hide)$(RESET)"; \
 			exit 1; \
-		fi
-	@echo "$(GREEN)✓ Vale style check passed$(RESET)"
+		fi; \
+	echo "$(GREEN)✓ Vale style check passed$(RESET)"
 
 # Accessibility testing (mirrors .github/workflows/accessibility.yml)
 #
@@ -585,17 +588,18 @@ test-vale:
 #      and trap cleanup so this run never leaves a zombie either.
 test-accessibility:
 	@echo "$(BLUE)=== Accessibility Check ===$(RESET)"
-	@if [ ! -d "$$HOME/.cache/puppeteer/chrome" ] || [ -z "$$(ls -A $$HOME/.cache/puppeteer/chrome 2>/dev/null)" ]; then \
+	@command -v pa11y >/dev/null 2>&1 || { echo "$(YELLOW)⊘ pa11y/Chrome not available — skipping accessibility (no OpenBSD browser)$(RESET)"; exit 0; }; \
+	if [ ! -d "$$HOME/.cache/puppeteer/chrome" ] || [ -z "$$(ls -A $$HOME/.cache/puppeteer/chrome 2>/dev/null)" ]; then \
 		echo "$(YELLOW)puppeteer Chrome missing — installing...$(RESET)"; \
 		$(NPX) puppeteer browsers install chrome; \
-	fi
-	@PORT_HOLDER=$$(lsof -ti :8087 2>/dev/null); \
+	fi; \
+	PORT_HOLDER=$$(lsof -ti :8087 2>/dev/null); \
 	if [ -n "$$PORT_HOLDER" ]; then \
 		echo "$(YELLOW)Killing stale process on :8087 (pid $$PORT_HOLDER)$(RESET)"; \
 		kill $$PORT_HOLDER 2>/dev/null; \
 		sleep 1; \
 	fi; \
-	http-server . -p 8087 -s &>/dev/null & \
+	http-server . -p 8087 -s >/dev/null 2>&1 & \
 	SERVER_PID=$$!; \
 	trap "kill $$SERVER_PID 2>/dev/null || true" EXIT INT TERM; \
 	sleep 2; \
@@ -616,14 +620,14 @@ test-accessibility:
 		echo "$(YELLOW)Testing docs/server/index.html...$(RESET)"; \
 		pa11y --config .pa11yrc.json http://localhost:8087/docs/server/index.html || FAIL=1; \
 	fi; \
-	if [ $$FAIL -ne 0 ]; then echo "$(RED)Accessibility tests failed$(RESET)"; exit 1; fi
-	@echo "$(GREEN)✓ Accessibility tests passed$(RESET)"
+	if [ $$FAIL -ne 0 ]; then echo "$(RED)Accessibility tests failed$(RESET)"; exit 1; fi; \
+	echo "$(GREEN)✓ Accessibility tests passed$(RESET)"
 
 # Link checking (mirrors .github/workflows/link-check.yml)
 test-links:
 	@echo "$(BLUE)=== Link Check ===$(RESET)"
-	lychee --verbose --no-progress --root-dir . --max-retries 3 --retry-wait-time 2 --exclude-path node_modules --exclude-path .git --exclude-path SignPath --exclude 'http://localhost:*' '**/*.md' '**/*.html'
-	@echo "$(GREEN)✓ Link check passed$(RESET)"
+	@command -v lychee >/dev/null 2>&1 || { echo "$(YELLOW)⊘ lychee not installed — skipping (no OpenBSD/BSD build)$(RESET)"; exit 0; }; \
+	lychee --verbose --no-progress --root-dir . --max-retries 3 --retry-wait-time 2 --exclude-path node_modules --exclude-path .git --exclude-path SignPath --exclude 'http://localhost:*' '**/*.md' '**/*.html' && echo "$(GREEN)✓ Link check passed$(RESET)"
 
 # Run all tests (mirrors full CI/CD test suite).
 # Front-loads check-test-deps so a missing tool fails with a clear install
