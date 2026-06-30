@@ -681,7 +681,7 @@ outputs:
 alert tls any any -> $APP_NET $SYSMANAGE_PORTS (msg:"Potential Agent Spoofing - Invalid Certificate"; tls.subject:!"CN=agent-"; sid:1000001; rev:1;)
 
 # Detect brute force against SysManage API
-alert http any any -> $APP_NET $SYSMANAGE_PORTS (msg:"SysManage API Brute Force Attempt"; http.uri; content:"/api/auth/login"; http.status; content:"401"; threshold: type both, track by_src, count 10, seconds 300; sid:1000002; rev:1;)
+alert http any any -> $APP_NET $SYSMANAGE_PORTS (msg:"SysManage API Brute Force Attempt"; http.uri; content:"/api/v1/login"; http.status; content:"401"; threshold: type both, track by_src, count 10, seconds 300; sid:1000002; rev:1;)
 
 # Detect unusual data exfiltration
 alert tcp $APP_NET any -> $EXTERNAL_NET any (msg:"Large Data Transfer from SysManage"; dsize:>1000000; threshold: type both, track by_src, count 5, seconds 60; sid:1000003; rev:1;)
@@ -837,7 +837,7 @@ server {
     limit_conn addr 10;
 
     # Rate limiting for different endpoints
-    location /api/auth/login {
+    location /api/v1/login {
         limit_req zone=sysmanage_login burst=3 nodelay;
         limit_req_status 429;
         proxy_pass http://backend;
@@ -937,14 +937,14 @@ class UserBasedLimiter:
         return True
 
 # Apply rate limiting to endpoints
-@app.post("/api/auth/login")
+@app.post("/api/v1/login")
 @limiter.limit("5/minute")
 async def login(request: Request, credentials: UserCredentials):
     """Login endpoint with strict rate limiting"""
     # Authentication logic here
     pass
 
-@app.get("/api/hosts")
+@app.get("/api/v1/hosts")
 @limiter.limit("100/minute")
 async def get_hosts(request: Request, current_user: User = Depends(get_current_user)):
     """Host listing with user-based rate limiting"""
@@ -959,7 +959,7 @@ async def get_hosts(request: Request, current_user: User = Depends(get_current_u
     # Host retrieval logic here
     pass
 
-@app.post("/api/hosts/{host_id}/packages/install")
+@app.post("/api/v1/hosts/{host_id}/packages/install")
 @limiter.limit("10/minute")
 async def install_package(
     request: Request,
@@ -1286,7 +1286,7 @@ openssl s_client -connect sysmanage.company.com:443 -tls1_3
 nmap --script ssl-enum-ciphers -p 443 sysmanage.company.com
 
 # SSL Labs testing (external)
-curl -s "https://api.ssllabs.com/api/v3/analyze?host=sysmanage.company.com"</code></pre>
+curl -s "https://api.ssllabs.com/api/v1/analyze?host=sysmanage.company.com"</code></pre>
                     </div>
                 </section>
 
