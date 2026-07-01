@@ -9,8 +9,9 @@ name: Deploy to GitHub Pages
 # "GitHub Actions" so this workflow is what deploys (otherwise the legacy
 # branch auto-build keeps running alongside it).
 #
-# The published site still includes repo/ (the apt/rpm/... package repo). Keep
-# it under the 1 GB Pages limit with scripts/prune-package-repo.sh.
+# The apt/rpm/... package repo (repo/) is NOT published to Pages — it's synced
+# to Cloudflare R2 (served at https://repo.sysmanage.org) and excluded from the
+# _site artifact below, which keeps the Pages upload under its 1 GB limit.
 
 on:
   push:
@@ -40,14 +41,35 @@ jobs:
       # The package repo (repo/, ~1.2GB) is hosted on Cloudflare R2, not Pages
       # (Pages caps published artifacts at 1GB).  Sync it up first so the
       # published download URLs (https://repo.sysmanage.org/...) stay current,
-      # THEN exclude it from the Pages artifact below.  Additive sync (no
-      # --delete) so a partial checkout can never wipe published packages.
+      # THEN exclude it from the Pages artifact below.
+      # --size-only: git checkout resets file mtimes to "now", so a normal
+      # mtime-based sync would re-upload the whole ~1.2GB every deploy; compare
+      # by size instead (package artifacts are versioned/content-addressed, so
+      # a same-name+same-size object is genuinely identical).
+      # --delete: mirror repo/ exactly, so versions pruned locally by
+      # `make prune-repo` (retention: keep latest 5) also drop off R2.  The
+      # hashFiles guard below refuses to run on an empty/missing repo/, so a
+      # bad checkout can't wipe the published packages.
       - name: Sync package repo to Cloudflare R2
         if: ${{ hashFiles('repo/**') != '' }}
         run: |
+          ENDPOINT="https://${R2_ACCOUNT_ID}.r2.cloudflarestorage.com"
+          # Safety tripwire: dry-run first and count how many objects the sync
+          # WOULD change.  Abort before any billable write/delete if that's
+          # abnormally large — catches a bug re-uploading the whole repo (~5.6k
+          # objects) or a bad checkout mass-deleting the bucket via --delete.
+          # Normal deploys touch a handful of files.
+          PLANNED=$(aws s3 sync repo/ "s3://${R2_BUCKET}/" \
+            --endpoint-url "$ENDPOINT" --region auto --size-only --delete --dryrun \
+            | wc -l)
+          echo "R2 sync would change ${PLANNED} object(s)."
+          THRESHOLD=1500
+          if [ "$PLANNED" -gt "$THRESHOLD" ]; then
+            echo "::error::R2 sync would change ${PLANNED} objects (> ${THRESHOLD}) — aborting to avoid runaway operations/cost or an accidental mass-delete. If intentional (re-seed or a big new platform), run the sync manually or raise THRESHOLD."
+            exit 1
+          fi
           aws s3 sync repo/ "s3://${R2_BUCKET}/" \
-            --endpoint-url "https://${R2_ACCOUNT_ID}.r2.cloudflarestorage.com" \
-            --region auto \
+            --endpoint-url "$ENDPOINT" --region auto --size-only --delete \
             --only-show-errors
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}

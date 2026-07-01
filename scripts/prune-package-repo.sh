@@ -73,7 +73,13 @@ done
 
 sort -u -o "$REMOVE" "$REMOVE"
 count=$(wc -l < "$REMOVE")
-removed_bytes=$(du -scb $(cat "$REMOVE") 2>/dev/null | tail -1 | cut -f1)
+# Guard the empty case: ``du -scb`` with no file args measures the CWD, which
+# would report a bogus (often larger-than-repo) size and a negative projection.
+if [ "$count" -gt 0 ]; then
+  removed_bytes=$(du -scb $(cat "$REMOVE") 2>/dev/null | tail -1 | cut -f1)
+else
+  removed_bytes=0
+fi
 removed_bytes=${removed_bytes:-0}
 projected=$(( (start_bytes - removed_bytes) / 1048576 ))
 
@@ -103,5 +109,8 @@ fi
 echo ""
 echo "Would remove: $((removed_bytes / 1048576)) MB"
 echo "Projected repo/ size: ${projected} MB$([ "$DRY_RUN" = 1 ] && echo '  (dry run)')"
-[ "$projected" -lt 1024 ] && echo "  ✓ under the 1 GB Pages limit" \
-                          || echo "  ✗ still over 1 GB — lower KEEP and re-run"
+# repo/ is served from Cloudflare R2 (10 GB free tier, free egress), not GitHub
+# Pages, so there's no hard 1 GB cap — this policy just bounds how many old
+# versions accumulate.  10 GB is the free-tier storage ceiling to watch.
+[ "$projected" -lt 10240 ] && echo "  ✓ within the R2 free-tier storage (10 GB)" \
+                           || echo "  ! over 10 GB — R2 storage now bills (~\$0.015/GB-mo); lower KEEP"

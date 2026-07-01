@@ -528,6 +528,19 @@ clean:
 	@rm -f assets/images/error-screenshot.png
 	@echo "$(GREEN)✓ Cleanup completed$(RESET)"
 
+# Package-repo retention: keep only the latest 5 versions of each package in
+# repo/ (across apt/rpm/alpine/win/mac/bsd) and regenerate the apt/rpm/alpine
+# indexes.  Run after staging a new release into repo/ (make deploy-docs-repo),
+# preview with prune-repo-dry, then commit repo/ and push — deploy.yml mirrors
+# the pruned tree to Cloudflare R2 with --delete, so old versions drop off R2
+# too.  Needs local dpkg-dev/apt-utils, createrepo_c, and apk for index regen.
+.PHONY: prune-repo prune-repo-dry
+prune-repo-dry:
+	@KEEP=5 DRY_RUN=1 ./scripts/prune-package-repo.sh
+
+prune-repo:
+	@KEEP=5 DRY_RUN=0 ./scripts/prune-package-repo.sh
+
 # Install everything needed for development
 setup: install-dev install-browsers
 	@echo "$(GREEN)✓ Development environment setup completed$(RESET)"
