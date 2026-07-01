@@ -162,7 +162,7 @@ Pages, which caps artifacts at 1 GB):
 ### DEB Repository (Ubuntu/Debian)
 
 ```bash
-echo "deb [trusted=yes] https://repo.sysmanage.org/deb stable main" | \
+echo "deb [trusted=yes] https://repo.sysmanage.org/agent/deb stable main" | \
   sudo tee /etc/apt/sources.list.d/sysmanage.list
 sudo apt update && sudo apt install sysmanage-agent
 ```

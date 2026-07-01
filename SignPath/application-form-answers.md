@@ -101,7 +101,7 @@ https://github.com/bceverly/sysmanage-agent/releases
 
 **Alternative/Additional**:
 ```
-https://repo.sysmanage.org/windows/
+https://repo.sysmanage.org/agent/windows/
 ```
 
 ### Package Formats Available

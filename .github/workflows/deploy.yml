@@ -38,47 +38,11 @@ jobs:
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
 
-      # The package repo (repo/, ~1.2GB) is hosted on Cloudflare R2, not Pages
-      # (Pages caps published artifacts at 1GB).  Sync it up first so the
-      # published download URLs (https://repo.sysmanage.org/...) stay current,
-      # THEN exclude it from the Pages artifact below.
-      # --size-only: git checkout resets file mtimes to "now", so a normal
-      # mtime-based sync would re-upload the whole ~1.2GB every deploy; compare
-      # by size instead (package artifacts are versioned/content-addressed, so
-      # a same-name+same-size object is genuinely identical).
-      # --delete: mirror repo/ exactly, so versions pruned locally by
-      # `make prune-repo` (retention: keep latest 5) also drop off R2.  The
-      # hashFiles guard below refuses to run on an empty/missing repo/, so a
-      # bad checkout can't wipe the published packages.
-      - name: Sync package repo to Cloudflare R2
-        if: ${{ hashFiles('repo/**') != '' }}
-        run: |
-          ENDPOINT="https://${R2_ACCOUNT_ID}.r2.cloudflarestorage.com"
-          # Safety tripwire: dry-run first and count how many objects the sync
-          # WOULD change.  Abort before any billable write/delete if that's
-          # abnormally large — catches a bug re-uploading the whole repo (~5.6k
-          # objects) or a bad checkout mass-deleting the bucket via --delete.
-          # Normal deploys touch a handful of files.
-          PLANNED=$(aws s3 sync repo/ "s3://${R2_BUCKET}/" \
-            --endpoint-url "$ENDPOINT" --region auto --size-only --delete --dryrun \
-            | wc -l)
-          echo "R2 sync would change ${PLANNED} object(s)."
-          THRESHOLD=1500
-          if [ "$PLANNED" -gt "$THRESHOLD" ]; then
-            echo "::error::R2 sync would change ${PLANNED} objects (> ${THRESHOLD}) — aborting to avoid runaway operations/cost or an accidental mass-delete. If intentional (re-seed or a big new platform), run the sync manually or raise THRESHOLD."
-            exit 1
-          fi
-          aws s3 sync repo/ "s3://${R2_BUCKET}/" \
-            --endpoint-url "$ENDPOINT" --region auto --size-only --delete \
-            --only-show-errors
-        env:
-          AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
-          R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
-          R2_BUCKET: ${{ secrets.R2_BUCKET }}
-          # Work around aws-cli v2.23+ default integrity checksums that R2 rejects.
-          AWS_REQUEST_CHECKSUM_CALCULATION: when_required
-          AWS_RESPONSE_CHECKSUM_VALIDATION: when_required
+      # NOTE: the package repo (repo/) is NOT part of this repo anymore — it's
+      # gitignored and published straight to Cloudflare R2 (https://repo.sysmanage.org)
+      # by the sysmanage / sysmanage-agent release pipelines.  Version retention
+      # is `make prune-repo` here.  So this workflow only builds+deploys the docs
+      # site; there's no repo/ to sync.
 
       - name: Stage published site (exclude dev/build dirs)
         run: |

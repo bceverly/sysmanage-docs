@@ -528,18 +528,25 @@ clean:
 	@rm -f assets/images/error-screenshot.png
 	@echo "$(GREEN)✓ Cleanup completed$(RESET)"
 
-# Package-repo retention: keep only the latest 5 versions of each package in
-# repo/ (across apt/rpm/alpine/win/mac/bsd) and regenerate the apt/rpm/alpine
-# indexes.  Run after staging a new release into repo/ (make deploy-docs-repo),
-# preview with prune-repo-dry, then commit repo/ and push — deploy.yml mirrors
-# the pruned tree to Cloudflare R2 with --delete, so old versions drop off R2
-# too.  Needs local dpkg-dev/apt-utils, createrepo_c, and apk for index regen.
+# Package-repo retention (R2 is the source of truth; repo/ is not in git).
+# Pulls the current repo/ down from R2, keeps only the latest 5 versions of each
+# package (across apt/rpm/alpine/win/mac/bsd, regenerating the apt/rpm/alpine
+# indexes), then mirrors the pruned tree back to R2 with --delete so old versions
+# drop off R2.  Run occasionally (it's independent of releases, which publish
+# additively).  Needs AWS creds + R2_ACCOUNT_ID in your env (same as the seed),
+# and local dpkg-dev/apt-utils, createrepo_c, apk for index regen.
+R2_BUCKET ?= sysmanage-repo
+R2_ENDPOINT ?= https://$(R2_ACCOUNT_ID).r2.cloudflarestorage.com
+_R2_ARGS = --endpoint-url $(R2_ENDPOINT) --region auto --only-show-errors
 .PHONY: prune-repo prune-repo-dry
 prune-repo-dry:
+	@aws s3 sync s3://$(R2_BUCKET)/ repo/ $(_R2_ARGS)
 	@KEEP=5 DRY_RUN=1 ./scripts/prune-package-repo.sh
 
 prune-repo:
+	@aws s3 sync s3://$(R2_BUCKET)/ repo/ $(_R2_ARGS)
 	@KEEP=5 DRY_RUN=0 ./scripts/prune-package-repo.sh
+	@aws s3 sync repo/ s3://$(R2_BUCKET)/ $(_R2_ARGS) --size-only --delete
 
 # Install everything needed for development
 setup: install-dev install-browsers
