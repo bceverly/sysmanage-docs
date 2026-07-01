@@ -83,11 +83,11 @@ If published to PyPI:
 Document statistics from:
 
 **APT Repository** (Ubuntu/Debian):
-- Location: https://bceverly.github.io/sysmanage-docs/repo/deb/
+- Location: https://repo.sysmanage.org/deb/
 - Download statistics: [If available via access logs]
 
 **YUM/DNF Repository** (RHEL/CentOS/Fedora/Oracle Linux):
-- Location: https://bceverly.github.io/sysmanage-docs/repo/rpm/
+- Location: https://repo.sysmanage.org/rpm/
 - Download statistics: [If available]
 
 **Homebrew** (if applicable):

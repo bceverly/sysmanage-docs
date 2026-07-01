@@ -154,12 +154,15 @@ We welcome contributions to improve SysManage documentation!
 
 ## 📦 Package Repositories
 
-This repository also hosts package repositories for installing SysManage Agent on various platforms via GitHub Pages:
+The package repositories for installing SysManage Agent on various platforms are
+hosted on **Cloudflare R2** at `https://repo.sysmanage.org` (the `repo/` tree in
+this repo is synced there by `deploy.yml`; it is no longer served from GitHub
+Pages, which caps artifacts at 1 GB):
 
 ### DEB Repository (Ubuntu/Debian)
 
 ```bash
-echo "deb [trusted=yes] https://bceverly.github.io/sysmanage-docs/repo/deb stable main" | \
+echo "deb [trusted=yes] https://repo.sysmanage.org/deb stable main" | \
   sudo tee /etc/apt/sources.list.d/sysmanage.list
 sudo apt update && sudo apt install sysmanage-agent
 ```

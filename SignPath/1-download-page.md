@@ -14,7 +14,7 @@ SignPath Foundation requires that signed software be available for public downlo
    - Format: MSI installers for x64 and ARM64
 
 2. **Documentation Site** (Secondary)
-   - URL: https://bceverly.github.io/sysmanage-docs/repo/windows/
+   - URL: https://repo.sysmanage.org/windows/
    - Purpose: Package repository with installation instructions
    - Format: Direct links to MSI files with checksums
 
@@ -131,9 +131,9 @@ All SysManage Agent MSI packages are digitally signed with a certificate from Si
 
 ```powershell
 # Download and verify signature
-$VERSION = (Invoke-WebRequest -Uri "https://bceverly.github.io/sysmanage-docs/repo/windows/latest.txt").Content.Trim()
+$VERSION = (Invoke-WebRequest -Uri "https://repo.sysmanage.org/windows/latest.txt").Content.Trim()
 $ARCH = "x64"
-Invoke-WebRequest -Uri "https://bceverly.github.io/sysmanage-docs/repo/windows/packages/$VERSION/sysmanage-agent-$VERSION-windows-$ARCH.msi" -OutFile "sysmanage-agent-$VERSION-windows-$ARCH.msi"
+Invoke-WebRequest -Uri "https://repo.sysmanage.org/windows/packages/$VERSION/sysmanage-agent-$VERSION-windows-$ARCH.msi" -OutFile "sysmanage-agent-$VERSION-windows-$ARCH.msi"
 
 # Check signature
 $sig = Get-AuthenticodeSignature "sysmanage-agent-$VERSION-windows-$ARCH.msi"
@@ -153,7 +153,7 @@ In addition to signature verification, always verify the SHA256 checksum:
 
 ```powershell
 # Download checksum file
-Invoke-WebRequest -Uri "https://bceverly.github.io/sysmanage-docs/repo/windows/packages/$VERSION/sysmanage-agent-$VERSION-windows-$ARCH.msi.sha256" -OutFile "sysmanage-agent-$VERSION-windows-$ARCH.msi.sha256"
+Invoke-WebRequest -Uri "https://repo.sysmanage.org/windows/packages/$VERSION/sysmanage-agent-$VERSION-windows-$ARCH.msi.sha256" -OutFile "sysmanage-agent-$VERSION-windows-$ARCH.msi.sha256"
 
 # Verify
 $expectedHash = (Get-Content "sysmanage-agent-$VERSION-windows-$ARCH.msi.sha256").Split()[0]
@@ -172,7 +172,7 @@ if ($expectedHash -eq $actualHash) {
 2. **Check checksums** in addition to signatures
 3. **Download only from official sources**:
    - GitHub Releases: https://github.com/bceverly/sysmanage-agent/releases
-   - GitHub Pages: https://bceverly.github.io/sysmanage-docs/repo/windows/
+   - GitHub Pages: https://repo.sysmanage.org/windows/
 4. **Report suspicious packages** to security@sysmanage.example.com
 ```
 
@@ -240,7 +240,7 @@ After SignPath approval:
 ## Reference Links
 
 - GitHub Releases: https://github.com/bceverly/sysmanage-agent/releases
-- Windows Repository: https://bceverly.github.io/sysmanage-docs/repo/windows/
+- Windows Repository: https://repo.sysmanage.org/windows/
 - Installation Guide: https://bceverly.github.io/sysmanage-docs/docs/agent/installation.html
 - SignPath Foundation Terms: (Link temporarily unavailable - check signpath.io directly)
 

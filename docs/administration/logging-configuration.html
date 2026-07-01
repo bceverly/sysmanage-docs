@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Logging Configuration - Administration - SysManage</title>
+    <meta name="description" content="Configure SysManage logging: platform-native sinks (journald, syslog, Windows Event Log) and database-stored logging settings for the server and per-OS agent defaults, pushed to agents live.">
+    <link rel="stylesheet" href="/assets/css/style.css">
+    <link rel="icon" type="image/svg+xml" href="/assets/images/favicon.svg">
+</head>
+<body data-auto-header="documentation" data-auto-footer>
+    <!-- Header injected automatically by components.js -->
+
+    <main class="docs-main">
+        <div class="container">
+            <div class="docs-breadcrumb">
+                <a href="../" data-i18n="docs.auto.administration.logging-configuration.001">Documentation</a> > <a href="./" data-i18n="docs.auto.administration.logging-configuration.002">Administration</a> > <span data-i18n="docs.auto.administration.logging-configuration.003">Logging Configuration</span>
+            </div>
+
+            <div class="docs-header">
+                <h1 data-i18n="docs.auto.administration.logging-configuration.004">Logging Configuration</h1>
+                <p data-i18n="docs.auto.administration.logging-configuration.005">Send SysManage server and agent logs to the operating system's native logging service, and manage logging centrally from the database — with changes pushed to agents automatically.</p>
+            </div>
+
+            <div class="docs-content">
+                <section class="docs-overview">
+                    <h2 data-i18n="docs.auto.administration.logging-configuration.006">Overview</h2>
+                    <p data-i18n="docs.auto.administration.logging-configuration.007" data-i18n-html>Both the SysManage server and agent write to a rotating file log by default. In addition, they can emit to the host's <strong>platform-native</strong> logging system, and the whole fleet's logging can be configured centrally from the <strong>Settings → Logging</strong> page rather than by editing yaml files on each machine.</p>
+                </section>
+
+                <section class="logging-native">
+                    <h2 data-i18n="docs.auto.administration.logging-configuration.008">Platform-native logging</h2>
+                    <p data-i18n="docs.auto.administration.logging-configuration.009">When enabled, logs are also delivered to the OS-native sink so they appear in the tools your operators already use:</p>
+                    <ul>
+                        <li data-i18n="docs.auto.administration.logging-configuration.010" data-i18n-html><strong>Linux:</strong> the systemd journal (<code>journalctl</code>), falling back to syslog if the journal library is unavailable.</li>
+                        <li data-i18n="docs.auto.administration.logging-configuration.011" data-i18n-html><strong>macOS and the BSDs:</strong> syslog.</li>
+                        <li data-i18n="docs.auto.administration.logging-configuration.012" data-i18n-html><strong>Windows:</strong> the Windows Event Log.</li>
+                    </ul>
+                    <p data-i18n="docs.auto.administration.logging-configuration.013">The target is chosen automatically per platform, or you can pin it explicitly. If the requested sink isn't available (for example a missing optional dependency), SysManage logs a notice and continues with file logging — it never fails to start over logging.</p>
+                </section>
+
+                <section class="logging-db">
+                    <h2 data-i18n="docs.auto.administration.logging-configuration.014">Database-stored logging settings</h2>
+                    <p data-i18n="docs.auto.administration.logging-configuration.015" data-i18n-html>The <strong>Settings → Logging</strong> page stores logging configuration in the database, which <strong>takes precedence over the yaml files</strong>. It has two parts:</p>
+                    <ul>
+                        <li data-i18n="docs.auto.administration.logging-configuration.016" data-i18n-html><strong>Server logging</strong> — a single card for the server. It only offers native targets valid for the operating system the server is currently running on (for example, it won't offer journald on a Windows server).</li>
+                        <li data-i18n="docs.auto.administration.logging-configuration.017" data-i18n-html><strong>Agent defaults by operating system</strong> — a card per OS family (Linux, Windows, macOS, BSD). Each card sets the default logging for agents of that OS, again offering only the native targets that make sense for it.</li>
+                    </ul>
+                    <p data-i18n="docs.auto.administration.logging-configuration.018" data-i18n-html>There is one card per agent operating system, titled by OS. Each card has a <strong>single switch</strong> that turns native logging on or off for that OS's agents, plus fields for the native target, the identifier/tag, the log level, and the verbosity. Turning the switch off is saved and pushed to those agents, which then stop writing to the native sink and continue with their rotating file log; turning it on delivers logs to the OS-native sink as well.</p>
+                </section>
+
+                <section class="logging-push">
+                    <h2 data-i18n="docs.auto.administration.logging-configuration.019">How changes reach agents</h2>
+                    <p data-i18n="docs.auto.administration.logging-configuration.020">When you save the Logging page, the server applies its own logging change immediately and pushes the resolved configuration to agents:</p>
+                    <ul>
+                        <li data-i18n="docs.auto.administration.logging-configuration.021" data-i18n-html><strong>Connected agents</strong> receive the update over the durable message queue and re-apply their logging live — no restart required.</li>
+                        <li data-i18n="docs.auto.administration.logging-configuration.022" data-i18n-html><strong>Offline agents</strong> receive it the next time they reconnect, and every agent is also handed the current configuration when it connects.</li>
+                    </ul>
+                    <p data-i18n="docs.auto.administration.logging-configuration.023">Within a short settle time the whole fleet is using the new logging settings. Because the database wins over yaml, a reconnecting agent always converges on the server's configuration.</p>
+                </section>
+
+                <section class="logging-precedence">
+                    <h2 data-i18n="docs.auto.administration.logging-configuration.024">Precedence</h2>
+                    <p data-i18n="docs.auto.administration.logging-configuration.025">Logging is resolved with the database taking priority: a stored setting always wins; where none exists, the value from the yaml file (or a sane default) is used. This lets you keep a baseline in yaml for a fresh install while managing day-to-day changes centrally from the UI.</p>
+                </section>
+
+                <section class="logging-roles">
+                    <h2 data-i18n="docs.auto.administration.logging-configuration.026">Access</h2>
+                    <p data-i18n="docs.auto.administration.logging-configuration.027" data-i18n-html>The Logging settings page is available to administrators. See the <a href="settings-guide.html">Settings Guide</a> for the surrounding settings pages.</p>
+                </section>
+            </div>
+
+            <div class="docs-footer">
+                <div class="docs-navigation">
+                    <h3 data-i18n="docs.auto.administration.logging-configuration.028">Quick Navigation</h3>
+                    <div class="nav-links">
+                        <a href="settings-guide.html" class="nav-link" data-i18n="docs.auto.administration.logging-configuration.029">← Settings Guide</a>
+                        <a href="monitoring.html" class="nav-link" data-i18n="docs.auto.administration.logging-configuration.030">Monitoring &amp; Alerts →</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+    <!-- Footer injected automatically by components.js -->    <script src="/assets/js/components.js"></script>
+    <script src="/assets/js/i18n.js"></script>
+    <script src="/assets/js/navbar.js"></script>
+    <script src="/assets/js/main.js"></script>
+</body>
+</html>
