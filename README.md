@@ -167,10 +167,13 @@ echo "deb [trusted=yes] https://repo.sysmanage.org/agent/deb stable main" | \
 sudo apt update && sudo apt install sysmanage-agent
 ```
 
-**Supported Platforms:**
+**Supported Platforms (x86_64/amd64 and aarch64/arm64):**
 
 - Ubuntu 26.04 LTS (Resolute) and earlier LTS releases back to 22.04
 - Debian 12 (Bookworm) and later
+
+`apt` automatically selects the correct architecture (amd64 or arm64) for your
+host. The same repository also serves Launchpad PPA builds for both architectures.
 
 ### RPM Repository (RHEL/CentOS/Fedora/Rocky/AlmaLinux/Oracle Linux)
 
@@ -208,9 +211,9 @@ sudo dnf install sysmanage-agent  # Agent
 
 For more details, see:
 
-- [DEB Repository Documentation](repo/deb/README.md)
-- [RPM Repository Documentation](repo/rpm/README.md)
-- [General Repository Documentation](repo/README.md)
+- [DEB Repository Documentation](https://repo.sysmanage.org/deb/README.md)
+- [RPM Repository Documentation](https://repo.sysmanage.org/rpm/README.md)
+- [General Repository Documentation](https://repo.sysmanage.org/README.md)
 
 ## 📁 Repository Structure
 
