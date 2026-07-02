@@ -545,6 +545,7 @@ prune-repo-dry:
 
 prune-repo:
 	@aws s3 sync s3://$(R2_BUCKET)/ repo/ $(_R2_ARGS)
+	@test "$$(find repo -type f 2>/dev/null | wc -l)" -gt 50 || { echo "ERROR: R2 pull returned <50 files — refusing to prune + --delete (a bad/empty pull could wipe the bucket)"; exit 1; }
 	@KEEP=5 DRY_RUN=0 ./scripts/prune-package-repo.sh
 	@aws s3 sync repo/ s3://$(R2_BUCKET)/ $(_R2_ARGS) --size-only --delete
 

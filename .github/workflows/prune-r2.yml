@@ -1,0 +1,55 @@
+name: Prune package repo on R2
+
+# Keeps only the latest 5 versions of each package on Cloudflare R2 — all
+# platforms, server + agent — by running `make prune-repo` (pull repo/ from R2,
+# keep newest 5 of each version-dir + regenerate apt/rpm/alpine indexes, then
+# mirror back with --delete; guarded against an empty pull wiping the bucket).
+#
+# Triggers:
+#   * repository_dispatch (prune-r2) — fired by the sysmanage / sysmanage-agent
+#     release pipelines right after they publish, so retention runs per release.
+#   * schedule — weekly backstop in case a dispatch is ever missed.
+#   * workflow_dispatch — run it by hand anytime.
+
+on:
+  repository_dispatch:
+    types: [prune-r2]
+  workflow_dispatch:
+  schedule:
+    - cron: "17 8 * * 1" # Mondays 08:17 UTC
+
+# One prune at a time (server + agent releases can both fire the dispatch);
+# don't cancel an in-flight prune mid --delete.
+concurrency:
+  group: prune-r2
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  prune:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+
+      - name: Install index-regen tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y dpkg-dev apt-utils createrepo-c
+          # apk (alpine index) is best-effort — the prune script warns and skips
+          # alpine index regen if it's absent rather than failing the run.
+          sudo apt-get install -y apk-tools || \
+            echo "::warning::apk-tools unavailable; alpine APKINDEX regen will be skipped"
+
+      - name: Prune R2 to the latest 5 versions
+        run: make prune-repo
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
+          R2_BUCKET: ${{ secrets.R2_BUCKET }}
+          # Work around aws-cli v2.23+ default integrity checksums R2 rejects.
+          AWS_REQUEST_CHECKSUM_CALCULATION: when_required
+          AWS_RESPONSE_CHECKSUM_VALIDATION: when_required
