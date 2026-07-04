@@ -8,9 +8,18 @@ UNAME_M := $(shell uname -m 2>/dev/null || echo "unknown")
 # Set platform-specific variables
 ifeq ($(OS),Windows_NT)
     PLATFORM := windows
+    # This repo's recipes are POSIX sh (unlike the sibling sysmanage repos, whose
+    # Windows recipes are cmd batch). Force Git Bash explicitly so the shell is
+    # deterministic and independent of PATH. Override if Git is elsewhere:
+    #   make SHELL=C:/path/to/bash.exe <target>
+    SHELL := C:/Program Files/Git/bin/bash.exe
+    .SHELLFLAGS := -c
     NPM := npm.cmd
     NPX := npx.cmd
     NODE := node.exe
+    # On Windows, bare `python3` hits the Microsoft Store app-execution-alias stub
+    # ("Python was not found") — use the py launcher instead.
+    PYTHON := py
 else ifeq ($(UNAME_S),Darwin)
     PLATFORM := macos
     NPM := npm
@@ -37,6 +46,9 @@ else
     NPX := npx
     NODE := node
 endif
+
+# Non-Windows default (the Windows branch sets PYTHON := py above).
+PYTHON ?= python3
 
 # Colors for output (if supported)
 ifdef TERM
@@ -100,7 +112,9 @@ check-deps:
 	@echo "$(BLUE)Checking dependencies...$(RESET)"
 	@command -v $(NODE) >/dev/null 2>&1 || { echo "$(RED)Error: Node.js is not installed$(RESET)"; exit 1; }
 	@echo "$(GREEN)✓ Node.js found: $$($(NODE) --version)$(RESET)"
-	@command -v $(NPM) >/dev/null 2>&1 || { echo "$(RED)Error: npm is not installed$(RESET)"; exit 1; }
+	@# Probe by running it: on Windows NPM is npm.cmd and Git Bash's `command -v`
+	@# does not treat .cmd files as executable, so it would falsely report missing.
+	@$(NPM) --version >/dev/null 2>&1 || { echo "$(RED)Error: npm is not installed$(RESET)"; exit 1; }
 	@echo "$(GREEN)✓ npm found: $$($(NPM) --version)$(RESET)"
 	@echo "$(GREEN)All required tools are available$(RESET)"
 
@@ -671,16 +685,16 @@ lint: i18n-validate translate-check
 # ``make i18n-seed`` to populate gaps with [TODO]-prefixed placeholders.
 i18n-validate:
 	@echo "=== i18n validation ==="
-	@python3 scripts/i18n_validate.py --validate
+	@$(PYTHON) scripts/i18n_validate.py --validate
 	@echo "[OK] i18n validation completed"
 
 i18n-seed:
 	@echo "=== i18n seeding ==="
-	@python3 scripts/i18n_validate.py --seed
+	@$(PYTHON) scripts/i18n_validate.py --seed
 	@echo "[OK] i18n seed completed"
 
 i18n-extract:
-	@python3 scripts/i18n_validate.py --extract
+	@$(PYTHON) scripts/i18n_validate.py --extract
 
 # i18n translation backfill via the GPU translation service (lives in the
 # sysmanage repo at scripts/translation-service/).  Idempotent: only the
@@ -691,15 +705,15 @@ i18n-extract:
 SERVICE ?= $(or $(TRANSLATION_SERVICE_URL),http://localhost:8765)
 
 translate:
-	@python3 scripts/translate_i18n.py --service "$(SERVICE)" --fail-on-gaps
+	@$(PYTHON) scripts/translate_i18n.py --service "$(SERVICE)" --fail-on-gaps
 
 translate-dry:
-	@python3 scripts/translate_i18n.py --dry-run
+	@$(PYTHON) scripts/translate_i18n.py --dry-run
 
 # Offline completeness GATE — no service, no writes, no network.  Fails loudly
 # (non-zero) if any locale string is still untranslated.  Safe for CI / release.
 translate-check:
-	@python3 scripts/translate_i18n.py --check
+	@$(PYTHON) scripts/translate_i18n.py --check
 
 # ============================================================================
 # Packaging target - build .deb for self-hosted sysmanage.org
