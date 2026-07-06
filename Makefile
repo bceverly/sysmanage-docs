@@ -47,8 +47,12 @@ else
     NODE := node
 endif
 
-# Non-Windows default (the Windows branch sets PYTHON := py above).
-PYTHON ?= python3
+# Non-Windows default (the Windows branch sets PYTHON := py above).  Prefer a plain
+# ``python3``; on systems that only ship a versioned binary (e.g. NetBSD, where the
+# interpreter is ``python3.13`` with no ``python3`` symlink) fall back to the newest
+# versioned one. ``?=`` leaves the Windows ``py`` untouched, and where ``python3``
+# exists (Linux/macOS/*BSD) this resolves to it — so nothing else changes.
+PYTHON ?= $(shell for p in python3 python3.14 python3.13 python3.12 python3.11; do command -v $$p >/dev/null 2>&1 && { echo $$p; exit 0; }; done; echo python3)
 
 # Colors for output (if supported)
 ifdef TERM
@@ -413,7 +417,7 @@ screenshots-fleet-seed:
 		fi; \
 		echo "$(BLUE)Seeding fleet data -> $$API$(RESET)"; \
 		SCREENSHOT_TARGET="$$API" SCREENSHOT_ADMIN="$(SCREENSHOT_ADMIN)" SCREENSHOT_ADMIN_PW="$(SCREENSHOT_ADMIN_PW)" \
-			python3 seed_fleet.py || true
+			$(PYTHON) seed_fleet.py || true
 
 screenshots-seed:
 	@cd $(SHOTS_DIR) && API="$(SCREENSHOT_TARGET_API)"; \
@@ -424,8 +428,8 @@ screenshots-seed:
 		fi; \
 		echo "$(BLUE)Seeding demo data -> $$API$(RESET)"; \
 		SCREENSHOT_TARGET="$$API" SCREENSHOT_ADMIN="$(SCREENSHOT_ADMIN)" SCREENSHOT_ADMIN_PW="$(SCREENSHOT_ADMIN_PW)" \
-			python3 seed.py; \
-		python3 gen_seed_sql.py; \
+			$(PYTHON) seed.py; \
+		$(PYTHON) gen_seed_sql.py; \
 		if [ -z "$(SCREENSHOT_TARGET_API)" ]; then \
 			echo "$(BLUE)Applying inventory + map coordinates directly (seed_inventory.sql, seed_geo.sql)...$(RESET)"; \
 			cat seed_inventory.sql seed_geo.sql | vagrant ssh -c "sudo -u postgres psql -d sysmanage -v ON_ERROR_STOP=1 -q" 2>/dev/null \
