@@ -244,9 +244,13 @@ install-browsers:
 		echo "$(RED)Error: Playwright not installed. Run 'make install-dev' first.$(RESET)"; \
 		exit 1; \
 	fi
-	@echo "$(YELLOW)Installing Chromium browser...$(RESET)"
-	@$(NPX) playwright install chromium
-	@echo "$(GREEN)✓ Browsers installed successfully$(RESET)"
+	@if [ "$$(uname -s)" = "OpenBSD" ] || [ "$$(uname -s)" = "NetBSD" ] || [ "$$(uname -s)" = "FreeBSD" ]; then \
+		echo "$(YELLOW)⊘ Playwright has no $$(uname -s) browser build — skipping Chromium install. Screenshots run on Linux/macOS/Windows.$(RESET)"; \
+	else \
+		echo "$(YELLOW)Installing Chromium browser...$(RESET)"; \
+		$(NPX) playwright install chromium; \
+		echo "$(GREEN)✓ Browsers installed successfully$(RESET)"; \
+	fi
 
 # Generate screenshot
 screenshot:
