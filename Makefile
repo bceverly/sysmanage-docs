@@ -390,6 +390,10 @@ screenshots-pro-build:
 	@command -v vagrant >/dev/null 2>&1 || { echo "$(RED)Vagrant not installed (see screenshots/README.md).$(RESET)"; exit 1; }
 	@[ -d ../sysmanage-professional-plus ] || { echo "$(RED)../sysmanage-professional-plus not found.$(RESET)"; exit 1; }
 	@echo "$(BLUE)Provisioning a Professional-tier VM (engine build + self-signed license)...$(RESET)"
+	@# rsync only runs at boot, NOT on a later `vagrant up --provision` against a
+	@# live VM. Force it so a rebuilt storage/modules (e.g. a freshly-rebuilt
+	@# *-plugin.iife.js) reaches /srv/src before provision copies it into place.
+	@cd $(SHOTS_DIR) && vagrant rsync 2>/dev/null || true
 	@cd $(SHOTS_DIR) && SYSMANAGE_PRO=1 SYSMANAGE_TIER=professional SCREENSHOT_ADMIN_PW="$(SCREENSHOT_ADMIN_PW)" vagrant up --provision
 
 # Provision an ENTERPRISE-tier VM: same prebuilt-bundle mechanism, but installs the
@@ -401,6 +405,10 @@ screenshots-ent-build:
 	@command -v vagrant >/dev/null 2>&1 || { echo "$(RED)Vagrant not installed (see screenshots/README.md).$(RESET)"; exit 1; }
 	@[ -d ../sysmanage-professional-plus ] || { echo "$(RED)../sysmanage-professional-plus not found.$(RESET)"; exit 1; }
 	@echo "$(BLUE)Provisioning an Enterprise-tier VM (all engines + self-signed enterprise license)...$(RESET)"
+	@# rsync only runs at boot, NOT on a later `vagrant up --provision` against a
+	@# live VM. Force it so a rebuilt storage/modules (e.g. a freshly-rebuilt
+	@# *-plugin.iife.js) reaches /srv/src before provision copies it into place.
+	@cd $(SHOTS_DIR) && vagrant rsync 2>/dev/null || true
 	@cd $(SHOTS_DIR) && SYSMANAGE_PRO=1 SYSMANAGE_TIER=enterprise SCREENSHOT_ADMIN_PW="$(SCREENSHOT_ADMIN_PW)" vagrant up --provision
 
 # Seed demo data. REST (seed.py, stdlib-only) creates hosts/updates/tags/users/

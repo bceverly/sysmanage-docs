@@ -117,6 +117,40 @@ async function captureDetail(page, shot, vp) {
   logShot(shot, isNew, `detail: ${shot.rowText}${shot.tabHash ? ' #' + shot.tabHash : shot.tab ? ' tab:' + shot.tab : ''}`);
 }
 
+// Open a page, then optionally drive one interaction before shooting:
+//  - shot.clickButton: click a button by visible name (opens a dialog, e.g.
+//    "New Metric" / "Upload Key" → the define/upload dialog).
+//  - shot.clickRowAction: click an action IconButton in the FIRST data row of a
+//    MUI DataGrid, selected by 1-based index within that row's actions cell
+//    (e.g. the "Graph" or "Assignments" icon → the metric graph / key
+//    assignments sub-view). DataGrid action cells have no accessible name, so we
+//    target them positionally via the standard [data-field="actions"] cell.
+// Everything else mirrors captureRoute (viewport, goto, settle).
+async function captureClick(page, shot, vp) {
+  await page.setViewportSize(shot.viewport || vp);
+  await page.goto(`${TARGET}${shot.route}`, { waitUntil: 'domcontentloaded', timeout: 60000 });
+  await page.waitForTimeout(shotlist.settleMs || 2500);
+  let detail = shot.route;
+  if (shot.clickButton) {
+    await page.getByRole('button', { name: shot.clickButton, exact: false }).first().click({ timeout: 15000 });
+    detail += ` » "${shot.clickButton}"`;
+  }
+  if (shot.clickRowAction) {
+    const idx = shot.clickRowAction; // 1-based position within the actions cell
+    const btn = page
+      .locator('.MuiDataGrid-row [data-field="actions"] button')
+      .nth(idx - 1);
+    await btn.click({ timeout: 15000 });
+    detail += ` » row action #${idx}`;
+  }
+  // Let the dialog animate in / the sub-view load its data (samples, assignments).
+  await page.waitForTimeout(shot.clickSettleMs || (shotlist.settleMs || 2500) + 1500);
+  const out = join(OUT_DIR, shot.out);
+  const isNew = !existsSync(out);
+  await page.screenshot({ path: out, fullPage: false });
+  logShot(shot, isNew, detail);
+}
+
 async function captureReport(page, shot, vp) {
   await page.setViewportSize(shot.viewport || vp);
   await page.goto(`${TARGET}/reports`, { waitUntil: 'domcontentloaded', timeout: 60000 });
@@ -187,6 +221,7 @@ async function main() {
     try {
       if (shot.type === 'report') await captureReport(page, shot, vp);
       else if (shot.type === 'detail') await captureDetail(page, shot, vp);
+      else if (shot.type === 'click') await captureClick(page, shot, vp);
       else await captureRoute(page, shot, vp);
       ok++;
     } catch (err) {

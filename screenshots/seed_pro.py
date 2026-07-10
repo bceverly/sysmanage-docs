@@ -16,10 +16,16 @@ Covers all seven Professional engines:
   container  -> host_child (LXD/WSL only — VM types are Enterprise virtualization)
   secrets    -> secrets (metadata only; the analytics page reads metadata, so the
                 dummy vault_token/path never need to resolve against OpenBAO)
+                + gpg_key/gpg_key_assignment (the /gpg-keys list + assignments
+                view; armored material stays in OpenBAO, openbao_secret_id is a
+                placeholder path)
+  metrics    -> custom_metric/custom_metric_tag/custom_metric_sample (the
+                /custom-metrics list, define dialog + time-series graph)
 
 Idempotent: it clears the rows it manages (FK-safe order) and re-inserts, so it can
 be run repeatedly. Apply via:  make screenshots-pro-seed
 """
+import os
 from datetime import datetime, timedelta, timezone
 
 from sqlalchemy.orm import sessionmaker
@@ -30,7 +36,12 @@ from backend.persistence.models import (
     AlertRule,
     AlertRuleNotificationChannel,
     ComplianceProfile,
+    CustomMetric,
+    CustomMetricSample,
+    CustomMetricTag,
     DynamicSecretLease,
+    GpgKey,
+    GpgKeyAssignment,
     Host,
     HostChild,
     HostComplianceScan,
@@ -42,6 +53,10 @@ from backend.persistence.models import (
     PackageProfile,
     PackageProfileConstraint,
     Secret,
+    SecurityRole,
+    Tag,
+    User,
+    UserSecurityRole,
     Vulnerability,
 )
 
@@ -288,6 +303,59 @@ ALERTS = [
      "Host down: build-bsd", "No agent check-in for 12 minutes.", 720, "resolved"),
 ]
 
+# ---- GPG keys (secrets_engine — /gpg-keys) --------------------------------
+# Metadata only: the LIST/assignments UI reads gpg_key/gpg_key_assignment; the
+# armored material lives in OpenBAO, so openbao_secret_id is a placeholder vault
+# path that never needs to resolve for these read-only screenshots.
+# (name, fingerprint, key_type, has_private, comment, openbao_secret_id)
+GPG_KEYS = [
+    ("Release Signing Key", "3A9F 1C4E 77B2 08D5 6E1A  4F92 0C7D 88AB 1122 3344",
+     "keypair", True, "Signs release artefacts and package repositories.",
+     "secret/data/gpg/release-signing"),
+    ("APT Repository Key", "9E22 7744 AC10 55FF 3B6D  1188 22CC 90A1 5566 7788",
+     "public", False, "Public key trusted by hosts for the internal APT repo.",
+     "secret/data/gpg/apt-repository"),
+    ("Backup Encryption Key", "F10B 6633 21DE 4490 7C8A  55B4 3390 12EF AA99 8877",
+     "keypair", True, "Encrypts off-site database backups.",
+     "secret/data/gpg/backup-encryption"),
+    ("Ops Team Public Key", "0044 BB99 5522 CDEF 1A2B  3C4D 6677 8899 EEFF 0011",
+     "public", False, "Ops team public key for encrypted secret hand-off.",
+     "secret/data/gpg/ops-team"),
+]
+# Assignments bind a named key to a host, or to a user on a host (target_username).
+# (key_name, host_fqdn, target_username, status)
+GPG_ASSIGNMENTS = [
+    ("APT Repository Key", "ubuntu-web-01.corp.northstar.io", None, "installed"),
+    ("APT Repository Key", "debian-app-01.corp.northstar.io", None, "pending"),
+    ("Release Signing Key", "freebsd-build-01.corp.northstar.io", "builder", "installed"),
+    ("Backup Encryption Key", "rhel-db-01.corp.northstar.io", "postgres", "installed"),
+    ("Ops Team Public Key", "ubuntu-web-01.corp.northstar.io", "deploy", "pending"),
+]
+
+# ---- Custom metrics (observability_engine — /custom-metrics) --------------
+# Each metric = a small script emitting ONE number, targeted by host tag, sampled
+# on a cadence. We seed a real time-series (one sample every ~5 min for a few
+# hours) per metric+host so the inline SVG graph draws an actual line.
+# (name, description, interpreter, unit, cadence_seconds, script, [target_tags],
+#  base_value, amplitude)  — base/amplitude shape the synthetic series.
+CUSTOM_METRICS = [
+    ("queue-depth", "Depth of the app job queue (pending messages).", "sh",
+     "msgs", 300,
+     "redis-cli LLEN jobs:pending | tr -d '\\r'",
+     ["web"], 120.0, 60.0),
+    ("temp-c", "CPU package temperature in degrees Celsius.", "sh",
+     "°C", 300,
+     "sensors -u 2>/dev/null | awk '/temp1_input/{print int($2); exit}'",
+     ["production"], 52.0, 8.0),
+    ("active-sessions", "Established TCP sessions on the service port.", "sh",
+     "sessions", 300,
+     "ss -H -t state established '( sport = :443 )' | wc -l",
+     ["web"], 340.0, 90.0),
+]
+# How many hours of history and the sample interval (minutes) for each series.
+METRIC_HISTORY_HOURS = 4
+METRIC_INTERVAL_MIN = 5
+
 
 def main():
     session = sessionmaker(bind=db.get_engine())()
@@ -310,6 +378,8 @@ def main():
             HostComplianceScan, ComplianceProfile, HostHealthAnalysis,
             HostPackageComplianceStatus, PackageProfileConstraint, PackageProfile,
             HostChild, Secret, DynamicSecretLease,
+            GpgKeyAssignment, GpgKey,
+            CustomMetricSample, CustomMetricTag, CustomMetric,
         ):
             session.query(model).delete()
         session.commit()
@@ -466,6 +536,118 @@ def main():
                 secret_metadata={"backend": kind, "role": role},
             ))
 
+        # --- GPG keys (secrets_engine /gpg-keys) ---
+        gpg_keys = {}
+        for name, fp, ktype, has_priv, comment, secret_id in GPG_KEYS:
+            k = GpgKey(
+                name=name, fingerprint=fp, key_type=ktype, has_private=has_priv,
+                comment=comment, openbao_secret_id=secret_id,
+                created_at=NOW, updated_at=NOW,
+            )
+            session.add(k)
+            session.flush()
+            gpg_keys[name] = k
+        gpg_assign_count = 0
+        for key_name, fqdn, target_user, status in GPG_ASSIGNMENTS:
+            if fqdn not in hosts or key_name not in gpg_keys:
+                continue
+            session.add(GpgKeyAssignment(
+                gpg_key_id=gpg_keys[key_name].id, host_id=hosts[fqdn].id,
+                target_username=target_user, status=status,
+                created_at=NOW, updated_at=NOW,
+            ))
+            gpg_assign_count += 1
+
+        # --- grant the demo admin the two Pro+ RBAC roles these pages gate on ---
+        # The secrets_engine /gpg-keys endpoints 403 unless the caller holds
+        # MANAGE_GPG_KEYS, and the observability /custom-metrics endpoints gate on
+        # MANAGE_CUSTOM_METRICS — is_admin is NOT honored. The initial admin only
+        # gets the roles that existed WHEN it was created (create_admin_user snapshots
+        # `SecurityRole.all()`), so on a VM whose admin predates the m1gpgkeys /
+        # n1custmetric migrations these two roles are missing and the pages render
+        # empty. Grant them idempotently here, matching create_admin_user's pattern
+        # (one UserSecurityRole row per role, self-granted).
+        admin_userid = os.environ.get("SCREENSHOT_ADMIN", "admin@sysmanage.org")
+        admin = session.query(User).filter(User.userid == admin_userid).first()
+        granted_role_count = 0
+        if admin is None:
+            print(f"  WARNING: demo admin {admin_userid} not found — cannot grant "
+                  "MANAGE_GPG_KEYS / MANAGE_CUSTOM_METRICS")
+        else:
+            for role_name in ("Manage GPG Keys", "Manage Custom Metrics"):
+                role = (
+                    session.query(SecurityRole)
+                    .filter(SecurityRole.name == role_name)
+                    .first()
+                )
+                if role is None:
+                    print(f"  WARNING: role '{role_name}' missing (run migrations?)")
+                    continue
+                already = (
+                    session.query(UserSecurityRole)
+                    .filter(
+                        UserSecurityRole.user_id == admin.id,
+                        UserSecurityRole.role_id == role.id,
+                    )
+                    .first()
+                )
+                if already is None:
+                    session.add(UserSecurityRole(
+                        user_id=admin.id, role_id=role.id,
+                        granted_by=admin.id, granted_at=NOW,
+                    ))
+                    granted_role_count += 1
+
+        # --- custom metrics (observability_engine /custom-metrics) ---
+        # Resolve the demo tags (created by the OSS seed) and the hosts carrying
+        # each tag, so metric samples land on real tag-targeted hosts.
+        tags_by_name = {t.name: t for t in session.query(Tag).all()}
+        metric_sample_count = 0
+        n_steps = (METRIC_HISTORY_HOURS * 60) // METRIC_INTERVAL_MIN
+        for (name, desc, interp, unit, cadence, script,
+             target_tags, base, amp) in CUSTOM_METRICS:
+            metric = CustomMetric(
+                name=name, description=desc, script=script, interpreter=interp,
+                unit=unit, cadence_seconds=cadence, enabled=True,
+                created_at=NOW, updated_at=NOW,
+            )
+            session.add(metric)
+            session.flush()
+            # Targeting: attach the metric to each existing demo tag.
+            target_hosts = {}
+            for tag_name in target_tags:
+                tag = tags_by_name.get(tag_name)
+                if tag is None:
+                    continue
+                session.add(CustomMetricTag(
+                    custom_metric_id=metric.id, tag_id=tag.id,
+                ))
+                for h in getattr(tag, "hosts", []):
+                    if h.fqdn in hosts:
+                        target_hosts[h.fqdn] = h
+            # Fallback: if tag→host links aren't present, still graph on the
+            # obviously-matching demo hosts so the shot never renders empty.
+            if not target_hosts:
+                for fqdn, h in hosts.items():
+                    if any(tt in fqdn.split(".")[0] for tt in ("web", "db")):
+                        target_hosts[fqdn] = h
+            # Deterministic time-series: one sample every METRIC_INTERVAL_MIN
+            # minutes over the last METRIC_HISTORY_HOURS, gently varying so the
+            # SVG line chart draws a real, non-flat curve.
+            for hi, (fqdn, h) in enumerate(sorted(target_hosts.items())):
+                for step in range(n_steps + 1):
+                    minutes_ago = (n_steps - step) * METRIC_INTERVAL_MIN
+                    # triangular wave in [0,1], phase-shifted per host — no math import
+                    phase = (step + hi * 7) % 24
+                    wave = phase / 12.0 if phase <= 12 else (24 - phase) / 12.0
+                    value = round(base + amp * (wave - 0.5) * 2 + (hi * amp * 0.15), 1)
+                    session.add(CustomMetricSample(
+                        custom_metric_id=metric.id, host_id=h.id,
+                        value=value, status="ok",
+                        collected_at=NOW - timedelta(minutes=minutes_ago),
+                    ))
+                    metric_sample_count += 1
+
         session.commit()
 
         print(f"  hosts seeded: {len(hosts)}")
@@ -479,6 +661,11 @@ def main():
         print(f"  containers: {len(CONTAINERS)} child hosts")
         print(f"  secrets: {len(SECRETS)} entries")
         print(f"  dynamic-secret leases: {len(DYN_LEASES)} active")
+        print(f"  gpg keys: {len(GPG_KEYS)} keys, {gpg_assign_count} assignments")
+        print(f"  custom metrics: {len(CUSTOM_METRICS)} metrics, "
+              f"{metric_sample_count} samples")
+        print(f"  admin RBAC roles granted: {granted_role_count} "
+              "(MANAGE_GPG_KEYS / MANAGE_CUSTOM_METRICS)")
     except Exception:
         session.rollback()
         raise

@@ -203,12 +203,21 @@ if [ "${SYSMANAGE_PRO:-0}" = "1" ]; then
     for code in $ENGINES; do
         # Highest version that has a bundle for THIS Python ABI (sort -V on the
         # version dir, which is the 3rd path component under the module).
+        # Prefer an exact CPython-ABI build (<py>, e.g. 3.10); fall back to the
+        # abi3 (limited-API) build — this mirrors the server's module_loader,
+        # which loads a single abi3 .so on any CPython >= 3.10. Engines migrated
+        # to abi3 (one .so per platform/arch), so the exact-<py> path usually no
+        # longer exists and only linux/x86_64/abi3/<code>.tar.gz is present.
         # ``|| true``: with set -e + pipefail, a no-match ls would otherwise abort
         # the whole provision on the command substitution before the -z check.
-        tb="$(ls -1 "$PRO"/storage/modules/"$code"/*/"$PLAT"/"$ARCH"/"$PYVER"/"$code".tar.gz 2>/dev/null \
-              | sort -V | tail -1 || true)"
+        tb=""
+        for _abi in "$PYVER" abi3; do
+            tb="$(ls -1 "$PRO"/storage/modules/"$code"/*/"$PLAT"/"$ARCH"/"$_abi"/"$code".tar.gz 2>/dev/null \
+                  | sort -V | tail -1 || true)"
+            [ -n "$tb" ] && break
+        done
         if [ -z "$tb" ]; then
-            echo "  WARN: no $PLAT/$ARCH/$PYVER bundle for $code — skipping (engine will not load)"
+            echo "  WARN: no $PLAT/$ARCH/$PYVER (or abi3) bundle for $code — skipping (engine will not load)"
             continue
         fi
         # Extract into the same per-version layout module_loader produces, so the

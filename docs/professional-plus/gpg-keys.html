@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en" data-i18n-title="pro_plus.gpg_keys.page_title">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title data-i18n="pro_plus.gpg_keys.page_title">GPG Key Management - SysManage Professional+</title>
+    <meta name="description" content="Named GPG keys stored as OpenBAO KV secrets, assigned to hosts or to a specific user on a host, and installed into the target GnuPG keyring by the agent over the durable queue." data-i18n-attr="content" data-i18n="pro_plus.gpg_keys.meta_description">
+    <link rel="stylesheet" href="../../assets/css/style.css">
+    <link rel="icon" type="image/svg+xml" href="../../assets/images/favicon.svg">
+</head>
+<body data-auto-header="documentation" data-auto-footer>
+
+    <main class="docs-main">
+        <div class="container">
+            <div class="docs-breadcrumb">
+                <a href="../" data-i18n="nav.documentation">Documentation</a> &gt;
+                <a href="./" data-i18n="pro_plus.breadcrumb">Professional+</a> &gt;
+                <span data-i18n="pro_plus.gpg_keys.breadcrumb">GPG Key Management</span>
+            </div>
+
+            <div class="docs-header">
+                <div class="pro-plus-badge">&#11088; PRO+</div>
+                <h1 data-i18n="pro_plus.gpg_keys.header.title">GPG Key Management</h1>
+                <p data-i18n="pro_plus.gpg_keys.header.description">Store named GPG keys as OpenBAO KV secrets and assign them to a host, or to a specific user on a host. The agent installs or removes the key into the target user's GnuPG keyring over the durable message queue. Private key material never touches the SysManage database or YAML &mdash; only the name, fingerprint, and OpenBAO reference are stored.</p>
+                <!-- TODO screenshot: GPG Keys list page showing named keys with fingerprint and assignment status. Place PNG at /assets/images/gpg-keys-list.png -->
+                <figure class="docs-screenshot">
+                    <img src="/assets/images/gpg-keys-list.png" alt="SysManage GPG Keys list">
+                    <figcaption data-i18n="pro_plus.gpg_keys.header.screenshot_caption">The GPG Keys page lists each named key with its fingerprint and current host / user assignment status.</figcaption>
+                </figure>
+            </div>
+
+            <div class="docs-content">
+                <section class="docs-overview">
+                    <h2 data-i18n="pro_plus.gpg_keys.overview.title">Overview</h2>
+                    <p data-i18n="pro_plus.gpg_keys.overview.description">GPG Key Management gives you a central catalog of named GPG keys and a controlled way to distribute them across your fleet. Each key is stored as an OpenBAO KV secret so the private material stays inside the vault; SysManage keeps only the key's name, fingerprint, and a reference to its OpenBAO path in the database. From the catalog you assign a key to a host, or to a single user on a host, and the agent installs it into that user's GnuPG keyring for you.</p>
+
+                    <div class="getting-started-steps">
+                        <div class="steps-flow">
+                            <div class="step-item">
+                                <div class="step-icon">&#128273;</div>
+                                <div class="step-title" data-i18n="pro_plus.gpg_keys.steps.store.title">Store Key</div>
+                                <div class="step-desc" data-i18n="pro_plus.gpg_keys.steps.store.desc">Named GPG key in OpenBAO KV</div>
+                            </div>
+                            <div class="step-arrow">&#8594;</div>
+                            <div class="step-item">
+                                <div class="step-icon">&#128100;</div>
+                                <div class="step-title" data-i18n="pro_plus.gpg_keys.steps.assign.title">Assign</div>
+                                <div class="step-desc" data-i18n="pro_plus.gpg_keys.steps.assign.desc">To a host or a user on a host</div>
+                            </div>
+                            <div class="step-arrow">&#8594;</div>
+                            <div class="step-item">
+                                <div class="step-icon">&#128640;</div>
+                                <div class="step-title" data-i18n="pro_plus.gpg_keys.steps.install.title">Install</div>
+                                <div class="step-desc" data-i18n="pro_plus.gpg_keys.steps.install.desc">Agent updates the GnuPG keyring</div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <section class="docs-section">
+                    <h2 data-i18n="pro_plus.gpg_keys.storage.title">Storage Model</h2>
+                    <p data-i18n="pro_plus.gpg_keys.storage.description">Every GPG key is a named object backed by an OpenBAO KV secret. The split between the vault and the database is deliberate:</p>
+                    <ul>
+                        <li data-i18n="pro_plus.gpg_keys.storage.openbao"><strong>OpenBAO KV secret</strong> holds the private and public key material. It never leaves the vault except when the agent fetches it to install the key.</li>
+                        <li data-i18n="pro_plus.gpg_keys.storage.db"><strong>Database</strong> holds only the key's display name, its cryptographic fingerprint, and the OpenBAO path reference &mdash; never the private material.</li>
+                        <li data-i18n="pro_plus.gpg_keys.storage.yaml"><strong>YAML / config</strong> never contains key material either; there is nothing sensitive to leak into <code>/etc/sysmanage.yaml</code> or a backup of it.</li>
+                        <li data-i18n="pro_plus.gpg_keys.storage.fingerprint"><strong>Fingerprint tracking</strong> means the UI and audit trail can identify exactly which key is deployed where without ever reading the secret.</li>
+                    </ul>
+                </section>
+
+                <section class="docs-section">
+                    <h2 data-i18n="pro_plus.gpg_keys.assignment.title">Assignment &amp; Bindings</h2>
+                    <p data-i18n="pro_plus.gpg_keys.assignment.description">A key is distributed by creating a binding between the key and a target. Two binding scopes are supported:</p>
+
+                    <h3 data-i18n="pro_plus.gpg_keys.assignment.host.title">Assign to a Host</h3>
+                    <p data-i18n="pro_plus.gpg_keys.assignment.host.description">Bind the key to a host to install it for the default target user on that host. Use this when a key belongs to the machine's automation identity rather than a person.</p>
+
+                    <h3 data-i18n="pro_plus.gpg_keys.assignment.user.title">Assign to a User on a Host</h3>
+                    <p data-i18n="pro_plus.gpg_keys.assignment.user.description">Bind the key to a specific user on a specific host to install it into just that user's GnuPG keyring. The same key can be bound to several host/user pairs; each binding is tracked independently.</p>
+
+                    <p data-i18n="pro_plus.gpg_keys.assignment.manage">Manage bindings from the key's detail view: add a new host or host/user binding, or remove an existing one to schedule the key's removal from that keyring.</p>
+
+                    <!-- TODO screenshot: GPG key detail view showing the assign-to-host / assign-to-user dialog and the list of existing bindings. Place PNG at /assets/images/gpg-keys-assign.png -->
+                    <figure class="docs-screenshot">
+                        <img src="/assets/images/gpg-keys-assign.png" alt="Assigning a GPG key to a host or user">
+                        <figcaption data-i18n="pro_plus.gpg_keys.assignment.screenshot_caption">Assign a key to a host, or to a specific user on a host, and review existing bindings and their status.</figcaption>
+                    </figure>
+                </section>
+
+                <section class="docs-section">
+                    <h2 data-i18n="pro_plus.gpg_keys.status.title">Assignment Status</h2>
+                    <p data-i18n="pro_plus.gpg_keys.status.description">Each binding carries a status that reflects where it is in the install / remove lifecycle:</p>
+
+                    <div class="severity-levels">
+                        <div class="severity-item severity-warning">
+                            <span class="severity-badge" data-i18n="pro_plus.gpg_keys.status.pending.label">Pending</span>
+                            <span data-i18n="pro_plus.gpg_keys.status.pending.description">The binding has been created and an install or remove task is queued for the agent but not yet confirmed.</span>
+                        </div>
+                        <div class="severity-item severity-info">
+                            <span class="severity-badge" data-i18n="pro_plus.gpg_keys.status.installed.label">Installed</span>
+                            <span data-i18n="pro_plus.gpg_keys.status.installed.description">The agent has imported the key into the target user's GnuPG keyring and confirmed success.</span>
+                        </div>
+                        <div class="severity-item severity-default">
+                            <span class="severity-badge" data-i18n="pro_plus.gpg_keys.status.removed.label">Removed</span>
+                            <span data-i18n="pro_plus.gpg_keys.status.removed.description">The agent has deleted the key from the target user's keyring; the binding is no longer active.</span>
+                        </div>
+                        <div class="severity-item severity-critical">
+                            <span class="severity-badge" data-i18n="pro_plus.gpg_keys.status.failed.label">Failed</span>
+                            <span data-i18n="pro_plus.gpg_keys.status.failed.description">The install or remove operation did not complete; the binding surfaces the error so it can be retried.</span>
+                        </div>
+                    </div>
+                </section>
+
+                <section class="docs-section">
+                    <h2 data-i18n="pro_plus.gpg_keys.agent.title">Agent Installation Flow</h2>
+                    <p data-i18n="pro_plus.gpg_keys.agent.description">Distribution runs over the durable message queue, so a target host that is offline simply picks up its task when it reconnects &mdash; nothing is lost.</p>
+                    <ol>
+                        <li data-i18n="pro_plus.gpg_keys.agent.step1">You create or remove a binding in the UI (or via the API).</li>
+                        <li data-i18n="pro_plus.gpg_keys.agent.step2">SysManage enqueues an install or remove task on the target host's durable queue and marks the binding <code>pending</code>.</li>
+                        <li data-i18n="pro_plus.gpg_keys.agent.step3">The agent fetches the key material from OpenBAO, then imports it into &mdash; or deletes it from &mdash; the target user's GnuPG keyring (<code>~/.gnupg</code>).</li>
+                        <li data-i18n="pro_plus.gpg_keys.agent.step4">The agent reports the result; the binding moves to <code>installed</code>, <code>removed</code>, or <code>failed</code>.</li>
+                    </ol>
+                </section>
+
+                <section class="docs-section">
+                    <h2 data-i18n="pro_plus.gpg_keys.permissions.title">Required Permissions</h2>
+                    <p data-i18n="pro_plus.gpg_keys.permissions.description">GPG key operations are gated behind a dedicated role:</p>
+                    <ul>
+                        <li data-i18n="pro_plus.gpg_keys.permissions.manage"><code>Manage GPG Keys</code> &mdash; required to create, assign, remove, and delete GPG keys and their bindings. Users without this role cannot see or act on the GPG Keys page.</li>
+                    </ul>
+                </section>
+
+                <section class="docs-section">
+                    <h2 data-i18n="pro_plus.gpg_keys.requirements.title">Requirements</h2>
+                    <ul>
+                        <li data-i18n="pro_plus.gpg_keys.requirements.license">Professional or Enterprise license with the GPG key management module.</li>
+                        <li data-i18n="pro_plus.gpg_keys.requirements.openbao">An OpenBAO vault installation &mdash; the private key material is stored only in OpenBAO KV.</li>
+                        <li data-i18n="pro_plus.gpg_keys.requirements.openbsd"><strong>OpenBSD</strong> support requires OpenBAO running on OpenBSD; without a reachable OpenBAO the key material has nowhere to live and assignment is unavailable.</li>
+                        <li data-i18n="pro_plus.gpg_keys.requirements.gnupg">GnuPG (<code>gpg</code>) installed on each target host so the agent can manage the user's keyring.</li>
+                    </ul>
+                </section>
+            </div>
+        </div>
+    </main>
+
+    <script src="../../assets/js/i18n.js"></script>
+    <script src="../../assets/js/components.js"></script>
+    <script src="../../assets/js/navbar.js"></script>
+    <script src="../../assets/js/main.js"></script>
+</body>
+</html>
