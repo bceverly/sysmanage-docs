@@ -206,6 +206,18 @@ class I18n {
         document.documentElement.setAttribute('lang', this.currentLanguage);
     }
 
+    // True when a translation carries an HTML tag (<strong>, </code>, <a …>) or
+    // a character-reference entity (&amp;, &mdash;, &#8594;, &#x2192;).  Many
+    // first-party strings in the locale JSON legitimately contain markup; setting
+    // such a string via textContent leaks the raw tags/entities into the page, so
+    // we detect markup and render via innerHTML instead.
+    static containsMarkup(str) {
+        return (
+            typeof str === 'string' &&
+            /<\/?[a-z][\s\S]*?>|&(?:#\d+|#x[0-9a-f]+|[a-z][a-z0-9]*);/i.test(str)
+        );
+    }
+
     applyLanguage() {
         const elements = document.querySelectorAll('[data-i18n]');
         elements.forEach(element => {
@@ -215,8 +227,13 @@ class I18n {
             if (element.hasAttribute('data-i18n-attr')) {
                 const attr = element.getAttribute('data-i18n-attr');
                 element.setAttribute(attr, translation);
-            } else if (element.hasAttribute('data-i18n-html')) {
-                // Use innerHTML for content that contains HTML tags
+            } else if (
+                element.hasAttribute('data-i18n-html') ||
+                I18n.containsMarkup(translation)
+            ) {
+                // Render as HTML when the string carries tags/entities.  The
+                // explicit data-i18n-html attribute still forces this for any
+                // string the heuristic might miss.
                 element.innerHTML = translation;
             } else {
                 element.textContent = translation;
