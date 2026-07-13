@@ -44,9 +44,7 @@ class ApiError(Exception):
     pass
 
 
-def _req(method: str, path: str, token: str | None = None, body: dict | None = None) -> tuple[int, dict]:
-    # Every backend route lives under the /api prefix (e.g. /api/login, /api/hosts).
-    url = f"{TARGET}/api{path}"
+def _req_once(method: str, url: str, token: str | None, body: dict | None) -> tuple[int, dict]:
     data = json.dumps(body).encode() if body is not None else None
     req = urllib.request.Request(url, data=data, method=method)
     req.add_header("Content-Type", "application/json")
@@ -64,6 +62,21 @@ def _req(method: str, path: str, token: str | None = None, body: dict | None = N
             return exc.code, {"_raw": raw}
     except urllib.error.URLError as exc:
         raise ApiError(f"cannot reach {url}: {exc}") from exc
+
+
+def _req(method: str, path: str, token: str | None = None, body: dict | None = None) -> tuple[int, dict]:
+    # Native OSS feature routes moved under /api/v1 (the /api bridge was retired);
+    # a few surfaces (agent, auth/mfa, SCIM, certificates) stay bare /api.  Try the
+    # versioned path first and fall back to bare /api so this works across both.
+    # Fall back on 404 AND 405: a bare-/api-only endpoint (e.g. the agent-facing
+    # POST /host/register) can collide with a DIFFERENT-method /api/v1 route at the
+    # same path, which returns 405 (Method Not Allowed) rather than 404.
+    if path.startswith("/v1/"):
+        return _req_once(method, f"{TARGET}/api{path}", token, body)
+    status, resp = _req_once(method, f"{TARGET}/api/v1{path}", token, body)
+    if status in (404, 405):
+        return _req_once(method, f"{TARGET}/api{path}", token, body)
+    return status, resp
 
 
 def login() -> str:
@@ -249,6 +262,73 @@ def seed_users(token: str, users: list[dict]) -> None:
             print(f"  WARN user {u['userid']} -> {status}: {body}", file=sys.stderr)
 
 
+def seed_maintenance_windows(token: str, fqdn_to_id: dict[str, str]) -> None:
+    """Create a few demo maintenance windows (Phase 14.2) so the Maintenance
+    Windows page + host card have content for screenshots.  Idempotent by name.
+    Posts to the native /api/v1/maintenance-windows route."""
+    _, existing = _req("GET", "/v1/maintenance-windows", token=token)
+    have = {
+        w.get("name")
+        for w in (existing.get("windows", []) if isinstance(existing, dict) else [])
+    }
+    windows = [
+        {
+            "name": "Nightly Patching",
+            "description": "Routine patch installs run overnight.",
+            "enabled": True,
+            "kind": "allow",
+            "recurrence": "daily",
+            "timezone": "UTC",
+            "start_time": "02:00",
+            "duration_minutes": 120,
+            "scopes": [{"scope_type": "all"}],
+        },
+        {
+            "name": "Weekend Change Freeze",
+            "description": "No automated changes over the weekend.",
+            "enabled": True,
+            "kind": "blackout",
+            "recurrence": "weekly",
+            "timezone": "UTC",
+            "start_time": "00:00",
+            "duration_minutes": 1440,
+            "days_of_week": ["sat", "sun"],
+            "scopes": [{"scope_type": "all"}],
+        },
+    ]
+    # A host-scoped window for the database server, if that host exists.
+    db_host = fqdn_to_id.get("rhel-db-01.corp.northstar.io")
+    if db_host:
+        windows.append(
+            {
+                "name": "Database Servers",
+                "description": "Database maintenance, Sunday mornings (US Eastern).",
+                "enabled": True,
+                "kind": "allow",
+                "recurrence": "weekly",
+                "timezone": "America/New_York",
+                "start_time": "03:00",
+                "duration_minutes": 180,
+                "days_of_week": ["sun"],
+                "scopes": [{"scope_type": "host", "host_id": db_host}],
+            }
+        )
+    for w in windows:
+        if w["name"] in have:
+            print(f"  maintenance window exists: {w['name']}")
+            continue
+        status, body = _req(
+            "POST", "/v1/maintenance-windows", token=token, body=w
+        )
+        if status in (200, 201):
+            print(f"  maintenance window created: {w['name']}")
+        else:
+            print(
+                f"  WARN maintenance window {w['name']} -> {status}: {body}",
+                file=sys.stderr,
+            )
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--fixtures", default=os.path.join(os.path.dirname(__file__), "fixtures.json"))
@@ -272,6 +352,8 @@ def main() -> int:
     if data.get("scripts"):
         print("Scripts:")
         seed_scripts(token, data["scripts"], fqdn_to_id)
+    print("Maintenance windows:")
+    seed_maintenance_windows(token, fqdn_to_id)
     print("\nREST seed complete. Run fixture_agent.py next to report per-host OS/inventory.")
     return 0
 

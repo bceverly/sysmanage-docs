@@ -43,6 +43,7 @@ from backend.persistence.models import (
     GpgKey,
     GpgKeyAssignment,
     Host,
+    HostApplicableAdvisory,
     HostChild,
     HostComplianceScan,
     HostHealthAnalysis,
@@ -52,8 +53,13 @@ from backend.persistence.models import (
     NotificationChannel,
     PackageProfile,
     PackageProfileConstraint,
+    ReleaseUpgradeJob,
     Secret,
     SecurityRole,
+    SharedAdvisory,
+    SharedAdvisoryCve,
+    SharedAdvisoryPackage,
+    SharedOsLifecycle,
     Tag,
     User,
     UserSecurityRole,
@@ -90,6 +96,60 @@ CVES = [
     ("CVE-2023-38545", "MEDIUM", "6.5", "curl SOCKS5 heap buffer overflow.", "curl", "8.4.0"),
     ("CVE-2024-2961", "LOW", "3.7", "glibc iconv ISO-2022-CN-EXT out-of-bounds write.", "libc6", "2.39-1"),
 ]
+
+# ---- shared advisory catalogue (Phase 14.1) -------------------------------
+# advisory_id, source, type, severity, title, [cve_ids], [(pkg, fixed_version, release)]
+ADVISORIES = [
+    ("USN-6700-1", "ubuntu", "security", "HIGH", "OpenSSL vulnerabilities",
+     ["CVE-2024-0727"], [("openssl", "3.0.13", "ubuntu:24.04")]),
+    ("USN-6620-1", "ubuntu", "security", "CRITICAL", "Linux kernel vulnerabilities",
+     ["CVE-2024-1086"], [("linux-image", "6.7.2", "ubuntu:24.04")]),
+    ("RHSA-2024:1234", "redhat", "security", "HIGH", "openssh security update",
+     ["CVE-2024-6387"], [("openssh-server", "9.8p1", "redhat:9")]),
+    ("RHSA-2024:0987", "redhat", "bugfix", "MEDIUM", "curl bug fix update",
+     ["CVE-2023-38545"], [("curl", "8.4.0", "redhat:9")]),
+    ("DSA-5600-1", "debian", "security", "HIGH", "nginx security update",
+     ["CVE-2023-44487"], [("nginx", "1.25.3", "debian:12")]),
+    ("FreeBSD-SA-24:01.openssl", "freebsd", "security", "MEDIUM", "OpenSSL update",
+     ["CVE-2024-0727"], [("openssl", "3.0.13", "freebsd:14")]),
+]
+
+# Per-host applicable advisories: fqdn -> [(advisory_id, package, installed_version)]
+APPLICABLE_ADVISORIES = {
+    "ubuntu-web-01.corp.northstar.io": [
+        ("USN-6700-1", "openssl", "3.0.10"),
+        ("USN-6620-1", "linux-image", "6.7.0"),
+    ],
+    "rhel-db-01.corp.northstar.io": [
+        ("RHSA-2024:1234", "openssh-server", "8.7p1"),
+        ("RHSA-2024:0987", "curl", "8.2.0"),
+    ],
+    "debian-app-01.corp.northstar.io": [
+        ("DSA-5600-1", "nginx", "1.24.0"),
+    ],
+    "freebsd-build-01.corp.northstar.io": [
+        ("FreeBSD-SA-24:01.openssl", "openssl", "3.0.10"),
+    ],
+}
+
+# ---- shared OS-lifecycle registry (Phase 14.3) ----------------------------
+# os_name, os_version (as the engine derives from the demo hosts' platform_release),
+# codename, eol_offset_days (from now: <0 = EOL, 0..180 = approaching, else supported),
+# upgrade_to, lts.  Keyed to match _host_os() output for the seeded demo fleet.
+OS_LIFECYCLE = [
+    ("ubuntu", "26.04", "Resolute Raccoon", 100, "26.10", True),   # approaching
+    ("redhat", "10.0", None, 1800, "11", False),                   # supported
+    ("debian", "13", "trixie", 900, "14", True),                   # supported
+    ("freebsd", "14.3", None, -60, "14.4", False),                 # end of life
+    ("windows", "11", None, 1200, None, False),                    # supported
+    ("macos", "26.5", "Tahoe", 800, "27", False),                  # supported
+]
+
+# A pending release-upgrade job on the flagship host, so the host-detail OS
+# Lifecycle tab shows the jobs table populated.
+RELEASE_UPGRADE_JOBS = {
+    "ubuntu-web-01.corp.northstar.io": ("26.04", "26.10", "do-release-upgrade", "pending"),
+}
 
 # ---- per-host engine profiles ---------------------------------------------
 # vuln: (total_packages, vulnerable_packages, crit, high, med, low, risk_score, risk_level)
@@ -374,6 +434,9 @@ def main():
         # --- idempotent reset (FK-safe order) ---
         for model in (
             Alert, AlertRuleNotificationChannel, AlertRule, NotificationChannel,
+            HostApplicableAdvisory, SharedAdvisoryCve, SharedAdvisoryPackage,
+            SharedAdvisory,
+            ReleaseUpgradeJob, SharedOsLifecycle,
             HostVulnerabilityFinding, HostVulnerabilityScan, Vulnerability,
             HostComplianceScan, ComplianceProfile, HostHealthAnalysis,
             HostPackageComplianceStatus, PackageProfileConstraint, PackageProfile,
@@ -416,6 +479,73 @@ def main():
                     severity=v.severity, cvss_score=v.cvss_score,
                     remediation=f"Upgrade {pkg} to {fixed} or later.",
                 ))
+
+        # --- advisories (Phase 14.1) ---
+        _mgr = {"ubuntu": "apt", "debian": "apt", "redhat": "dnf",
+                "suse": "zypper", "freebsd": "pkg"}
+        advisory_rows = {}  # identifier -> (SharedAdvisory, {pkg: fixed}, source, type, sev)
+        for adv_id, source, atype, sev, title, cves, packages in ADVISORIES:
+            adv = SharedAdvisory(
+                advisory_id=adv_id, source=source, advisory_type=atype, severity=sev,
+                title=title, affected_releases=[rel for _, _, rel in packages],
+                published_date=NOW - timedelta(days=20), created_at=NOW, updated_at=NOW,
+            )
+            session.add(adv)
+            session.flush()
+            fixed_by_pkg = {}
+            for pkg, fixed, rel in packages:
+                session.add(SharedAdvisoryPackage(
+                    advisory_row_id=adv.id, package_name=pkg,
+                    package_manager=_mgr.get(source, "apt"), release=rel,
+                    fixed_version=fixed, source=source, created_at=NOW, updated_at=NOW,
+                ))
+                fixed_by_pkg[pkg] = fixed
+            for cve in cves:
+                v = session.query(Vulnerability).filter(
+                    Vulnerability.cve_id == cve).first()
+                session.add(SharedAdvisoryCve(
+                    advisory_row_id=adv.id,
+                    vulnerability_id=v.id if v else None, cve_id=cve,
+                ))
+            advisory_rows[adv_id] = (adv, fixed_by_pkg, source, atype, sev)
+        session.flush()
+
+        for fqdn, items in APPLICABLE_ADVISORIES.items():
+            h = hosts.get(fqdn)
+            if not h:
+                continue
+            for adv_id, pkg, installed in items:
+                adv, fixed_by_pkg, source, atype, sev = advisory_rows[adv_id]
+                session.add(HostApplicableAdvisory(
+                    host_id=h.id, advisory_id=adv.id, advisory_identifier=adv_id,
+                    source=source, advisory_type=atype, severity=sev,
+                    package_name=pkg, installed_version=installed,
+                    fixed_version=fixed_by_pkg.get(pkg), status="applicable",
+                    computed_at=NOW, created_at=NOW, updated_at=NOW,
+                ))
+
+        # --- OS lifecycle registry + release-upgrade jobs (Phase 14.3) ---
+        for os_name, os_version, codename, eol_days, upgrade_to, lts in OS_LIFECYCLE:
+            session.add(SharedOsLifecycle(
+                os_name=os_name, os_version=os_version, codename=codename,
+                release_date=NOW - timedelta(days=200),
+                support_end=NOW + timedelta(days=eol_days),
+                eol_date=NOW + timedelta(days=eol_days),
+                lts=lts, latest_release=os_version, upgrade_to=upgrade_to,
+                link="https://endoflife.date/" + os_name, source="endoflife.date",
+                created_at=NOW, updated_at=NOW,
+            ))
+        for fqdn, (frm, to, method, status) in RELEASE_UPGRADE_JOBS.items():
+            h = hosts.get(fqdn)
+            if not h:
+                continue
+            session.add(ReleaseUpgradeJob(
+                host_id=h.id, from_os_name="ubuntu", from_version=frm,
+                to_version=to, method=method, status=status,
+                precheck_results={"reboot_required": True, "disk_free_gb": 42,
+                                  "notes": ["Full backup recommended before upgrade."]},
+                created_at=NOW, updated_at=NOW,
+            ))
 
         # --- compliance ---
         profile = ComplianceProfile(
