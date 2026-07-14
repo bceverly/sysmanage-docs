@@ -186,6 +186,33 @@ def cmd_validate(seed: bool) -> int:
                 failures += 1
     if failures:
         print(f"\nFAIL: {failures} issue(s)", file=sys.stderr)
+        print(
+            "\n"
+            "How to fix\n"
+            "----------\n"
+            "'referenced in HTML but absent in locale' means a page uses a\n"
+            "data-i18n key that some locale JSON doesn't have yet (e.g. you added\n"
+            "new keys to assets/locales/en.json only). Run:\n"
+            "\n"
+            "  1. make i18n-seed\n"
+            "       Copies each missing key into EVERY locale as a\n"
+            "       '[TODO] <English text>' placeholder (from en.json), so the\n"
+            "       site renders while awaiting translation.\n"
+            "\n"
+            "  2. make translate SERVICE=http://<host>:8765\n"
+            "       Replaces the [TODO] placeholders with real translations via\n"
+            "       the GPU translation service. Only untranslated strings are\n"
+            "       sent, so it is idempotent — safe to re-run. Omit SERVICE to\n"
+            "       use $TRANSLATION_SERVICE_URL (falls back to localhost:8765).\n"
+            "\n"
+            "  3. make i18n-validate\n"
+            "       Re-run this check — it should now pass.\n"
+            "\n"
+            "An 'English-passthrough ... budget' failure instead means the keys\n"
+            "exist but still hold untranslated English; run step 2 (make translate)\n"
+            "to translate them, then re-validate.\n",
+            file=sys.stderr,
+        )
         return 1
     print("\nOK: every HTML key exists in every locale, "
           "passthrough budgets respected", file=sys.stderr)

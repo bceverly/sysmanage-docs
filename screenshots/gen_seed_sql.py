@@ -105,11 +105,14 @@ def main() -> int:
             continue
         ref = host_ref(h["fqdn"])
         hw = h.get("hardware", {})
+        fips = h.get("fips", {})
         arch = h.get("architecture")
         out.append(f"-- {h['fqdn']}")
         # OS-version + CPU/memory columns live on the host row; also stamp agent
         # version + up status. (OS columns feed the host-detail "Operating System"
-        # pane and the dashboard OS-distribution tile.)
+        # pane and the dashboard OS-distribution tile.)  The fips_* columns feed
+        # the Phase 14.4 FIPS Compliance dashboard + per-host FIPS tab; when a host
+        # has no "fips" fixture block they seed as NULL (reads as "not applicable").
         out.append(
             "UPDATE \"host\" SET "
             f"platform={q(h.get('platform'))}, platform_release={q(h.get('platform_release'))}, "
@@ -119,6 +122,12 @@ def main() -> int:
             f"cpu_cores={q(hw.get('cpu_cores'))}, cpu_threads={q(hw.get('cpu_threads'))}, "
             f"cpu_frequency_mhz={q(hw.get('cpu_frequency_mhz'))}, "
             f"memory_total_mb={q(hw.get('memory_total_mb'))}, "
+            f"fips_status={q(fips.get('status'))}, fips_enabled={q(fips.get('enabled'))}, "
+            f"fips_available={q(fips.get('available'))}, "
+            f"fips_kernel_enforced={q(fips.get('kernel_enforced'))}, "
+            f"fips_vendor={q(fips.get('vendor'))}, "
+            f"fips_package_version={q(fips.get('package_version'))}, "
+            f"fips_updated_at={'NOW()' if fips else 'NULL'}, "
             f"agent_version={q(AGENT_VERSION)}, status='up', last_access=NOW() "
             f"WHERE fqdn={q(h['fqdn'])};"
         )

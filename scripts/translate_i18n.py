@@ -180,7 +180,16 @@ def run_json(base: Path, template: str, langs: List[str], service: Optional[str]
             continue
         doc = json.loads(path.read_text(encoding="utf-8"))
         lang_flat = _flatten(doc)
-        gaps: List[Tuple[str, str]] = [
+        # Every per-pass number below is counted in UNIQUE SOURCE STRINGS — the
+        # same thing the service is sent (it dedupes identical English like
+        # "OpenBSD" that appears under many keys) and what the "…N/N" progress
+        # counts.  Keeping one denominator makes the numbers add up:
+        #   gap(s) + English-identical == string(s) to translate == …N/N.
+        #
+        # A "gap" is what the build GATES on (missing / [TODO]); an
+        # "English-identical" source is a leaf still equal to English (proper
+        # nouns, technical terms) that we re-send best-effort but is NOT a gap.
+        todo: List[Tuple[str, str]] = [
             (key, en_src)
             for key, en_src in en_flat.items()
             if (
@@ -190,24 +199,36 @@ def run_json(base: Path, template: str, langs: List[str], service: Optional[str]
             and not is_no_translate(key, en_src, lang)  # flagged intentionally-English
         ]
         if limit:
-            gaps = gaps[:limit]
-        print(f"  {lang}: {len(gaps)} gap(s)", flush=True)
-        if not gaps or service is None:
+            todo = todo[:limit]
+        uniq = sorted({src for _, src in todo})
+        gap_sources = {en_src for key, en_src in todo if _is_json_gap(lang_flat.get(key))}
+        n_gap = len(gap_sources)
+        n_retry = len(uniq) - n_gap
+        extra = f" (+{n_retry} English-identical)" if n_retry else ""
+        print(
+            f"  {lang}: {n_gap} gap(s){extra} — {len(uniq)} string(s) to translate",
+            flush=True,
+        )
+        if not todo or service is None:
             continue
-        uniq = sorted({src for _, src in gaps})
         translations = dict(zip(uniq, translate_to(service, uniq, lang, client_batch)))
-        wrote = skipped = 0
-        for key, en_src in gaps:
+        written = set()
+        for key, en_src in todo:
             cand = translations.get(en_src, en_src)
             if _accept(en_src, cand):
                 _set_dotted(doc, key, cand)
-                wrote += 1
-            else:
-                skipped += 1
+                if cand != en_src:
+                    written.add(en_src)
         path.write_text(
             json.dumps(doc, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
         )
-        print(f"  {lang}: wrote {wrote}, left {skipped} gap(s) for retry", flush=True)
+        # Remaining uses the SAME definition as the final --check, so this always
+        # matches the end-of-run summary (0 when fully translated).
+        remaining = sum(1 for k in en_flat if _is_json_gap(_flatten(doc).get(k)))
+        print(
+            f"  {lang}: wrote {len(written)} new, {remaining} gap(s) remaining",
+            flush=True,
+        )
 
 
 # ---------------------------------------------------------------------------

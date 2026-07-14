@@ -183,6 +183,45 @@ sudo pkg install gcc cmake make</code></pre>
 
                             <div class="tab-pane" id="openbsd">
                                 <h3 data-i18n="server_installation.prerequisites.openbsd.title" data-i18n-html>OpenBSD</h3>
+
+                                <h4 data-i18n="server_installation.prerequisites.openbsd.pkg_title" data-i18n-html>Recommended: Pre-built Package (OpenBSD 7.8, 7.9)</h4>
+                                <p data-i18n="server_installation.prerequisites.openbsd.pkg_intro" data-i18n-html>A pre-built package is published for each supported OpenBSD release. It bundles the backend, the built web interface, and all Python dependencies, so it installs quickly and needs no compilers.</p>
+                                <pre><code># 1. Download the package for your release (79 = 7.9, 78 = 7.8).
+#    Replace X.Y.Z with the release version.
+ftp https://github.com/bceverly/sysmanage/releases/download/vX.Y.Z/sysmanage-X.Y.Z-openbsd79.tgz
+
+# 2. Install it. pkg_add resolves the dependency packages (py3-cryptography,
+#    py3-pydantic, postgresql-client, ...) from the OpenBSD mirror.
+doas pkg_add sysmanage-X.Y.Z-openbsd79.tgz
+
+# 3. Provide a PostgreSQL database (local example; a remote DB works too).
+doas pkg_add postgresql-server
+doas rcctl enable postgresql
+doas su - _postgresql -c "initdb -D /var/postgresql/data -U postgres -E UTF8"
+doas rcctl start postgresql
+doas -u _postgresql createuser -P sysmanage       # set a password
+doas -u _postgresql createdb -O sysmanage sysmanage
+
+# 4. First start seeds a default config and then stops with instructions.
+doas rcctl enable openbao sysmanage
+doas rcctl start sysmanage
+
+# 5. Edit the config: set the postgresql:// connection string, TLS, admin user.
+doas vi /etc/sysmanage.yaml
+
+# 6. Initialize the database schema (PYTHONPATH points at the bundled deps).
+cd /usr/local/libexec/sysmanage
+doas env PYTHONPATH=/usr/local/libexec/sysmanage:/usr/local/libexec/sysmanage/pip-packages \
+    python3 -m alembic upgrade head
+
+# 7. Start the services (OpenBAO secrets broker + the server on port 8080).
+doas rcctl start openbao sysmanage
+
+# The web UI is served from /usr/local/share/sysmanage/frontend — front it with
+# your preferred web server (e.g. relayd/nginx) proxying to 127.0.0.1:8080.</code></pre>
+
+                                <h4 data-i18n="server_installation.prerequisites.openbsd.src_title" data-i18n-html>Alternative: Build from Source</h4>
+                                <p data-i18n="server_installation.prerequisites.openbsd.src_intro" data-i18n-html>For development, or to build the port yourself, install the toolchain below and follow the general Installation Steps.</p>
                                 <pre><code># Update package manager
 doas pkg_add -u
 
