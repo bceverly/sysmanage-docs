@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Advisory Management - SysManage Professional+</title>
-    <meta name="description" content="Patch by advisory: ingest vendor advisories (USN, RHSA, SUSE-SU, DSA, FreeBSD-SA), map advisory to CVE and package, and compute per-host applicable advisories with one-click remediation.">
+    <meta name="description" content="Patch by advisory: ingest vendor advisories (USN, RHSA, SUSE-SU, DSA, FreeBSD-SA, OpenBSD errata/syspatch), map advisory to CVE and package, and compute per-host applicable advisories with one-click remediation.">
     <link rel="stylesheet" href="../../assets/css/style.css">
     <link rel="icon" type="image/svg+xml" href="../../assets/images/favicon.svg">
 </head>
@@ -32,7 +32,7 @@
                 <section class="docs-section">
                     <h2>Overview</h2>
                     <p>SysManage already tracks CVEs and installed packages. Advisory Management adds the vendor-advisory layer on top: an <strong>advisory</strong> (for example Ubuntu <code>USN-6700-1</code> or Red Hat <code>RHSA-2024:1234</code>) bundles a set of CVEs and the fixed package versions that resolve them for a given OS release. The engine keeps a global advisory catalog and, per host, works out which advisories are <em>applicable</em> — i.e. the host has an affected package installed at a version below the advisory's fix.</p>
-                    <p>Supported advisory sources: <strong>Ubuntu USN</strong>, <strong>Red Hat RHSA / RHBA / RHEA</strong>, <strong>SUSE-SU / openSUSE-SU</strong>, <strong>Debian DSA</strong>, and <strong>FreeBSD-SA</strong>.</p>
+                    <p>Supported advisory sources: <strong>Ubuntu USN</strong>, <strong>Red Hat RHSA / RHBA / RHEA</strong>, <strong>SUSE-SU / openSUSE-SU</strong>, <strong>Debian DSA</strong>, <strong>FreeBSD-SA</strong>, and <strong>OpenBSD errata (syspatch)</strong>.</p>
 
                     <h2>The advisory catalog is shared</h2>
                     <p>Vendor advisory data is identical for every customer, so the catalog is stored <strong>once</strong> and shared across all tenants — the same model SysManage uses for its CVE database. Only the per-host applicability results are tenant-scoped. Ingestion runs server-wide on a schedule; you never re-download advisories per tenant.</p>
@@ -47,6 +47,14 @@
                         <li><strong>Recompute</strong> re-evaluates the host against the current catalog (for example after an ingestion refresh or a package change).</li>
                         <li><strong>Install</strong> queues installation of every package the advisory fixes, using SysManage's normal package-install path — so it is audited and honours any <a href="../administration/maintenance-windows.html">maintenance window</a> configured for the host.</li>
                     </ul>
+
+                    <h2>OpenBSD errata (syspatch)</h2>
+                    <p>OpenBSD ships base-system security and reliability <strong>errata</strong> — signed with <code>signify(1)</code> and applied with <code>syspatch(8)</code> — rather than package-manager updates. SysManage treats each erratum as an advisory, with two OpenBSD-specific twists:</p>
+                    <ul>
+                        <li><strong>Applicability is authoritative.</strong> The agent runs <code>syspatch -c</code>, which lists exactly the errata a host has not yet applied, so applicability comes straight from the host rather than from an installed-vs-fixed version comparison. Whatever <code>syspatch -c</code> still reports is, by definition, applicable.</li>
+                        <li><strong>Remediation runs <code>syspatch</code>.</strong> Choosing <strong>Install</strong> on an OpenBSD advisory queues a <code>syspatch</code> run instead of a package install. syspatch applies all pending errata together (all-or-nothing), so applying one advisory brings the host fully current; it is audited and honours <a href="../administration/maintenance-windows.html">maintenance windows</a> like any other remediation. Kernel and libc errata require a reboot to take effect.</li>
+                    </ul>
+                    <p>The errata catalog is built by scraping OpenBSD's per-release errata pages (<code>https://www.openbsd.org/errata&lt;release&gt;.html</code>) for the releases that <code>syspatch</code> supports; each erratum keeps its CVE references where the advisory cites them.</p>
 
                     <h2>Fleet dashboard</h2>
                     <p>The <strong>Advisories</strong> page in the main navigation summarises applicable advisories across the fleet — total applicable, hosts affected, and a breakdown by severity — above a catalog of advisories you can filter by <strong>severity</strong>, <strong>type</strong> (Security / Bugfix / Enhancement), and <strong>source</strong>, or search by advisory ID or title.</p>
