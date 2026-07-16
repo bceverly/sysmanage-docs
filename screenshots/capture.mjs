@@ -77,13 +77,28 @@ async function login(page) {
   }
 }
 
+// Settings and Host Detail switched from MUI <Tabs> to a left-rail of
+// ListItemButtons (the nav redesign), so their sub-navigation is now
+// role="button", not role="tab". Try the rail item first and fall back to a
+// real MUI tab (Reports still uses tabs), so a shot's `tab` name works across
+// both patterns. The rail is rendered before page content, so .first() lands on
+// the nav item rather than a same-named button inside the panel.
+async function selectTab(page, name) {
+  const rail = page.getByRole('button', { name, exact: false });
+  if (await rail.count()) {
+    await rail.first().click({ timeout: 15000 });
+    return;
+  }
+  await page.getByRole('tab', { name, exact: false }).first().click({ timeout: 15000 });
+}
+
 async function captureRoute(page, shot, vp) {
   await page.setViewportSize(shot.viewport || vp);
   await page.goto(`${TARGET}${shot.route}`, { waitUntil: 'domcontentloaded', timeout: 60000 });
   await page.waitForTimeout(shotlist.settleMs || 2500);
-  // Some pages (Settings, Scripts) group content into MUI tabs; switch first.
+  // Settings groups content into a left-rail (formerly MUI tabs); switch first.
   if (shot.tab) {
-    await page.getByRole('tab', { name: shot.tab, exact: false }).first().click({ timeout: 15000 });
+    await selectTab(page, shot.tab);
     await page.waitForTimeout(1200);
   }
   const out = join(OUT_DIR, shot.out);
@@ -104,11 +119,11 @@ async function captureDetail(page, shot, vp) {
   const url = `${TARGET}${shot.base || '/hosts'}/${id}${shot.tabHash ? '#' + shot.tabHash : ''}`;
   await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 60000 });
   await page.waitForTimeout((shotlist.settleMs || 2500) + 1500);
-  // Plugin-injected host-detail tabs (Health, Vulnerabilities, ...) don't use a
-  // URL hash, so click them by visible name — Playwright scrolls the MUI tab
-  // strip into view before clicking.
+  // Plugin-injected host-detail tabs (Health, Vulnerabilities, ...) that aren't
+  // addressable by URL hash are clicked by visible name — now left-rail buttons
+  // after the nav redesign (selectTab falls back to a real tab if needed).
   if (shot.tab) {
-    await page.getByRole('tab', { name: shot.tab, exact: false }).first().click({ timeout: 15000 });
+    await selectTab(page, shot.tab);
     await page.waitForTimeout((shotlist.settleMs || 2500));
   }
   const out = join(OUT_DIR, shot.out);
