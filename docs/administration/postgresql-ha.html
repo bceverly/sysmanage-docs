@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PostgreSQL High Availability - Administration - SysManage</title>
+    <meta name="description" content="Running the SysManage server against a highly-available PostgreSQL cluster: connection endpoint strategy, what the server does automatically during a failover, and what it deliberately leaves to the cluster manager.">
+    <link rel="stylesheet" href="/assets/css/style.css">
+    <link rel="icon" type="image/svg+xml" href="/assets/images/favicon.svg">
+</head>
+<body data-auto-header="documentation" data-auto-footer>
+    <!-- Header injected automatically by components.js -->
+
+    <main class="docs-main">
+        <div class="container">
+            <div class="docs-breadcrumb">
+                <a href="../">Documentation</a> > <a href="./">Administration</a> > <span>PostgreSQL High Availability</span>
+            </div>
+
+            <div class="docs-header">
+                <h1>PostgreSQL High Availability</h1>
+                <p>Run the SysManage server against a highly-available PostgreSQL cluster and survive a primary failover without manual intervention.</p>
+            </div>
+
+            <div class="docs-content">
+                <section class="docs-overview">
+                    <h2>Overview</h2>
+                    <p>SysManage stores all of its state in PostgreSQL. In a high-availability deployment, PostgreSQL runs as a cluster (a primary plus one or more streaming-replication standbys) managed by a cluster manager, and the SysManage server reaches it through a stable endpoint that always resolves to the current primary.</p>
+
+                    <div class="ha-scope">
+                        <h3>Design principle: survive a failover, do not orchestrate one</h3>
+                        <p>The SysManage server is deliberately scoped to <strong>survive</strong> a failover, not to <strong>drive</strong> one. Leader election, promotion of a standby, and split-brain protection stay in the cluster manager and its connection router. The server never tries to discover the primary itself &mdash; re-implementing primary discovery inside an application is a well-known anti-pattern that fights the cluster manager and causes split-brain writes.</p>
+                        <p><strong>The server does NOT:</strong> elect a leader, promote a standby, fence a failed node, or decide which node is writable. Those are the cluster manager's job.</p>
+                        <p><strong>The server DOES:</strong> detect that a pooled connection died, discard and reconnect it, briefly retry idempotent work during the promotion gap, and report its database connectivity so an upstream load balancer can route around it.</p>
+                    </div>
+                </section>
+
+                <section class="ha-topology">
+                    <h2>Reference topology</h2>
+                    <p>A supported HA topology has three layers. SysManage only participates in the third.</p>
+                    <ul>
+                        <li><strong>Cluster manager</strong> &mdash; Patroni, repmgr, pg_auto_failover, or Stolon. Owns leader election, promotion, and fencing.</li>
+                        <li><strong>Connection router</strong> &mdash; HAProxy, PgBouncer, a virtual IP (VIP), or a libpq multi-host connection string. Presents a <em>stable endpoint</em> that always points at the current read-write primary.</li>
+                        <li><strong>SysManage server</strong> &mdash; connects to that stable endpoint and does nothing cluster-aware beyond the pool/retry/health behavior described below.</li>
+                    </ul>
+                    <p>This mirrors the guidance the federation coordinator already gives (&ldquo;HA via standard replication plus a load balancer&rdquo;); the single-server case now matches it.</p>
+                </section>
+
+                <section class="ha-endpoint">
+                    <h2>Connection endpoint strategy</h2>
+                    <p>Point the SysManage server's database configuration at a <em>stable endpoint</em>, never at one node's fixed address. There are two supported options; pick one.</p>
+
+                    <h3>Option A (recommended): libpq multi-host DSN</h3>
+                    <p>psycopg (psycopg3, the driver SysManage uses) honors libpq's multi-host connection strings. List every cluster node and let libpq walk to the writable primary &mdash; no proxy required, and it re-resolves the primary transparently after a failover with zero code changes.</p>
+                    <p>In <code>/etc/sysmanage.yaml</code>, set the database host to the comma-separated node list and request the read-write endpoint:</p>
+                    <pre><code>database:
+  user: sysmanage
+  password: your-password
+  # Comma-separated cluster nodes. libpq tries each and keeps the
+  # one that accepts read-write connections (the current primary).
+  host: "10.80.0.20,10.80.0.21"
+  port: 5432
+  name: sysmanage
+  # Appended to the connection so libpq only accepts a writable node.
+  options: "target_session_attrs=read-write"</code></pre>
+                    <p>After a failover libpq skips the demoted (now read-only or unreachable) node and connects to the newly-promoted primary on the next connection attempt.</p>
+
+                    <h3>Option B: proxy or virtual IP</h3>
+                    <p>Alternatively, point the server at a single stable address fronted by HAProxy/PgBouncer or a VIP that the cluster manager moves to the current primary:</p>
+                    <pre><code>database:
+  host: "pg-primary.internal"   # VIP / proxy that follows the primary
+  port: 5432</code></pre>
+                    <p>Both options keep the primary's identity out of SysManage's configuration &mdash; the requirement that makes zero-touch failover possible.</p>
+                </section>
+
+                <section class="ha-server-behavior">
+                    <h2>What the server does automatically</h2>
+                    <p>These are applied to every database engine the server builds &mdash; the bootstrap engine, the registry/shared partitions in collapsed mode, and the per-tenant engines in a multi-tenant deployment.</p>
+                    <ul>
+                        <li><strong>Connection pre-ping</strong> (<code>pool_pre_ping</code>) &mdash; after a failover the pooled connections are dead sockets. Pre-ping issues a cheap liveness check when a connection is checked out of the pool and transparently discards + reconnects a dead one to the new primary, instead of handing a stale socket to the next request.</li>
+                        <li><strong>Connection recycling</strong> (<code>pool_recycle</code>, 30&nbsp;minutes) &mdash; caps connection age below typical proxy/server idle timeouts so long-lived connections do not accumulate.</li>
+                        <li><strong>Bounded retry during the promotion gap</strong> &mdash; for the few seconds while a standby is being promoted there is no writable primary, so even a freshly-opened connection can fail. Idempotent units of work retry with bounded exponential backoff until the new primary accepts connections. Only idempotent/uncommitted work is retried &mdash; a partially-applied transaction is never blindly replayed.</li>
+                        <li><strong>Health reporting</strong> &mdash; <code>GET /api/health</code> probes database connectivity and returns HTTP&nbsp;503 when the database is unreachable (200 otherwise), so an external load balancer or orchestrator can route around a server that has lost its database.</li>
+                    </ul>
+                </section>
+
+                <section class="ha-openbao">
+                    <h2>OpenBAO dynamic database credentials</h2>
+                    <p>This section applies only to <strong>multi-tenant (Professional+)</strong> deployments. A single-tenant server reads a static database password from <code>sysmanage.yaml</code> and is fully covered by the pool and DSN behavior above &mdash; it does not lease credentials.</p>
+
+                    <p>In a multi-tenant deployment, per-tenant database credentials are <em>leased</em> from OpenBAO's database secrets engine: OpenBAO connects to PostgreSQL as an administrator, creates a short-lived role with a TTL, hands it to the server, and revokes it when the lease expires. That means there are <strong>two</strong> connections to PostgreSQL, and both must survive a failover:</p>
+                    <ul>
+                        <li><strong>Server &rarr; PostgreSQL</strong> (using the leased credential) &mdash; covered by pre-ping, recycle, retry, and the multi-host DSN described above.</li>
+                        <li><strong>OpenBAO &rarr; PostgreSQL</strong> &mdash; the database secrets engine's <em>own</em> admin connection, used to create and revoke roles when issuing leases. This is configured independently of the server.</li>
+                    </ul>
+
+                    <h3>Point OpenBAO's connection at the cluster endpoint</h3>
+                    <p>The database secrets engine is configured with its own <code>connection_url</code>. If that URL names a single node and that node is demoted or killed, OpenBAO can no longer mint credentials &mdash; every new tenant lease fails even though the PostgreSQL <em>cluster</em> is healthy. Point it at the same stable endpoint the server uses (proxy/VIP, or a libpq multi-host list):</p>
+                    <pre><code>bao write database/config/sysmanage \
+  plugin_name=postgresql-database-plugin \
+  allowed_roles="tenant-*" \
+  connection_url="postgresql://{{username}}:{{password}}@10.80.0.20,10.80.0.21:5432/postgres?target_session_attrs=read-write" \
+  username="openbao_admin" password="..."</code></pre>
+
+                    <h3>Roles must exist on the promoted node</h3>
+                    <p>A role OpenBAO creates on the primary is a cluster-global object, so physical streaming replication copies it to the standby &mdash; a credential minted before a failover keeps working on the promoted node. Verify on a live cluster that a lease requested <em>after</em> a failover also succeeds (OpenBAO reconnected to the new primary and created the role there).</p>
+
+                    <h3>Server-side lease-acquisition retry</h3>
+                    <p>Because OpenBAO surfaces a mint failure as an HTTP error (not a driver-level connection error), the server's transient-DB retry does <strong>not</strong> automatically cover the lease-acquisition call. Requesting a tenant credential during the promotion gap can therefore fail even though the cluster recovers moments later. Treat lease acquisition as its own retry boundary: a bounded, transient-only retry around the OpenBAO lease call closes this gap without masking permanent errors (permission denied, engine not mounted).</p>
+                </section>
+
+                <section class="ha-testing">
+                    <h2>Testing a failover locally</h2>
+                    <p>The repository ships a script that stands up a complete local HA test environment with libvirt/KVM: a SysManage server VM, an agent VM, and a two-node PostgreSQL cluster, all on an isolated network your host can browse directly.</p>
+                    <pre><code># Stand up the environment (idempotent)
+scripts/buildPostgresHATestNetwork.sh start
+
+# Show VM + network state
+scripts/buildPostgresHATestNetwork.sh status
+
+# Tear it all down
+scripts/buildPostgresHATestNetwork.sh stop</code></pre>
+                    <p><code>start</code> prints per-node install and configuration instructions (install from the Launchpad PPA, wire the server's DSN at the two database nodes, set up streaming replication) and the URL to open in your host's browser. To exercise the failover path, stop the primary node mid-load and confirm the server recovers once the standby is promoted.</p>
+                </section>
+            </div>
+
+            <div class="docs-footer">
+                <div class="docs-navigation">
+                    <h3>Quick Navigation</h3>
+                    <div class="nav-links">
+                        <a href="backup.html" class="nav-link">← Backup & Recovery</a>
+                        <a href="./" class="nav-link">Administration →</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+    <!-- Footer injected automatically by components.js -->    <script src="/assets/js/components.js"></script>
+    <script src="/assets/js/i18n.js"></script>
+    <script src="/assets/js/navbar.js"></script>
+    <script src="/assets/js/main.js"></script>
+</body>
+</html>

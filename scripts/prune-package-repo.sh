@@ -1,4 +1,8 @@
 #!/usr/bin/env bash
+# Copyright (c) 2024-2026 Bryan Everly
+# Licensed under the GNU Affero General Public License v3.0 (AGPL-3.0).
+# See the LICENSE file in the project root for the full terms.
+
 #
 # Prune the committed multi-format package repository under ./repo to the latest
 # N versions of each package, then regenerate the indexes that have them.  The

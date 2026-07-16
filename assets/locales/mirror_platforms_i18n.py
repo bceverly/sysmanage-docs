@@ -1,3 +1,7 @@
+# Copyright (c) 2024-2026 Bryan Everly
+# Licensed under the GNU Affero General Public License v3.0 (AGPL-3.0).
+# See the LICENSE file in the project root for the full terms.
+
 """Inject Phase 10.4.2 (per-platform tab-strip) i18n keys into all 14 locales.
 
 Pattern matches earlier 10.x i18n scripts: titles + lead-in sentences

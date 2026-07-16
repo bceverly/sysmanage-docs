@@ -375,7 +375,7 @@
 
                     <div class="section-group">
                         <h3 data-i18n="docs.auto.home.config-builder.021">Security Settings</h3>
-                        <div class="help-text" style="margin-bottom: 1rem;">As of v3.0 these are <strong>not written to <code>sysmanage.yaml</code></strong> — the secure-installation step generates the admin account, JWT secret, and password salt into OpenBAO. The fields stay here as a reference for the values the installer creates; the generated YAML below intentionally omits them.</div>
+                        <div class="help-text" style="margin-bottom: 1rem;">These are written into the generated YAML as <strong>bootstrap values</strong> so the server works on a plain install. When you run the full secure-installation (OpenBAO seeding), those values override the YAML at startup. If you leave the JWT secret / password salt at their placeholders, a strong random value is generated for you. <strong>Change the admin password</strong> before using this in production.</div>
                         <div class="form-group">
                             <label for="admin-email" data-i18n="docs.auto.home.config-builder.022">Admin Email</label>
                             <input type="email" id="admin-email" value="admin@sysmanage.org" placeholder="admin@example.com">
@@ -526,7 +526,7 @@
 
                     <div class="section-group">
                         <h3 data-i18n="docs.auto.home.config-builder.055">Email Configuration</h3>
-                        <p style="color: #0c5460;" data-i18n="docs.auto.home.config-builder.emailMoved" data-i18n-html>Email is no longer configured in <code>sysmanage.yaml</code> (v3.0+). Configure the SMTP server, credentials, and templates in the app under <strong>Settings → Configuration</strong> (per tenant); the SMTP password is stored in OpenBAO, not in YAML.</p>
+                        <p style="color: #0c5460;" data-i18n="docs.auto.home.config-builder.emailMoved" data-i18n-html>The generated YAML sets <code>email.enabled: true</code> so the "Email Configuration Required" banner doesn't block user creation on first run. The actual SMTP server, credentials, and templates are configured in the app under <strong>Settings → Configuration</strong> (per tenant); the SMTP password is stored in OpenBAO, not in YAML.</p>
                     </div>
 
                     <div class="section-group">
@@ -825,6 +825,20 @@
             updateYaml();
         }
 
+        // Return the field's value, but force-generate a real random secret when
+        // it still holds the placeholder — so the emitted bootstrap YAML never
+        // ships an empty/predictable jwt_secret or a known-default salt (which
+        // would crash JWT signing or trip the default-salt security warning).
+        function bootstrapSecret(fieldId, bytes) {
+            var el = document.getElementById(fieldId);
+            var v = (el.value || '').trim();
+            if (!v || v.indexOf('GENERATE_') === 0 || v === 'CHANGE_ME_PLEASE!') {
+                v = randomHex(bytes);
+                el.value = v;
+            }
+            return v;
+        }
+
         function copyYamlToClipboard() {
             var text = document.getElementById('yaml-output').textContent;
             navigator.clipboard.writeText(text).then(function() {
@@ -881,14 +895,20 @@
             lines.push('  password: ' + yamlVal(document.getElementById('db-password').value));
             lines.push('');
 
-            // Security — MINIMAL (v3.0, Phase 13.1.H config classification).
-            // Secrets (jwt_secret, password_salt, admin_password) are generated
-            // into OpenBAO by the secure-installation step, NOT written here.
-            // The admin user is seeded into the DB at install.  The password
-            // policy + JWT timeouts are operational config — set them in
-            // Settings → Configuration (per tenant) after first login.  Only the
-            // non-secret jwt_algorithm stays in YAML (needed at token verify).
+            // Security.  The secure-installation flow normally generates these
+            // secrets into OpenBAO and the server loads them at startup — but a
+            // plain install (e.g. from the PPA) without that step needs them in
+            // the bootstrap YAML, or JWT signing fails ("HMAC key must not be
+            // empty") and there is no admin to log in as.  So write them here as
+            // the bootstrap fallback; when OpenBAO IS seeded it overrides these
+            // at startup, so emitting them is safe either way.  jwt_secret and
+            // password_salt are force-generated to a random value (never the
+            // placeholder / a known-default salt).
             lines.push('security:');
+            lines.push('  admin_userid: ' + yamlVal(document.getElementById('admin-email').value));
+            lines.push('  admin_password: ' + yamlVal(document.getElementById('admin-password').value));
+            lines.push('  jwt_secret: ' + yamlVal(bootstrapSecret('jwt-secret', 32)));
+            lines.push('  password_salt: ' + yamlVal(bootstrapSecret('password-salt', 16)));
             lines.push('  jwt_algorithm: HS256');
             lines.push('');
 
@@ -920,10 +940,17 @@
             lines.push('  port: ' + parseInt(document.getElementById('webui-port').value, 10));
             lines.push('');
 
-            // Email configuration moved out of sysmanage.yaml (v3.0): the SMTP
-            // server/credentials are configured in Settings → Configuration
-            // (per tenant), and the SMTP password is stored in OpenBAO — not in
-            // YAML.  See docs/planning/config-classification.md.
+            // Email.  The SMTP server/credentials are configured in Settings →
+            // Configuration (per tenant, v3.0) and the SMTP password lives in
+            // OpenBAO — none of that goes in YAML.  But the ``enabled`` flag is
+            // a bootstrap value the server reads directly: with it false, a
+            // "Email Configuration Required" banner blocks user creation (new
+            // users can't receive password-setup emails and can't log in).  So
+            // emit ``enabled: true`` to clear that banner; wire up real SMTP in
+            // Settings when you actually want mail delivered.
+            lines.push('email:');
+            lines.push('  enabled: true');
+            lines.push('');
 
             // Logging
             lines.push('logging:');

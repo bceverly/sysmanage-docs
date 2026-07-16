@@ -1,4 +1,8 @@
 #!/usr/bin/env python3
+# Copyright (c) 2024-2026 Bryan Everly
+# Licensed under the GNU Affero General Public License v3.0 (AGPL-3.0).
+# See the LICENSE file in the project root for the full terms.
+
 """Self-sign a demo license (any tier) for the throwaway screenshot VM.
 
 We don't (and can't) use the production signing key. Instead we mint an EPHEMERAL

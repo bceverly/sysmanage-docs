@@ -1,4 +1,8 @@
 #!/usr/bin/env python3
+# Copyright (c) 2024-2026 Bryan Everly
+# Licensed under the GNU Affero General Public License v3.0 (AGPL-3.0).
+# See the LICENSE file in the project root for the full terms.
+
 """Seed Professional-tier engine demo data for documentation screenshots.
 
 Runs INSIDE the screenshot VM (it imports the sysmanage ORM models, which are the

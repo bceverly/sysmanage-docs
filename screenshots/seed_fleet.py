@@ -1,4 +1,8 @@
 #!/usr/bin/env python3
+# Copyright (c) 2024-2026 Bryan Everly
+# Licensed under the GNU Affero General Public License v3.0 (AGPL-3.0).
+# See the LICENSE file in the project root for the full terms.
+
 """Seed fleet_engine demo data (groups + a bulk op + a rolling deployment) via the
 Pro+ fleet API so the host-detail Fleet tab isn't empty in the screenshots.
 

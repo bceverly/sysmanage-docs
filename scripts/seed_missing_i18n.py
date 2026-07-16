@@ -1,4 +1,8 @@
 #!/usr/bin/env python3
+# Copyright (c) 2024-2026 Bryan Everly
+# Licensed under the GNU Affero General Public License v3.0 (AGPL-3.0).
+# See the LICENSE file in the project root for the full terms.
+
 """One-off remediation for hand-authored docs that bypassed i18n_autotag.py.
 
 When a page is written with ``data-i18n="..."`` attributes already in place,
