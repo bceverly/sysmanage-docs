@@ -57,6 +57,11 @@
                         </tbody>
                     </table>
                     <p data-i18n="docs.auto.deployment.multi-tenancy.022">Three things make this work: <strong>PostgreSQL</strong> (one or more instances), <strong>OpenBAO</strong> (to broker per-tenant database credentials), and the licensed <strong>multitenancy engine</strong> (the routing logic). Without the engine loaded, a deployment configured for multi-tenancy fails loudly with a licensing error rather than misrouting.</p>
+
+                    <div class="note warn">
+                        <strong data-i18n="docs.auto.deployment.multi-tenancy.063">Run PostgreSQL in high availability &mdash; this is a requirement, not an option.</strong>
+                        <p data-i18n="docs.auto.deployment.multi-tenancy.064" data-i18n-html style="margin:0.5rem 0 0;">A multi-tenant control plane concentrates <em>every</em> tenant's data behind PostgreSQL. A single database node is therefore a single point of failure for your entire customer base at once &mdash; if it dies, the whole platform goes dark and every tenant is down simultaneously. That is the opposite of what a SaaS control plane exists to provide. Run a highly-available PostgreSQL cluster (a primary plus at least one streaming-replication standby behind a stable read-write endpoint), and point <strong>both</strong> the SysManage server <strong>and</strong> OpenBAO's database secrets engine at that endpoint so tenant credential leasing survives a failover too. Follow <a href="../administration/postgresql-ha.html">PostgreSQL High Availability</a> before you go to production. The single-node <code>host: db-registry.internal</code> examples below are shown for clarity &mdash; substitute your cluster's stable endpoint (a libpq multi-host list or a VIP/proxy).</p>
+                    </div>
                 </section>
 
                 <section>
@@ -115,7 +120,7 @@ vault:
 
                     <ol class="mtd-steps">
                         <li data-i18n="docs.auto.deployment.multi-tenancy.034">
-                            <strong>Provision the registry database and a login role.</strong> On your PostgreSQL instance, create the <code>sysmanage</code> role and the registry database it owns (see the <a href="../server/installation.html">Server Installation</a> database step). The server connects as this role; it is <em>not</em> a superuser.
+                            <strong>Provision the registry database and a login role on your HA PostgreSQL cluster.</strong> On the cluster's current primary, create the <code>sysmanage</code> role and the registry database it owns (see the <a href="../server/installation.html">Server Installation</a> database step). The server connects as this role; it is <em>not</em> a superuser. Roles and databases are cluster-global objects, so streaming replication copies them to every standby automatically. If you have not stood the cluster up yet, do that first &mdash; see <a href="../administration/postgresql-ha.html">PostgreSQL High Availability</a>.
                         </li>
                         <li data-i18n="docs.auto.deployment.multi-tenancy.035">
                             <strong>Stand up OpenBAO</strong> and configure its database secrets engine so it can issue short-lived, per-tenant PostgreSQL credentials. OpenBAO is the broker that keeps the server from ever holding a long-lived, shared database password. (Build and start it with the repository's <code>scripts/build-openbao.sh</code> and <code>scripts/start-openbao.sh</code>, or your own managed instance.)
@@ -123,11 +128,14 @@ vault:
                         <li data-i18n="docs.auto.deployment.multi-tenancy.036">
                             <strong>Configure <code>/etc/sysmanage.yaml</code></strong> &mdash; point the registry block at the registry database, enable multi-tenancy, and configure the vault:
                             <pre><code>registry:
-  host: db-registry.internal
+  # Point at the cluster's stable read-write endpoint, never one node.
+  # libpq multi-host list (tries each, keeps the writable primary):
+  host: "db1.internal,db2.internal"
   port: 5432
   name: sysmanage_registry
   user: sysmanage
   password: &lt;from your secret store&gt;
+  options: "target_session_attrs=read-write"
 
 multitenancy:
   enabled: true
@@ -135,7 +143,10 @@ multitenancy:
 
 vault:
   url: https://openbao.internal:8200
-  # token / auth configured per your OpenBAO setup</code></pre>
+  # token / auth configured per your OpenBAO setup
+  # NB: configure the database secrets engine's own connection_url at the
+  # SAME cluster endpoint (see PostgreSQL High Availability) so tenant
+  # credential leasing keeps working across a primary failover.</code></pre>
                             <div class="note warn"><strong>Licensing:</strong> per-tenant routing requires the licensed multitenancy engine (the <code>MULTITENANT_SAAS</code> tier). Without it, the server refuses to run multi-tenant rather than silently misrouting &mdash; this is intentional.</div>
                         </li>
                         <li data-i18n="docs.auto.deployment.multi-tenancy.037">

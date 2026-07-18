@@ -350,6 +350,7 @@
                         <div class="form-group">
                             <label for="db-host" data-i18n="docs.auto.home.config-builder.015">Database Host</label>
                             <input type="text" id="db-host" value="localhost" placeholder="localhost">
+                            <div class="help-text">A single host, or a comma-separated list for PostgreSQL high availability (e.g. <code>10.90.0.20,10.90.0.21</code>). Pair a multi-host list with <code>target_session_attrs=read-write</code> in Database Options below.</div>
                         </div>
                         <div class="form-group">
                             <label for="db-port" data-i18n="docs.auto.home.config-builder.016">Database Port</label>
@@ -371,11 +372,16 @@
                             </div>
                             <div class="help-text">Use a strong, unique password for production</div>
                         </div>
+                        <div class="form-group">
+                            <label for="db-options" data-i18n="docs.auto.home.config-builder.110">Database Options (optional)</label>
+                            <input type="text" id="db-options" value="" placeholder="target_session_attrs=read-write">
+                            <div class="help-text">Extra libpq connection parameters, appended as-is to the database connection string. Leave blank for a single-host database. For PostgreSQL high availability, set a comma-separated <strong data-i18n="docs.auto.home.config-builder.025">Database Host</strong> and use <code>target_session_attrs=read-write</code> here so the driver always connects to the current read-write primary.</div>
+                        </div>
                     </div>
 
                     <div class="section-group">
                         <h3 data-i18n="docs.auto.home.config-builder.021">Security Settings</h3>
-                        <div class="help-text" style="margin-bottom: 1rem;">These are written into the generated YAML as <strong>bootstrap values</strong> so the server works on a plain install. When you run the full secure-installation (OpenBAO seeding), those values override the YAML at startup. If you leave the JWT secret / password salt at their placeholders, a strong random value is generated for you. <strong>Change the admin password</strong> before using this in production.</div>
+                        <div class="help-text" style="margin-bottom: 1rem;">These are written into the generated YAML as <strong data-i18n="docs.auto.home.config-builder.026">bootstrap values</strong> so the server works on a plain install. When you run the full secure-installation (OpenBAO seeding), those values override the YAML at startup. If you leave the JWT secret / password salt at their placeholders, a strong random value is generated for you. <strong data-i18n="docs.auto.home.config-builder.056">Change the admin password</strong> before using this in production.</div>
                         <div class="form-group">
                             <label for="admin-email" data-i18n="docs.auto.home.config-builder.022">Admin Email</label>
                             <input type="email" id="admin-email" value="admin@sysmanage.org" placeholder="admin@example.com">
@@ -408,7 +414,7 @@
 
                     <div class="section-group">
                         <h3 data-i18n="docs.auto.home.config-builder.031">Password Policy</h3>
-                        <div class="help-text" style="margin-bottom: 1rem;">The password policy is <strong>operational config</strong> (v3.0+) — set it per tenant in <strong>Settings → Configuration</strong> after first login. It is not part of the bootstrap YAML and is omitted from the generated file below.</div>
+                        <div class="help-text" style="margin-bottom: 1rem;">The password policy is <strong data-i18n="docs.auto.home.config-builder.057">operational config</strong> (v3.0+) — set it per tenant in <strong data-i18n="docs.auto.home.config-builder.058">Settings → Configuration</strong> after first login. It is not part of the bootstrap YAML and is omitted from the generated file below.</div>
                         <div class="form-group">
                             <label for="min-length" data-i18n="docs.auto.home.config-builder.032">Minimum Password Length</label>
                             <input type="number" id="min-length" value="8" min="4" max="128">
@@ -865,7 +871,7 @@
         function yamlVal(val) {
             if (typeof val === 'boolean') return val ? 'true' : 'false';
             if (typeof val === 'number') return String(val);
-            if (/[:#\[\]{}&*!|>'"%@`]/.test(val) || val === '' || val === 'true' || val === 'false' || val === 'null') {
+            if (/[:#\[\]{}&*!|>'"%@`,]/.test(val) || val === '' || val === 'true' || val === 'false' || val === 'null') {
                 return '"' + val.replace(/\\/g, '\\\\').replace(/"/g, '\\"') + '"';
             }
             return val;
@@ -893,6 +899,13 @@
             lines.push('  name: ' + yamlVal(document.getElementById('db-name').value));
             lines.push('  user: ' + yamlVal(document.getElementById('db-user').value));
             lines.push('  password: ' + yamlVal(document.getElementById('db-password').value));
+            // Optional libpq connection parameters (e.g. target_session_attrs=read-write
+            // for a comma-separated multi-host HA setup). Appended as-is by the server
+            // (db.py _apply_db_options); only emitted when the operator set a value.
+            var dbOptions = document.getElementById('db-options').value.trim();
+            if (dbOptions) {
+                lines.push('  options: ' + yamlVal(dbOptions));
+            }
             lines.push('');
 
             // Security.  The secure-installation flow normally generates these
