@@ -722,7 +722,25 @@ test: check-test-deps test-spelling test-markdown-lint test-vale test-accessibil
 # every repo with a ``lint:`` target).  Keeps the i18n checks — key existence
 # AND offline translation completeness — out of the heavy ``test`` target so an
 # untranslated string is caught before a push, with no translation service.
-lint: i18n-validate translate-check
+# File-length gate: no source file may exceed 1000 lines (scripts/ exempt).
+# Keyed on code extensions only, so docs content (.html/.md/.json/.css) is
+# inherently exempt — only actual code (.py/.ts/.js) is subject to the limit.
+lint-file-length:
+	@echo "Checking file lengths (max 1000 lines; scripts/ + generated i18n exempt)..."
+	@bad=$$(git ls-files '*.py' '*.pyx' '*.pxi' '*.ts' '*.tsx' '*.js' '*.jsx' \
+		| grep -vE '(^|/)scripts/|-i18n\.ts$$' \
+		| while read f; do \
+			n=$$(wc -l < "$$f"); \
+			if [ "$$n" -gt 1000 ]; then printf '  %6d  %s\n' "$$n" "$$f"; fi; \
+		done); \
+	if [ -n "$$bad" ]; then \
+		echo "ERROR: source files exceed the 1000-line limit:"; \
+		echo "$$bad"; \
+		exit 1; \
+	fi; \
+	echo "[OK] all source files within 1000 lines"
+
+lint: lint-file-length i18n-validate translate-check
 	@echo "[OK] docs lint (i18n) passed"
 
 # i18n: collect data-i18n="..." attributes from every .html and verify
