@@ -44,8 +44,10 @@ def main() -> int:
     # this without touching the encrypted key file / passphrase / config).
     priv = ec.generate_private_key(ec.SECP521R1())
     from backend.licensing import key_manager as km_mod  # noqa: PLC0415
+    # protected-access: deliberately inject an ephemeral keypair into the signer
+    # singleton so screenshot licenses are self-signed without the real key file.
     km_mod.key_manager._private_key = priv  # pylint: disable=protected-access
-    km_mod.key_manager._public_key = priv.public_key()
+    km_mod.key_manager._public_key = priv.public_key()  # pylint: disable=protected-access
 
     # Canonical tier -> modules/features (the same source the real signer uses),
     # so a 'professional' license grants exactly the Pro engines and an

@@ -8,7 +8,6 @@ Add Professional+ documentation translations to all locale files.
 """
 
 import json
-import os
 from pathlib import Path
 
 # Base path for locale files

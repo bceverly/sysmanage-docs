@@ -710,7 +710,7 @@ def main():
     print("\\n[SUCCESS] All zypper translations added successfully!")
     print("\\nTranslations added for languages:")
     print("  - en (English)")
-    for lang_code in TRANSLATIONS.keys():
+    for lang_code in TRANSLATIONS:
         print(f"  - {lang_code}")
 
 if __name__ == '__main__':

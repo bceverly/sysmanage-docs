@@ -745,7 +745,7 @@ def main():
     print("\n" + "=" * 80)
     print("COMPREHENSIVE TRANSLATION GENERATION COMPLETED!")
     print("=" * 80)
-    print(f"📊 Summary:")
+    print("📊 Summary:")
     print(f"   Files updated: {updated_count}")
     print(f"   Total translations added: {total_translations}")
     print("\n✨ All language files now have complete coverage of server_docs and other missing keys!")

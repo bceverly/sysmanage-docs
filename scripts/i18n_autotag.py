@@ -298,7 +298,7 @@ def process_file(
         if located is None:
             skipped += 1
             continue
-        tag_start, tag_end, parsed_name, attrs_text = located
+        _tag_start, tag_end, parsed_name, _attrs_text = located
         if parsed_name != tag.name:
             # Source/parse mismatch — bail out on this element.
             skipped += 1

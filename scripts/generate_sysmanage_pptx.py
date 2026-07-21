@@ -5,12 +5,18 @@
 
 """Generate SysManage Overview Presentation (PPTX)."""
 
+# This one-shot presentation generator is deliberately long (one linear pass
+# building every slide); scripts/ are exempt from the 1000-line file-length
+# gate, so suppress the module-length check here rather than in the shared
+# pylint baseline (which is byte-identical across all four SysManage repos).
+# pylint: disable=too-many-lines
+
 import os
 import cairosvg
 from pptx import Presentation
-from pptx.util import Inches, Pt, Emu
+from pptx.util import Inches, Pt
 from pptx.dml.color import RGBColor
-from pptx.enum.text import PP_ALIGN, MSO_ANCHOR
+from pptx.enum.text import PP_ALIGN
 from pptx.enum.shapes import MSO_SHAPE
 
 # ── Paths ──────────────────────────────────────────────────────────────

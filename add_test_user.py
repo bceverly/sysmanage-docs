@@ -8,7 +8,6 @@ Add a test user to the SysManage database for screenshot purposes
 """
 
 import sys
-import os
 import sqlite3
 from datetime import datetime, timezone
 from argon2 import PasswordHasher

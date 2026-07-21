@@ -232,7 +232,7 @@ async function generateDashboardScreenshot() {
                         console.log('⚠️ No host elements found, staying on current page');
                     }
 
-                } catch (navError) {
+                } catch {
                     console.log('⚠️ Still on login page or navigation timeout');
                 }
 

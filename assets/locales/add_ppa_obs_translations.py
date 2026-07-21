@@ -8,7 +8,6 @@ Add Launchpad PPA and OBS translations to all locale files.
 """
 
 import json
-import os
 from pathlib import Path
 
 # Base translations for new keys
@@ -627,7 +626,7 @@ def main():
     script_dir = Path(__file__).parent
 
     # Process all locale files
-    for locale_code in TRANSLATIONS.keys():
+    for locale_code in TRANSLATIONS:
         locale_file = script_dir / f"{locale_code}.json"
         if locale_file.exists():
             add_translations_to_locale(locale_code, locale_file)

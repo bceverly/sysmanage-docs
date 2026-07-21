@@ -6,7 +6,6 @@
 """Add APT installation translations to all locale files."""
 
 import json
-import os
 from pathlib import Path
 
 # Translation mappings for all supported languages
@@ -520,7 +519,7 @@ def main():
 
     print("\n✅ All translations added successfully!")
     print("\nTranslations added for languages:")
-    for lang_code in TRANSLATIONS.keys():
+    for lang_code in TRANSLATIONS:
         print(f"  - {lang_code}")
 
 if __name__ == '__main__':

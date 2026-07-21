@@ -104,8 +104,6 @@
 
     // Build the navigation HTML
     function buildNavigation() {
-        const relativePath = getRelativePath();
-        const currentPath = window.location.pathname;
 
         // Build nav links
         const navLinks = navConfig.links.map(link => {

@@ -175,7 +175,7 @@ def main():
 
     print("\\n[SUCCESS] All translations fixed successfully!")
     print("\\nFixed keys in languages:")
-    for lang_code in TRANSLATIONS.keys():
+    for lang_code in TRANSLATIONS:
         print(f"  - {lang_code}")
 
 if __name__ == '__main__':

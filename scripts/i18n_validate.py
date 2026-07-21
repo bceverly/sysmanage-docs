@@ -30,6 +30,8 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+# pylint: disable=wrong-import-position  # import must follow the sys.path insert
+# above so the sibling helper module resolves when run as a script.
 from i18n_no_translate import is_no_translate  # noqa: E402
 
 REPO_ROOT = Path(__file__).resolve().parent.parent

@@ -145,7 +145,7 @@ def main() -> int:
     for lang in LOCALES:
         data = load(lang)
         n = 0
-        for key, (val, _is_html) in extracted.items():
+        for key, (val, _ishtml) in extracted.items():
             cur = get_dotted(data, key)
             if cur is None or (isinstance(cur, str) and cur.startswith("[MISSING:")):
                 if set_dotted(data, key, val if lang == "en" else f"[TODO] {val}"):

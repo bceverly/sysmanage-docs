@@ -59,7 +59,8 @@ def get_connection_token(fqdn: str) -> str:
         AUTH_URL, data=b"", method="POST",
         headers={"x-agent-hostname": fqdn, "Content-Type": "application/json"},
     )
-    with urllib.request.urlopen(req, timeout=15) as resp:  # nosec B310 - operator-supplied target
+    # B310 rationale: operator-supplied target (trusted screenshot VM), http(s) only.
+    with urllib.request.urlopen(req, timeout=15) as resp:  # nosec B310
         body = json.loads(resp.read().decode() or "{}")
     token = body.get("connection_token")
     if not token:
@@ -126,7 +127,8 @@ async def report_host(host: dict) -> bool:
 
 async def main() -> int:
     here = os.path.dirname(__file__)
-    data = json.load(open(os.path.join(here, "fixtures.json"), encoding="utf-8"))
+    with open(os.path.join(here, "fixtures.json"), encoding="utf-8") as _fx:
+        data = json.load(_fx)
     print(f"Reporting OS/inventory to {WS_BASE} ...")
     ok = 0
     for host in data["hosts"]:

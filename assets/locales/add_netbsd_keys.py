@@ -169,7 +169,7 @@ def main():
 
     print("\n✅ All NetBSD keys added successfully!")
     print("\nTranslations updated for languages:")
-    for lang_code in TRANSLATIONS.keys():
+    for lang_code in TRANSLATIONS:
         print(f"  - {lang_code}")
 
 if __name__ == '__main__':

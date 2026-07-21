@@ -55,7 +55,8 @@ def _req_once(method: str, url: str, token: str | None, body: dict | None) -> tu
     if token:
         req.add_header("Authorization", f"Bearer {token}")
     try:
-        with urllib.request.urlopen(req, timeout=30) as resp:  # nosec B310 - operator-supplied target
+        # B310 rationale: operator-supplied target (trusted screenshot VM), http(s) only.
+        with urllib.request.urlopen(req, timeout=30) as resp:  # nosec B310
             raw = resp.read().decode() or "{}"
             return resp.status, (json.loads(raw) if raw.strip().startswith(("{", "[")) else {"_raw": raw})
     except urllib.error.HTTPError as exc:
@@ -337,7 +338,8 @@ def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--fixtures", default=os.path.join(os.path.dirname(__file__), "fixtures.json"))
     args = ap.parse_args()
-    data = json.load(open(args.fixtures, encoding="utf-8"))
+    with open(args.fixtures, encoding="utf-8") as _fx:
+        data = json.load(_fx)
 
     print(f"Seeding {TARGET} as {ADMIN} ...")
     token = login()

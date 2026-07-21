@@ -34,6 +34,8 @@ from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+# pylint: disable=wrong-import-position  # import must follow the sys.path insert
+# above so the sibling helper module resolves when run as a script.
 from i18n_no_translate import is_no_translate  # noqa: E402
 
 # ===== per-project configuration (the ONLY part that differs per repo) =====
@@ -75,14 +77,17 @@ def _post(url: str, payload: dict, timeout: float = 1800.0) -> dict:
         url, data=data, headers={"Content-Type": "application/json"}, method="POST"
     )
     # nosemgrep: dynamic-urllib-use-detected -- service URL is operator config (trusted LAN), not request input
-    with urllib.request.urlopen(req, timeout=timeout) as resp:  # noqa: S310 (trusted LAN)
+    # B310 rationale: the service URL is operator-supplied config (trusted LAN
+    # GPU box), always http(s); no file:/custom scheme, no request-derived input.
+    with urllib.request.urlopen(req, timeout=timeout) as resp:  # noqa: S310 (trusted LAN)  # nosec B310
         return json.loads(resp.read().decode("utf-8"))
 
 
 def _service_ok(service: str) -> bool:
     try:
         # nosemgrep: dynamic-urllib-use-detected -- service URL is operator config (trusted LAN), not request input
-        with urllib.request.urlopen(  # noqa: S310
+        # B310 rationale: same trusted operator-config service URL as above.
+        with urllib.request.urlopen(  # noqa: S310  # nosec B310
             f"{service.rstrip('/')}/health", timeout=10
         ) as resp:
             return resp.status == 200
@@ -314,23 +319,23 @@ def enforce_no_gaps(base: Path, template: str, langs: List[str], fmt: str) -> No
         print(f"[OK] {PROJECT}: all {len(langs)} locale(s) fully translated — 0 gaps.", flush=True)
         return
     total = sum(len(ks) for ks in offenders.values())
-    bar = "=" * 72
+    sep_bar = "=" * 72
     lines = [
-        "", bar,
+        "", sep_bar,
         f"  ✗✗✗  TRANSLATION INCOMPLETE — {PROJECT}: {total} untranslated string(s) "
         f"in {len(offenders)} locale(s)  ✗✗✗",
-        bar,
+        sep_bar,
     ]
     for lang in sorted(offenders):
         ks = offenders[lang]
         sample = ", ".join(ks[:4]) + (" …" if len(ks) > 4 else "")
         lines.append(f"    {lang}: {len(ks):>5} gap(s)   {sample}")
     lines += [
-        bar,
+        sep_bar,
         "  These locales are NOT fully translated.  Fill them with:",
         "      make translate SERVICE=http://<gpu-box>:8765",
         "  or translate the remaining keys by hand.  Locales must be 100%.",
-        bar, "",
+        sep_bar, "",
     ]
     print("\n".join(lines), file=sys.stderr, flush=True)
     sys.exit(1)

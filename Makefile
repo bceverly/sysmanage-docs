@@ -69,10 +69,10 @@ else
     RESET :=
 endif
 
-.PHONY: help install-dev install-vm-deps install-browsers screenshot clean check-deps platform-info \
+.PHONY: help install-dev install-vm-deps install-browsers screenshot clean check-deps platform-info ensure-lint-tools \
        test test-spelling test-markdown-lint test-vale test-accessibility test-links \
        check-test-deps website-package i18n-validate i18n-seed i18n-extract \
-       translate translate-dry translate-check lint
+       translate translate-dry translate-check lint lint-file-length lint-python lint-security lint-js
 
 # Default target
 help:
@@ -112,7 +112,10 @@ help:
 	@echo "  translate              - Fill [TODO] placeholders via the GPU service (SERVICE=http://host:8765)"
 	@echo "  translate-dry          - Show what translate would do (no service call, no writes)"
 	@echo "  translate-check        - Offline gate: fail if any locale string is still untranslated"
-	@echo "  lint                   - Run the docs i18n gates (i18n-validate + translate-check)"
+	@echo "  lint                   - Run all gates (pylint + bandit + eslint + file-length + i18n)"
+	@echo "  lint-python            - Run pylint over the first-party Python only"
+	@echo "  lint-security          - Run bandit (Medium+High) over the first-party Python only"
+	@echo "  lint-js                - Run eslint over the first-party JS/MJS only"
 	@echo ""
 	@echo "$(GREEN)Testing targets (mirrors CI/CD):$(RESET)"
 	@echo "  test                   - Run all tests (spelling, markdown lint, style, a11y, links, i18n)"
@@ -219,6 +222,17 @@ install-dev: check-deps
 		fi; \
 	}
 	@echo "$(GREEN)✓ Vale step complete$(RESET)"
+	@echo ""
+	@# --- Python lint tooling (pylint + bandit) for ``make lint`` ---
+	@echo "$(YELLOW)Installing Python lint tools (pylint, bandit) into $(LINT_VENV)...$(RESET)"
+	@$(MAKE) --no-print-directory ensure-lint-tools \
+		|| echo "$(YELLOW)⊘ lint venv bootstrap failed — see requirements-dev.txt for 'make lint'$(RESET)"
+	@echo "$(GREEN)✓ Python lint tools step complete$(RESET)"
+	@echo ""
+	@# --- JS lint tooling (eslint flat config) for ``make lint`` ---
+	@echo "$(YELLOW)Installing eslint (devDependency) for lint-js...$(RESET)"
+	@$(NPM) install --save-dev eslint@^9 @eslint/js@^9
+	@echo "$(GREEN)✓ eslint installed$(RESET)"
 	@echo ""
 	@# --- Screenshot VM prerequisites (Vagrant + libvirt) ---
 	@$(MAKE) install-vm-deps
@@ -740,8 +754,62 @@ lint-file-length:
 	fi; \
 	echo "[OK] all source files within 1000 lines"
 
-lint: lint-file-length i18n-validate translate-check
-	@echo "[OK] docs lint (i18n) passed"
+# First-party Python subject to pylint/bandit: the i18n helper scripts, the
+# screenshot seeders/keygen, the locale mirror scripts, and the standalone
+# test-user helper.  The screenshots/.venv (third-party) is never linted; the
+# .js seeders (real-screenshot.js etc.) are covered by eslint below, not here.
+LINT_PY := add_test_user.py scripts/ screenshots/seed.py screenshots/seed_pro.py \
+	screenshots/seed_ent.py screenshots/seed_fleet.py screenshots/set_roles.py \
+	screenshots/pro_keygen.py screenshots/fixture_agent.py screenshots/gen_seed_sql.py \
+	assets/locales/
+
+# The lint toolchain (pylint + bandit, pinned in requirements-dev.txt) lives in
+# a dedicated .venv rather than the system Python: Debian/PEP-668 Pythons refuse
+# ``pip install`` outright, so the sibling repos all run their linters from a
+# venv and docs now does too.  bandit already excludes */.venv/* from scanning.
+LINT_VENV := .venv
+LINT_PY_BIN := $(LINT_VENV)/bin
+
+# Ensure the lint venv exists and has pylint+bandit before the gating targets
+# run, so ``make lint`` just works on a fresh checkout without a separate
+# ``make install-dev`` — matching the sibling repos' on-demand bootstrap.
+ensure-lint-tools:
+	@$(LINT_PY_BIN)/python -c "import pylint, bandit" 2>/dev/null || { \
+		echo "Bootstrapping lint venv (pylint, bandit) from requirements-dev.txt..."; \
+		test -x $(LINT_PY_BIN)/python || $(PYTHON) -m venv $(LINT_VENV); \
+		$(LINT_PY_BIN)/python -m pip install --quiet --upgrade pip >/dev/null 2>&1 || true; \
+		$(LINT_PY_BIN)/python -m pip install --quiet -r requirements-dev.txt \
+			|| { echo "$(RED)lint venv bootstrap failed — see requirements-dev.txt$(RESET)"; exit 1; }; \
+	}
+
+# Python lint — pylint against the first-party utility code, using .pylintrc
+# (baseline consistent with the sibling sysmanage repos: cosmetic/complexity
+# rules off, real-bug rules like used-before-assignment kept on).  Gates.
+lint-python: ensure-lint-tools
+	@echo "=== pylint (first-party Python) ==="
+	@$(LINT_PY_BIN)/python -m pylint --rcfile=.pylintrc $(LINT_PY)
+	@echo "[OK] pylint passed"
+
+# Python security — bandit over the same first-party Python, gating on
+# Medium+High (Low findings, e.g. the trusted-LAN urllib seeder calls, are
+# informational).  Skips B101/B404/B608 to match the sibling sysmanage-agent
+# baseline (assert / import-subprocess / generated-SQL-from-trusted-fixtures
+# false positives); the .venv is excluded.  Gates.
+lint-security: ensure-lint-tools
+	@echo "=== bandit (first-party Python, Medium+High) ==="
+	@$(LINT_PY_BIN)/python -m bandit -r $(LINT_PY) -x '*/.venv/*,*/node_modules/*' \
+		--skip B101,B404,B608 --severity-level medium -f screen
+	@echo "[OK] bandit passed"
+
+# JS lint — eslint (flat config, recommended rules + max-lines: 1000) over the
+# first-party browser bundle and the Node screenshot scripts.  Gates.
+lint-js:
+	@echo "=== eslint (first-party JS/MJS) ==="
+	@$(NPX) eslint assets/js/*.js real-screenshot.js screenshot-generator.js screenshots/capture.mjs
+	@echo "[OK] eslint passed"
+
+lint: lint-file-length lint-python lint-security lint-js i18n-validate translate-check
+	@echo "[OK] docs lint (python + security + js + i18n) passed"
 
 # i18n: collect data-i18n="..." attributes from every .html and verify
 # every key exists in every locale .json within budget.  Run
