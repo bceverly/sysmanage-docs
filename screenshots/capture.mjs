@@ -96,9 +96,34 @@ async function selectTab(page, name) {
   await page.getByRole('tab', { name, exact: false }).first().click({ timeout: 15000 });
 }
 
+// A freshly-rendered SPA page can fire a late client-side redirect that aborts
+// the NEXT shot's navigation ("net::ERR_ABORTED" / "interrupted by another
+// navigation to <prev route>"). That's a timing flake, not a broken page — the
+// stray redirect has settled by the next attempt. Retry the goto a couple of
+// times on exactly those transient errors so one abort doesn't fail the whole
+// (expensive, multi-tier, VM-rebuilding) screenshot run.
+async function gotoWithRetry(page, url, opts, attempts = 3) {
+  for (let i = 1; i <= attempts; i++) {
+    try {
+      await page.goto(url, opts);
+      return;
+    } catch (err) {
+      const msg = String((err && err.message) || err);
+      const transient =
+        msg.includes('ERR_ABORTED') ||
+        msg.includes('interrupted by another navigation');
+      if (!transient || i === attempts) throw err;
+      await page.waitForTimeout(1500 * i); // let the stray redirect settle
+    }
+  }
+}
+
 async function captureRoute(page, shot, vp) {
   await page.setViewportSize(shot.viewport || vp);
-  await page.goto(`${TARGET}${shot.route}`, { waitUntil: 'domcontentloaded', timeout: 60000 });
+  await gotoWithRetry(page, `${TARGET}${shot.route}`, {
+    waitUntil: 'domcontentloaded',
+    timeout: 60000,
+  });
   await page.waitForTimeout(shotlist.settleMs || 2500);
   // Settings groups content into a left-rail (formerly MUI tabs); switch first.
   if (shot.tab) {
@@ -121,7 +146,7 @@ async function captureDetail(page, shot, vp) {
   const id = hostIds[shot.rowText];
   if (!id) throw new Error(`no host id for ${shot.rowText} (run seed first so host_ids.json exists)`);
   const url = `${TARGET}${shot.base || '/hosts'}/${id}${shot.tabHash ? '#' + shot.tabHash : ''}`;
-  await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 60000 });
+  await gotoWithRetry(page, url, { waitUntil: 'domcontentloaded', timeout: 60000 });
   await page.waitForTimeout((shotlist.settleMs || 2500) + 1500);
   // Plugin-injected host-detail tabs (Health, Vulnerabilities, ...) that aren't
   // addressable by URL hash are clicked by visible name — now left-rail buttons
@@ -147,7 +172,10 @@ async function captureDetail(page, shot, vp) {
 // Everything else mirrors captureRoute (viewport, goto, settle).
 async function captureClick(page, shot, vp) {
   await page.setViewportSize(shot.viewport || vp);
-  await page.goto(`${TARGET}${shot.route}`, { waitUntil: 'domcontentloaded', timeout: 60000 });
+  await gotoWithRetry(page, `${TARGET}${shot.route}`, {
+    waitUntil: 'domcontentloaded',
+    timeout: 60000,
+  });
   await page.waitForTimeout(shotlist.settleMs || 2500);
   let detail = shot.route;
   if (shot.clickButton) {
@@ -172,7 +200,10 @@ async function captureClick(page, shot, vp) {
 
 async function captureReport(page, shot, vp) {
   await page.setViewportSize(shot.viewport || vp);
-  await page.goto(`${TARGET}/reports`, { waitUntil: 'domcontentloaded', timeout: 60000 });
+  await gotoWithRetry(page, `${TARGET}/reports`, {
+    waitUntil: 'domcontentloaded',
+    timeout: 60000,
+  });
   await page.waitForTimeout(2000);
   // Reports are grouped into tabs (Hosts, Users, ...). Cards on a non-default tab
   // aren't in the DOM until that tab is selected, so switch first if specified.

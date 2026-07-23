@@ -56,12 +56,25 @@ from backend.persistence.models import (
     HostFirewallRole,
     IdpRoleMapping,
     MirrorRepository,
+    MirrorSettings,
     MirrorSnapshot,
     RegistrationKey,
     SavedScript,
     ScriptExecutionLog,
     UpgradeProfile,
     User,
+)
+# Content-lifecycle models (Phase 16) — re-exported via models/__init__.
+from backend.persistence.models import (
+    ContentPromotionAudit,
+    ContentViewExportRun,
+    EnvironmentContentBinding,
+    EnvironmentSiteSubscription,
+    SharedContentView,
+    SharedContentViewFilter,
+    SharedContentViewRepo,
+    SharedContentViewVersion,
+    SharedLifecycleEnvironment,
 )
 # Air-gap models aren't re-exported from the package __init__ — import directly.
 from backend.persistence.models.airgap import (
@@ -212,6 +225,16 @@ AIRGAP_REPOS = [  # (distro, version, repo_url, package_count, age_hours)
     ("freebsd", "14", "http://airgap.local/freebsd", 33500, 30),
 ]
 
+# ---- content lifecycle (Phase 16) ------------------------------------------
+# The ordered promotion path; the first environment is the Library (publish
+# target / path root).
+CLM_ENVIRONMENTS = [  # (name, description)
+    ("Library", "Publish target and root of the promotion path."),
+    ("Dev", "Development integration environment."),
+    ("Test", "Pre-production validation environment."),
+    ("Prod", "Production environment."),
+]
+
 
 def main():
     session = sessionmaker(bind=db.get_engine())()
@@ -248,6 +271,12 @@ def main():
             GrafanaIntegrationSettings, GraylogIntegrationSettings,
             AirgapMediaManifest, AirgapCollectionTarget, AirgapCollectionRun,
             AirgapLocalRepository,
+            # Content lifecycle (Phase 16) — children before parents.
+            ContentPromotionAudit, EnvironmentContentBinding,
+            EnvironmentSiteSubscription, ContentViewExportRun,
+            SharedContentViewVersion, SharedContentViewFilter,
+            SharedContentViewRepo, SharedContentView, SharedLifecycleEnvironment,
+            MirrorSettings,
         ):
             session.query(model).delete()
         # Virtualization: only clear the VM-type child hosts (leave seed_pro's lxd/wsl).
@@ -434,6 +463,7 @@ def main():
         session.add(ExternalIdpSettings(local_account_fallback=True, max_failed_attempts=5))
 
         # --- federation sites + host directory ---
+        fed_site_ids = {}
         for name, loc, url, status, conn, hc, lat, lon, cc in FED_SITES:
             s = FederationSite(
                 name=name, location_label=loc, url=url, status=status,
@@ -447,6 +477,7 @@ def main():
             )
             session.add(s)
             session.flush()
+            fed_site_ids[name] = s.id
             # a few directory hosts so the coordinator host-count looks real
             for n in range(min(hc, 3)):
                 session.add(FederationHostDirectory(
@@ -499,6 +530,124 @@ def main():
                 last_ingest_at=NOW - timedelta(hours=age),
             ))
 
+        # --- content lifecycle (Phase 16): environments, content views,
+        #     versions, promotion state, subscription, air-gap export ---
+        session.add(MirrorSettings(mirror_root_path="/var/mirror"))
+        clm_envs = {}
+        for pos, (ename, edesc) in enumerate(CLM_ENVIRONMENTS):
+            e = SharedLifecycleEnvironment(
+                name=ename, position=pos, is_library=(pos == 0),
+                description=edesc, created_at=NOW, updated_at=NOW,
+            )
+            session.add(e)
+            session.flush()
+            clm_envs[ename] = e
+
+        def _cv(name, mirror_idx, composite=False, desc=""):
+            cv = SharedContentView(
+                name=name, description=desc, composite=composite,
+                keep_versions=5, created_by=admin_id, created_at=NOW, updated_at=NOW,
+            )
+            session.add(cv)
+            session.flush()
+            if not composite and mirror_idx is not None and mirror_ids:
+                session.add(SharedContentViewRepo(
+                    content_view_id=cv.id,
+                    mirror_id=mirror_ids[mirror_idx % len(mirror_ids)], position=0,
+                ))
+            return cv
+
+        def _ver(cv, version, added=None, removed=None):
+            manifest = {"command_count": 12, "outcome_status": "succeeded"}
+            if added is not None:
+                manifest["diff_from_prev"] = {
+                    "added": added, "removed": removed or [],
+                    "added_count": len(added), "removed_count": len(removed or []),
+                    "at": (NOW - timedelta(hours=2)).isoformat(),
+                }
+            cvv = SharedContentViewVersion(
+                content_view_id=cv.id, version=version, status="published",
+                store_path=f"/var/mirror/.content-views/{cv.id}/v{version}",
+                manifest=manifest, published_by=admin_id,
+                published_at=NOW - timedelta(days=max(1, 6 - version)),
+                created_at=NOW - timedelta(days=max(1, 6 - version)),
+            )
+            session.add(cvv)
+            session.flush()
+            return cvv
+
+        # Production CV (apt) with filters + 3 published versions; v3 carries a diff.
+        prod = _cv("Ubuntu 22.04 Production", 0,
+                   desc="Filtered, promoted Ubuntu 22.04 content.")
+        session.add(SharedContentViewFilter(
+            content_view_id=prod.id, filter_type="security_only",
+            rule_json={}, created_at=NOW,
+        ))
+        session.add(SharedContentViewFilter(
+            content_view_id=prod.id, filter_type="deny",
+            rule_json={"packages": ["telnet", "rsh-client"]}, created_at=NOW,
+        ))
+        v1 = _ver(prod, 1)
+        v2 = _ver(prod, 2)
+        v3 = _ver(prod, 3,
+                  added=["curl-8.5.0", "nginx-1.24.0", "openssl-3.0.13"],
+                  removed=["curl-8.2.1", "openssl-3.0.11"])
+
+        # Component CVs + a composite that composes them.
+        base = _cv("Ubuntu 22.04 Base", 0, desc="Base OS packages.")
+        _ver(base, 1)
+        secure = _cv("Ubuntu Security", 1, desc="Security updates only.")
+        _ver(secure, 1)
+        composite = _cv("Ubuntu 22.04 Full", None, composite=True,
+                        desc="Composite of Base + Security.")
+        session.add(SharedContentViewRepo(
+            content_view_id=composite.id, component_content_view_id=base.id, position=0,
+        ))
+        session.add(SharedContentViewRepo(
+            content_view_id=composite.id, component_content_view_id=secure.id, position=1,
+        ))
+        _ver(composite, 1)
+
+        # Promotion state: Library=v3, Dev=v3, Test=v2 (rolled back), Prod=v2.
+        for ename, bound, prev in (
+            ("Library", v3, v2), ("Dev", v3, v2), ("Test", v2, v1), ("Prod", v2, v1),
+        ):
+            session.add(EnvironmentContentBinding(
+                environment_id=clm_envs[ename].id, content_view_id=prod.id,
+                content_view_version_id=bound.id, previous_version_id=prev.id,
+                promoted_at=NOW - timedelta(days=1), promoted_by=admin_id, created_at=NOW,
+            ))
+        for action, frm, to, cvv in (
+            ("publish", None, "Library", v3),
+            ("promote", "Library", "Dev", v3),
+            ("promote", "Dev", "Test", v2),
+            ("rollback", "Test", "Test", v2),
+        ):
+            session.add(ContentPromotionAudit(
+                content_view_id=prod.id,
+                from_environment_id=clm_envs[frm].id if frm else None,
+                to_environment_id=clm_envs[to].id if to else None,
+                content_view_version_id=cvv.id, action=action, actor=admin_id,
+                at=NOW - timedelta(hours=5),
+            ))
+
+        # Federated site subscription (S7b): us-east-1 subscribes to Prod.
+        if fed_site_ids.get("us-east-1"):
+            session.add(EnvironmentSiteSubscription(
+                environment_id=clm_envs["Prod"].id,
+                site_id=fed_site_ids["us-east-1"], created_at=NOW,
+            ))
+
+        # Air-gap media export (S7a): one COMPLETE export of Production v3.
+        session.add(ContentViewExportRun(
+            content_view_id=prod.id, content_view_version_id=v3.id, version=3,
+            iso_label="clm-ubuntu-22-04-production-v3", status="COMPLETE",
+            iso_path="/var/lib/sysmanage/airgap-iso/cvexport-demo.iso",
+            iso_sha256="c" * 64, media_size_bytes=4_700_000_000,
+            created_at=NOW - timedelta(hours=2), started_at=NOW - timedelta(hours=2),
+            completed_at=NOW - timedelta(hours=1), created_by=admin_id,
+        ))
+
         session.commit()
 
         print(f"  hosts: {len(hosts)}")
@@ -513,6 +662,8 @@ def main():
         print(f"  virtualization: {len(VMS)} VM child hosts (kvm/bhyve)")
         print(f"  federation: {len(FED_SITES)} sites (+ directory hosts)")
         print(f"  air-gap: 1 collection run, {len(AIRGAP_TARGETS)} targets, {len(AIRGAP_REPOS)} repos")
+        print(f"  content lifecycle: {len(CLM_ENVIRONMENTS)} envs, 4 content views "
+              "(1 composite), 6 versions, promotion + 1 subscription + 1 export")
     except Exception:
         session.rollback()
         raise

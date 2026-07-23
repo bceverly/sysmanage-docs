@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en" data-i18n-title="docs.proplus.clm.title">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title data-i18n="docs.proplus.clm.title" data-i18n-html>Content Lifecycle Management - Professional+ - SysManage</title>
+    <meta name="description" content="Enterprise Satellite-style content views, lifecycle environments, gated promotion with rollback, filtered + versioned content, composite views, air-gap export, federated site sync, and version diffs." data-i18n-attr="content" data-i18n="docs.proplus.clm.meta_description" data-i18n-html>
+    <link rel="stylesheet" href="/assets/css/style.css">
+    <link rel="icon" type="image/svg+xml" href="/assets/images/favicon.svg">
+</head>
+<body data-auto-header="documentation" data-auto-footer>
+
+    <main class="docs-main">
+        <div class="container">
+            <div class="docs-breadcrumb">
+                <a href="../" data-i18n="docs.breadcrumb.documentation" data-i18n-html>Documentation</a> &gt; <a href="./" data-i18n="docs.breadcrumb.professional_plus" data-i18n-html>Professional+</a> &gt; <span data-i18n="docs.proplus.clm.breadcrumb" data-i18n-html>Content Lifecycle Management</span>
+            </div>
+
+            <div class="docs-header">
+                <div class="pro-plus-badge">&#11088; PRO+</div>
+                <h1 data-i18n="docs.proplus.clm.header.title" data-i18n-html>Content Lifecycle Management</h1>
+                <p data-i18n="docs.proplus.clm.header.subtitle" data-i18n-html>Satellite-style content views, lifecycle environments, and gated promotion. Turn your repository mirrors into versioned, filtered, promotable content that flows Library&nbsp;&rarr;&nbsp;Dev&nbsp;&rarr;&nbsp;Test&nbsp;&rarr;&nbsp;Prod with instant rollback, air-gap export, federated site sync, and version diffs.</p>
+                <figure class="docs-screenshot">
+                    <img src="/assets/images/content-lifecycle.png" alt="SysManage Content Lifecycle Management">
+                    <figcaption data-i18n="docs.auto.professional-plus.content-lifecycle.001">The Content Lifecycle page shows the ordered environment path and the content views &mdash; each with its filters, published versions, and (for composite views) its components.</figcaption>
+                </figure>
+            </div>
+
+            <div class="docs-content">
+                <section>
+                    <h2 data-i18n="docs.proplus.clm.overview.title" data-i18n-html>Overview</h2>
+                    <p data-i18n="docs.proplus.clm.overview.intro" data-i18n-html>The <code>content_lifecycle_engine</code> Enterprise module builds on the <a href="repository-mirroring.html">repository mirroring</a> snapshot substrate. Flat mirrors become <strong>content views</strong>: named, filtered, versioned selections of repositories. Publishing a content view materializes an <strong>immutable version</strong> on the mirror host, which you then <strong>promote</strong> along an ordered environment path. As with the other engines, the OSS server owns the API, the schema, and the license gate (every endpoint returns HTTP&nbsp;402 without the engine loaded); the engine emits the <code>apply_deployment_plan</code> messages the mirror-host agent runs. No agent code changes are needed.</p>
+                    <p data-i18n="docs.proplus.clm.overview.split" data-i18n-html>Content-view definitions (environments, views, filters, versions) are platform truth in the shared partition; the per-tenant promotion state (which version is bound into which environment, the audit trail, and site subscriptions) lives in the tenant partition, cross-referencing the shared IDs.</p>
+                </section>
+
+                <section>
+                    <h2 data-i18n="docs.proplus.clm.envs.title" data-i18n-html>Lifecycle Environments</h2>
+                    <p data-i18n="docs.proplus.clm.envs.intro" data-i18n-html>An environment is one stage on an ordered promotion path &mdash; typically <strong>Library&nbsp;&rarr;&nbsp;Dev&nbsp;&rarr;&nbsp;Test&nbsp;&rarr;&nbsp;Prod</strong>. The very first environment you create becomes the <strong>Library</strong>: the path root and publish target. It always sits at position&nbsp;0 and cannot be deleted. Other environments reorder freely among the remaining positions. Promotion only ever moves content <em>forward</em> along the path.</p>
+                </section>
+
+                <section>
+                    <h2 data-i18n="docs.proplus.clm.views.title" data-i18n-html>Content Views &amp; Publishing</h2>
+                    <p data-i18n="docs.proplus.clm.views.intro" data-i18n-html>A content view is a named selection of repository mirrors (all on one mirror host in this release). <strong>Publishing</strong> is an asynchronous agent job: for each mirror, the engine takes the latest snapshot, applies the view's filters, regenerates native repository metadata, and freezes the result read-only as version <code>v{n}</code>. A published version is immutable &mdash; re-publishing produces <code>v{n+1}</code>, never a mutation. Each view keeps a bounded number of published versions (<code>keep_versions</code>, default&nbsp;5); pin-aware garbage collection reclaims older, unbound versions while never touching a version an environment is bound to.</p>
+                </section>
+
+                <section>
+                    <h2 data-i18n="docs.proplus.clm.filters.title" data-i18n-html>Filters</h2>
+                    <p data-i18n="docs.proplus.clm.filters.intro" data-i18n-html>Filters narrow the content captured into a published version. They are applied to the materialized tree before metadata regeneration:</p>
+                    <ul>
+                        <li data-i18n="docs.proplus.clm.filters.allow" data-i18n-html><strong>Allow list</strong> &mdash; keep only the named packages.</li>
+                        <li data-i18n="docs.proplus.clm.filters.deny" data-i18n-html><strong>Deny list</strong> &mdash; remove the named packages.</li>
+                        <li data-i18n="docs.proplus.clm.filters.by_date" data-i18n-html><strong>By date</strong> &mdash; freeze content at a point in time (drop packages newer than a date).</li>
+                        <li data-i18n="docs.proplus.clm.filters.advisory_cutoff" data-i18n-html><strong>Advisory cutoff</strong> &mdash; include only advisories up to a date (resolved against the advisory catalog).</li>
+                        <li data-i18n="docs.proplus.clm.filters.security_only" data-i18n-html><strong>Security only</strong> &mdash; keep only security-fix packages.</li>
+                    </ul>
+                    <p data-i18n="docs.proplus.clm.filters.advisory_note" data-i18n-html>The advisory-coupled filters (advisory cutoff, security only) require the Advisory engine, which resolves them to concrete allow/deny package sets at publish time.</p>
+                </section>
+
+                <section>
+                    <h2 data-i18n="docs.proplus.clm.promotion.title" data-i18n-html>Promotion &amp; Rollback</h2>
+                    <p data-i18n="docs.proplus.clm.promotion.intro" data-i18n-html>The <strong>promotion lane</strong> on each content view shows which version currently occupies each environment. Promoting moves the version bound in one environment into a later one &mdash; a pure binding rebind, since a single mirror host serves every environment (no bytes move). Each rebind is captured in an append-only audit trail (publish&nbsp;/&nbsp;promote&nbsp;/&nbsp;rollback).</p>
+                    <p data-i18n="docs.proplus.clm.promotion.rollback" data-i18n-html><strong>Rollback</strong> is instant and reversible: an environment snaps back to the version it held before its current one. The prior version's bytes are retained (pinned) precisely so rollback never needs to rebuild &mdash; and the version you rolled off of becomes the new rollback target, so you can roll forward again.</p>
+                </section>
+
+                <section>
+                    <h2 data-i18n="docs.proplus.clm.serving.title" data-i18n-html>Serving &amp; Client Repoint</h2>
+                    <p data-i18n="docs.proplus.clm.serving.intro" data-i18n-html>Enabling serving provisions nginx on the mirror host so each environment is reachable at a stable URL &mdash; <code>http://&lt;mirror-host&gt;/content-views/{view}/{environment}</code>. That URL is a symlink to the environment's currently-bound version, which promotion atomically re-points, so consuming hosts never change their configuration when content is promoted. Repointing a host rewrites its APT/DNF/zypper/pkg client configuration to install from an environment URL instead of the raw upstream, reusing the same override mechanism as default package mirrors.</p>
+                </section>
+
+                <section>
+                    <h2 data-i18n="docs.proplus.clm.composite.title" data-i18n-html>Composite Content Views</h2>
+                    <p data-i18n="docs.proplus.clm.composite.intro" data-i18n-html>A composite content view composes several other content views into one published version &mdash; for example a base-OS view plus a security view plus an application view. Publishing a composite combines each component's newest published version into a single immutable store, and records exactly which component versions it used in the version's manifest for reproducibility. Composites promote, serve, and roll back exactly like a regular view.</p>
+                </section>
+
+                <section>
+                    <h2 data-i18n="docs.proplus.clm.airgap.title" data-i18n-html>Air-Gap Media Export</h2>
+                    <p data-i18n="docs.proplus.clm.airgap.intro" data-i18n-html>Any published version can be exported to signed, immutable air-gap media. The export reuses the air-gap collector to burn the frozen version store into an ISO with an embedded, signed manifest &mdash; which the air-gap <a href="air-gap-deployment.html">repository server</a> ingests and serves unchanged. Export runs are tracked with status (<code>QUEUED&nbsp;&rarr;&nbsp;BUILDING_ISO&nbsp;&rarr;&nbsp;COMPLETE</code>) just like a collection run. This needs the air-gap collector engine in addition to the content-lifecycle engine.</p>
+                </section>
+
+                <section>
+                    <h2 data-i18n="docs.proplus.clm.federation.title" data-i18n-html>Federated Site Sync</h2>
+                    <p data-i18n="docs.proplus.clm.federation.intro" data-i18n-html>On a <a href="federation.html">federation</a> coordinator, each lifecycle environment can be subscribed to by one or more sites. When a version is promoted into a subscribed environment, the coordinator announces it to each site over the existing (bearer-authenticated) federation channel; the site's mirror host then pulls the version's bytes over HTTP from the coordinator's serve URL and serves them locally at the same environment URL. This is the one place federation carries content bytes rather than metadata only &mdash; so a promotion at the coordinator propagates the actual content to every subscribed site.</p>
+                </section>
+
+                <section>
+                    <h2 data-i18n="docs.proplus.clm.diff.title" data-i18n-html>Version Diff</h2>
+                    <p data-i18n="docs.proplus.clm.diff.intro" data-i18n-html>From a content view's version history you can diff a version against the previous published one. The mirror host lists the package files of both version stores and the server compares them, storing the added / removed package sets on the newer version. It is read-only &mdash; the immutable stores are never touched &mdash; and answers &ldquo;what actually changed between v{n-1} and v{n}&rdquo; at a glance.</p>
+                </section>
+
+                <section>
+                    <h2 data-i18n="docs.proplus.clm.api.title" data-i18n-html>API Reference</h2>
+                    <p data-i18n="docs.proplus.clm.api.intro" data-i18n-html>Every route below returns HTTP&nbsp;402 without <code>content_lifecycle_engine</code> loaded, under <code>/api/v1/content-lifecycle</code>.</p>
+                    <ul>
+                        <li><code>GET/POST /environments</code>, <code>PUT/DELETE /environments/{id}</code>, <code>POST /environments/reorder</code> &mdash; <span data-i18n="docs.proplus.clm.api.envs" data-i18n-html>manage the lifecycle path</span></li>
+                        <li><code>GET/POST /content-views</code>, <code>GET/PUT/DELETE /content-views/{id}</code> &mdash; <span data-i18n="docs.proplus.clm.api.views" data-i18n-html>manage content views (mirrors, filters, composites)</span></li>
+                        <li><code>POST /content-views/{id}/publish</code>, <code>GET /content-views/{id}/versions</code> &mdash; <span data-i18n="docs.proplus.clm.api.publish" data-i18n-html>publish an immutable version; list version history</span></li>
+                        <li><code>GET /content-views/{id}/bindings</code>, <code>POST .../promote</code>, <code>POST .../rollback</code>, <code>GET .../audit</code> &mdash; <span data-i18n="docs.proplus.clm.api.promote" data-i18n-html>promotion lane, promote, rollback, audit trail</span></li>
+                        <li><code>POST /content-views/{id}/serve</code>, <code>POST .../repoint</code> &mdash; <span data-i18n="docs.proplus.clm.api.serve" data-i18n-html>provision nginx serving; repoint a host's package manager at an environment</span></li>
+                        <li><code>POST /content-views/{id}/versions/{v}/export</code>, <code>GET /content-views/{id}/exports</code> &mdash; <span data-i18n="docs.proplus.clm.api.export" data-i18n-html>build signed air-gap media; list export runs</span></li>
+                        <li><code>POST/GET /content-views/{id}/versions/{v}/diff</code> &mdash; <span data-i18n="docs.proplus.clm.api.diff" data-i18n-html>compute and read a version diff</span></li>
+                        <li><code>GET/POST/DELETE /environments/{id}/subscriptions</code> &mdash; <span data-i18n="docs.proplus.clm.api.subs" data-i18n-html>manage which federation sites receive an environment's content (coordinator)</span></li>
+                    </ul>
+                </section>
+            </div>
+        </div>
+    </main>
+    <script src="/assets/js/components.js"></script>
+</body>
+</html>

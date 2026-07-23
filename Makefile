@@ -69,7 +69,7 @@ else
     RESET :=
 endif
 
-.PHONY: help install-dev install-vm-deps install-browsers screenshot clean check-deps platform-info ensure-lint-tools \
+.PHONY: help install-dev install-hooks install-vm-deps install-browsers screenshot clean check-deps platform-info ensure-lint-tools \
        test test-spelling test-markdown-lint test-vale test-accessibility test-links \
        check-test-deps website-package i18n-validate i18n-seed i18n-extract \
        translate translate-dry translate-check lint lint-file-length lint-python lint-security lint-js
@@ -237,12 +237,30 @@ install-dev: check-deps
 	@# --- Screenshot VM prerequisites (Vagrant + libvirt) ---
 	@$(MAKE) install-vm-deps
 	@echo ""
+	@# --- Git hooks (pre-push runs `make lint`, matching the other repos) ---
+	@$(MAKE) --no-print-directory install-hooks || true
+	@echo ""
 	@echo "$(GREEN)✓ All development dependencies installed$(RESET)"
 	@echo ""
 	@echo "$(BLUE)Next steps:$(RESET)"
 	@echo "1. Run 'make install-browsers' to install Playwright browser binaries (for screenshots)"
 	@echo "2. Run 'make test' to run the full local test suite"
 	@echo "3. If you were just added to the 'libvirt' group, log out/in (or 'newgrp libvirt') before 'make screenshots'"
+
+# Activate the in-repo .githooks/ directory by pointing core.hooksPath at it,
+# matching sysmanage / sysmanage-agent / sysmanage-professional-plus.  The
+# pre-push hook runs `make lint` (file-length + pylint + bandit + eslint +
+# i18n) before every push.  Idempotent; no-ops outside a git working tree.
+install-hooks:
+	@if git rev-parse --git-dir >/dev/null 2>&1; then \
+		git config core.hooksPath .githooks; \
+		chmod +x .githooks/* 2>/dev/null || true; \
+		echo "$(GREEN)[OK] Git hooks installed (core.hooksPath = .githooks)$(RESET)"; \
+		echo "Active hooks:"; \
+		ls -1 .githooks/ 2>/dev/null | grep -v '^README' | sed 's/^/  /' || true; \
+	else \
+		echo "$(YELLOW)[INFO] Not in a git working tree — skipping hook install.$(RESET)"; \
+	fi
 
 # Screenshot-pipeline VM prerequisites: Vagrant + libvirt/KVM + the vagrant-libvirt
 # plugin. Idempotent (skips what's already present). apt/Linux only — on other
