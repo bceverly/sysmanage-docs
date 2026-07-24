@@ -189,6 +189,33 @@ def run_json(base: Path, template: str, langs: List[str], service: Optional[str]
             continue
         doc = json.loads(path.read_text(encoding="utf-8"))
         lang_flat = _flatten(doc)
+        # Self-heal the no-translate [TODO] trap.  A leaf flagged
+        # intentionally-English (``is_no_translate`` — a proper noun, a brand/
+        # tier label, an arrow-suffixed CTA, a per-language cognate, etc.) is
+        # deliberately EXCLUDED from translation below, so if it was seeded with
+        # a ``[TODO] <English>`` placeholder that placeholder would linger as a
+        # gap the ``--fail-on-gaps`` gate can never close.  Resolve such leaves
+        # to their intended final value (plain English) up front.  Only when a
+        # service is set (i.e. an actual ``make translate`` write pass, never a
+        # read-only ``--dry-run``/check).
+        if service is not None:
+            healed = 0
+            for key, en_src in en_flat.items():
+                if is_no_translate(key, en_src, lang) and _is_json_gap(
+                    lang_flat.get(key)
+                ):
+                    _set_dotted(doc, key, en_src)
+                    healed += 1
+            if healed:
+                lang_flat = _flatten(doc)
+                path.write_text(
+                    json.dumps(doc, ensure_ascii=False, indent=2) + "\n",
+                    encoding="utf-8",
+                )
+                print(
+                    f"  {lang}: resolved {healed} intentionally-English leaf/leaves",
+                    flush=True,
+                )
         # Every per-pass number below is counted in UNIQUE SOURCE STRINGS — the
         # same thing the service is sent (it dedupes identical English like
         # "OpenBSD" that appears under many keys) and what the "…N/N" progress
