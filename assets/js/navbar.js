@@ -131,7 +131,8 @@
                         <img src="${navConfig.brand.logoSrc}" alt="${navConfig.brand.logoAlt}" class="logo">
                     </a>
                 </div>
-                <div class="nav-menu">
+                <button class="nav-toggle" type="button" aria-label="Toggle navigation menu" aria-controls="primary-nav" aria-expanded="false">&#9776;</button>
+                <div class="nav-menu" id="primary-nav">
                     ${navLinks}
                     <div class="language-switcher">
                         <button class="language-button">

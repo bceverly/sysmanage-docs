@@ -41,7 +41,8 @@ class Components {
                         <img src="${root}assets/images/sysmanage-logo.svg" alt="SysManage" class="logo">
                     </a>
                 </div>
-                <div class="nav-menu">
+                <button class="nav-toggle" type="button" aria-label="Toggle navigation menu" aria-controls="primary-nav" aria-expanded="false">&#9776;</button>
+                <div class="nav-menu" id="primary-nav">
                     <a href="${root}solutions/" class="nav-link${activeLink === 'solutions' ? ' active' : ''}" data-i18n="nav.solutions" data-i18n-html>Solutions</a>
                     <a href="${root}docs/" class="nav-link${activeLink === 'documentation' ? ' active' : ''}" data-i18n="nav.documentation" data-i18n-html>Documentation</a>
                     <a href="${root}roadmap/" class="nav-link${activeLink === 'roadmap' ? ' active' : ''}" data-i18n="nav.roadmap" data-i18n-html>Roadmap</a>

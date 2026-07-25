@@ -36,15 +36,37 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 
-    // Mobile menu toggle (if needed for future mobile navigation)
-    const mobileMenuToggle = document.querySelector('.mobile-menu-toggle');
-    const mobileMenu = document.querySelector('.mobile-menu');
-
-    if (mobileMenuToggle && mobileMenu) {
-        mobileMenuToggle.addEventListener('click', function() {
-            mobileMenu.classList.toggle('open');
-        });
+    // Hamburger nav toggle. Delegated on document because the header is
+    // injected by navbar.js/components.js AFTER this handler is registered
+    // (and the language switcher is appended later still by i18n.js).
+    function closeNav() {
+        const menu = document.querySelector('.site-header .nav-menu.open');
+        if (menu) menu.classList.remove('open');
+        document.querySelectorAll('.nav-toggle').forEach((t) =>
+            t.setAttribute('aria-expanded', 'false')
+        );
     }
+
+    document.addEventListener('click', function(e) {
+        const toggle = e.target.closest('.nav-toggle');
+        if (toggle) {
+            const menu = document.querySelector('.site-header .nav-menu');
+            if (menu) {
+                const open = menu.classList.toggle('open');
+                toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+            }
+            return;
+        }
+        // Close after navigating via a link in the open dropdown.
+        if (e.target.closest('.site-header .nav-menu .nav-link')) {
+            closeNav();
+        }
+    });
+
+    // Reset to the desktop bar when the viewport grows past the breakpoint.
+    window.addEventListener('resize', function() {
+        if (window.innerWidth > 1024) closeNav();
+    });
 
     // Add animation to feature cards on scroll
     const observerOptions = {
