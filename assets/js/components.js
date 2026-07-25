@@ -42,6 +42,7 @@ class Components {
                     </a>
                 </div>
                 <div class="nav-menu">
+                    <a href="${root}solutions/" class="nav-link${activeLink === 'solutions' ? ' active' : ''}" data-i18n="nav.solutions" data-i18n-html>Solutions</a>
                     <a href="${root}docs/" class="nav-link${activeLink === 'documentation' ? ' active' : ''}" data-i18n="nav.documentation" data-i18n-html>Documentation</a>
                     <a href="${root}roadmap/" class="nav-link${activeLink === 'roadmap' ? ' active' : ''}" data-i18n="nav.roadmap" data-i18n-html>Roadmap</a>
                     <a href="${root}config-builder.html" class="nav-link${activeLink === 'config-builder' ? ' active' : ''}" data-i18n="nav.config_builder" data-i18n-html>Configuration Builder</a>
@@ -74,6 +75,15 @@ class Components {
                         <li><a href="${root}docs/agent/" data-i18n="footer.agent_docs" data-i18n-html>Agent Docs</a></li>
                         <li><a href="${root}docs/api/" data-i18n="footer.api_reference" data-i18n-html>API Reference</a></li>
                         <li><a href="${root}docs/security/" data-i18n="footer.security" data-i18n-html>Security</a></li>
+                    </ul>
+                </div>
+                <div class="footer-section">
+                    <h3 data-i18n="footer.company" data-i18n-html>Company</h3>
+                    <ul>
+                        <li><a href="${root}solutions/" data-i18n="footer.solutions" data-i18n-html>Solutions</a></li>
+                        <li><a href="${root}about/" data-i18n="footer.about" data-i18n-html>About &amp; Founder</a></li>
+                        <li><a href="${root}air-gapped/" data-i18n="footer.airgap" data-i18n-html>Air-Gapped</a></li>
+                        <li><a href="${root}contact/" data-i18n="footer.contact" data-i18n-html>Contact</a></li>
                     </ul>
                 </div>
                 <div class="footer-section">

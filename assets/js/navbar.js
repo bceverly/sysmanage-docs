@@ -17,6 +17,12 @@
         },
         links: [
             {
+                href: '/solutions/',
+                text: 'Solutions',
+                i18n: 'nav.solutions',
+                activePattern: /\/(solutions|air-gapped|cross-platform-management|bsd-management)\//
+            },
+            {
                 href: '/docs/',
                 text: 'Documentation',
                 i18n: 'nav.documentation',
