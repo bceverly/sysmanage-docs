@@ -1,6 +1,19 @@
 # Cross-platform Makefile for SysManage Documentation
 # Supports Windows, macOS, Linux, OpenBSD, and FreeBSD
 
+# Pin the shell FIRST, before any $(shell ...) below runs.  This repo's recipes
+# are POSIX sh (unlike the sibling sysmanage repos, whose Windows recipes are cmd
+# batch), so Windows needs Git Bash — named explicitly so the shell is
+# deterministic and independent of PATH.  Override if Git is elsewhere:
+#   make SHELL=C:/path/to/bash.exe <target>
+# Kept above the UNAME_S/UNAME_M probes on purpose: those are immediate ($(shell)
+# inside a `:=`), so with the pin further down they ran under make's default
+# Windows shell and each emitted "The system cannot find the path specified."
+ifeq ($(OS),Windows_NT)
+    SHELL := C:/Program Files/Git/bin/bash.exe
+    .SHELLFLAGS := -c
+endif
+
 # Detect operating system
 UNAME_S := $(shell uname -s 2>/dev/null || echo "Windows")
 UNAME_M := $(shell uname -m 2>/dev/null || echo "unknown")
@@ -8,12 +21,8 @@ UNAME_M := $(shell uname -m 2>/dev/null || echo "unknown")
 # Set platform-specific variables
 ifeq ($(OS),Windows_NT)
     PLATFORM := windows
-    # This repo's recipes are POSIX sh (unlike the sibling sysmanage repos, whose
-    # Windows recipes are cmd batch). Force Git Bash explicitly so the shell is
-    # deterministic and independent of PATH. Override if Git is elsewhere:
-    #   make SHELL=C:/path/to/bash.exe <target>
-    SHELL := C:/Program Files/Git/bin/bash.exe
-    .SHELLFLAGS := -c
+    # SHELL/.SHELLFLAGS are pinned at the top of this file, ahead of the
+    # UNAME_S/UNAME_M probes that would otherwise run under the wrong shell.
     NPM := npm.cmd
     NPX := npx.cmd
     NODE := node.exe
@@ -54,7 +63,9 @@ endif
 # exists (Linux/macOS/*BSD) this resolves to it — so nothing else changes.
 PYTHON ?= $(shell for p in python3 python3.14 python3.13 python3.12 python3.11; do command -v $$p >/dev/null 2>&1 && { echo $$p; exit 0; }; done; echo python3)
 
-# Colors for output (if supported)
+# Colors for output (if supported).  These are consumed by `echo` in the recipes,
+# which relies on /bin/sh expanding the \033 escapes — true for the dash/ash sh
+# on Linux and the BSDs.
 ifdef TERM
     RED := \033[31m
     GREEN := \033[32m
@@ -62,6 +73,19 @@ ifdef TERM
     BLUE := \033[34m
     RESET := \033[0m
 else
+    RED :=
+    GREEN :=
+    YELLOW :=
+    BLUE :=
+    RESET :=
+endif
+
+# Windows runs the recipes under Git Bash, whose builtin `echo` does NOT expand
+# backslash escapes without -e — the codes printed as literal "\033[32m" text.
+# Blank them rather than leak escape sequences; plain output beats garbled colour.
+# (Generating real escape bytes via $(shell printf) is not an option: make runs
+# $(shell) commands through CreateProcess and there is no printf.exe.)
+ifeq ($(OS),Windows_NT)
     RED :=
     GREEN :=
     YELLOW :=
@@ -786,7 +810,15 @@ LINT_PY := add_test_user.py scripts/ screenshots/seed.py screenshots/seed_pro.py
 # ``pip install`` outright, so the sibling repos all run their linters from a
 # venv and docs now does too.  bandit already excludes */.venv/* from scanning.
 LINT_VENV := .venv
-LINT_PY_BIN := $(LINT_VENV)/bin
+# Windows venvs put the interpreter in Scripts\, not bin/ — with the POSIX path
+# hardcoded, every $(LINT_PY_BIN)/python here missed a perfectly good venv, so
+# the bootstrap re-ran `venv` over it (noisily failing to overwrite python.exe)
+# and then died on "No such file or directory".
+ifeq ($(OS),Windows_NT)
+    LINT_PY_BIN := $(LINT_VENV)/Scripts
+else
+    LINT_PY_BIN := $(LINT_VENV)/bin
+endif
 
 # Ensure the lint venv exists and has pylint+bandit before the gating targets
 # run, so ``make lint`` just works on a fresh checkout without a separate
