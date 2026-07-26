@@ -51,17 +51,21 @@ echo "============================================================"
 echo " Pre-push: running 'make lint' in ${REPO_NAME}..."
 echo "============================================================"
 
-# Git for Windows runs this hook inside MSYS bash, which puts sh.exe on PATH.
-# GNU make then auto-detects that Unix shell and switches to Unix-shell mode,
-# choking on this project's cmd.exe Windows recipes.  Forcing SHELL=cmd.exe on
-# the make command line overrides that PATH-based detection, so the Windows
-# branch runs exactly as it does from PowerShell.  Other platforms run make
-# directly.
+# Let the Makefile choose the shell — do NOT pass SHELL=... on the command line.
+# A command-line assignment overrides the makefile's own `SHELL :=`, and this
+# repo deliberately pins Git Bash (its recipes are POSIX sh, unlike the sibling
+# sysmanage repos' cmd batch).  Forcing SHELL=cmd.exe here ran those POSIX
+# recipes through `cmd.exe -c`, which cmd doesn't understand: it opened an
+# INTERACTIVE cmd that inherited this hook's stdin — the ref list git pipes to
+# pre-push — and tried to execute it ("'refs' is not recognized ...").
+#
+# stdin is redirected from /dev/null for the same reason: `make lint` never needs
+# the ref list, and any child that reads stdin would swallow the push data or
+# block waiting on a console.
 run_make_lint() {
     case "$(uname -s 2>/dev/null)" in
-        MINGW*|MSYS*|CYGWIN*) make SHELL=cmd.exe lint ;;
-        OpenBSD|FreeBSD|NetBSD) gmake lint ;;
-        *)                    make lint ;;
+        OpenBSD|FreeBSD|NetBSD) gmake lint </dev/null ;;
+        *)                      make  lint </dev/null ;;
     esac
 }
 
