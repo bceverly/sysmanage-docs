@@ -851,11 +851,36 @@ lint-security: ensure-lint-tools
 		--skip B101,B404,B608 --severity-level medium -f screen
 	@echo "[OK] bandit passed"
 
+# Ensure the local eslint devDependency exists before lint-js, mirroring what
+# ensure-lint-tools does for pylint/bandit — lint-js used to have no such
+# prerequisite, and the consequences on a box that never ran `install-dev` were
+# ugly: `npx eslint` silently DOWNLOADS the newest eslint (10.x), which cannot
+# read this repo's eslint@9 flat config, so the real error surfaced as the
+# baffling "Cannot find module '@eslint/js'".  Worse, npx prompts "Ok to
+# proceed? (y)" for that download, which would hang the pre-push hook or CI.
+# Plain `npm install` (not `--save-dev <pkg>@range`) so package.json/lock are
+# honoured rather than rewritten.
+# --ignore-scripts keeps this safe on the BSDs: a plain `npm install` would also
+# fire playwright's postinstall browser download, which has no BSD support and
+# would fail the lint gate for a reason that has nothing to do with linting.
+# eslint itself has no install scripts.
+ensure-js-lint-tools:
+	@test -x node_modules/.bin/eslint || { \
+		echo "$(YELLOW)eslint devDependency missing — installing...$(RESET)"; \
+		$(NPM) install --ignore-scripts || true; \
+	}
+	@test -x node_modules/.bin/eslint || { \
+		echo "$(RED)eslint is not installed — run 'make install-dev' (gmake on the BSDs).$(RESET)"; \
+		exit 1; \
+	}
+
 # JS lint — eslint (flat config, recommended rules + max-lines: 1000) over the
 # first-party browser bundle and the Node screenshot scripts.  Gates.
-lint-js:
+# Invokes the pinned local binary directly, never npx: npx would fall back to
+# downloading a different major version instead of failing loudly.
+lint-js: ensure-js-lint-tools
 	@echo "=== eslint (first-party JS/MJS) ==="
-	@$(NPX) eslint assets/js/*.js real-screenshot.js screenshot-generator.js screenshots/capture.mjs
+	@./node_modules/.bin/eslint assets/js/*.js real-screenshot.js screenshot-generator.js screenshots/capture.mjs
 	@echo "[OK] eslint passed"
 
 lint: lint-file-length lint-python lint-security lint-js i18n-validate translate-check
