@@ -49,6 +49,7 @@ const shotlist = JSON.parse(readFileSync(join(__dir, 'shotlist.json'), 'utf8'));
 // this run is printed in green with a `[new]` tag so new images (e.g. ones added
 // for new docs) are easy to spot among the re-generated ones.
 const GREEN = '\x1b[32m';
+const YELLOW = '\x1b[33m';
 const RESET = '\x1b[0m';
 let newCount = 0;
 function logShot(shot, isNew, detail) {
@@ -129,6 +130,30 @@ async function captureRoute(page, shot, vp) {
   if (shot.tab) {
     await selectTab(page, shot.tab);
     await page.waitForTimeout(1200);
+  }
+  // Optional: expand an inline panel by clicking a toggle button by its
+  // accessible name / title (e.g. a mirror row's "Tracked snaps" / "Tracked
+  // images" IconButton) before shooting. Uses the first match (first mirror
+  // row). Those toggles are useModuleLicensed-gated, so they only render when
+  // snap_proxy_engine / oci_proxy_engine is loaded + licensed on this VM; if
+  // the toggle isn't present we SKIP the shot (rather than save a misleading
+  // un-expanded image or fail the whole run) with a clear, actionable note.
+  if (shot.expandButton) {
+    const btn = page
+      .getByRole('button', { name: shot.expandButton, exact: false })
+      .or(page.getByTitle(shot.expandButton, { exact: false }))
+      .first();
+    try {
+      await btn.click({ timeout: 8000 });
+      await page.waitForTimeout(1200);
+    } catch {
+      console.log(
+        `  ${YELLOW}⊘ ${shot.out}: "${shot.expandButton}" toggle not found` +
+        ` — the mirror snap/image panels need snap_proxy_engine /` +
+        ` oci_proxy_engine loaded + licensed on this VM. Skipping.${RESET}`
+      );
+      return 'skipped';
+    }
   }
   const out = join(OUT_DIR, shot.out);
   const isNew = !existsSync(out);
@@ -243,7 +268,7 @@ async function main() {
 
   console.log(`Capturing from ${TARGET} as ${USER} -> ${OUT_DIR}`);
 
-  let ok = 0, fail = 0;
+  let ok = 0, fail = 0, skipped = 0;
   // Pre-auth shots (e.g. the login page) — captured before we authenticate, on
   // the fresh unauthenticated page (after login the app redirects away from /login).
   for (const shot of shotlist.shots.filter((s) => s.type === 'login' && inTier(s))) {
@@ -269,11 +294,13 @@ async function main() {
     if (!shot.out || shot.type === 'skip' || shot.type === 'login') continue;
     if (!inTier(shot)) continue;
     try {
-      if (shot.type === 'report') await captureReport(page, shot, vp);
-      else if (shot.type === 'detail') await captureDetail(page, shot, vp);
-      else if (shot.type === 'click') await captureClick(page, shot, vp);
-      else await captureRoute(page, shot, vp);
-      ok++;
+      let r;
+      if (shot.type === 'report') r = await captureReport(page, shot, vp);
+      else if (shot.type === 'detail') r = await captureDetail(page, shot, vp);
+      else if (shot.type === 'click') r = await captureClick(page, shot, vp);
+      else r = await captureRoute(page, shot, vp);
+      if (r === 'skipped') skipped++;
+      else ok++;
     } catch (err) {
       console.error(`  ✗ ${shot.out}: ${err.message}`);
       fail++;
@@ -281,7 +308,10 @@ async function main() {
   }
   await browser.close();
   const total = shotlist.shots.filter(s => s.out && s.type !== 'skip' && inTier(s)).length;
-  console.log(`\nCaptured ${ok}/${total} ${TIER} screenshots (${fail} failed).`);
+  console.log(
+    `\nCaptured ${ok}/${total} ${TIER} screenshots (${fail} failed` +
+    `${skipped ? `, ${skipped} skipped` : ''}).`
+  );
   if (newCount) {
     console.log(`${GREEN}${newCount} new screenshot(s) generated this run (marked [new] above).${RESET}`);
   }

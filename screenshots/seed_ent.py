@@ -55,8 +55,10 @@ from backend.persistence.models import (
     HostChild,
     HostFirewallRole,
     IdpRoleMapping,
+    MirrorImageContent,
     MirrorRepository,
     MirrorSettings,
+    MirrorSnapContent,
     MirrorSnapshot,
     RegistrationKey,
     SavedScript,
@@ -174,6 +176,36 @@ MIRRORS = [  # (name, pkg_mgr, upstream, suite, components, arch, size, files)
      None, "amd64", 31_000_000_000, 33500),
 ]
 
+# ---- snap store proxy content (Phase 17.1, snap_proxy_engine) --------------
+# Tracked snaps on the first mirror: (snap_name, channel, confinement, status).
+SNAP_CONTENT = [
+    ("core22", "latest/stable", "strict", "CAPTURED"),
+    ("nextcloud", "latest/stable", "strict", "CAPTURED"),
+    ("certbot", "latest/stable", "classic", "CAPTURED"),
+    ("grafana", "latest/stable", "strict", "TRACKED"),
+]
+
+# ---- container image content (Phase 17.2, oci_proxy_engine) ----------------
+# Tracked images on the first mirror: (registry, repository, tag, digest, status).
+IMAGE_CONTENT = [
+    ("docker.io", "library/nginx", "1.27", "sha256:" + "1" * 64, "CAPTURED"),
+    ("docker.io", "library/redis", "7", "sha256:" + "2" * 64, "CAPTURED"),
+    ("quay.io", "prometheus/prometheus", "v2.54", "sha256:" + "3" * 64, "CAPTURED"),
+    ("ghcr.io", "grafana/grafana", "11.2.0", None, "TRACKED"),
+]
+
+# ---- image-mode host (Phase 17.3, image_mode_engine) -----------------------
+# One demo host boots from an atomic bootc image so its Image Mode tab renders.
+IMAGE_MODE_FQDN = "rhel-db-01.corp.northstar.io"
+IMAGE_MODE = {
+    "image_backend": "bootc",
+    "booted_image_ref": "quay.io/centos-bootc/centos-bootc:stream10",
+    "booted_image_digest": "sha256:" + "b" * 64,
+    "staged_image_ref": "quay.io/centos-bootc/centos-bootc:stream10",
+    "staged_image_digest": "sha256:" + "a" * 64,
+    "rollback_available": True,
+}
+
 # ---- access groups ---------------------------------------------------------
 ACCESS_GROUPS = [  # (name, parent_name_or_None, description)
     ("Datacenter East", None, "Primary east-coast datacenter."),
@@ -264,6 +296,8 @@ def main():
             HostFirewallRole, FirewallRoleOpenPort, FirewallRole, FirewallStatus,
             AntivirusStatus, CommercialAntivirusStatus,
             ScriptExecutionLog, SavedScript, UpgradeProfile,
+            # Mirror content children (Phase 17.1/17.2) before mirror_repository.
+            MirrorSnapContent, MirrorImageContent,
             MirrorSnapshot, MirrorRepository,
             RegistrationKey, AccessGroup,
             IdpRoleMapping, ExternalIdpProvider, ExternalIdpSettings,
@@ -399,6 +433,33 @@ def main():
                 taken_at=NOW - timedelta(hours=5), size_bytes=size, file_count=files,
                 retention_until=NOW + timedelta(days=30),
             ))
+
+        # Tracked snap + container-image content on the first mirror (Phase
+        # 17.1 / 17.2) so its expand panels have content to screenshot.
+        first_mirror_id = mirror_ids[0]
+        for snap_name, channel, confinement, status in SNAP_CONTENT:
+            session.add(MirrorSnapContent(
+                repository_id=first_mirror_id, snap_name=snap_name, channel=channel,
+                confinement=confinement, capture_status=status,
+                last_capture_at=(NOW - timedelta(hours=4)) if status == "CAPTURED" else None,
+                created_at=NOW, updated_at=NOW,
+            ))
+        for registry, repository, tag, digest, status in IMAGE_CONTENT:
+            session.add(MirrorImageContent(
+                repository_id=first_mirror_id, registry=registry,
+                repository=repository, tag=tag, digest=digest, capture_status=status,
+                last_capture_at=(NOW - timedelta(hours=4)) if status == "CAPTURED" else None,
+                created_at=NOW, updated_at=NOW,
+            ))
+
+        # Flag one demo host as an image-mode (bootc) host so its Image Mode
+        # tab renders + its package-update actions are gated off (Phase 17.3).
+        img_host = hosts.get(IMAGE_MODE_FQDN)
+        if img_host is not None:
+            img_host.is_image_mode = True
+            for attr, value in IMAGE_MODE.items():
+                setattr(img_host, attr, value)
+            img_host.image_mode_updated_at = NOW - timedelta(hours=2)
 
         # --- access groups + registration keys ---
         groups = {}
