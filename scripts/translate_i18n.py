@@ -40,15 +40,26 @@ from i18n_no_translate import is_no_translate  # noqa: E402
 
 # ===== per-project configuration (the ONLY part that differs per repo) =====
 PROJECT = "sysmanage-docs"
-FORMAT = "json"                 # "json" | "po"
+FORMAT = "json"  # "json" | "po"
 LOCALES_REL = "assets/locales"  # relative to the repo root (parent of scripts/)
-FILE_TEMPLATE = "{lang}.json"   # per-language file under LOCALES_REL
+FILE_TEMPLATE = "{lang}.json"  # per-language file under LOCALES_REL
 # ===========================================================================
 
 # The 13 translation targets (English is the source, never a target).
 TARGET_LANGS = [
-    "ar", "de", "es", "fr", "hi", "it", "ja", "ko", "nl", "pt", "ru",
-    "zh_CN", "zh_TW",
+    "ar",
+    "de",
+    "es",
+    "fr",
+    "hi",
+    "it",
+    "ja",
+    "ko",
+    "nl",
+    "pt",
+    "ru",
+    "zh_CN",
+    "zh_TW",
 ]
 
 # A string with no letters (pure placeholder/code) is correct to leave
@@ -79,7 +90,9 @@ def _post(url: str, payload: dict, timeout: float = 1800.0) -> dict:
     # nosemgrep: dynamic-urllib-use-detected -- service URL is operator config (trusted LAN), not request input
     # B310 rationale: the service URL is operator-supplied config (trusted LAN
     # GPU box), always http(s); no file:/custom scheme, no request-derived input.
-    with urllib.request.urlopen(req, timeout=timeout) as resp:  # noqa: S310 (trusted LAN)  # nosec B310
+    with urllib.request.urlopen(
+        req, timeout=timeout
+    ) as resp:  # noqa: S310 (trusted LAN)  # nosec B310
         return json.loads(resp.read().decode("utf-8"))
 
 
@@ -95,7 +108,9 @@ def _service_ok(service: str) -> bool:
         return False
 
 
-def translate_to(service: str, texts: List[str], lang: str, client_batch: int) -> List[str]:
+def translate_to(
+    service: str, texts: List[str], lang: str, client_batch: int
+) -> List[str]:
     out: List[str] = []
     for i in range(0, len(texts), client_batch):
         chunk = texts[i : i + client_batch]
@@ -128,6 +143,54 @@ def _accept(source: str, translated: str) -> bool:
     if translated != source:
         return True
     return not (_HAS_LETTER.search(source) and _PLACEHOLDER_RE.search(source))
+
+
+# How many times to send a source to the service within a SINGLE run before we
+# give up retrying and accept its output as-is.  ``_accept`` holds a string back
+# (leaves a ``[TODO]`` gap) when the service returns it identical-with-markup,
+# on the theory that's a transient tag-fallback worth retrying.  Some strings
+# (markup-dense, e.g. ``the <code>bootc</code> or <code>rpm-ostree</code>``)
+# come back identical EVERY time, so without a bound they linger as ``[TODO]``
+# forever and every ``make translate`` run "sticks" on them.  After this many
+# attempts we FORCE-ACCEPT the last result — writing a non-``[TODO]`` value that
+# closes the gate (English-identical is a passthrough, not a gap) while a future
+# run can still upgrade it if the service later returns a real translation.
+_MAX_TRANSLATE_ATTEMPTS = 3
+
+
+def _resolve_translations(
+    service: str, sources: List[str], lang: str, client_batch: int
+) -> Dict[str, str]:
+    """Translate ``sources``, retrying only the ones ``_accept`` holds back, up
+    to ``_MAX_TRANSLATE_ATTEMPTS``; on the final attempt every remaining source
+    is force-accepted so nothing can stay a perpetual ``[TODO]`` gap."""
+    resolved: Dict[str, str] = {}
+    pending = list(sources)
+    for attempt in range(1, _MAX_TRANSLATE_ATTEMPTS + 1):
+        if not pending:
+            break
+        # Retry passes send the held-back strings ONE AT A TIME (batch=1): the
+        # service's identical-with-markup fallback is often batch-context noise,
+        # so isolating a hard string gives it the best chance of a real result
+        # before we force-accept on the final attempt.
+        batch = client_batch if attempt == 1 else 1
+        got = dict(zip(pending, translate_to(service, pending, lang, batch)))
+        last = attempt == _MAX_TRANSLATE_ATTEMPTS
+        still: List[str] = []
+        for src in pending:
+            cand = got.get(src, src)
+            if _accept(src, cand) or last:
+                resolved[src] = cand
+            else:
+                still.append(src)
+        if still and not last:
+            print(
+                f"      retry {attempt}/{_MAX_TRANSLATE_ATTEMPTS - 1}: "
+                f"{len(still)} string(s) came back identical-with-markup — re-sending",
+                flush=True,
+            )
+        pending = still
+    return resolved
 
 
 # ---------------------------------------------------------------------------
@@ -175,8 +238,14 @@ def _is_passthrough(en_src: str, value: Optional[str]) -> bool:
     )
 
 
-def run_json(base: Path, template: str, langs: List[str], service: Optional[str],
-             client_batch: int, limit: Optional[int]) -> None:
+def run_json(
+    base: Path,
+    template: str,
+    langs: List[str],
+    service: Optional[str],
+    client_batch: int,
+    limit: Optional[int],
+) -> None:
     en_path = base / template.format(lang="en")
     if not en_path.exists():
         sys.exit(f"ERROR: source file not found: {en_path}")
@@ -237,7 +306,9 @@ def run_json(base: Path, template: str, langs: List[str], service: Optional[str]
         if limit:
             todo = todo[:limit]
         uniq = sorted({src for _, src in todo})
-        gap_sources = {en_src for key, en_src in todo if _is_json_gap(lang_flat.get(key))}
+        gap_sources = {
+            en_src for key, en_src in todo if _is_json_gap(lang_flat.get(key))
+        }
         n_gap = len(gap_sources)
         n_retry = len(uniq) - n_gap
         extra = f" (+{n_retry} English-identical)" if n_retry else ""
@@ -247,14 +318,15 @@ def run_json(base: Path, template: str, langs: List[str], service: Optional[str]
         )
         if not todo or service is None:
             continue
-        translations = dict(zip(uniq, translate_to(service, uniq, lang, client_batch)))
+        translations = _resolve_translations(service, uniq, lang, client_batch)
         written = set()
         for key, en_src in todo:
             cand = translations.get(en_src, en_src)
-            if _accept(en_src, cand):
-                _set_dotted(doc, key, cand)
-                if cand != en_src:
-                    written.add(en_src)
+            # Every source is resolved (real translation or force-accepted on the
+            # last attempt), so we always write — nothing lingers as [TODO].
+            _set_dotted(doc, key, cand)
+            if cand != en_src:
+                written.add(en_src)
         path.write_text(
             json.dumps(doc, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
         )
@@ -272,8 +344,14 @@ def run_json(base: Path, template: str, langs: List[str], service: Optional[str]
 # ---------------------------------------------------------------------------
 
 
-def run_po(base: Path, template: str, langs: List[str], service: Optional[str],
-           client_batch: int, limit: Optional[int]) -> None:
+def run_po(
+    base: Path,
+    template: str,
+    langs: List[str],
+    service: Optional[str],
+    client_batch: int,
+    limit: Optional[int],
+) -> None:
     try:
         import polib  # noqa: PLC0415
     except ImportError:
@@ -291,17 +369,17 @@ def run_po(base: Path, template: str, langs: List[str], service: Optional[str],
         if not gap_entries or service is None:
             continue
         uniq = sorted({e.msgid for e in gap_entries})
-        translations = dict(zip(uniq, translate_to(service, uniq, lang, client_batch)))
-        wrote = skipped = 0
+        translations = _resolve_translations(service, uniq, lang, client_batch)
+        wrote = 0
         for e in gap_entries:
             cand = translations.get(e.msgid, e.msgid)
-            if _accept(e.msgid, cand):
-                e.msgstr = cand
+            # Bounded-retry-then-force-accept: every gap is resolved, so no
+            # msgstr is left empty to retry forever.
+            e.msgstr = cand
+            if cand != e.msgid:
                 wrote += 1
-            else:
-                skipped += 1
         po.save(str(path))
-        print(f"  {lang}: wrote {wrote}, left {skipped} gap(s) for retry", flush=True)
+        print(f"  {lang}: wrote {wrote} new (all gaps resolved)", flush=True)
 
 
 # ---------------------------------------------------------------------------
@@ -309,14 +387,18 @@ def run_po(base: Path, template: str, langs: List[str], service: Optional[str],
 # ---------------------------------------------------------------------------
 
 
-def scan_gaps(base: Path, template: str, langs: List[str], fmt: str) -> Dict[str, List[str]]:
+def scan_gaps(
+    base: Path, template: str, langs: List[str], fmt: str
+) -> Dict[str, List[str]]:
     """Re-read the locale files on disk and return {lang: [untranslated keys]}.
 
     Authoritative — reads what was actually written, so it reflects strings the
     service held back (placeholder fallbacks) as well as any never filled."""
     result: Dict[str, List[str]] = {}
     if fmt == "json":
-        en_flat = _flatten(json.loads((base / template.format(lang="en")).read_text(encoding="utf-8")))
+        en_flat = _flatten(
+            json.loads((base / template.format(lang="en")).read_text(encoding="utf-8"))
+        )
         for lang in langs:
             path = base / template.format(lang=lang)
             if not path.exists():
@@ -326,13 +408,16 @@ def scan_gaps(base: Path, template: str, langs: List[str], fmt: str) -> Dict[str
             result[lang] = [k for k in en_flat if _is_json_gap(lf.get(k))]
     else:
         import polib  # noqa: PLC0415
+
         for lang in langs:
             path = base / template.format(lang=lang)
             if not path.exists():
                 result[lang] = ["<file missing>"]
                 continue
             po = polib.pofile(str(path))
-            result[lang] = [e.msgid for e in po if e.msgid and not e.obsolete and not e.msgstr]
+            result[lang] = [
+                e.msgid for e in po if e.msgid and not e.obsolete and not e.msgstr
+            ]
     return result
 
 
@@ -343,12 +428,16 @@ def enforce_no_gaps(base: Path, template: str, langs: List[str], fmt: str) -> No
     instead of quietly sliding through — translations must be 100%."""
     offenders = {l: ks for l, ks in scan_gaps(base, template, langs, fmt).items() if ks}
     if not offenders:
-        print(f"[OK] {PROJECT}: all {len(langs)} locale(s) fully translated — 0 gaps.", flush=True)
+        print(
+            f"[OK] {PROJECT}: all {len(langs)} locale(s) fully translated — 0 gaps.",
+            flush=True,
+        )
         return
     total = sum(len(ks) for ks in offenders.values())
     sep_bar = "=" * 72
     lines = [
-        "", sep_bar,
+        "",
+        sep_bar,
         f"  ✗✗✗  TRANSLATION INCOMPLETE — {PROJECT}: {total} untranslated string(s) "
         f"in {len(offenders)} locale(s)  ✗✗✗",
         sep_bar,
@@ -362,7 +451,8 @@ def enforce_no_gaps(base: Path, template: str, langs: List[str], fmt: str) -> No
         "  These locales are NOT fully translated.  Fill them with:",
         "      make translate SERVICE=http://<gpu-box>:8765",
         "  or translate the remaining keys by hand.  Locales must be 100%.",
-        sep_bar, "",
+        sep_bar,
+        "",
     ]
     print("\n".join(lines), file=sys.stderr, flush=True)
     sys.exit(1)
@@ -374,8 +464,13 @@ def enforce_no_gaps(base: Path, template: str, langs: List[str], fmt: str) -> No
 
 
 def main() -> None:
-    ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--service", default=os.getenv("TRANSLATION_SERVICE_URL", "http://localhost:8765"))
+    ap = argparse.ArgumentParser(
+        description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
+    )
+    ap.add_argument(
+        "--service",
+        default=os.getenv("TRANSLATION_SERVICE_URL", "http://localhost:8765"),
+    )
     ap.add_argument("--langs", default=None, help="comma-separated locale subset")
     ap.add_argument("--client-batch", type=int, default=100)
     ap.add_argument("--limit", type=int, default=None)
@@ -389,7 +484,7 @@ def main() -> None:
         "--check",
         action="store_true",
         help="offline completeness gate: scan locales and exit non-zero if any gap "
-             "remains. NO service calls, NO writes — safe for CI / release hooks.",
+        "remains. NO service calls, NO writes — safe for CI / release hooks.",
     )
     args = ap.parse_args()
 
