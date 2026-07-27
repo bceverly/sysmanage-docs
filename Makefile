@@ -63,29 +63,32 @@ endif
 # exists (Linux/macOS/*BSD) this resolves to it — so nothing else changes.
 PYTHON ?= $(shell for p in python3 python3.14 python3.13 python3.12 python3.11; do command -v $$p >/dev/null 2>&1 && { echo $$p; exit 0; }; done; echo python3)
 
-# Colors for output (if supported).  These are consumed by `echo` in the recipes,
-# which relies on /bin/sh expanding the \033 escapes — true for the dash/ash sh
-# on Linux and the BSDs.
-ifdef TERM
-    RED := \033[31m
-    GREEN := \033[32m
-    YELLOW := \033[33m
-    BLUE := \033[34m
-    RESET := \033[0m
-else
+# Colours for output.  The recipes print these with `echo`, so the values must be
+# REAL escape bytes, not the two-character text "\033": not every /bin/sh expands
+# that.  FreeBSD's and NetBSD's ash take octal only as \0ddd, so "\033[33m" came
+# out verbatim there — while OpenBSD ksh, Linux dash and macOS sh do expand it,
+# which is why only those two BSDs showed the raw codes.  $(shell printf ...)
+# settles it once, at parse time, for every shell.
+#
+# Windows MUST be tested first and must never reach the $(shell) — it does not
+# degrade gracefully there.  Measured on the X13s: with SHELL pinned to Git Bash
+# it dies noisily once per colour ("process_begin: CreateProcess(NULL, printf
+# ..., ...) failed" + "pipe: Bad file descriptor"), and without the pin it
+# silently mangles the value to the literal "033[32m".  Git Bash's echo wouldn't
+# expand \033 anyway, so Windows takes the monochrome branch by design.
+ifeq ($(OS),Windows_NT)
     RED :=
     GREEN :=
     YELLOW :=
     BLUE :=
     RESET :=
-endif
-
-# Windows runs the recipes under Git Bash, whose builtin `echo` does NOT expand
-# backslash escapes without -e — the codes printed as literal "\033[32m" text.
-# Blank them rather than leak escape sequences; plain output beats garbled colour.
-# (Generating real escape bytes via $(shell printf) is not an option: make runs
-# $(shell) commands through CreateProcess and there is no printf.exe.)
-ifeq ($(OS),Windows_NT)
+else ifdef TERM
+    RED    := $(shell printf '\033[31m')
+    GREEN  := $(shell printf '\033[32m')
+    YELLOW := $(shell printf '\033[33m')
+    BLUE   := $(shell printf '\033[34m')
+    RESET  := $(shell printf '\033[0m')
+else
     RED :=
     GREEN :=
     YELLOW :=
