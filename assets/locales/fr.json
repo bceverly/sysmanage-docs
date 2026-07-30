@@ -3861,7 +3861,7 @@
         },
         "build": {
           "title": "Étape 1 — Construire le bundle sur l'hôte connecté à internet",
-          "intro": "The bundle is built from the SysManage Settings UI on a Pro+-licensed host that has internet access. You do <em>not</em> need to install the air-gap target's OS on the build host — every per-platform fetch runs inside its own Docker container.",
+          "intro": "Le bundle est construit à partir de l'UI des paramètres SysManage sur un hôte Pro+-licencié qui a accès à internet. Vous <em>ne</em> n'avez pas besoin d'installer le système d'exploitation cible sans connexion réseau sur l'hôte de construction — chaque récupération par plateforme s'exécute dans son propre conteneur Docker.",
           "step_login": "Connectez-vous au web UI SysManage sur l'hôte de construction avec un compte administratif.",
           "step_nav": "Naviguez vers <strong>Paramètres &rarr; Ensembles d'installation hors connexion</strong>. Cette onglet est visible uniquement lorsque le serveur dispose d'une licence Pro+ active.",
           "step_docker": "Confirmez que le bannière de préparation Docker affiche <em>“Docker est prêt”</em>. Si ce n'est pas le cas, la banniere donne la commande exacte pour remédier à la situation – généralement <code>sudo usermod -aG docker &lt;service-user&gt;</code> suivie d'un redemarrage du service.",
@@ -13955,6 +13955,15 @@
           "001": "La page des paramètres de miroiterie des répertoires — où les snaps sont suivies en parallèle avec les répertoires de paquets sur chaque miroir.",
           "002": "Un miroir détaillé montrant les snaps suivis — chaque ligne liste le nom du snap, son canal et le statut actuel de capture.",
           "003": "Les snaps capturés sont promus à travers les mêmes vues de contenu et environnements de cycle de vie que les paquets, et sont répointés vers des hôtes consommateurs depuis la file d’attente de promotion."
+        },
+        "provisioning-engine": {
+          "001": "<code>GET/POST/DELETE /api/v1/provisioning/compute-resources</code> — gérer les points de terminaison des fournisseurs (Enterprise)",
+          "002": "<code>GET/POST/PUT/DELETE /api/v1/provisioning/templates</code> — créer des modèles d'approvisionnement (Professional+)",
+          "003": "<code>POST /api/v1/provisioning/provision</code> — approvisionner un hôte ; vérifier <code>/jobs/{id}</code> pour le suivi",
+          "004": "<code>GET /api/v1/provisioning/providers</code> — descriptions des capacités pour chaque fournisseur enregistré",
+          "005": "<code>provisioning_templates_manage</code> — création de modèles d'approvisionnement (Professional+)",
+          "006": "<code>provisioning_manage</code> — ressources de calcul, approvisionnement et découverte (Enterprise)",
+          "010": "Approvisionnement → Ressources de calcul liste les points de terminaison configurés sur lesquels les nouveaux hôtes sont approvisionnés."
         }
       },
       "security": {
@@ -18489,6 +18498,17 @@
           },
           "link": "Guide de gestion des clés GPG &#8594;",
           "title": "&#128273; Gestion des clés GPG"
+        },
+        "provisioning_engine": {
+          "description": "Approvisionnement d'hôtes neufs : mettre en place des hôtes neufs sur libvirt / Proxmox distants qui s'enregistrent dans la flotte lors de leur premier démarrage, avec les identifiants de fournisseur collés et stockés dans OpenBAO.",
+          "features": {
+            "autoenroll": "Enrôlement automatique au premier démarrage via le jeton du locataire (site + groupe d'accès)",
+            "credentials": "Identifiants collés et utilisables brokered dans OpenBAO",
+            "providers": "Fournisseurs de calcul plug-and-play (libvirt distant, Proxmox VE)",
+            "templates": "Modèles d'approvisionnement réutilisables et versionnés"
+          },
+          "link": "Provisioning Engine Guide →",
+          "title": "🚀 Provisioning Engine"
         }
       },
       "overview": {
@@ -20051,6 +20071,54 @@
         "openbao": "<strong>Sécret OpenBAO KV</strong> contient les matériaux privés et publics de la clé. Il ne quitte jamais le coffre-fort sauf lorsque l'agent le récupère pour installer la clé.",
         "title": "Modèle de stockage",
         "yaml": "<strong>YAML / configuration</strong> ne contient jamais de matériel de clé non plus ; il n'y a rien de sensible susceptible de fuiter dans <code>/etc/sysmanage.yaml</code> ou dans une sauvegarde de celui-ci."
+      }
+    },
+    "provisioning_engine": {
+      "architecture": {
+        "description": "The engine is a Cython-compiled binary (<code>provisioning_engine.so</code>) loaded by the open-source server's <code>module_loader</code> at startup. It exports the standard <code>get_module_info()</code> + <code>get_provisioning_router()</code> contract, so <code>mount_provisioning_routes()</code> mounts it alongside the 402 stubs. Compute resources, templates, and jobs are per-tenant operational data read from the active tenant database; provider secrets are brokered from OpenBAO by reference and are never stored in a row.",
+        "title": "Architecture"
+      },
+      "autoenroll": {
+        "description": "When a provision request carries a server host and an enrollment token, the engine renders a cloud-init user-data that writes <code>/etc/sysmanage-agent.yaml</code> (with the tenant enrollment token) and installs plus starts the agent on first boot. Delivery is provider-specific: libvirt attaches a NoCloud seed ISO, while Proxmox drops the user-data as a <code>cicustom</code> snippet on the node over SSH (the HTTP API cannot upload snippets). The enrollment token can also carry a site and access group, so the host lands in the right tenant, site, and group with no manual step.",
+        "title": "Enrôlement automatique au premier démarrage"
+      },
+      "breadcrumb": "Moteur d'approvisionnement",
+      "credentials": {
+        "config": "Les paramètres non secrets du fournisseur (par exemple l'utilisateur SSH sur le nœud) vivent dans une colonne dédiée <code>config</code>, jamais dans la vault.",
+        "description": "L'ajout d'une ressource est une expérience de copier-coller du secret — l'opérateur ne touche jamais OpenBAO directement. Le formulaire est conscient du fournisseur : un Proxmox prend un hôte, un port et un jeton API ; un libvirt prend une URI de connexion et une clé privée SSH. Au moment du sauvegarde, le backend écrit le secret collé dans un chemin OpenBAO espace-nommé et stocke uniquement ce chemin (<code>credential_ref</code>) sur la ligne. Le secret lui-même ne se trouve jamais dans la base de données et n'est jamais retourné par l'API. Un commutateur <em>Avancé</em> permet toujours à un opérateur de faire référence à un chemin OpenBAO existant au lieu de coller un secret.",
+        "nodekey": "Clé SSH Proxmox node → stockée dans OpenBAO, utilisée pour placer le snippet d'enrôlement automatique sur le nœud (voir ci-dessous).",
+        "sshkey": "libvirt SSH key → stored in OpenBAO, written to a transient <code>0600</code> keyfile at provision time.",
+        "title": "Identifiants collés et utilisables (OpenBAO)",
+        "token": "Jeton API Proxmox → stocké dans OpenBAO, utilisé comme jeton porteur du fournisseur."
+      },
+      "endpoints": {
+        "title": "Points de terminaison"
+      },
+      "feature_codes": {
+        "description": "Les points de terminaison sont contrôlés par ces codes de fonctionnalité (le serveur open-source retourne <code>402</code> lorsque le module n'est pas chargé) :",
+        "title": "Codes de fonctionnalité"
+      },
+      "header": {
+        "description": "Mettre en place des hôtes neufs qui s'enregistrent dans la flotte lors de leur premier démarrage. Un modèle plug-and-play de fournisseur de calcul pilote libvirt distant et Proxmox VE ; des modèles d'approvisionnement réutilisables rendent les artefacts du premier démarrage ; un flux d'identifiants collés stocke les secrets du fournisseur dans OpenBAO afin qu'un opérateur n'ait jamais à gérer manuellement un chemin vault.",
+        "title": "Moteur d'approvisionnement"
+      },
+      "meta_description": "",
+      "overview": {
+        "description": "Chaque autre chemin d'installation dans SysManage suppose que l'hôte exécute déjà un agent. Le moteur d'approvisionnement comble ce vide : il active un fournisseur de calcul (serveur → API hyperviseur) pour cloner une image de base, attache un premier démarrage cloud-init contenant le jeton <strong>d'enrôlement</strong> du locataire, et l'hôte nouvellement créé installe l'agent et s'enregistre dans le bon locataire et site. L'ajout d'un fournisseur est incrémental — chaque backend implémente un contrat <code>create</code> / <code>status</code> / <code>destroy</code> / <code>console</code> derrière une description de capacité.",
+        "title": "Aperçu"
+      },
+      "page_title": "Moteur d'approvisionnement - SysManage Professional+",
+      "providers": {
+        "description": "Une ressource de calcul indique au moteur vers quel point de terminaison du fournisseur il doit pointer. La vue liste montre le nom, le type, la connexion et la référence à l'identifiant secret pour chaque ressource ; le secret lui-même n'est jamais affiché. Deux fournisseurs sont disponibles aujourd'hui :",
+        "libvirt": "<strong>Remote libvirt</strong> — connect over <code>qemu+ssh://user@host/system</code>. The engine stages an overlay disk plus a NoCloud seed ISO into the pool, then defines and starts the domain. Local and remote differ only by the connection URI.",
+        "proxmox": "<strong>Proxmox VE</strong> — se connecter via l'API HTTP avec un jeton API. Le moteur clone un modèle prêt pour cloud-init, applique les paramètres de taille et de cloud-init, puis le démarre.",
+        "title": "Fournisseurs de calcul"
+      },
+      "tiers": {
+        "enterprise": "Enterprise: configure compute resources, provision hosts on remote libvirt / Proxmox, and drive first-boot auto-enrollment.",
+        "oss": "Community Edition: deploy plans require a host that already runs an agent — there is no net-new provisioning.",
+        "templates": "Professional+: author reusable, versioned provisioning templates (cloud-init / kickstart / preseed / autoinstall).",
+        "title": "Community Edition vs Professional+"
       }
     }
   },

@@ -13955,6 +13955,15 @@
           "001": "리포지토리 미러링 설정 페이지 — 각 미러에서 snaps와 패키지 리포지토리를 함께 추적합니다.",
           "002": "미러가 확장되어 추적된 snaps를 보여줍니다 — 각 행은 snap 이름, 채널, 현재 캡처 상태를 나열합니다.",
           "003": "캡처된 snaps는 패키지와 동일한 컨텐츠 뷰 및 생명 주기 환경을 통해 프로모션되며, 소비 호스트에게 재지정됩니다."
+        },
+        "provisioning-engine": {
+          "001": "<code>GET/POST/DELETE /api/v1/provisioning/compute-resources</code> — 공급 엔드포인트 관리 (Enterprise)",
+          "002": "<code>GET/POST/PUT/DELETE /api/v1/provisioning/templates</code> — 프로비저닝 템플릿 작성 (Professional+)",
+          "003": "<code>POST /api/v1/provisioning/provision</code> — 호스트를 제공; 진행 상황을 확인하려면 <code>/jobs/{id}</code>를 폴링하세요",
+          "004": "<code>GET /api/v1/provisioning/providers</code> — 등록된 모든 공급자에 대한 능력 설명서",
+          "005": "<code>provisioning_templates_manage</code> — 템플릿 작성 (Professional+)",
+          "006": "<code>provisioning_manage</code> — 계산 리소스, 프로비저닝 및 발견 (Enterprise)",
+          "010": "프로비저닝 → 계산 리소스는 새로운 호스트가 배포되는 구성된 공급자 엔드포인트를 나열합니다."
         }
       },
       "security": {
@@ -18489,6 +18498,17 @@
           },
           "link": "GPG 키 관리 가이드 &#8594;",
           "title": "&#128273; GPG 키 관리"
+        },
+        "provisioning_engine": {
+          "description": "새로운 호스트 배포: 원격 libvirt / Proxmox에서 새 호스트를 설정하여 첫 부팅 시 팀에 자동으로 등록되도록 합니다. 공급자 자격 증명은 OpenBAO에 붙여넣기만 하면 됩니다.",
+          "features": {
+            "autoenroll": "첫 부팅 자동 등록 (사이트 + 액세스 그룹)",
+            "credentials": "OpenBAO로 중개된 붙여넣기만으로 자격 증명",
+            "providers": "플러그인형 계산 공급자 (원격 libvirt, Proxmox VE)",
+            "templates": "재사용 가능한 버전 관리형 프로비저닝 템플릿"
+          },
+          "link": "Provisioning Engine Guide →",
+          "title": "🚀 Provisioning Engine"
         }
       },
       "overview": {
@@ -20051,6 +20071,54 @@
         "openbao": "<strong>OpenBAO KV 비밀</strong>은 개인 키와 공개 키 자료를 보관합니다. 이 정보는 에이전트가 키를 설치하기 위해 가져올 때만 저장소 밖으로 나갑니다.",
         "title": "스토리지 모델",
         "yaml": "<strong>YAML / 구성</strong>에도 키 자료가 포함되지 않습니다. <code>/etc/sysmanage.yaml</code>이나 그 백업으로 유출될 민감한 정보가 없습니다."
+      }
+    },
+    "provisioning_engine": {
+      "architecture": {
+        "description": "The engine is a Cython-compiled binary (<code>provisioning_engine.so</code>) loaded by the open-source server's <code>module_loader</code> at startup. It exports the standard <code>get_module_info()</code> + <code>get_provisioning_router()</code> contract, so <code>mount_provisioning_routes()</code> mounts it alongside the 402 stubs. Compute resources, templates, and jobs are per-tenant operational data read from the active tenant database; provider secrets are brokered from OpenBAO by reference and are never stored in a row.",
+        "title": "Architecture"
+      },
+      "autoenroll": {
+        "description": "When a provision request carries a server host and an enrollment token, the engine renders a cloud-init user-data that writes <code>/etc/sysmanage-agent.yaml</code> (with the tenant enrollment token) and installs plus starts the agent on first boot. Delivery is provider-specific: libvirt attaches a NoCloud seed ISO, while Proxmox drops the user-data as a <code>cicustom</code> snippet on the node over SSH (the HTTP API cannot upload snippets). The enrollment token can also carry a site and access group, so the host lands in the right tenant, site, and group with no manual step.",
+        "title": "First-Boot Auto-Enrollment"
+      },
+      "breadcrumb": "프로비저닝 엔진",
+      "credentials": {
+        "config": "비밀이 아닌 공급자 설정 (예: 노드 SSH 사용자)는 별도의 <code>config</code> 열에 저장되며, 비밀 창고에는 결코 저장되지 않습니다.",
+        "description": "리소스 추가는 비밀을 붙여넣고 가는 경험이며, 운영자는 직접 OpenBAO에 접근하지 않습니다. 양식은 공급자 인식형입니다: Proxmox 리소스에는 호스트, 포트 및 API 토큰이 필요하고 libvirt 리소스에는 연결 URI와 SSH 개인 키가 필요합니다. 저장 시 백엔드는 붙여넣은 비밀을 테넌트 네임스페이스의 OpenBAO 경로에 쓰고 해당 경로만 (<code>credential_ref</code>) 행에 저장합니다. 비밀 자체는 결코 데이터베이스에 저장되지 않고 API에서 반환되지 않습니다. <em>Advanced</em> 스위치는 운영자가 기존 OpenBAO 경로를 참조하도록 합니다.",
+        "nodekey": "Proxmox 노드 SSH 키 → OpenBAO에 저장되어 자동 등록 스니펫을 노드에 배치하는 데 사용됩니다 (아래 참조).",
+        "sshkey": "libvirt SSH key → stored in OpenBAO, written to a transient <code>0600</code> keyfile at provision time.",
+        "title": "붙여넣기만으로 자격 증명 (OpenBAO)",
+        "token": "Proxmox API 토큰 → OpenBAO에 저장되어 공급자의 부담 증명서로 사용됩니다."
+      },
+      "endpoints": {
+        "title": "Endpoints"
+      },
+      "feature_codes": {
+        "description": "엔드포인트는 이러한 기능 코드에 의해 제한됩니다 (오픈 소스 서버는 모듈이 로드되지 않은 경우 <code>402</code>를 반환합니다):",
+        "title": "Feature Codes"
+      },
+      "header": {
+        "description": "새로운 호스트를 설정하여 첫 부팅 시 팀에 자동으로 등록되도록 합니다. 원격 libvirt 및 Proxmox VE를 구동하는 플러그인형 계산 공급자 모델, 재사용 가능한 프로비저닝 템플릿이 첫 부팅 아티팩트를 렌더링하고, 붙여넣기만으로 자격 증명 흐름이 OpenBAO에 공급자 비밀을 저장하여 운영자가 별도의 보안 경로를 관리하지 않도록 합니다.",
+        "title": "프로비저닝 엔진"
+      },
+      "meta_description": "",
+      "overview": {
+        "description": "SysManage의 모든 다른 배포 경로에서는 호스트가 이미 에이전트를 실행하고 있다는 가정을 합니다. 프로비저닝 엔진은 이 간극을 메웁니다: 계산 공급자를 활성화하여 (서버 → 하이퍼바이저 API) 기본 이미지를 복제하고, 테넌트 <strong>등록 토큰</strong>을 포함한 첫 부팅 클라우드 초기화 시드를 연결합니다. 새로운 호스트는 에이전트를 설치하고 올바른 테넌트 및 사이트에 자동 등록됩니다. 공급자 추가는 점진적입니다 — 모든 백엔드는 능력 설명서 뒤에 하나의 <code>create</code> / <code>status</code> / <code>destroy</code> / <code>console</code> 계약을 구현합니다.",
+        "title": "Overview"
+      },
+      "page_title": "프로비저닝 엔진 - SysManage Professional+",
+      "providers": {
+        "description": "계산 리소스는 엔진을 공급자 엔드포인트로 지정합니다. 목록 뷰에서는 각 리소스의 이름, 종류, 연결 및 자격 증명 참조를 표시하며, 해당 리소스가 가리키는 비밀은 결코 표시되지 않습니다. 오늘 두 개의 공급자가 제공됩니다:",
+        "libvirt": "<strong>Remote libvirt</strong> — connect over <code>qemu+ssh://user@host/system</code>. The engine stages an overlay disk plus a NoCloud seed ISO into the pool, then defines and starts the domain. Local and remote differ only by the connection URI.",
+        "proxmox": "<strong>Proxmox VE</strong> — HTTP API를 통해 API 토큰을 사용하여 연결합니다. 엔진은 클라우드 초기화 준비가 완료된 템플릿을 복제하고 크기 및 클라우드 초기화 설정을 적용한 다음 부팅합니다.",
+        "title": "Compute Providers"
+      },
+      "tiers": {
+        "enterprise": "Enterprise: configure compute resources, provision hosts on remote libvirt / Proxmox, and drive first-boot auto-enrollment.",
+        "oss": "Community Edition: deploy plans require a host that already runs an agent — there is no net-new provisioning.",
+        "templates": "Professional+: author reusable, versioned provisioning templates (cloud-init / kickstart / preseed / autoinstall).",
+        "title": "Community Edition vs Professional+"
       }
     }
   },

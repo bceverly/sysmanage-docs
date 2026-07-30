@@ -13952,6 +13952,15 @@
           "001": "The Repository Mirroring settings page — where snaps are tracked alongside package repositories on each mirror.",
           "002": "A mirror expanded to show its tracked snaps — each row lists the snap name, its channel, and the current capture status.",
           "003": "Captured snaps promote through the same content views and lifecycle environments as packages, and are repointed to consuming hosts from the promotion lane."
+        },
+        "provisioning-engine": {
+          "001": "<code>GET/POST/DELETE /api/v1/provisioning/compute-resources</code> — manage provider endpoints (Enterprise)",
+          "002": "<code>GET/POST/PUT/DELETE /api/v1/provisioning/templates</code> — author provisioning templates (Professional+)",
+          "003": "<code>POST /api/v1/provisioning/provision</code> — provision a host; poll <code>/jobs/{id}</code> for progress",
+          "004": "<code>GET /api/v1/provisioning/providers</code> — capability descriptors for every registered provider",
+          "005": "<code>provisioning_templates_manage</code> — template authoring (Professional+)",
+          "006": "<code>provisioning_manage</code> — compute resources, provisioning, and discovery (Enterprise)",
+          "010": "Provisioning → Compute Resources lists the configured provider endpoints that new hosts are provisioned on."
         }
       },
       "security": {
@@ -18485,6 +18494,17 @@
             "alert": "Usable as an alert condition"
           },
           "link": "Custom Metrics &amp; Graphs Guide &#8594;"
+        },
+        "provisioning_engine": {
+          "description": "Net-new host provisioning: stand up brand-new hosts on remote libvirt / Proxmox that auto-enroll into the fleet on first boot, with paste-and-go provider credentials stored in OpenBAO.",
+          "features": {
+            "autoenroll": "First-boot auto-enrollment via tenant token (site + access group)",
+            "credentials": "Paste-and-go credentials brokered into OpenBAO",
+            "providers": "Pluggable compute providers (remote libvirt, Proxmox VE)",
+            "templates": "Reusable, versioned provisioning templates"
+          },
+          "link": "Provisioning Engine Guide →",
+          "title": "🚀 Provisioning Engine"
         }
       },
       "overview": {
@@ -20047,6 +20067,54 @@
         "interpreter": "The chosen interpreter (<code>sh</code>, <code>bash</code>, or <code>python3</code>) available on each target host.",
         "tags": "Host tags configured so metrics can be targeted at the right hosts.",
         "grafana": "Optional: the Observability Engine's Grafana integration for heavy analysis and long-horizon history."
+      }
+    },
+    "provisioning_engine": {
+      "architecture": {
+        "description": "The engine is a Cython-compiled binary (<code>provisioning_engine.so</code>) loaded by the open-source server's <code>module_loader</code> at startup. It exports the standard <code>get_module_info()</code> + <code>get_provisioning_router()</code> contract, so <code>mount_provisioning_routes()</code> mounts it alongside the 402 stubs. Compute resources, templates, and jobs are per-tenant operational data read from the active tenant database; provider secrets are brokered from OpenBAO by reference and are never stored in a row.",
+        "title": "Architecture"
+      },
+      "autoenroll": {
+        "description": "When a provision request carries a server host and an enrollment token, the engine renders a cloud-init user-data that writes <code>/etc/sysmanage-agent.yaml</code> (with the tenant enrollment token) and installs plus starts the agent on first boot. Delivery is provider-specific: libvirt attaches a NoCloud seed ISO, while Proxmox drops the user-data as a <code>cicustom</code> snippet on the node over SSH (the HTTP API cannot upload snippets). The enrollment token can also carry a site and access group, so the host lands in the right tenant, site, and group with no manual step.",
+        "title": "First-Boot Auto-Enrollment"
+      },
+      "breadcrumb": "Provisioning Engine",
+      "credentials": {
+        "config": "Non-secret provider settings (e.g. the node SSH user) live in a dedicated <code>config</code> column, never in the vault.",
+        "description": "Adding a resource is a paste-the-secret-and-go experience — the operator never touches OpenBAO directly. The form is provider-aware: a Proxmox resource takes a host, port, and API token; a libvirt resource takes a connection URI and an SSH private key. On save, the backend writes the pasted secret to a tenant-namespaced OpenBAO path and stores only that path (<code>credential_ref</code>) on the row. The secret itself never lands in the database, and it is never returned by the API. An <em>Advanced</em> toggle still lets an operator reference an existing OpenBAO path instead of pasting a secret.",
+        "nodekey": "Proxmox node SSH key → stored in OpenBAO, used to place the auto-enroll snippet on the node (see below).",
+        "sshkey": "libvirt SSH key → stored in OpenBAO, written to a transient <code>0600</code> keyfile at provision time.",
+        "title": "Paste-and-Go Credentials (OpenBAO)",
+        "token": "Proxmox API token → stored in OpenBAO, used as the provider's bearer token."
+      },
+      "endpoints": {
+        "title": "Endpoints"
+      },
+      "feature_codes": {
+        "description": "Endpoints are gated by these feature codes (the open-source server returns <code>402</code> when the module isn't loaded):",
+        "title": "Feature Codes"
+      },
+      "header": {
+        "description": "Stand up brand-new hosts that auto-enroll into the fleet on first boot. A pluggable compute-provider model drives remote libvirt and Proxmox VE; reusable provisioning templates render the first-boot artifacts; and a paste-and-go credential flow stores provider secrets in OpenBAO so an operator never hand-manages a vault path.",
+        "title": "Provisioning Engine"
+      },
+      "meta_description": "",
+      "overview": {
+        "description": "Every other deployment path in SysManage assumes a host is already running an agent. The Provisioning Engine closes that gap: it actuates a compute provider (server → hypervisor API) to clone a base image, attaches a first-boot cloud-init seed carrying the tenant <strong>enrollment token</strong>, and the new host installs the agent and self-registers into the correct tenant and site. Adding a provider is incremental — every backend implements one <code>create</code> / <code>status</code> / <code>destroy</code> / <code>console</code> contract behind a capability descriptor.",
+        "title": "Overview"
+      },
+      "page_title": "Provisioning Engine - SysManage Professional+",
+      "providers": {
+        "description": "A compute resource points the engine at a provider endpoint. The list view shows each resource's name, kind, connection, and credential reference; the secret it points at is never displayed. Two providers ship today:",
+        "libvirt": "<strong>Remote libvirt</strong> — connect over <code>qemu+ssh://user@host/system</code>. The engine stages an overlay disk plus a NoCloud seed ISO into the pool, then defines and starts the domain. Local and remote differ only by the connection URI.",
+        "proxmox": "<strong>Proxmox VE</strong> — connect over the HTTP API with an API token. The engine clones a cloud-init-ready template, applies size and cloud-init settings, and boots it.",
+        "title": "Compute Providers"
+      },
+      "tiers": {
+        "enterprise": "Enterprise: configure compute resources, provision hosts on remote libvirt / Proxmox, and drive first-boot auto-enrollment.",
+        "oss": "Community Edition: deploy plans require a host that already runs an agent — there is no net-new provisioning.",
+        "templates": "Professional+: author reusable, versioned provisioning templates (cloud-init / kickstart / preseed / autoinstall).",
+        "title": "Community Edition vs Professional+"
       }
     }
   },

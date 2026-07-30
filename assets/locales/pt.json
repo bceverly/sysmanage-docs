@@ -13955,6 +13955,15 @@
           "001": "A página de configurações de replicar repositórios – onde os snaps são acompanhados ao lado dos repositórios de pacotes em cada espelho.",
           "002": "Um espelho expandido mostra seus snaps rastreados — cada linha lista o nome do snap, sua canal e o status atual de captura.",
           "003": "Os snaps capturados promovem através das mesmas visões de conteúdo e ambientes do ciclo de vida que os pacotes, e são repointed para hospedeiros consumidores a partir da linha de promoção."
+        },
+        "provisioning-engine": {
+          "001": "<code>GET/POST/DELETE /api/v1/provisioning/compute-resources</code> — gerenciar pontos finais dos provedores (Enterprise)",
+          "002": "<code>GET/POST/PUT/DELETE /api/v1/provisioning/templates</code> — autorizar modelos de provisionamento (Professional+)",
+          "003": "<code>POST /api/v1/provisioning/provision</code> — provisionar um host; consulte <code>/jobs/{id}</code> para o progresso",
+          "004": "<code>GET /api/v1/provisioning/providers</code> — descrições de capacidade para cada provedor registrado",
+          "005": "<code>provisioning_templates_manage</code> — autorização de modelos (Professional+)",
+          "006": "<code>provisioning_manage</code> — recursos computacionais, provisionamento e descoberta (Enterprise)",
+          "010": "Provisionamento → Recursos Computacionais lista os pontos finais configurados dos provedores que novos hosts são provisionados neles."
         }
       },
       "security": {
@@ -18489,6 +18498,17 @@
           },
           "link": "Guia de Gerenciamento de Chaves GPG &#8594;",
           "title": "&#128273; Gerenciamento de Chaves GPG"
+        },
+        "provisioning_engine": {
+          "description": "Provisionamento de hosts novos: levante hosts totalmente novos em libvirt / Proxmox remotos que se inscrevem automaticamente no rebanho na primeira inicialização, com credenciais fornecedor coladas e armazenadas no OpenBAO.",
+          "features": {
+            "autoenroll": "Inscrição automática na primeira inicialização via token do inquilino (site + grupo de acesso)",
+            "credentials": "Credenciais coladas e vá intermediadas pelo OpenBAO",
+            "providers": "Provedores computacionais plugáveis (libvirt remoto, Proxmox VE)",
+            "templates": "Modelos de provisionamento reutilizáveis e versionados"
+          },
+          "link": "Provisioning Engine Guide →",
+          "title": "🚀 Provisioning Engine"
         }
       },
       "overview": {
@@ -20051,6 +20071,54 @@
         "openbao": "<strong>Segredo OpenBAO KV</strong> armazena o material privado e público da chave. Nunca sai do cofre, exceto quando o agente o recupera para instalar a chave.",
         "title": "Modelo de Armazenamento",
         "yaml": "<strong>YAML / configuração</strong> também nunca contém material de chave; não há nada sensível que possa vazar em <code>/etc/sysmanage.yaml</code> ou em um backup dele."
+      }
+    },
+    "provisioning_engine": {
+      "architecture": {
+        "description": "The engine is a Cython-compiled binary (<code>provisioning_engine.so</code>) loaded by the open-source server's <code>module_loader</code> at startup. It exports the standard <code>get_module_info()</code> + <code>get_provisioning_router()</code> contract, so <code>mount_provisioning_routes()</code> mounts it alongside the 402 stubs. Compute resources, templates, and jobs are per-tenant operational data read from the active tenant database; provider secrets are brokered from OpenBAO by reference and are never stored in a row.",
+        "title": "Arquitetura"
+      },
+      "autoenroll": {
+        "description": "When a provision request carries a server host and an enrollment token, the engine renders a cloud-init user-data that writes <code>/etc/sysmanage-agent.yaml</code> (with the tenant enrollment token) and installs plus starts the agent on first boot. Delivery is provider-specific: libvirt attaches a NoCloud seed ISO, while Proxmox drops the user-data as a <code>cicustom</code> snippet on the node over SSH (the HTTP API cannot upload snippets). The enrollment token can also carry a site and access group, so the host lands in the right tenant, site, and group with no manual step.",
+        "title": "Auto-Inscrição na Primeira Inicialização"
+      },
+      "breadcrumb": "Motor de Provisionamento",
+      "credentials": {
+        "config": "Configurações não secretas do provedor (por exemplo, o usuário SSH da máquina) vivem em uma coluna dedicada <code>config</code>, nunca no cofre.",
+        "description": "Adicionar um recurso é uma experiência de colar a senha e ir — o operador nunca interage diretamente com o OpenBAO. O formulário é consciente do provedor: um recurso Proxmox requer host, porta e token da API; um recurso libvirt requer URI de conexão e uma chave privada SSH. Ao salvar, o backend escreve a senha colada em um caminho do OpenBAO nomeado pelo inquilino e armazena apenas esse caminho (<code>credential_ref</code>) na linha. A senha nunca é gravada no banco de dados e nunca é retornada pela API. Um <em>modo avançado</em> ainda permite ao operador referenciar um caminho existente do OpenBAO em vez de colar uma senha.",
+        "nodekey": "Chave SSH do nó Proxmox armazenada no OpenBAO, usada para colocar o snippet de inscrição automática no nó (veja abaixo).",
+        "sshkey": "libvirt SSH key → stored in OpenBAO, written to a transient <code>0600</code> keyfile at provision time.",
+        "title": "Credenciais Coladas e Vá (OpenBAO)",
+        "token": "Token da API do Proxmox armazenado no OpenBAO, usado como o token portador do provedor."
+      },
+      "endpoints": {
+        "title": "Pontos Finais"
+      },
+      "feature_codes": {
+        "description": "Os pontos finais são controlados por esses códigos de recurso (o servidor open-source retorna <code>402</code> quando o módulo não está carregado):",
+        "title": "Códigos de Recurso"
+      },
+      "header": {
+        "description": "Levantar hosts totalmente novos que se inscrevem automaticamente no rebanho na primeira inicialização. Um modelo plugável de provedor computacional impulsiona libvirt remoto e Proxmox VE; modelos de provisionamento reutilizáveis renderizam os artefatos da primeira inicialização; e um fluxo de credenciais coladas e vá armazena as senhas do provedor no OpenBAO para que o operador nunca gerencie manualmente um caminho do cofre.",
+        "title": "Motor de Provisionamento"
+      },
+      "meta_description": "",
+      "overview": {
+        "description": "Cada outro caminho de implantação no SysManage assume que um host já está executando um agente. O Provisioning Engine fecha essa lacuna: ele ativa um provedor computacional (servidor → API do hipervisor) para clonar uma imagem base, anexa uma semente cloud-init de primeira inicialização carregando o <strong>token de inscrição</strong> do inquilino, e o novo host instala o agente e se registra automaticamente no inquilino e site corretos. Adicionar um provedor é incremental — cada backend implementa um contrato <code>create</code> / <code>status</code> / <code>destroy</code> / <code>console</code> por meio de uma descrição de capacidade.",
+        "title": "Visão Geral"
+      },
+      "page_title": "Motor de Provisionamento - SysManage Professional+",
+      "providers": {
+        "description": "Um recurso computacional aponta o motor para um ponto final de provedor. A visualização lista o nome, tipo, conexão e referência à credencial de cada recurso; a senha que ele aponta nunca é exibida. Dois provedores são fornecidos hoje:",
+        "libvirt": "<strong>Remote libvirt</strong> — connect over <code>qemu+ssh://user@host/system</code>. The engine stages an overlay disk plus a NoCloud seed ISO into the pool, then defines and starts the domain. Local and remote differ only by the connection URI.",
+        "proxmox": "<strong>Proxmox VE</strong> — conecte-se via a API HTTP com um token da API. O motor clona uma imagem pronta para cloud-init, aplica o tamanho e as configurações do cloud-init, e inicia-a.",
+        "title": "Provedores Computacionais"
+      },
+      "tiers": {
+        "enterprise": "Enterprise: configure compute resources, provision hosts on remote libvirt / Proxmox, and drive first-boot auto-enrollment.",
+        "oss": "Community Edition: deploy plans require a host that already runs an agent — there is no net-new provisioning.",
+        "templates": "Professional+: author reusable, versioned provisioning templates (cloud-init / kickstart / preseed / autoinstall).",
+        "title": "Community Edition vs Professional+"
       }
     }
   },

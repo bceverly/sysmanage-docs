@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en" data-i18n-title="pro_plus.provisioning_engine.page_title">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title data-i18n="pro_plus.provisioning_engine.page_title">Provisioning Engine - SysManage Professional+</title>
+    <meta name="description" content="Net-new host provisioning: a pluggable compute-provider model, provisioning templates, paste-and-go credentials stored in OpenBAO, and first-boot auto-enrollment." data-i18n-attr="content" data-i18n="pro_plus.provisioning_engine.meta_description">
+    <link rel="stylesheet" href="../../assets/css/style.css">
+    <link rel="icon" type="image/svg+xml" href="../../assets/images/favicon.svg">
+</head>
+<body data-auto-header="documentation" data-auto-footer>
+
+    <main class="docs-main">
+        <div class="container">
+            <div class="docs-breadcrumb">
+                <a href="../" data-i18n="nav.documentation">Documentation</a> &gt;
+                <a href="./" data-i18n="pro_plus.breadcrumb">Professional+</a> &gt;
+                <span data-i18n="pro_plus.provisioning_engine.breadcrumb">Provisioning Engine</span>
+            </div>
+
+            <div class="docs-header">
+                <div class="pro-plus-badge">&#11088; PRO+</div>
+                <h1 data-i18n="pro_plus.provisioning_engine.header.title">Provisioning Engine</h1>
+                <p data-i18n="pro_plus.provisioning_engine.header.description">Stand up brand-new hosts that auto-enroll into the fleet on first boot. A pluggable compute-provider model drives remote libvirt and Proxmox VE; reusable provisioning templates render the first-boot artifacts; and a paste-and-go credential flow stores provider secrets in OpenBAO so an operator never hand-manages a vault path.</p>
+                <figure class="docs-screenshot">
+                    <img src="/assets/images/provisioning-compute-resources.png" alt="Provisioning Compute Resources tab">
+                    <figcaption data-i18n="docs.auto.professional-plus.provisioning-engine.010">Provisioning &rarr; Compute Resources lists the configured provider endpoints that new hosts are provisioned on.</figcaption>
+                </figure>
+            </div>
+
+            <div class="docs-content">
+                <section class="docs-overview">
+                    <h2 data-i18n="pro_plus.provisioning_engine.overview.title">Overview</h2>
+                    <p data-i18n="pro_plus.provisioning_engine.overview.description" data-i18n-html>Every other deployment path in SysManage assumes a host is already running an agent. The Provisioning Engine closes that gap: it actuates a compute provider (server &rarr; hypervisor API) to clone a base image, attaches a first-boot cloud-init seed carrying the tenant <strong>enrollment token</strong>, and the new host installs the agent and self-registers into the correct tenant and site. Adding a provider is incremental &mdash; every backend implements one <code>create</code> / <code>status</code> / <code>destroy</code> / <code>console</code> contract behind a capability descriptor.</p>
+                </section>
+
+                <section class="docs-section">
+                    <h2 data-i18n="pro_plus.provisioning_engine.tiers.title">Community Edition vs Professional+</h2>
+                    <ul>
+                        <li data-i18n="pro_plus.provisioning_engine.tiers.oss">Community Edition: deploy plans require a host that already runs an agent &mdash; there is no net-new provisioning.</li>
+                        <li data-i18n="pro_plus.provisioning_engine.tiers.templates">Professional+: author reusable, versioned provisioning templates (cloud-init / kickstart / preseed / autoinstall).</li>
+                        <li data-i18n="pro_plus.provisioning_engine.tiers.enterprise">Enterprise: configure compute resources, provision hosts on remote libvirt / Proxmox, and drive first-boot auto-enrollment.</li>
+                    </ul>
+                </section>
+
+                <section class="docs-section">
+                    <h2 data-i18n="pro_plus.provisioning_engine.providers.title">Compute Providers</h2>
+                    <p data-i18n="pro_plus.provisioning_engine.providers.description">A compute resource points the engine at a provider endpoint. The list view shows each resource's name, kind, connection, and credential reference; the secret it points at is never displayed. Two providers ship today:</p>
+                    <ul>
+                        <li data-i18n="pro_plus.provisioning_engine.providers.libvirt" data-i18n-html><strong>Remote libvirt</strong> &mdash; connect over <code>qemu+ssh://user@host/system</code>. The engine stages an overlay disk plus a NoCloud seed ISO into the pool, then defines and starts the domain. Local and remote differ only by the connection URI.</li>
+                        <li data-i18n="pro_plus.provisioning_engine.providers.proxmox" data-i18n-html><strong>Proxmox VE</strong> &mdash; connect over the HTTP API with an API token. The engine clones a cloud-init-ready template, applies size and cloud-init settings, and boots it.</li>
+                    </ul>
+                </section>
+
+                <section class="docs-section">
+                    <h2 data-i18n="pro_plus.provisioning_engine.credentials.title">Paste-and-Go Credentials (OpenBAO)</h2>
+                    <p data-i18n="pro_plus.provisioning_engine.credentials.description" data-i18n-html>Adding a resource is a paste-the-secret-and-go experience &mdash; the operator never touches OpenBAO directly. The form is provider-aware: a Proxmox resource takes a host, port, and API token; a libvirt resource takes a connection URI and an SSH private key. On save, the backend writes the pasted secret to a tenant-namespaced OpenBAO path and stores only that path (<code>credential_ref</code>) on the row. The secret itself never lands in the database, and it is never returned by the API. An <em>Advanced</em> toggle still lets an operator reference an existing OpenBAO path instead of pasting a secret.</p>
+                    <ul>
+                        <li data-i18n="pro_plus.provisioning_engine.credentials.token">Proxmox API token &rarr; stored in OpenBAO, used as the provider's bearer token.</li>
+                        <li data-i18n="pro_plus.provisioning_engine.credentials.sshkey" data-i18n-html>libvirt SSH key &rarr; stored in OpenBAO, written to a transient <code>0600</code> keyfile at provision time.</li>
+                        <li data-i18n="pro_plus.provisioning_engine.credentials.nodekey">Proxmox node SSH key &rarr; stored in OpenBAO, used to place the auto-enroll snippet on the node (see below).</li>
+                        <li data-i18n="pro_plus.provisioning_engine.credentials.config" data-i18n-html>Non-secret provider settings (e.g. the node SSH user) live in a dedicated <code>config</code> column, never in the vault.</li>
+                    </ul>
+                </section>
+
+                <section class="docs-section">
+                    <h2 data-i18n="pro_plus.provisioning_engine.autoenroll.title">First-Boot Auto-Enrollment</h2>
+                    <p data-i18n="pro_plus.provisioning_engine.autoenroll.description" data-i18n-html>When a provision request carries a server host and an enrollment token, the engine renders a cloud-init user-data that writes <code>/etc/sysmanage-agent.yaml</code> (with the tenant enrollment token) and installs plus starts the agent on first boot. Delivery is provider-specific: libvirt attaches a NoCloud seed ISO, while Proxmox drops the user-data as a <code>cicustom</code> snippet on the node over SSH (the HTTP API cannot upload snippets). The enrollment token can also carry a site and access group, so the host lands in the right tenant, site, and group with no manual step.</p>
+                    <div class="code-block">
+                        <pre><code>server:
+  hostname: "sysmanage.example"
+  port: 8080
+  use_https: true
+security:
+  enrollment_token: "sme_..."
+  registration_key: "rk_..."</code></pre>
+                    </div>
+                </section>
+
+                <section class="docs-section">
+                    <h2 data-i18n="pro_plus.provisioning_engine.endpoints.title">Endpoints</h2>
+                    <ul>
+                        <li data-i18n="docs.auto.professional-plus.provisioning-engine.001" data-i18n-html><code>GET/POST/DELETE /api/v1/provisioning/compute-resources</code> &mdash; manage provider endpoints (Enterprise)</li>
+                        <li data-i18n="docs.auto.professional-plus.provisioning-engine.002" data-i18n-html><code>GET/POST/PUT/DELETE /api/v1/provisioning/templates</code> &mdash; author provisioning templates (Professional+)</li>
+                        <li data-i18n="docs.auto.professional-plus.provisioning-engine.003" data-i18n-html><code>POST /api/v1/provisioning/provision</code> &mdash; provision a host; poll <code>/jobs/{id}</code> for progress</li>
+                        <li data-i18n="docs.auto.professional-plus.provisioning-engine.004" data-i18n-html><code>GET /api/v1/provisioning/providers</code> &mdash; capability descriptors for every registered provider</li>
+                    </ul>
+                </section>
+
+                <section class="docs-section">
+                    <h2 data-i18n="pro_plus.provisioning_engine.feature_codes.title">Feature Codes</h2>
+                    <p data-i18n="pro_plus.provisioning_engine.feature_codes.description" data-i18n-html>Endpoints are gated by these feature codes (the open-source server returns <code>402</code> when the module isn't loaded):</p>
+                    <ul>
+                        <li data-i18n="docs.auto.professional-plus.provisioning-engine.005" data-i18n-html><code>provisioning_templates_manage</code> &mdash; template authoring (Professional+)</li>
+                        <li data-i18n="docs.auto.professional-plus.provisioning-engine.006" data-i18n-html><code>provisioning_manage</code> &mdash; compute resources, provisioning, and discovery (Enterprise)</li>
+                    </ul>
+                </section>
+
+                <section class="docs-section">
+                    <h2 data-i18n="pro_plus.provisioning_engine.architecture.title">Architecture</h2>
+                    <p data-i18n="pro_plus.provisioning_engine.architecture.description" data-i18n-html>The engine is a Cython-compiled binary (<code>provisioning_engine.so</code>) loaded by the open-source server's <code>module_loader</code> at startup. It exports the standard <code>get_module_info()</code> + <code>get_provisioning_router()</code> contract, so <code>mount_provisioning_routes()</code> mounts it alongside the 402 stubs. Compute resources, templates, and jobs are per-tenant operational data read from the active tenant database; provider secrets are brokered from OpenBAO by reference and are never stored in a row.</p>
+                </section>
+            </div>
+        </div>
+    </main>
+
+</body>
+</html>

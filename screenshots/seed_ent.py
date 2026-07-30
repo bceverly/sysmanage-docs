@@ -42,6 +42,7 @@ from backend.persistence.models import (
     AntivirusDefault,
     AntivirusStatus,
     CommercialAntivirusStatus,
+    ComputeResource,
     ExternalIdpProvider,
     ExternalIdpSettings,
     FederationHostDirectory,
@@ -60,6 +61,7 @@ from backend.persistence.models import (
     MirrorSettings,
     MirrorSnapContent,
     MirrorSnapshot,
+    ProvisioningJob,
     RegistrationKey,
     SavedScript,
     ScriptExecutionLog,
@@ -245,6 +247,20 @@ VMS = [  # (parent_fqdn, child_name, child_type, distribution, status)
     ("freebsd-build-01.corp.northstar.io", "vm-bsd-ci", "bhyve", "freebsd-14", "running"),
 ]
 
+# ---- provisioning (Phase 18) -----------------------------------------------
+# (name, kind, connection_uri, credential_ref, config).  credential_ref is only
+# an OpenBAO path; the last entry uses ambient SSH (no credential_ref).
+_PMX_CRED = "secret/data/sysmanage/tenant/northstar/provisioning/beast-pmx"
+_KVM_CRED = "secret/data/sysmanage/tenant/northstar/provisioning/lab-kvm"
+PROVISIONING_RESOURCES = [
+    ("beast-pmx", "proxmox", "https://pmx01.corp.northstar.io:8006",
+     _PMX_CRED, {"node_ssh_user": "root"}),
+    ("lab-kvm", "libvirt", "qemu+ssh://root@kvm01.corp.northstar.io/system",
+     _KVM_CRED, None),
+    ("edge-kvm", "libvirt", "qemu+ssh://root@kvm-edge.corp.northstar.io/system",
+     None, None),
+]
+
 # ---- air-gap ---------------------------------------------------------------
 AIRGAP_TARGETS = [  # (distro, version, repos, bytes, files)
     ("ubuntu", "22.04", "main,security,universe", 88_000_000_000, 142000),
@@ -311,6 +327,8 @@ def main():
             SharedContentViewVersion, SharedContentViewFilter,
             SharedContentViewRepo, SharedContentView, SharedLifecycleEnvironment,
             MirrorSettings,
+            # Provisioning (Phase 18) — jobs before compute_resource (FK).
+            ProvisioningJob, ComputeResource,
         ):
             session.query(model).delete()
         # Virtualization: only clear the VM-type child hosts (leave seed_pro's lxd/wsl).
@@ -709,9 +727,21 @@ def main():
             completed_at=NOW - timedelta(hours=1), created_by=admin_id,
         ))
 
+        # --- provisioning (Phase 18): configured compute-provider endpoints ---
+        # credential_ref is only an OpenBAO path (the secret is never stored);
+        # non-secret settings (node_ssh_user) live in `config`. One resource is
+        # left ambient-SSH (no credential_ref) to show that state in the list.
+        for name, kind, uri, cred, cfg in PROVISIONING_RESOURCES:
+            session.add(ComputeResource(
+                name=name, kind=kind, connection_uri=uri,
+                credential_ref=cred, config=cfg, enabled=True,
+                created_at=NOW - timedelta(days=3), updated_at=NOW,
+            ))
+
         session.commit()
 
         print(f"  hosts: {len(hosts)}")
+        print(f"  provisioning: {len(PROVISIONING_RESOURCES)} compute resources")
         print(f"  antivirus: {len(AV_DEFAULTS)} defaults, {len(AV_STATUS)} host statuses, 1 commercial")
         print(f"  firewall: {len(FW_ROLES)} roles, {len(FW_STATUS)} host statuses")
         print(f"  automation: {len(SCRIPTS)} scripts, {len(SCRIPT_RUNS)} executions")

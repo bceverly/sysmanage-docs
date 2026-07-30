@@ -4088,7 +4088,7 @@
         "meta_description": "",
         "overview": {
           "gate": "他のエンジンと同様に、この機能はエンタープライズゲートで制御されます — OSS サーバーが API、スキーマ、およびライセンスゲートを所有し、コンパイルされたエンジンがキャプチャとコンテンツ作業を行います。これにより、コンテナイメージは <strong>キュレーション済み、バージョン管理済み、オフラインで利用可能</strong> のコンテンツになります：一度キャプチャしたらハッシュ固定し、コンテンツビューのバージョンにスナップショットを取り、ライフサイクル環境を経由してプロモートし、ライブレジストリなしでホストに提供できます。",
-          "intro": "Container Image Content Lifecycle is an <strong>Enterprise</strong> feature, delivered by the compiled <code>oci_proxy_engine</code>. It reaches parity with a Satellite-style container-image content view: your OCI / Docker <strong>container images</strong> flow through the very same capture → version → promote → serve pipeline as <a href=\"repository-mirroring.html\">mirrored packages</a> and <a href=\"snap-proxy.html\">snaps</a>.",
+          "intro": "Container Image Content Lifecycle は <strong>Enterprise</strong> フィーチャーであり、<code>oci_proxy_engine</code>によって提供されます。これはミラーサタイルのコンテナイメージコンテンツビューと同等です：あなたのOCI / Docker <strong>コンテナイメージ</strong>は、<a href=\"repository-mirroring.html\">ミラーされたパッケージ</a>および<a href=\"snap-proxy.html\">スナップ</a>と同じキャプチャ → バージョン → 提携 → サービングのパイプラインを通ります。",
           "title": "概要"
         },
         "promote": {
@@ -13955,6 +13955,15 @@
           "001": "リポジトリミラーリング設定ページ — snaps がパッケージリポジトリとともに各ミラー上で追跡される場所",
           "002": "ミラーが追跡している snaps を表示した状態 — 各行は snap 名、チャンネル、および現在のキャプチャステータスをリストします。",
           "003": "キャプチャされた snaps はパッケージと同じようにコンテンツビューとライフサイクル環境を通じてプロモートされ、プロモートレーンから消費ホストへ再指定されます。"
+        },
+        "provisioning-engine": {
+          "001": "<code>GET/POST/DELETE /api/v1/provisioning/compute-resources</code> — プロバイダー エンドポイントを管理（Enterprise）",
+          "002": "<code>GET/POST/PUT/DELETE /api/v1/provisioning/templates</code> — プロビジョニングテンプレートの作成と編集（Professional+）",
+          "003": "<code>POST /api/v1/provisioning/provision</code> — ホストをプロビジョニング；進行状況は<code>/jobs/{id}</code>でポーリング",
+          "004": "<code>GET /api/v1/provisioning/providers</code> — 各登録プロバイダーの機能記述子",
+          "005": "<code>provisioning_templates_manage</code> — テンプレート作成と編集（Professional+）",
+          "006": "<code>provisioning_manage</code> — コンピュートリソース、プロビジョニング、およびディスカバリ（Enterprise）",
+          "010": "プロビジョニング → コンピュートリソースは新規ホストがプロビジョニングされるプロバイダーエンドポイントをリストします。"
         }
       },
       "security": {
@@ -18489,6 +18498,17 @@
           },
           "link": "GPG 鍵管理ガイド &#8594;",
           "title": "&#128273; GPGキー管理"
+        },
+        "provisioning_engine": {
+          "description": "新規ホストプロビジョニング：リモートlibvirt / Proxmox上の新しいホストを立ち上げ、最初のブート時にフリートに自動的に登録します。プロバイダー資格情報はOpenBAOに貼り付けと完了の形式で保存されます。",
+          "features": {
+            "autoenroll": "最初のブートでのテナントトークンによる自動登録（サイト + アクセスグループ）",
+            "credentials": "OpenBAOへの資格情報のブローカー",
+            "providers": "プラグ可能なコンピュートプロバイダー（リモートlibvirt、Proxmox VE）",
+            "templates": "再利用可能なバージョン管理されたプロビジョニングテンプレート"
+          },
+          "link": "Provisioning Engine Guide →",
+          "title": "🚀 Provisioning Engine"
         }
       },
       "overview": {
@@ -20051,6 +20071,54 @@
         "openbao": "<strong>OpenBAO KVシークレット</strong>には、秘密鍵と公開鍵の材料のみが保持されます。それはエージェントがキーをインストールするために取得した場合を除いて、金庫から外に出ることはありません。",
         "title": "ストレージモデル",
         "yaml": "<strong>YAML／設定</strong> にも鍵の素材が含まれることはありません。<code>/etc/sysmanage.yaml</code> やそのバックアップに漏洩する機密情報は何もありません。"
+      }
+    },
+    "provisioning_engine": {
+      "architecture": {
+        "description": "The engine is a Cython-compiled binary (<code>provisioning_engine.so</code>) loaded by the open-source server's <code>module_loader</code> at startup. It exports the standard <code>get_module_info()</code> + <code>get_provisioning_router()</code> contract, so <code>mount_provisioning_routes()</code> mounts it alongside the 402 stubs. Compute resources, templates, and jobs are per-tenant operational data read from the active tenant database; provider secrets are brokered from OpenBAO by reference and are never stored in a row.",
+        "title": "アーキテクチャ"
+      },
+      "autoenroll": {
+        "description": "When a provision request carries a server host and an enrollment token, the engine renders a cloud-init user-data that writes <code>/etc/sysmanage-agent.yaml</code> (with the tenant enrollment token) and installs plus starts the agent on first boot. Delivery is provider-specific: libvirt attaches a NoCloud seed ISO, while Proxmox drops the user-data as a <code>cicustom</code> snippet on the node over SSH (the HTTP API cannot upload snippets). The enrollment token can also carry a site and access group, so the host lands in the right tenant, site, and group with no manual step.",
+        "title": "最初のブート自動登録"
+      },
+      "breadcrumb": "プロビジョニングエンジン",
+      "credentials": {
+        "config": "非シークレットプロバイダ設定（たとえばノードSSHユーザー）は専用の<code>config</code>列に存在し、秘密管理システムには存在しません。",
+        "description": "リソースを追加するには、シークレットを貼り付けて完了するだけの経験です — オペレーターは直接OpenBAOに触れることがありません。フォームはプロバイダーごとに異なる：Proxmox リソースはホスト、ポート、およびAPIトークンが必要で、libvirt リソースには接続URIとSSHプライベートキーが必要です。保存時にバックエンドは貼り付けられたシークレットをテナント名空間のOpenBAOパスに書き込み、そのパス（<code>credential_ref</code>）のみを行に保存します。シークレット自体はデータベースには決して保存されず、APIからも返却されることはありません。それでも<em>Advanced</em>トグルを使用することでオペレーターは既存のOpenBAOパスを参照することも可能です。",
+        "nodekey": "ProxmoxノードSSHキー → OpenBAOに保存され、ノード上に自動登録スニペットを配置するために使用されます（詳細は下記参照）。",
+        "sshkey": "libvirt SSH key → stored in OpenBAO, written to a transient <code>0600</code> keyfile at provision time.",
+        "title": "貼り付けと完了の資格情報（OpenBAO）",
+        "token": "Proxmox APIトークン → OpenBAOに保存され、プロバイダーのベアラーテークンとして使用されます。"
+      },
+      "endpoints": {
+        "title": "エンドポイント"
+      },
+      "feature_codes": {
+        "description": "これらの機能コードによってエンドポイントが制御されます（オープンソースサーバーはモジュールがロードされていない場合、<code>402</code>を返します）:",
+        "title": "機能コード"
+      },
+      "header": {
+        "description": "最初のブートアーティファクトをレンダリングする再利用可能なプロビジョニングテンプレートを使用して、新規ホストを立ち上げます。リモートlibvirtとProxmox VEをドライブするプラグ可能なコンピュータープロバイダー モデル、OpenBAOにプロバイダーのシークレットを保存する貼り付けと完了の資格情報フローを使用して、オペレーターは vaultパスを手動で管理することなく新規ホストを自動的に登録します。",
+        "title": "プロビジョニングエンジン"
+      },
+      "meta_description": "",
+      "overview": {
+        "description": "SysManageの他のすべてのデプロイメントパスではホストに既にエージェントが実行されていることを前提としています。プロビジョニングエンジンはそのギャップを埋めます：それはコンピュートプロバイダー（サーバー → ハイパーバイザーアプリケーションプログラミングインターフェース）を使用してベースイメージのクローンを作成し、テナント <strong>登録トークン</strong> を含む最初のブートクラウド初期化シードを接続します。新しいホストはエージェントをインストールし、正しいテナントとサイトに自己レジストリします。プロバイダーを追加する手順は段階的です — 各バックエンドは機能記述子の後ろで<code>create</code> / <code>status</code> / <code>destroy</code> / <code>console</code>契約を実装します。",
+        "title": "概要"
+      },
+      "page_title": "プロビジョニングエンジン - SysManage Professional+",
+      "providers": {
+        "description": "コンピュートリソースはエンジンをプロバイダー エンドポイントに指すようにします。リストビューでは各リソースの名前、種類、接続、および資格情報参照が表示されますが、それが指しているシークレット自体は決して表示されません。現在、2つのプロバイダーが提供されています:",
+        "libvirt": "<strong>Remote libvirt</strong> — connect over <code>qemu+ssh://user@host/system</code>. The engine stages an overlay disk plus a NoCloud seed ISO into the pool, then defines and starts the domain. Local and remote differ only by the connection URI.",
+        "proxmox": "<strong>Proxmox VE</strong> — HTTP API を使用して接続します。エンジンはクラウド初期化が可能なテンプレートをクローンし、サイズとクラウド初期化設定を適用し、それを起動します。",
+        "title": "コンピュートプロバイダー"
+      },
+      "tiers": {
+        "enterprise": "Enterprise: configure compute resources, provision hosts on remote libvirt / Proxmox, and drive first-boot auto-enrollment.",
+        "oss": "Community Edition: deploy plans require a host that already runs an agent — there is no net-new provisioning.",
+        "templates": "Professional+: author reusable, versioned provisioning templates (cloud-init / kickstart / preseed / autoinstall).",
+        "title": "Community Edition vs Professional+"
       }
     }
   },

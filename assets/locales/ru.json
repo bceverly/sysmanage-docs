@@ -13952,6 +13952,15 @@
           "001": "Страница настроек зеркального отслеживания репозиториев — где snaps отслеживаются вместе с пакетными репозиториями на каждом зеркале.",
           "002": "Зеркало раскрывается для отслеживаемых snaps — каждая строка содержит имя snap, его канал и текущий статус захвата.",
           "003": "Захваченные snaps продвигаются через те же представления контента и среды жизненного цикла, что и пакеты, и переустанавливаются узлам с помощью действия Переустановка."
+        },
+        "provisioning-engine": {
+          "001": "<code>GET/POST/DELETE /api/v1/provisioning/compute-resources</code> — управление конечными точками поставщиков (Enterprise)",
+          "002": "<code>GET/POST/PUT/DELETE /api/v1/provisioning/templates</code> — создание шаблонов для автоматизации (Professional+)",
+          "003": "<code>POST /api/v1/provisioning/provision</code> — подготовка хоста; проверяйте прогресс с помощью <code>/jobs/{id}</code>",
+          "004": "<code>GET /api/v1/provisioning/providers</code> — описания возможностей для каждого зарегистрированного поставщика",
+          "005": "<code>provisioning_templates_manage</code> — создание шаблонов для автоматизации (Professional+)",
+          "006": "<code>provisioning_manage</code> — управление вычислительными ресурсами, подготовкой и обнаружением (Enterprise)",
+          "010": "Подготовка → Вычислительные ресурсы — список конечных точек поставщиков для новых хостов."
         }
       },
       "security": {
@@ -18485,6 +18494,17 @@
           },
           "link": "Руководство по управлению ключами GPG &#8594;",
           "title": "&#128273; Управление GPG-ключами"
+        },
+        "provisioning_engine": {
+          "description": "Создание новых хостов на удаленных libvirt / Proxmox, которые автоматически регистрируются в флоте при первой загрузке.",
+          "features": {
+            "autoenroll": "Автоматическая регистрация нового хоста с токеном тенанта (сайт + группа доступа)",
+            "credentials": "Секреты, переданные через OpenBAO",
+            "providers": "Модульные поставщики вычислительных ресурсов (удаленный libvirt, Proxmox VE)",
+            "templates": "Переиспользуемые, версионированные шаблоны подготовки"
+          },
+          "link": "Provisioning Engine Guide →",
+          "title": "🚀 Provisioning Engine"
         }
       },
       "overview": {
@@ -20047,6 +20067,54 @@
         "openbao": "<strong>Секрет OpenBAO KV</strong> хранит секретные и публичные ключи. Он никогда не покидает хранилище, кроме случаев, когда агент получает его для установки ключа.",
         "title": "Модель хранилища",
         "yaml": "<strong>YAML / конфигурация</strong> также никогда не содержит материала ключа; в <code>/etc/sysmanage.yaml</code> или его резервной копии нет ничего конфиденциального, что могло бы утечь."
+      }
+    },
+    "provisioning_engine": {
+      "architecture": {
+        "description": "The engine is a Cython-compiled binary (<code>provisioning_engine.so</code>) loaded by the open-source server's <code>module_loader</code> at startup. It exports the standard <code>get_module_info()</code> + <code>get_provisioning_router()</code> contract, so <code>mount_provisioning_routes()</code> mounts it alongside the 402 stubs. Compute resources, templates, and jobs are per-tenant operational data read from the active tenant database; provider secrets are brokered from OpenBAO by reference and are never stored in a row.",
+        "title": "Архитектура"
+      },
+      "autoenroll": {
+        "description": "When a provision request carries a server host and an enrollment token, the engine renders a cloud-init user-data that writes <code>/etc/sysmanage-agent.yaml</code> (with the tenant enrollment token) and installs plus starts the agent on first boot. Delivery is provider-specific: libvirt attaches a NoCloud seed ISO, while Proxmox drops the user-data as a <code>cicustom</code> snippet on the node over SSH (the HTTP API cannot upload snippets). The enrollment token can also carry a site and access group, so the host lands in the right tenant, site, and group with no manual step.",
+        "title": "Автоматическая регистрация при первой загрузке"
+      },
+      "breadcrumb": "Модуль подготовки",
+      "credentials": {
+        "config": "Неконфиденциальные параметры поставщика (например, SSH-пользователь узла) хранятся в отдельном столбце <code>config</code>, никогда не в хранилище.",
+        "description": "Добавление ресурса — это вставка секрета и нажатие кнопки. Оператор никогда не взаимодействует с OpenBAO напрямую. Форма зависит от поставщика: для Proxmox требуется хост, порт и токен API; для libvirt — URI подключения и приватный SSH-ключ. При сохранении секрет вносится в тенантский путь OpenBAO, а ссылка на этот путь (<code>credential_ref</code>) записывается в базу данных. Секрет никогда не попадает в базу данных и не возвращается API. Виджет <em>Advanced</em> позволяет оператору указать существующий OpenBAO путь вместо вставки секрета.",
+        "nodekey": "Приватный SSH-ключ узла Proxmox сохраняется в OpenBAO и используется для размещения фрагмента автоматической регистрации на узле (см. ниже).",
+        "sshkey": "libvirt SSH key → stored in OpenBAO, written to a transient <code>0600</code> keyfile at provision time.",
+        "title": "Пастинг и использование секретов (OpenBAO)",
+        "token": "Токен API Proxmox сохраняется в OpenBAO и используется как токен доступа поставщика."
+      },
+      "endpoints": {
+        "title": "Конечные точки"
+      },
+      "feature_codes": {
+        "description": "Доступ к конечным точкам зависит от этих кодов функций (открытая версия возвращает <code>402</code>, если модуль не загружен):",
+        "title": "Коды функций"
+      },
+      "header": {
+        "description": "Создание новых хостов с автоматической регистрацией при первой загрузке. Модульные поставщики вычислительных ресурсов поддерживают удаленный libvirt и Proxmox VE; переиспользуемые шаблоны подготовки генерируют фрагменты для первой загрузки; пастинг секретов поставщика в OpenBAO позволяет операторам не управлять хранилищем.",
+        "title": "Модуль подготовки"
+      },
+      "meta_description": "",
+      "overview": {
+        "description": "Все другие пути развертывания SysManage предполагают, что хост уже запущен с агентом. Модуль подготовки закрывает эту дыру: он активирует вычислительный поставщик (сервер → API гипервизора), клонирует базовое изображение, прикрепляет seed cloud-init для первой загрузки с токеном <strong>enrollment</strong>, и новый хост устанавливает агента и регистрируется в правильном тенанте. Добавление поставщика — это пошаговый процесс: каждый backend реализует один контракт <code>create</code> / <code>status</code> / <code>destroy</code> / <code>console</code>.",
+        "title": "Обзор"
+      },
+      "page_title": "Модуль подготовки - SysManage Professional+",
+      "providers": {
+        "description": "Вычислительный ресурс указывает движку на конечную точку поставщика. Список показывает имя, тип, подключение и ссылку на секрет для каждого ресурса; сам секрет никогда не отображается. Сегодня доступны два поставщика:",
+        "libvirt": "<strong>Remote libvirt</strong> — connect over <code>qemu+ssh://user@host/system</code>. The engine stages an overlay disk plus a NoCloud seed ISO into the pool, then defines and starts the domain. Local and remote differ only by the connection URI.",
+        "proxmox": "<strong>Proxmox VE</strong> — подключитесь к HTTP API с помощью токена API. Движок клонирует готовый для cloud-init шаблон, применяет размер и настройки cloud-init, а затем запускает его.",
+        "title": "Поставщики вычислительных ресурсов"
+      },
+      "tiers": {
+        "enterprise": "Enterprise: configure compute resources, provision hosts on remote libvirt / Proxmox, and drive first-boot auto-enrollment.",
+        "oss": "Community Edition: deploy plans require a host that already runs an agent — there is no net-new provisioning.",
+        "templates": "Professional+: author reusable, versioned provisioning templates (cloud-init / kickstart / preseed / autoinstall).",
+        "title": "Community Edition vs Professional+"
       }
     }
   },

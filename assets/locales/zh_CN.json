@@ -13955,6 +13955,15 @@
           "001": "仓库镜像设置页面 — 在每个镜像中，snap包与软件包仓库一起被追踪。",
           "002": "一个镜像扩展以显示其跟踪的 snaps — 每一行列出 snap 名称及其通道和当前捕获状态。",
           "003": "捕获的 snaps 通过相同的内容视图和生命周期环境进行推广，并从推广通道中重新指向消费主机。"
+        },
+        "provisioning-engine": {
+          "001": "<code>GET/POST/DELETE /api/v1/provisioning/compute-resources</code> — 管理提供者端点（企业版）",
+          "002": "<code>GET/POST/PUT/DELETE /api/v1/provisioning/templates</code> — 编写配置模板（专业版+）",
+          "003": "<code>POST /api/v1/provisioning/provision</code> — 配置一个主机；轮询<code>/jobs/{id}</code>获取进度",
+          "004": "<code>GET /api/v1/provisioning/providers</code> — 注册的每个提供者的功能描述符",
+          "005": "<code>provisioning_templates_manage</code> — 模板编写功能（专业版+）",
+          "006": "<code>provisioning_manage</code> — 计算资源、配置和发现功能（企业版）",
+          "010": "配置 → 计算资源列出新主机配置所用的提供商端点。"
         }
       },
       "security": {
@@ -18489,6 +18498,17 @@
           },
           "link": "GPG 密钥管理指南 &#8594;",
           "title": "&#128273; GPG 密钥管理"
+        },
+        "provisioning_engine": {
+          "description": "全新主机配置：在远程libvirt / Proxmox上立即将新主机配置为首次启动时自动加入舰队，并使用粘贴的提供者凭证存储在OpenBAO中。",
+          "features": {
+            "autoenroll": "通过租户令牌进行首次启动自动注册（站点 + 访问组）",
+            "credentials": "粘贴并完成的凭证通过OpenBAO分发",
+            "providers": "可插拔计算提供者（远程libvirt、Proxmox VE）",
+            "templates": "可重复使用的版本化配置模板"
+          },
+          "link": "Provisioning Engine Guide →",
+          "title": "🚀 Provisioning Engine"
         }
       },
       "overview": {
@@ -20051,6 +20071,54 @@
         "openbao": "<strong>OpenBAO KV 密钥</strong> 存储私有和公钥材料，除了代理获取密钥进行安装外，从不离开保险库。",
         "title": "存储模型",
         "yaml": "<strong>YAML / 配置</strong> 中同样从不包含密钥材料；不存在会泄露到 <code>/etc/sysmanage.yaml</code> 或其备份中的敏感内容。"
+      }
+    },
+    "provisioning_engine": {
+      "architecture": {
+        "description": "The engine is a Cython-compiled binary (<code>provisioning_engine.so</code>) loaded by the open-source server's <code>module_loader</code> at startup. It exports the standard <code>get_module_info()</code> + <code>get_provisioning_router()</code> contract, so <code>mount_provisioning_routes()</code> mounts it alongside the 402 stubs. Compute resources, templates, and jobs are per-tenant operational data read from the active tenant database; provider secrets are brokered from OpenBAO by reference and are never stored in a row.",
+        "title": "架构"
+      },
+      "autoenroll": {
+        "description": "When a provision request carries a server host and an enrollment token, the engine renders a cloud-init user-data that writes <code>/etc/sysmanage-agent.yaml</code> (with the tenant enrollment token) and installs plus starts the agent on first boot. Delivery is provider-specific: libvirt attaches a NoCloud seed ISO, while Proxmox drops the user-data as a <code>cicustom</code> snippet on the node over SSH (the HTTP API cannot upload snippets). The enrollment token can also carry a site and access group, so the host lands in the right tenant, site, and group with no manual step.",
+        "title": "首次启动自动注册"
+      },
+      "breadcrumb": "配置引擎",
+      "credentials": {
+        "config": "非秘密提供商设置（例如节点SSH用户）保存在一个专用<code>config</code>列中，从不存入保险库。",
+        "description": "添加资源是一个粘贴秘密并完成的操作——操作员从未直接接触OpenBAO。表单是提供商感知的：Proxmox资源需要主机名、端口和API令牌；libvirt资源需要连接URI和SSH私钥。保存时，后端将粘贴的秘密写入租户命名空间下的OpenBAO路径，并仅存储该路径（<code>credential_ref</code>）。秘密本身从未进入数据库，也永远不会通过API返回。一个<em>高级</em>切换仍然允许操作员引用现有的OpenBAO路径而不是粘贴秘密。",
+        "nodekey": "Proxmox节点SSH密钥 → 存储在OpenBAO中，用于放置自动注册片段（见下文）。",
+        "sshkey": "libvirt SSH key → stored in OpenBAO, written to a transient <code>0600</code> keyfile at provision time.",
+        "title": "粘贴并完成凭证（OpenBAO）",
+        "token": "Proxmox API令牌 → 存储在OpenBAO中，作为提供者的承载令牌使用。"
+      },
+      "endpoints": {
+        "title": "端点"
+      },
+      "feature_codes": {
+        "description": "这些功能代码控制着端点（开源服务器在模块未加载时返回<code>402</code>）：",
+        "title": "功能代码"
+      },
+      "header": {
+        "description": "立即将新主机配置为首次启动时自动加入舰队。一个可插拔计算提供商模型驱动远程libvirt和Proxmox VE；可重复使用的配置模板生成首次启动的工件；粘贴并完成凭证流程将提供者秘密存储在OpenBAO中，使操作员无需手动管理保险库路径。",
+        "title": "配置引擎"
+      },
+      "meta_description": "",
+      "overview": {
+        "description": "SysManage 中的每个其他部署路径都假设主机已经运行了代理。Provisioning Engine 补齐了这一空白：它通过调用计算提供商（服务器 → 虚拟化 API）克隆一个基础镜像，附加一个包含租户 <strong>注册令牌</strong> 的首次启动 cloud-init 种子，并且新主机安装代理并自动注册到正确的租户和站点。添加提供者是增量的 — 每个后端都实现了一个 <code>create</code> / <code>status</code> / <code>destroy</code> / <code>console</code> 合约，背后有一个能力描述符。",
+        "title": "概述"
+      },
+      "page_title": "SysManage专业版+ 配置引擎",
+      "providers": {
+        "description": "计算资源指向提供者端点。列表视图显示每个资源的名称、类型、连接和凭证引用；所指的秘密从不显示。今天有两个提供商：",
+        "libvirt": "<strong>Remote libvirt</strong> — connect over <code>qemu+ssh://user@host/system</code>. The engine stages an overlay disk plus a NoCloud seed ISO into the pool, then defines and starts the domain. Local and remote differ only by the connection URI.",
+        "proxmox": "<strong>Proxmox VE</strong> — 通过HTTP API和API令牌连接。引擎克隆一个云初始化就绪模板，并应用大小和云初始化设置，然后引导它。",
+        "title": "计算提供商"
+      },
+      "tiers": {
+        "enterprise": "Enterprise: configure compute resources, provision hosts on remote libvirt / Proxmox, and drive first-boot auto-enrollment.",
+        "oss": "Community Edition: deploy plans require a host that already runs an agent — there is no net-new provisioning.",
+        "templates": "Professional+: author reusable, versioned provisioning templates (cloud-init / kickstart / preseed / autoinstall).",
+        "title": "Community Edition vs Professional+"
       }
     }
   },

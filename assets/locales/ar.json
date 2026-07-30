@@ -13974,6 +13974,15 @@
           "001": "صفحة إعدادات مرآة المكتبة — حيث يتم تتبع الأشرطة بجانب مكتبات الحزم على كل مرآة.",
           "002": "مرآة موسعة تظهر النسخ التي تتتبعها — كل صف يحتوي على اسم النسخة، قناتها، والوضع الحالي للتقاط.",
           "003": "نسخ التقاط ترقيتها عبر نفس نظرة الرؤية والبيئات الدورية كما الحزم، وتعاد توجيهها إلى المضيف المستهلك من طريق الخط الناقل."
+        },
+        "provisioning-engine": {
+          "001": "<code>GET/POST/DELETE /api/v1/provisioning/compute-resources</code> — إدارة نقاط النهاية للمزودين (المؤسسة)",
+          "002": "<code>GET/POST/PUT/DELETE /api/v1/provisioning/templates</code> — إنشاء قوالب التوفر (المهنيون+) ",
+          "003": "<code>POST /api/v1/provisioning/provision</code> — توفير نظام مستضاد؛ تحقق من <code>/jobs/{id}</code> لمتابعة التقدم",
+          "004": "<code>GET /api/v1/provisioning/providers</code> — وصفات القدرات لكل مزود مسجل",
+          "005": "<code>provisioning_templates_manage</code> — إنشاء القوالب (المهنيون+) ",
+          "006": "<code>provisioning_manage</code> — موارد الحوسبة، والتوفير، والكشف (المؤسسة)",
+          "010": "التوفير → قائمة موارد الحوسبة تظهر نقاط النهاية للمزودين التي يتم توفير الأنظمة المستضادة عليها."
         }
       },
       "security": {
@@ -18508,6 +18517,17 @@
           },
           "link": "دليل إدارة مفاتيح GPG &#8594;",
           "title": "&#128273; إدارة مفاتيح GPG"
+        },
+        "provisioning_engine": {
+          "description": "إنشاء نظام مستضاد جديد: قم بإنشاء مضيفين جدد على libvirt / Proxmox البعيد ليتم تسجيلهم تلقائياً في الأسطول عند التشغيل الأول، مع تخزين بيانات الاعتماد المزود في OpenBAO.",
+          "features": {
+            "autoenroll": "التسجيل التلقائي عند التشغيل الأول عبر توكن المستأجر (الموقع + مجموعة الوصول)",
+            "credentials": "بيانات الاعتماد المزودة إلى OpenBAO عبر الوسيط",
+            "providers": "مزودي الحوسبة القابل للتوسع (libvirt البعيد، Proxmox VE)",
+            "templates": "قوالب التوفير القابلة لإعادة الاستخدام"
+          },
+          "link": "Provisioning Engine Guide →",
+          "title": "🚀 Provisioning Engine"
         }
       },
       "overview": {
@@ -20070,6 +20090,54 @@
         "openbao": "<strong>سر OpenBAO KV</strong> يحتفظ بالمواد الخاصة والعلنية للمفتاح. لا يتم نقله خارج الخزانة إلا عندما يستخدم الوكيل لاستلامه وتركيب المفتاح.",
         "title": "نموذج التخزين",
         "yaml": "<strong>YAML / الإعدادات</strong> لا تحتوي أبدًا على مادة المفتاح أيضًا؛ فليس هناك ما هو حساس ليتسرّب إلى <code>/etc/sysmanage.yaml</code> أو إلى نسخة احتياطية منه."
+      }
+    },
+    "provisioning_engine": {
+      "architecture": {
+        "description": "The engine is a Cython-compiled binary (<code>provisioning_engine.so</code>) loaded by the open-source server's <code>module_loader</code> at startup. It exports the standard <code>get_module_info()</code> + <code>get_provisioning_router()</code> contract, so <code>mount_provisioning_routes()</code> mounts it alongside the 402 stubs. Compute resources, templates, and jobs are per-tenant operational data read from the active tenant database; provider secrets are brokered from OpenBAO by reference and are never stored in a row.",
+        "title": "الهندسة المعمارية"
+      },
+      "autoenroll": {
+        "description": "When a provision request carries a server host and an enrollment token, the engine renders a cloud-init user-data that writes <code>/etc/sysmanage-agent.yaml</code> (with the tenant enrollment token) and installs plus starts the agent on first boot. Delivery is provider-specific: libvirt attaches a NoCloud seed ISO, while Proxmox drops the user-data as a <code>cicustom</code> snippet on the node over SSH (the HTTP API cannot upload snippets). The enrollment token can also carry a site and access group, so the host lands in the right tenant, site, and group with no manual step.",
+        "title": "التسجيل التلقائي عند التشغيل الأول"
+      },
+      "breadcrumb": "محرك التوفير",
+      "credentials": {
+        "config": "إعدادات المزود غير السرية (مثل المستخدم SSH للعقد) موجودة في عمود منفصل <code>config</code>، أبداً في الخزان.",
+        "description": "إضافة مورد هي تجربة لصق السر والذهاب — لا يحتاج المشغل إلى التعامل مباشرة مع OpenBAO. يتم تعديل النموذج وفقًا للمزود: يتطلب مورد Proxmox اسم المضيف، المنفذ، وتوكن API؛ بينما يتطلب مورد libvirt URI الاتصال وملف مفتاح SSH الخاص. عند الحفظ، يكتب الخلفية السر اللصق إلى مسار OpenBAO مسماً باسم المستأجر ويحفظ فقط هذا المسار (<code>credential_ref</code>) في الصف. لا يتم وضع السر نفسه أبداً في قاعدة البيانات ولا يتم عودته من خلال API. زر <em>متقدم</em> يسمح للمشغل بالرجوع إلى مسار OpenBAO موجود بدلاً من لصق سر.",
+        "nodekey": "مفتاح SSH Proxmox → يخزن في OpenBAO، يستخدم لوضع مقطع التسجيل التلقائي على العقد (انظر أدناه).",
+        "sshkey": "libvirt SSH key → stored in OpenBAO, written to a transient <code>0600</code> keyfile at provision time.",
+        "title": "بيانات الاعتماد لصقها وذهابها (OpenBAO)",
+        "token": "توكن API Proxmox → يخزن في OpenBAO، يستخدم كتوكن حامل للمزود."
+      },
+      "endpoints": {
+        "title": "نقاط النهاية"
+      },
+      "feature_codes": {
+        "description": "تتحكم نقاط النهاية بهذه الرموز الوظيفية (يرجع الخادم المفتوح المصدر رمز <code>402</code> عندما لا يتم تحميل الوحدة):",
+        "title": "رموز الوظائف"
+      },
+      "header": {
+        "description": "إنشاء نظام مستضاد جديد يتم تسجيله تلقائياً في الأسطول عند التشغيل الأول. نموذج قابل للتوسع للمزود يقود libvirt البعيد و Proxmox VE؛ قوالب التوفير القابلة لإعادة الاستخدام تقوم بRendering الملفات الأولى عند التشغيل؛ وتدفق بيانات الاعتماد لصقها وذهابها تخزن سر المزود في OpenBAO بحيث لا يحتاج المشغل إلى إدارة مسار الخزان يدويًا.",
+        "title": "محرك التوفير"
+      },
+      "meta_description": "",
+      "overview": {
+        "description": "كل مسار نشر آخر في SysManage يفترض أن النظام المستضاد يعمل بالفعل بوكيل. يقوم محرك التوفير بإغلاق هذا الفجوة: يستدعي محرك الحوسبة (خادم → واجهة برمجة التطبيقات للفرش) لتقليد صورة أساسية، ويقوم بتوصيل بذرة cloud-init الأولى التي تحمل توكن <strong>التسجيل</strong> للمستأجر، ثم يقوم النظام المستضاد الجديد بتثبيت الوكيل ويتم تسجيله تلقائياً في المستأجر والمنطقة الصحيحة. إضافة مزود هي عملية متدرجة — ينفذ كل خلفية عقد واحد <code>create</code> / <code>status</code> / <code>destroy</code> / <code>console</code> وراء وصفة القدرة.",
+        "title": "نظرة عامة"
+      },
+      "page_title": "محرك التوفير - SysManage المهنيون+",
+      "providers": {
+        "description": "موارد الحوسبة تشير المحرك إلى نقطة النهاية للمزود. يعرض القائمة اسم المورد، النوع، الاتصال، والمراجع السرية؛ لا يتم عرض السر الذي يشير إليه أبداً. هناك مزودان اليوم:",
+        "libvirt": "<strong>Remote libvirt</strong> — connect over <code>qemu+ssh://user@host/system</code>. The engine stages an overlay disk plus a NoCloud seed ISO into the pool, then defines and starts the domain. Local and remote differ only by the connection URI.",
+        "proxmox": "<strong>Proxmox VE</strong> — اتصل عبر واجهة برمجة التطبيقات HTTP باستخدام توكن API. يقوم المحرك بتقليد قالب مستعد لـ cloud-init، ويقوم بتطبيق الحجم والإعدادات الخاصة بـ cloud-init، ثم يبدأ تشغيله.",
+        "title": "مزودو الحوسبة"
+      },
+      "tiers": {
+        "enterprise": "Enterprise: configure compute resources, provision hosts on remote libvirt / Proxmox, and drive first-boot auto-enrollment.",
+        "oss": "Community Edition: deploy plans require a host that already runs an agent — there is no net-new provisioning.",
+        "templates": "Professional+: author reusable, versioned provisioning templates (cloud-init / kickstart / preseed / autoinstall).",
+        "title": "Community Edition vs Professional+"
       }
     }
   },
