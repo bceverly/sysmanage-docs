@@ -57,8 +57,10 @@ from backend.persistence.models import (
     HostFirewallRole,
     IdpRoleMapping,
     MirrorImageContent,
+    MirrorPlatformConfig,
     MirrorRepository,
     MirrorSettings,
+    MirrorSetupStatus,
     MirrorSnapContent,
     MirrorSnapshot,
     ProvisioningJob,
@@ -314,7 +316,8 @@ def main():
             ScriptExecutionLog, SavedScript, UpgradeProfile,
             # Mirror content children (Phase 17.1/17.2) before mirror_repository.
             MirrorSnapContent, MirrorImageContent,
-            MirrorSnapshot, MirrorRepository,
+            MirrorSetupStatus,
+            MirrorSnapshot, MirrorRepository, MirrorPlatformConfig,
             RegistrationKey, AccessGroup,
             IdpRoleMapping, ExternalIdpProvider, ExternalIdpSettings,
             FederationHostDirectory, FederationSite,
@@ -434,10 +437,27 @@ def main():
         # to a demo host (host_id is NOT NULL).
         mirror_host_id = next(iter(hosts.values())).id
         mirror_ids = []  # reused by the air-gap collection targets below
+        # Phase 10.4.2: every mirror hangs off a per-platform config (the host that
+        # runs that platform's mirror plans).  WITHOUT it the Repository Mirroring
+        # UI shows the empty "Configure {platform} mirroring" form and never the
+        # mirror list — so its per-row Tracked snaps / Tracked images expanders
+        # (and their screenshots) never appear.  One config per package manager.
+        platform_configs = {}
         for name, mgr, upstream, suite, comps, arch, size, files in MIRRORS:
+            cfg = platform_configs.get(mgr)
+            if cfg is None:
+                cfg = MirrorPlatformConfig(
+                    platform=mgr, host_id=mirror_host_id,
+                    mirror_root_path="/var/mirror",
+                    created_at=NOW, updated_at=NOW,
+                )
+                session.add(cfg)
+                session.flush()
+                platform_configs[mgr] = cfg
             r = MirrorRepository(
                 name=name, package_manager=mgr, upstream_url=upstream, suite=suite,
                 components=comps, architectures=arch, enabled=True, host_id=mirror_host_id,
+                platform_config_id=cfg.id,
                 last_sync_at=NOW - timedelta(hours=5), last_sync_status="success",
                 last_snapshot_at=NOW - timedelta(hours=5), last_snapshot_status="success",
                 next_sync_at=NOW + timedelta(hours=19),
@@ -469,6 +489,29 @@ def main():
                 last_capture_at=(NOW - timedelta(hours=4)) if status == "CAPTURED" else None,
                 created_at=NOW, updated_at=NOW,
             ))
+
+        # The Repository Mirroring card sits behind a setup-probe gate: until a
+        # MirrorSetupStatus row reports the required tools "present" for the tab's
+        # package manager, PlatformPanel greys the whole card with
+        # pointer-events:none — the per-row "Tracked snaps"/"Tracked images"
+        # toggles are in the DOM but UNCLICKABLE, so the screenshot capture times
+        # out and skips.  Seed a ready probe for the mirror host (all PMs' tools
+        # present) so every platform sub-tab's card is interactive.
+        session.add(MirrorSetupStatus(
+            host_id=mirror_host_id,
+            tools={
+                "apt-mirror": "present",
+                "reposync": "present",
+                "createrepo_c": "present",
+            },
+            platform="apt",
+            distro="ubuntu",
+            last_check_at=NOW - timedelta(hours=5),
+            last_check_message_id=None,  # non-NULL would keep the card polling
+            install_status="idle",
+            created_at=NOW,
+            updated_at=NOW,
+        ))
 
         # Flag one demo host as an image-mode (bootc) host so its Image Mode
         # tab renders + its package-update actions are gated off (Phase 17.3).
