@@ -93,10 +93,17 @@ if [ "$DRY_RUN" = "0" ]; then
   # apt
   find "$REPO" -type d -path '*/pool/main' | while IFS= read -r pool; do
     debroot="$(dirname "$(dirname "$pool")")"
-    ( cd "$debroot" && mkdir -p dists/stable/main/binary-amd64 \
-      && dpkg-scanpackages pool/main /dev/null > dists/stable/main/binary-amd64/Packages \
-      && gzip -k -f dists/stable/main/binary-amd64/Packages \
-      && ( cd dists/stable && apt-ftparchive release . > Release ) ) && echo "  regen apt: $(rel "$debroot")"
+    # This job runs LAST after a release (repository_dispatch) and mirrors
+    # back with --delete, so whatever it writes is what the world sees.  It
+    # used to run a bare `apt-ftparchive release . > Release`, which emits a
+    # Release with NO Suite/Codename/Components/Architectures and checksums
+    # its own output file — apt then refuses the repo entirely:
+    #   W: Conflicting distribution: ... (expected stable but got )
+    #   E: ... Hash Sum mismatch
+    # It also regenerated amd64 only, leaving arm64's index stale.  Delegated
+    # to the shared generator, which does both arches and fails loudly rather
+    # than publishing something apt will reject.
+    ( "$(dirname "$0")/build-apt-repo.sh" "$debroot" ) && echo "  regen apt: $(rel "$debroot")"
   done
   # rpm
   find "$REPO" -type d -name repodata | while IFS= read -r rd; do d="$(dirname "$rd")"
