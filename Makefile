@@ -666,6 +666,14 @@ prune-repo:
 	@test "$$(find repo -type f 2>/dev/null | wc -l)" -gt 50 || { echo "ERROR: R2 pull returned <50 files — refusing to prune + --delete (a bad/empty pull could wipe the bucket)"; exit 1; }
 	@KEEP=5 DRY_RUN=0 ./scripts/prune-package-repo.sh
 	@aws s3 sync repo/ s3://$(R2_BUCKET)/ $(_R2_ARGS) --size-only --delete
+	@# --size-only above is right for package FILES (large, immutable, and a
+	@# re-upload of every .deb/.rpm each run would be wasteful) but WRONG for
+	@# index files: a regenerated Packages.gz / Release / repodata can be
+	@# byte-different at the SAME SIZE, so --size-only silently skips it and
+	@# leaves R2 serving a stale index under a fresh Release -> apt reports
+	@# "Hash Sum mismatch" and the repo is unusable.  Re-sync just the metadata
+	@# without --size-only so content changes always land.
+	@aws s3 sync repo/ s3://$(R2_BUCKET)/ $(_R2_ARGS) 		--exclude "*" --include "*/dists/*" --include "*/repodata/*" 		--include "*APKINDEX*"
 
 # Install everything needed for development
 setup: install-dev install-browsers
