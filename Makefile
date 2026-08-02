@@ -673,7 +673,13 @@ prune-repo:
 	@# leaves R2 serving a stale index under a fresh Release -> apt reports
 	@# "Hash Sum mismatch" and the repo is unusable.  Re-sync just the metadata
 	@# without --size-only so content changes always land.
-	@aws s3 sync repo/ s3://$(R2_BUCKET)/ $(_R2_ARGS) 		--exclude "*" --include "*/dists/*" --include "*/repodata/*" 		--include "*APKINDEX*"
+	@# Prefix-scoped, NOT a whole-bucket sync with --exclude: `aws s3 sync`
+	@# LISTs both sides in full before filtering client-side, and ListObjects
+	@# is a billable R2 Class A operation.  Syncing only the index prefixes
+	@# lists only those prefixes.
+	@for d in $$(find repo -type d \( -name dists -o -name repodata \) 2>/dev/null); do \
+		aws s3 sync "$$d/" "s3://$(R2_BUCKET)/$${d#repo/}/" $(_R2_ARGS); \
+	done
 
 # Install everything needed for development
 setup: install-dev install-browsers
