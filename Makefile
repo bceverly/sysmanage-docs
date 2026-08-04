@@ -119,6 +119,7 @@ help:
 	@echo "  screenshot             - Generate the single dashboard hero screenshot"
 	@echo "  screenshots            - Refresh ALL screenshots across tiers (Community -> Pro -> Enterprise)"
 	@echo "  screenshots-community  - Refresh only Community/OSS-tier screenshots"
+	@echo "  screenshots-enterprise - Refresh only Enterprise-tier screenshots (resumes a failed [3/3])"
 	@echo "  screenshots-vm-up      - Bring the screenshot VM up"
 	@echo "  screenshots-vm-down    - Tear the screenshot VM down"
 	@echo "  screenshots-pro-build  - Provision a Professional-tier VM (engines + self-signed license)"
@@ -358,7 +359,7 @@ screenshot:
 # ---- Automated documentation screenshots (screenshots/ pipeline) ------------
 # Reproducible screenshots: provision a VM, seed demo data (REST + WS), drive the
 # UI with Playwright, write PNGs into assets/images/. See screenshots/README.md.
-.PHONY: screenshots screenshots-community screenshots-seed screenshots-capture screenshots-vm-up screenshots-vm-down screenshots-pro-build screenshots-pro-seed screenshots-pro-capture screenshots-ent-build screenshots-ent-seed screenshots-ent-capture screenshots-ent-roles screenshots-fleet-seed
+.PHONY: screenshots screenshots-community screenshots-enterprise screenshots-seed screenshots-capture screenshots-vm-up screenshots-vm-down screenshots-pro-build screenshots-pro-seed screenshots-pro-capture screenshots-ent-build screenshots-ent-seed screenshots-ent-capture screenshots-ent-roles screenshots-fleet-seed
 
 SHOTS_DIR := screenshots
 # Load screenshots/config.env (targets, admin + demo creds) if present.
@@ -430,6 +431,32 @@ screenshots:
 # Community Edition (OSS) tier only — quick single-tier iteration. The VM is left
 # running for fast re-runs; FRESH=1 destroys + reprovisions first and tears down
 # after. (This was the old behavior of `make screenshots`.)
+# Enterprise tier only — the same chain `screenshots` runs for [3/3], as a
+# single resumable target.  `screenshots` builds all three tiers in sequence, so
+# a failure in the Enterprise stage (e.g. the first-boot apt-lock race) otherwise
+# means re-running the OSS and Professional VMs from scratch to get back to it.
+# The VM is left running for fast re-runs; FRESH=1 destroys + reprovisions first
+# and tears down after.
+screenshots-enterprise:
+	@if [ "$(FRESH)" = "1" ]; then \
+		echo "$(YELLOW)FRESH=1: destroying any existing VM for a clean run...$(RESET)"; \
+		$(MAKE) screenshots-vm-down; \
+	fi
+	@$(MAKE) screenshots-ent-build
+	@$(MAKE) screenshots-seed
+	@$(MAKE) screenshots-pro-seed
+	@$(MAKE) screenshots-ent-seed
+	@$(MAKE) screenshots-fleet-seed
+	@$(MAKE) screenshots-ent-capture
+	@$(MAKE) screenshots-ent-roles
+	@echo "$(GREEN)✓ Enterprise screenshots refreshed in assets/images/$(RESET)"
+	@if [ "$(FRESH)" = "1" ]; then \
+		echo "$(YELLOW)FRESH=1: tearing down the VM...$(RESET)"; \
+		$(MAKE) screenshots-vm-down; \
+	else \
+		echo "$(BLUE)VM left running (FRESH=0). Re-run for quick iteration, or 'make screenshots-vm-down' to remove it.$(RESET)"; \
+	fi
+
 screenshots-community:
 	@if [ "$(FRESH)" = "1" ]; then \
 		echo "$(YELLOW)FRESH=1: destroying any existing VM for a clean run...$(RESET)"; \

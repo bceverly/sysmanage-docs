@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title data-i18n="pro_plus.provisioning_engine.page_title">Provisioning Engine - SysManage Professional+</title>
-    <meta name="description" content="Net-new host provisioning: a pluggable compute-provider model, provisioning templates, paste-and-go credentials stored in OpenBAO, and first-boot auto-enrollment." data-i18n-attr="content" data-i18n="pro_plus.provisioning_engine.meta_description">
+    <meta name="description" content="Net-new host provisioning: a pluggable compute-provider model, bare-metal PXE with per-MAC OS assignment and hardware discovery, provisioning templates, paste-and-go credentials stored in OpenBAO, and first-boot auto-enrollment." data-i18n-attr="content" data-i18n="pro_plus.provisioning_engine.meta_description">
     <link rel="stylesheet" href="../../assets/css/style.css">
     <link rel="icon" type="image/svg+xml" href="../../assets/images/favicon.svg">
 </head>
@@ -78,12 +78,82 @@ security:
                 </section>
 
                 <section class="docs-section">
+                    <h2 data-i18n="pro_plus.provisioning_engine.baremetal.title">Bare-Metal Provisioning (PXE)</h2>
+                    <p data-i18n="pro_plus.provisioning_engine.baremetal.description" data-i18n-html>Compute providers cover machines a hypervisor can create. Bare metal is the case where nothing exists yet: a physical server arrives with an empty disk and no operating system. SysManage drives it over <strong>PXE</strong> &mdash; the machine network-boots, asks who it is, and is handed an installer that lays down its assigned OS and enrolls it into the fleet unattended. The operator supplies a MAC address and an OS choice; everything after that is automatic.</p>
+                    <p data-i18n="pro_plus.provisioning_engine.baremetal.flow" data-i18n-html>The full path is: machine network-boots &rarr; the per-MAC boot endpoint resolves its assignment &rarr; an answer file is generated for that machine &rarr; the OS installs unattended &rarr; a first-boot script installs the agent with a single-use <strong>enrollment token</strong> &rarr; the host appears in the correct tenant &rarr; netboot is disarmed so the machine boots from its own disk from then on.</p>
+                </section>
+
+                <section class="docs-section">
+                    <h2 data-i18n="pro_plus.provisioning_engine.baremetal.readiness.title">Readiness Preflight and the Config Advisor</h2>
+                    <p data-i18n="pro_plus.provisioning_engine.baremetal.readiness.description" data-i18n-html>PXE needs DHCP, TFTP, and HTTP on a designated provisioning-server host. Rather than assume they exist, SysManage probes for them and refuses to arm a machine until the roles it needs are present. The probe is read-only; nothing is installed without an explicit action.</p>
+                    <p data-i18n="pro_plus.provisioning_engine.baremetal.readiness.advisor" data-i18n-html>Once the tooling is present, the <strong>config advisor</strong> renders a ready-to-apply <code>dnsmasq</code> configuration for the segment. It has two modes, and choosing correctly matters more than it appears:</p>
+                    <ul>
+                        <li data-i18n="pro_plus.provisioning_engine.baremetal.readiness.own" data-i18n-html><strong>own-DHCP</strong> &mdash; SysManage <em>is</em> the DHCP server for the provisioning segment, handing out both addresses and the boot file. Use this on an isolated build network. Two authoritative DHCP servers on one segment will fight, so this mode must not be pointed at a network that already has one.</li>
+                        <li data-i18n="pro_plus.provisioning_engine.baremetal.readiness.proxy" data-i18n-html><strong>proxyDHCP</strong> &mdash; the existing corporate DHCP server keeps handing out addresses, untouched, and SysManage answers only the PXE part. Use this when you cannot change the incumbent DHCP server, which is the common case in a real datacenter.</li>
+                    </ul>
+                    <p data-i18n="pro_plus.provisioning_engine.baremetal.readiness.firewall" data-i18n-html>The advisor also emits the firewall rules the chosen mode needs (UDP 67 for DHCP, 69 for TFTP, 4011 for PXE boot-server discovery, plus the server's HTTP port), detected per platform rather than assumed.</p>
+                </section>
+
+                <section class="docs-section">
+                    <h2 data-i18n="pro_plus.provisioning_engine.baremetal.sources.title">Install-Source Catalog</h2>
+                    <p data-i18n="pro_plus.provisioning_engine.baremetal.sources.description" data-i18n-html>An <strong>install source</strong> is one bootable OS install tree: an OS family and version, an architecture, the kernel and initrd paths within the tree, and the tree URL itself &mdash; which can point at a public mirror, a mirror maintained by repository mirroring, or an air-gapped install tree.</p>
+                    <figure class="docs-screenshot">
+                        <img src="/assets/images/provisioning-install-sources.png" alt="Provisioning Install Sources tab">
+                        <figcaption data-i18n="pro_plus.provisioning_engine.baremetal.sources.caption">Provisioning &rarr; Install Sources catalogs the OS trees a machine can be netbooted into.</figcaption>
+                    </figure>
+                    <p data-i18n="pro_plus.provisioning_engine.baremetal.sources.dialect" data-i18n-html>The <strong>answer-file dialect</strong> is derived from the OS family rather than being a free-text field, because getting it wrong is the single easiest way to end up with a machine that boots correctly and then waits forever at an interactive prompt. Each family maps to the unattended-install format its installer actually speaks:</p>
+                    <ul>
+                        <li data-i18n="pro_plus.provisioning_engine.baremetal.sources.debian" data-i18n-html>Debian &rarr; <code>preseed</code>; Ubuntu &rarr; <code>autoinstall</code> (Subiquity)</li>
+                        <li data-i18n="pro_plus.provisioning_engine.baremetal.sources.rhel" data-i18n-html>RHEL / Rocky / Alma &rarr; <code>kickstart</code>; SUSE &rarr; <code>autoyast</code></li>
+                        <li data-i18n="pro_plus.provisioning_engine.baremetal.sources.freebsd" data-i18n-html>FreeBSD &rarr; <code>bsdinstall</code> &mdash; note that FreeBSD netboots via <code>pxeboot</code> plus an mfsroot, not the Linux kernel-and-initrd shape, so its install source is described differently</li>
+                    </ul>
+                    <p data-i18n="pro_plus.provisioning_engine.baremetal.sources.delete" data-i18n-html>A source that is still referenced by an assignment cannot be deleted &mdash; removing it would leave a machine booting toward a tree that no longer exists.</p>
+                </section>
+
+                <section class="docs-section">
+                    <h2 data-i18n="pro_plus.provisioning_engine.baremetal.assignments.title">Per-MAC Assignment and Netboot Arming</h2>
+                    <p data-i18n="pro_plus.provisioning_engine.baremetal.assignments.description" data-i18n-html>An <strong>assignment</strong> pins one MAC address to one install source, optionally with a hostname, site, and access group. When that machine network-boots, the per-MAC boot endpoint resolves the assignment and serves the matching installer &mdash; which is what makes &ldquo;Ubuntu on this box, Rocky on that one, FreeBSD on a third&rdquo; a deliberate choice rather than an accident of boot order.</p>
+                    <figure class="docs-screenshot">
+                        <img src="/assets/images/provisioning-bare-metal.png" alt="Provisioning Bare Metal tab">
+                        <figcaption data-i18n="pro_plus.provisioning_engine.baremetal.assignments.caption">Provisioning &rarr; Bare Metal shows each machine's assigned OS, install state, and whether netboot is still armed.</figcaption>
+                    </figure>
+                    <p data-i18n="pro_plus.provisioning_engine.baremetal.assignments.armed" data-i18n-html><strong>Netboot armed</strong> is the safety-critical field on this page. While a machine is armed it will reinstall itself &mdash; erasing its disk &mdash; every time it network-boots. Arming is therefore derived from install state rather than being a free-standing switch: a machine is armed while it is <code>assigned</code>, <code>building</code>, or <code>failed</code>, and is automatically disarmed the moment it reports <code>installed</code>. That is what stops a finished server from reinstalling itself on its next reboot forever.</p>
+                    <p data-i18n="pro_plus.provisioning_engine.baremetal.assignments.rearm" data-i18n-html>Re-arming an already-installed machine is deliberately a confirmed action, because it is destructive: the next network boot wipes the disk and reinstalls from scratch. Use it to rebuild a machine in place.</p>
+                    <p data-i18n="pro_plus.provisioning_engine.baremetal.assignments.answerfile" data-i18n-html>The answer file a machine fetches is guarded by a single-use, expiring boot token rather than by credentials &mdash; a machine partway through a network boot has no identity to authenticate with. The token is minted per boot, and the plaintext is never returned by the API.</p>
+                </section>
+
+                <section class="docs-section">
+                    <h2 data-i18n="pro_plus.provisioning_engine.baremetal.discovery.title">Host Discovery</h2>
+                    <p data-i18n="pro_plus.provisioning_engine.baremetal.discovery.description" data-i18n-html>Racking a new machine usually means nobody has written its MAC address down. Discovery removes that step: hardware that network-boots without an assignment is booted into an <strong>ephemeral RAM probe</strong> &mdash; nothing is written to disk &mdash; which reports what the machine is and parks it in a discovered-hosts list.</p>
+                    <figure class="docs-screenshot">
+                        <img src="/assets/images/provisioning-discovered.png" alt="Provisioning Discovered tab">
+                        <figcaption data-i18n="pro_plus.provisioning_engine.baremetal.discovery.caption">Provisioning &rarr; Discovered lists hardware that PXE-booted with no assignment, with the facts its probe reported.</figcaption>
+                    </figure>
+                    <p data-i18n="pro_plus.provisioning_engine.baremetal.discovery.facts" data-i18n-html>Each entry carries manufacturer and model, CPU and core count, memory, disk count and primary disk, and serial number &mdash; enough to tell a 256&nbsp;GB compute node from a 64&nbsp;GB edge box without walking to the rack. Assigning an OS from here is the fast path: the MAC is already known, so the operator only chooses an install source. A machine that should not be provisioned can be ignored instead.</p>
+                </section>
+
+                <section class="docs-section">
+                    <h2 data-i18n="pro_plus.provisioning_engine.baremetal.bootdisk.title">Boot Media for Networks Without PXE</h2>
+                    <p data-i18n="pro_plus.provisioning_engine.baremetal.bootdisk.description" data-i18n-html>Not every network can PXE boot &mdash; a segment may have no DHCP you are allowed to touch, or the machine may sit somewhere PXE traffic does not reach. For those cases an assignment can be turned into boot media directly, and the rest of the flow is identical once the machine starts.</p>
+                    <ul>
+                        <li data-i18n="pro_plus.provisioning_engine.baremetal.bootdisk.ipxe" data-i18n-html><strong>iPXE script</strong> &mdash; a few hundred bytes, for a machine that already network-boots but is pointed elsewhere.</li>
+                        <li data-i18n="pro_plus.provisioning_engine.baremetal.bootdisk.iso" data-i18n-html><strong>Bootable ISO</strong> &mdash; write it to a USB stick or attach it to a remote console. Building an ISO needs <code>xorriso</code> or <code>genisoimage</code> on the server; when neither is present the option is disabled and says so rather than failing at download time.</li>
+                    </ul>
+                </section>
+
+                <section class="docs-section">
                     <h2 data-i18n="pro_plus.provisioning_engine.endpoints.title">Endpoints</h2>
                     <ul>
                         <li data-i18n="docs.auto.professional-plus.provisioning-engine.001" data-i18n-html><code>GET/POST/DELETE /api/v1/provisioning/compute-resources</code> &mdash; manage provider endpoints (Enterprise)</li>
                         <li data-i18n="docs.auto.professional-plus.provisioning-engine.002" data-i18n-html><code>GET/POST/PUT/DELETE /api/v1/provisioning/templates</code> &mdash; author provisioning templates (Professional+)</li>
                         <li data-i18n="docs.auto.professional-plus.provisioning-engine.003" data-i18n-html><code>POST /api/v1/provisioning/provision</code> &mdash; provision a host; poll <code>/jobs/{id}</code> for progress</li>
                         <li data-i18n="docs.auto.professional-plus.provisioning-engine.004" data-i18n-html><code>GET /api/v1/provisioning/providers</code> &mdash; capability descriptors for every registered provider</li>
+                        <li data-i18n="pro_plus.provisioning_engine.endpoints.sources" data-i18n-html><code>GET/POST/DELETE /api/v1/provisioning/install-sources</code> &mdash; the bootable OS install-tree catalog (Enterprise)</li>
+                        <li data-i18n="pro_plus.provisioning_engine.endpoints.assignments" data-i18n-html><code>GET/POST/DELETE /api/v1/provisioning/install-assignments</code> &mdash; pin a MAC to an install source; <code>POST .../{id}/rearm</code> re-arms netboot (Enterprise)</li>
+                        <li data-i18n="pro_plus.provisioning_engine.endpoints.discovered" data-i18n-html><code>GET /api/v1/provisioning/discovered-hosts</code> &mdash; the discovery parking lot; <code>POST .../{id}/assign</code> and <code>.../{id}/ignore</code> act on an entry (Enterprise)</li>
+                        <li data-i18n="pro_plus.provisioning_engine.endpoints.bootdisk" data-i18n-html><code>GET /api/v1/provisioning/bootdisk/status</code> and <code>POST /api/v1/provisioning/bootdisk/{id}.ipxe|.iso</code> &mdash; boot media for networks without PXE (Enterprise)</li>
+                        <li data-i18n="pro_plus.provisioning_engine.endpoints.readiness" data-i18n-html><code>GET /api/v1/provisioning/readiness/{host_id}</code> plus <code>/advice</code>, <code>/apply</code>, <code>/install</code> and <code>/refresh</code> &mdash; the preflight probe and config advisor (Enterprise)</li>
+                        <li data-i18n="pro_plus.provisioning_engine.endpoints.boot" data-i18n-html><code>GET /api/v1/provisioning/boot.ipxe</code> and <code>/answer/{token}</code> &mdash; consumed by the booting machine itself. Deliberately unauthenticated: a machine partway through a network boot has no credentials, so these are guarded by a single-use, expiring boot token instead.</li>
                     </ul>
                 </section>
 
@@ -92,7 +162,7 @@ security:
                     <p data-i18n="pro_plus.provisioning_engine.feature_codes.description" data-i18n-html>Endpoints are gated by these feature codes (the open-source server returns <code>402</code> when the module isn't loaded):</p>
                     <ul>
                         <li data-i18n="docs.auto.professional-plus.provisioning-engine.005" data-i18n-html><code>provisioning_templates_manage</code> &mdash; template authoring (Professional+)</li>
-                        <li data-i18n="docs.auto.professional-plus.provisioning-engine.006" data-i18n-html><code>provisioning_manage</code> &mdash; compute resources, provisioning, and discovery (Enterprise)</li>
+                        <li data-i18n="docs.auto.professional-plus.provisioning-engine.006" data-i18n-html><code>provisioning_manage</code> &mdash; compute resources, provisioning, bare metal, and discovery (Enterprise)</li>
                     </ul>
                 </section>
 

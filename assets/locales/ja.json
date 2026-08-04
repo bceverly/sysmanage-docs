@@ -20092,7 +20092,13 @@
         "token": "Proxmox APIトークン → OpenBAOに保存され、プロバイダーのベアラーテークンとして使用されます。"
       },
       "endpoints": {
-        "title": "エンドポイント"
+        "title": "エンドポイント",
+        "assignments": "<code>GET/POST/DELETE /api/v1/provisioning/install-assignments</code> — MACをインストールソースにピン留めします；<code>POST .../{id}/rearm</code> はネットブートの再武装を行います（エンタープライズ）",
+        "boot": "<code>GET /api/v1/provisioning/boot.ipxe</code> および <code>/answer/{token}</code> — ブート中のマシン自身が消費します。意図的に認証不要：ネットワークブートの途中にあるマシンには資格情報がないため、これらは単一使用・有効期限付きのブートトークンで保護されます。",
+        "bootdisk": "<code>GET /api/v1/provisioning/bootdisk/status</code> および <code>POST /api/v1/provisioning/bootdisk/{id}.ipxe|.iso</code> — PXEなしネットワーク用ブートメディア（エンタープライズ）",
+        "discovered": "<code>GET /api/v1/provisioning/discovered-hosts</code> — 発見されたホストの一時保管場所；<code>POST .../{id}/assign</code> および <code>.../{id}/ignore</code> はエントリを操作します（エンタープライズ）",
+        "readiness": "<code>GET /api/v1/provisioning/readiness/{host_id}</code> と <code>/advice</code>, <code>/apply</code>, <code>/install</code>, <code>/refresh</code> — プレフライトプローブと設定アドバイザー（エンタープライズ）",
+        "sources": "<code>GET/POST/DELETE /api/v1/provisioning/install-sources</code> — ブート可能なOSインストールツリーのカタログ（エンタープライズ）"
       },
       "feature_codes": {
         "description": "これらの機能コードによってエンドポイントが制御されます（オープンソースサーバーはモジュールがロードされていない場合、<code>402</code>を返します）:",
@@ -20119,6 +20125,49 @@
         "oss": "Community Edition: deploy plans require a host that already runs an agent — there is no net-new provisioning.",
         "templates": "Professional+: author reusable, versioned provisioning templates (cloud-init / kickstart / preseed / autoinstall).",
         "title": "Community Edition vs Professional+"
+      },
+      "baremetal": {
+        "assignments": {
+          "answerfile": "マシンが取得する回答ファイルは単一使用・有効期限付きのブートトークンで保護され、資格情報で保護されていません — ネットワークブート途中のマシンには認証可能なアイデンティティがないためです。トークンは各ブートごとに生成され、APIからは明文が返却されません。",
+          "armed": "<strong>ネットブート武装中</strong> — このページの安全なフィールドです。マシンが武装している間は、ネットワークブートごとにディスクを消去して再インストールします。そのため、武装状態はインストールステータスから派生し、単独のスイッチではありません：マシンが <code>assigned</code>, <code>building</code>, または <code>failed</code> のいずれかである限り武装しています。それが完了したサーバーが次の再起動で再インストールを繰り返さないようにします。",
+          "caption": "プロビジョニング → Bare Metal は各マシンの割り当てOS、インストールステータス、およびネットブートがまだ武装しているかどうかを表示します。",
+          "description": "<strong>割り当て</strong> は1つのMACアドレスを1つのインストールソースにピン留めします（オプションでホスト名、サイト、アクセスグループも指定可能）。そのマシンがネットワークブートすると、MACごとのブートエンドポイントは割り当てを解決し、一致するインストーラーを提供します — これが「このボックスにUbuntu、別のボックスにRocky、3つ目のボックスにはFreeBSD」を選択的に実現する理由です。",
+          "rearm": "既にインストールされたマシンの再武装は意図的に確認が必要なアクションです：次のネットワークブートでディスクが消去され、からscratchで再インストールされます。場所でのリビルドに使用します。",
+          "title": "MACごとの割り当てとネットブート武装"
+        },
+        "bootdisk": {
+          "description": "すべてのネットワークがPXEブート可能であるわけではありません — セグメントにDHCPサーバーがない場合や、マシンがPXEトラフィックが到達しない場所にある場合があります。そのようなケースでは、アサインメントを直接ブートメディアに変換できます。その後のフローは同じです。",
+          "ipxe": "<strong>iPXEスクリプト</strong> — ネットワークブートしているマシン向けの数百バイトのスクリプトです。",
+          "iso": "<strong>ブート可能ISO</strong> — USBスティックに書き込むか、リモートコンソールで接続します。ISOを構築するにはサーバー上で <code>xorriso</code> または <code>genisoimage</code> を使用します；どちらもインストールされていない場合、オプションは無効になりダウンロード時にエラーとはなりません。",
+          "title": "PXEなしネットワーク用ブートメディア"
+        },
+        "description": "Compute プロバイダーは、ハイパーバイザーが作成できるマシンをカバーします。Bare metal とはまだ何も存在しない状況を指し、物理サーバーが空のディスクとオペレーティングシステムなしで到着する場合です。SysManage は <strong>PXE</strong> を通じてこれをドライブします — マシンはネットワークからブートし、自分が誰であるかを問い合わせ、割り当てられた OS をインストールして自動的にフリートに登録するためのインストーラーを受け取ります。オペレーターが MAC アドレスと OS の選択肢を提供します；それ以降はすべて自動的に行われます。",
+        "discovery": {
+          "caption": "プロビジョニング → 発見済みはアサインメントなしでPXEブートしたハードウェアとそのプローブレポートをリストします。",
+          "description": "Racking a new machine usually means nobody has written its MAC address down. Discovery removes that step: hardware that network-boots without an assignment is booted into an <strong>ephemeral RAM probe</strong> — nothing is written to disk — which reports what the machine is and parks it in a discovered-hosts list.",
+          "facts": "Each entry carries manufacturer and model, CPU and core count, memory, disk count and primary disk, and serial number — enough to tell a 256 GB compute node from a 64 GB edge box without walking to the rack. Assigning an OS from here is the fast path: the MAC is already known, so the operator only chooses an install source. A machine that should not be provisioned can be ignored instead.",
+          "title": "ハードウェア発見"
+        },
+        "flow": "完全なパスは次のとおりです：マシンネットワークブート → MAC毎のブートエンドポイントがその割り当てを解決 → そのマシン用の回答ファイルが生成される → OSが無人インストールでインストールされる → 最初の起動スクリプトが単一使用の<strong>登録トークン</strong>を使用してエージェントをインストールする → ホストが正しいテナントに表示される → ネットブートが解除され、マシンはその後ディスクから起動します。",
+        "readiness": {
+          "advisor": "ツールが存在する場合、<strong>設定アドバイザー</strong> はセグメント用の <code>dnsmasq</code> 設定を適用可能な状態でレンダリングします。モードは2つあり、正しい選択は重要です：",
+          "description": "PXE needs DHCP, TFTP, and HTTP on a designated provisioning-server host. Rather than assume they exist, SysManage probes for them and refuses to arm a machine until the roles it needs are present. The probe is read-only; nothing is installed without an explicit action.",
+          "firewall": "アドバイザーは選択したモードが必要とするファイアウォールルール（DHCP用UDP 67、TFTP用UDP 69、PXEブートサーバー発見用UDP 4011、およびサーバーのHTTPポート）も発行します — プラットフォームごとに検出されます。",
+          "own": "<strong>own-DHCP</strong> — SysManage <em>は</em> プロビジョニングセグメントのDHCPサーバーであり、アドレスとブートファイルを配布します。隔離された構築ネットワークでこれを使用してください。同一セグメント上の権威ある2つのDHCPサーバーは競合するため、このモードは既にDHCPサーバーが存在するネットワークには指定制けられません。",
+          "proxy": "<strong>proxyDHCP</strong> — 既存の企業用DHCPサーバーはアドレスをそのまま提供し続け、SysManage はPXE部分のみに応答します。既存のDHCPサーバーを変更できない場合（実際のデータセンターでは一般的なケース）に使用します。",
+          "title": "準備状態のプレフライトと設定アドバイザー"
+        },
+        "sources": {
+          "caption": "プロビジョニング → インストールソースはマシンがネットワークブートできるOSツリーのカタログを表示します。",
+          "debian": "Debian → <code>preseed</code>; Ubuntu → <code>autoinstall</code> (Subiquity)",
+          "delete": "まだ割り当てで参照されているソースは削除できません — 削除するとマシンが存在しないインストールツリーに向けてブートしようとする可能性があります。",
+          "description": "<strong>インストールソース</strong> は1つのブート可能なOSインストールツリー：OSファミリとバージョン、アーキテクチャ、ツリー内のカーネルおよびinitrdパス、そしてそのURL — 公開ミラー、レポジトリミラリングで維持されるミラー、またはエアギャップ状態のインストールツリーを指す可能性があります。",
+          "dialect": "<strong>回答ファイル方言</strong> はOSファミリーに基づいて派生し、自由なテキストフィールドではありません — 正しくない場合、マシンが正しくブートしてから永遠にインタラクティブプロンプトで待つ可能性があります。各ファミリーは実際のインストーラーが話す無人インストールフォーマットに対応します：",
+          "freebsd": "FreeBSD → <code>bsdinstall</code> — note that FreeBSD netboots via <code>pxeboot</code> plus an mfsroot, not the Linux kernel-and-initrd shape, so its install source is described differently",
+          "rhel": "RHEL / Rocky / Alma → <code>kickstart</code>; SUSE → <code>autoyast</code>",
+          "title": "インストールソースカタログ"
+        },
+        "title": "Bare-Metal Provisioning (PXE)"
       }
     }
   },
@@ -21948,14 +21997,14 @@
         "title": "パッチおよびメンテナンスライフサイクル"
       },
       "provisioning": {
-        "body": "新しいホストの立ち上げだけでなく、既存のホストの管理も行います：PXE / kickstart の裸金属プロビジョニング、外部ハイパーコレクタとクラウド上のVMのプロビジョニング、ネットワーク上にある未管理マシンの発見。",
+        "body": "Bare-metal PXEプロビジョニング、個々のマシンOS割り当て、ハードウェア発見、および外部ハイパーウォーラーへのプロビジョニングが今日提供されています。今後の予定：パブリッククラウドへのプロビジョニングとネットワーク上で既に動作している未管理マシンの発見。",
         "title": "プロビジョニングとディスカバリ"
       },
       "title": "開発計画中"
     },
     "edition": {
       "community": "無料、オープンソース、および単一サーバーとデータベースでセルフホスト可能。Linux、Windows、macOS、FreeBSD、OpenBSD、NetBSD のための永続エージェント；リアルタイム WebSocket モニタリング；ハードウェアとソフトウェアインベントリー；パッケージおよび OS アップデート管理；ユーザーとアクセス管理；タグ付け；ファイアウォールステータス；オンデマンドスクリプト；レポート；監査ログ。",
-      "enterprise": "プロフェッショナル版のすべてに加えて、CVE脆弱性スキャン、メール/ウェブ훅/Slack/Teamsへのアラート通知、アンチウイルス管理、ファイアウォールオーケストレーション、大規模なインフラストラクチャでの自動化、KVM、bhyve、およびOpenBSD vmmを含む完全な仮想マシンライフサイクル管理、OpenTelemetry/ Grafana/ Graylogによる可視性、ゲート付きプロモーションを備えたコンテンツビューとライフサイクル環境、Snapストアプロキシとコンテナイメージのライフサイクル管理、bootc/rpm-ostreeホスト管理、多要素認証および外部IdPシングルサインオン、完全にオフラインでの展開、およびマルチサイト連携。",
+      "enterprise": "Professionalに含まれるすべての機能に加えて、CVE脆弱性スキャン、メール/ウェブ훅/Slack/Teamsへのアラート通知、アンチウイルス管理、ファイアウォールオーケストレーション、大規模フリートでの自動化、KVM, bhyve, OpenBSD vmmの完全な仮想マシンライフサイクル管理、OpenTelemetry / Grafana / Graylogによる可視性、ゲーテッドプロモーションを含むコンテンツビューとライフサイクル環境、Snap Storeプロキシおよびコンテナイメージコンテンツライフサイクル、イメージモード（bootc / rpm-ostree）ホスト管理、外部ハイパーウォーラーと裸金属のPXE経由でのホストプロビジョニング — ハードウェア発見を含む、多要素認証および外部IdPシングルサインオン、完全なオフラインデプロイメント、およびマルチサイト連携。",
       "professional": "Community Edition に含まれるすべての機能に加えて、スケジュールされた PDF レポート、拡張された監査トレース、OpenBAO をバックエンドとしたシークレット管理、LXD および WSL コンテナ管理、AI アシスタントによる健康分析、CIS / DISA STIG コンプライアンス監査。",
       "saas": "Enterprise に含まれるすべての機能に加えて、コントロール プラーンとして実行され、隔離されたテナントをホストします — 各テナントごとにデータベースが別々で、顧客所有の SSO、および各テナントごとのエディション割り当てにより、各テナントは Community、Professional、または Enterprise に個別に設定できます。"
     },

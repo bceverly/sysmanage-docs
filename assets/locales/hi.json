@@ -20092,7 +20092,13 @@
         "token": "Proxmox API टोकन → OpenBAO में स्टोर किया गया, प्रदाता के बेररर टोकन के रूप में इस्तेमाल किया जाता है।"
       },
       "endpoints": {
-        "title": "एंडपॉइंट्स"
+        "title": "एंडपॉइंट्स",
+        "assignments": "<code>GET/POST/DELETE /api/v1/provisioning/install-assignments</code> — एक MAC एड्रेस को एक इंस्टॉल स्रोत से बँटा रखना; <code>POST .../{id}/rearm</code> नेटबूट को फिर से तैयार करता है (Enterprise)",
+        "boot": "<code>GET /api/v1/provisioning/boot.ipxe</code> और <code>/answer/{token}</code> — नेटवर्क बूटिंग मशीन के द्वारा संसाधित होता है। प्रमुख रूप से अनुमति नहीं: एक मशीन नेटवर्क बूटिंग के दौरान कोई पहचान नहीं होता, इसलिए ये एक-बार-फिर से उपयोग के लिए खत्म होने वाले बूट टोकन से रखरबरी में होता है।",
+        "bootdisk": "<code>GET /api/v1/provisioning/bootdisk/status</code> और <code>POST /api/v1/provisioning/bootdisk/{id}.ipxe|.iso</code> — PXE (Enterprise) के बिना नेटवर्क मशीनों के लिए बूट मीडिया",
+        "discovered": "<code>GET /api/v1/provisioning/discovered-hosts</code> — खोज पार्किंग लॉट; <code>POST .../{id}/assign</code> और <code>.../{id}/ignore</code> एक प्रविष्टि के बारे में काम करता है (Enterprise)",
+        "readiness": "<code>GET /api/v1/provisioning/readiness/{host_id}</code> और <code>/advice</code>, <code>/apply</code>, <code>/install</code> और <code>/refresh</code> — प्री-फ्लाइट प्रोब और कॉन्फिग एडवाइसर (Enterprise)",
+        "sources": "<code>GET/POST/DELETE /api/v1/provisioning/install-sources</code> — बूटेबल OS इंस्टॉल-ट्री कैटलोग (Enterprise)"
       },
       "feature_codes": {
         "description": "एंडपॉइंट्स इन निम्न फीचर कोड्स से बंद हैं (ऑपन-सोर्स सर्वर जब मॉड्यूल लोड नहीं होता है, <code>402</code> रिटर्न करता है):",
@@ -20119,6 +20125,49 @@
         "oss": "Community Edition: deploy plans require a host that already runs an agent — there is no net-new provisioning.",
         "templates": "Professional+: author reusable, versioned provisioning templates (cloud-init / kickstart / preseed / autoinstall).",
         "title": "Community Edition vs Professional+"
+      },
+      "baremetal": {
+        "assignments": {
+          "answerfile": "एक मशीन द्वारा फेच किया गया answer file एक-बार-फिर से खत्म होने वाले बूट टोकन से नहीं दर्ज किया जाता — एक मशीन नेटवर्क-बूटिंग के दौरान कोई पहचान नहीं होता। टोकन प्रत्येक बूटिंग के लिए मिस्त्रिया होता है, और API से कभी भी प्लेटाइंग नहीं दी जाती।",
+          "armed": "<strong>Netboot armed</strong> — यह यहाँ की पेज पर सुरक्षा-विशेष मैंट्री है। एक मशीन अर्मेड होते हुए वह नेटवर्क बूटिंग करते ही फिर से इंस्टॉल कर देता है — अपने डिस्क को मालूमत कर देता है। अर्मिंग इंस्टॉल स्थिति से निर्वाहित होता है: एक मशीन अर्मेड होती है जब यह <code>assigned</code>, <code>building</code>, या <code>failed</code> होती है, और इसे एक बार अपने डिस्क से नेटवर्क-बूटिंग करते हुए <code>installed</code> दर्ज करने पर फिर से उसको अर्मेड नहीं करा दिया जाता है।",
+          "caption": "प्रोविशनिंग → बेअर मेटल प्रत्येक मशीन के इंस्टॉल OS, install state, और netboot का सारांश दिखाता है।",
+          "description": "एक <strong>प्रविष्टि</strong> एक MAC एड्रेस को एक इंस्टॉल स्रोत से बँटा रखता है, वैकल्पिक रूप से एक होस्टनेम, साइट, और दायरे के साथ। जब उस मशीन नेटवर्क-बूटिंग करता है, प्रमुख MAC बूट एंडपोइंट प्रविष्टि को संसाधित करता है और मेच्छिक इंस्टॉलर देता है — जो \"यह बॉक्स पर Ubuntu, वह एक Rocky पर, और तीसरे पर FreeBSD\" को एक सजायश चुनाव बजाए इसके एक बूट-अर्डर की अवधारणा में आता है।",
+          "rearm": "एक पहले से इंस्टॉल मशीन को फिर से तैयार करना एक निश्चित अवस्था में होता है, क्योंकि इसमें विध्वंसकारी प्रभाव होता है: अगले नेटवर्क-बूटिंग डिस्क को मालूमत कर देता है और सुधार से शुरू होता है। इसका उपयोग एक मशीन को अंदर से बिना खत्म किये फिर से बनाने के लिए किया जाता है।",
+          "title": "MAC-आधारित प्रविष्टि और Netboot Arming"
+        },
+        "bootdisk": {
+          "description": "सभी नेटवर्क पकड़ने नहीं सकता — एक सेमेंट में DHCP तोड़ने की अनुमति नहीं होती, या मशीन किसी पर है जहाँ PXE ट्रैफिक नहीं पहुंच सकता। इसके लिए एक प्रविष्टि को बूट मीडिया में बदला जा सकता है, और फिर से नेटवर्क-बूटिंग करने पर प्रक्रिया एकसाथ होती है।",
+          "ipxe": "<strong>iPXE script</strong> — कुछ सौ बाइट, एक मशीन के लिए जो पहले से ही नेटवर्क-बूटिंग करता है लेकिन अन्यत्र दिखाई देता है।",
+          "iso": "<strong>बूटेबल ISO</strong> — इसे एक USB स्टिक पर लिखें या दूरस्थ कोन्सोल पर जोड़ें। एक ISO बनाने के लिए <code>xorriso</code> या <code>genisoimage</code> की आवश्यकता है; इनमें से कोई भी उपलब्ध नहीं होने पर, विकल्प अकार्ययोग्य हो जाता है बजाए इसके डाउनलोड के समय फेल होने पर।",
+          "title": "PXE के बिना नेटवर्क मशीनों के लिए बूट मीडिया"
+        },
+        "description": "कंप्यूटर प्रदाताओं में मशीन शामिल हैं जो एक हाइपरविज़र के द्वारा बनाई जा सकती हैं। बेअर मेटल में शून्य है: एक फिजिकल सर्वर आता है, उसमें खाली डिस्क होता है और कोई OS नहीं। SysManage इसे <strong>PXE</strong> पर दृढ़ करता है — मशीन नेटवर्क-बूटिंग करती है, जो वह कौन है, और उसे एक इंस्टॉलर देता है जो अपने निर्धारित OS को लगाता है और फ़्लीट में बिना प्रशंसक के इंस्टॉल करता है। संचालक एक MAC एड्रेस और OS चुनाव देता है; इसके बाद सब परिणाम ऑटोमेटिक होते हैं।",
+        "discovery": {
+          "caption": "प्रोविशनिंग → Discovered पहले से ही PXE-बूटिंग की मशीनों की वस्तुओं की सूची, जो अभी तक निर्दिष्ट नहीं हैं।",
+          "description": "एक नई मशीन रेकिंग करने पर आमतौर पर कोई भी MAC एड्रेस लिखा नहीं होता है। खोज इस स्थापना को हटाता है: हार्डवेयर जो PXE-बूटिंग करता है और निर्दिष्ट नहीं है, एक <strong>ephemeral RAM probe</strong> में बूटिंग करता है — कुछ भी डिस्क पर लिखा नहीं जाता — और उसके दर्जन रिपोर्ट करता है।",
+          "facts": "Each entry carries manufacturer and model, CPU and core count, memory, disk count and primary disk, and serial number — enough to tell a 256 GB compute node from a 64 GB edge box without walking to the rack. Assigning an OS from here is the fast path: the MAC is already known, so the operator only chooses an install source. A machine that should not be provisioned can be ignored instead.",
+          "title": "होस्ट खोज"
+        },
+        "flow": "पूरा मार्ग है: मशीन नेटवर्क-बूटिंग करती है → प्रमुख MAC बूट एंडपोइंट प्रविष्टि को संसाधित करता है → उस मशीन के लिए एक answer file जेनरेट किया जाता है → OS बिना प्रशंसक के इंस्टॉल किया जाता है → एक पहले-बूट स्क्रिप्ट एजेंट को एक-बार-फिर से खत्म होने वाले <strong>enrollment token</strong> के साथ इंस्टॉल करता है → मशीन दातावाहक में दिखाई देती है → netboot अर्मेड नहीं करा जाता और मशीन फिर से अपने डिस्क से बूटिंग करती है।",
+        "readiness": {
+          "advisor": "इंस्टॉल टूलिंग मौजूद होने के बाद, <strong>config advisor</strong> सेमेंट के लिए तैयार-करने के लिए <code>dnsmasq</code> की प्रविष्टि जोड़ता है। यह दो मोड में होता है, और सही चुनाव करना अधिक महत्त्वपूर्ण होता है:",
+          "description": "PXE needs DHCP, TFTP, and HTTP on a designated provisioning-server host. Rather than assume they exist, SysManage probes for them and refuses to arm a machine until the roles it needs are present. The probe is read-only; nothing is installed without an explicit action.",
+          "firewall": "एडवाइसर भी दो प्रकार के नेटवर्क-बूटिंग डिस्क फ़ाइल में आवश्यक फ़ायरवॉल नियम (UDP 67 लिए DHCP, 69 लिए TFTP, 4011 लिए PXE boot-server discovery, प्लेटफार्म के अनुसार दर्ज किए गए) भी उत्पन्न करता है।",
+          "own": "<strong>own-DHCP</strong> — SysManage <em>ही</em> प्रोविशनिंग सेमेंट के लिए DHCP सर्वर है, जो दायरे और बूट-फ़ाइल देता है। इस मोड का उपयोग अकेसरी नेटवर्क पर किया जाए, जहाँ पहले से ही एक DHCP सर्वर है।",
+          "proxy": "<strong>proxyDHCP</strong> — मौजूदा कंपनी DHCP सर्वर अदल-बदले दायरे और बूट-फ़ाइल देता है, और SysManage केवल PXE भाग पर जवाब देता है। इस मोड का उपयोग आमतौर पर किया जाता है, जब तक कि एक्सिस्टिंग DHCP सर्वर को बदलने की संभावना नहीं होती।",
+          "title": "प्री-फ्लाइट प्रोब और Config Advisor"
+        },
+        "sources": {
+          "caption": "प्रोविशनिंग → Install Sources OS trees का कैटलोग एक मशीन को netboot कर सकता है।",
+          "debian": "Debian → <code>preseed</code>; Ubuntu → <code>autoinstall</code> (Subiquity)",
+          "delete": "एक स्रोत जो अभी तक एक प्रविष्टि द्वारा संसाधित है, उसे मिटा नहीं सकता — इसका हटाकर छोड़ना एक मशीन को बूट करने वाले दायरे को खत्म कर देता है जो अब नहीं रह सकता।",
+          "description": "एक <strong>इंस्टॉल स्रोत</strong> एक बूटेबल OS इंस्टॉल-ट्री है: एक OS परिवार और संस्करण, एक आर्किटेक्चर, कोड और initrd मार्ग ट्री में, और ट्री URL — जो एक पब्लिक मिरर, एक मिरर जो रिपोज़िटरी मिररिंग के द्वारा संचालित है, या एक air-gapped इंस्टॉल-ट्री पर बढ़ता है।",
+          "dialect": "एक मशीन द्वारा फेच किया गया <strong>answer-file dialect</strong> OS परिवार से निर्धारित होता है — इसे गलत लिखना एक मशीन को बूट करने और फिर अनुबंधित प्रोम्प्ट पर सहसा देखने का सबसे आसान तरीका है। प्रत्येक परिवार उसके इंस्टॉलर जो वास्तव में बोलता है के लिए अनुबंधित-इंस्टॉल फ़ॉर्मेट से मेच्छिक होता है:",
+          "freebsd": "FreeBSD → <code>bsdinstall</code> — note that FreeBSD netboots via <code>pxeboot</code> plus an mfsroot, not the Linux kernel-and-initrd shape, so its install source is described differently",
+          "rhel": "RHEL / Rocky / Alma → <code>kickstart</code>; SUSE → <code>autoyast</code>",
+          "title": "इंस्टॉल-स्रोत कैटलोग"
+        },
+        "title": "बेअर मेटल प्रोविशनिंग (PXE)"
       }
     }
   },
@@ -21948,14 +21997,14 @@
         "title": "पैच और निर्दोषी जीवनस्थापना"
       },
       "provisioning": {
-        "body": "नए मशीनों को उठा ले, तभी नहीं बल्कि पहले से ही प्रबंधित मशीनों को प्रबंधित करें: PXE / kickstart शौरा-मेटल प्रबंधन, वाहनों पर बाहरी हाइपरवाइज़र्स और धुंडिलियों में प्रबंधन, और नेटवर्क पर पहले से ही प्रबंधित मशीनों का पता लगाएं।",
+        "body": "बेअर मेटल PXE प्रोविशनिंग, प्रत्येक मशीन के OS निर्दिष्टण, हार्डवेयर खोज, और बाहरी हाइपरविज़र पर प्रोविशनिंग सभी आज उपलब्ध हैं। अभी भी आगे: पब्लिक क्लाउड में प्रोविशनिंग, और नेटवर्क पर पहले से चल रहे बेअपना हार्डवेयर की खोज।",
         "title": "सैनिक आयोजना और पता करने"
       },
       "title": "पहले ही मारकेट लिस्ट पर"
     },
     "edition": {
       "community": "राजस्व-मुक्त, ऑपन सोर्स, और एकल सर्वर पर स्वचालित रूप से होस्ट किया गया। Linux, Windows, macOS, FreeBSD, OpenBSD और NetBSD पर अवधि-निष्ठ एजेंट; वाटसकेप जीवंत मॉनिटरिंग; कार्यक्रम और सॉफ्टवेयर इन्वेन्टोरी; पैकेज और OS अपडेट प्रबंधन; उपयोगकर्ता और पहुँच प्रबंधन; टैगिंग; फायरवॉल स्थिति; अद-होक स्क्रिप्ट; रिपोर्टिंग; और एक ऑडीट लॉ।",
-      "enterprise": "प्रोफेसनल के सभी तत्वों के साथ, CVE सुरक्षा जाँच, इमेल / वेबहॉक / Slack / Teams पर अलर्टिंग, एन्टीवायरस प्रबंधन, फायरवॉल संयोजन, कुल स्केल पर स्वचालितता, पूरे VM जीवन-समय प्रबंधन (KVM, bhyve, और OpenBSD vmm), ऑपनटेलीमेट्री / ग्राफाना / ग्रेलोग के माध्यम से परिदृश्य, अंतरण-संस्थापना और जीवन-समय परिस्थिति, Snap Store प्रोक्सी और कंटेनर-इमेज संस्थापना लाइफसाइकल, इमेज-मोड (बूटसी / rpm-ostree) होस्ट प्रबंधन, बहु-तत्व परीक्षण और बाहरी IdP सिंगल साइन-ऑन, पूरी तरह से एयर-गेपड में उстановा, और कई साइटों की संघति।",
+      "enterprise": "प्रोफेशनल में सभी, CVE क्षमता स्कैनिंग, इमेल / webhook / Slack / Teams पर चेतावनी, antivirus प्रबंधन, firewall संयुक्त कार्य, फ़्लीट-स्केल ऑटोमेशन, पूरा VM जीवन-चक्र प्रबंधन (KVM, bhyve, और OpenBSD vmm), observability के माध्यम से OpenTelemetry / Grafana / Graylog, content views और lifecycle environments द्वारा gated promotion, Snap Store proxy और container-image content lifecycle, image-mode (bootc / rpm-ostree) host management, host provisioning — बाहरी हाइपरविज़र पर और PXE के माध्यम से बेअर मेटल पर, hardware discovery के साथ, multi-factor authentication और external IdP single sign-on, fully air-gapped deployment, और multi-site federation.",
       "professional": "समुदाय संस्करण में सभी चीज़ें, प्रतिवर्तित PDF रिपोर्टिंग, विस्तृत ऑडीट ट्रेल, OpenBAO के आधार पर संदेश प्रबंधन, LXD और WSL कंटेनर प्रबंधन, AI-सहायक स्वास्थ्य विश्लेषण और CIS / DISA STIG संतुलन ऑडीट के साथ।",
       "saas": "विनियमक (Enterprise) में सभी चीज़ें, एक कन्ट्रोल प्लेन के रूप में चलाई जाती हैं — जो अलग-अलग थियेन्ट्स (tenants) को हर्बाइट करता है; प्रत्येक थियेन्ट के लिए एक डेटाबेस, संस्था-निर्दिष्ट SSO (Single Sign-On), और प्रत्येक थियेन्ट को समूह (Community), प्रोफेशनल (Professional) या विनियमक (Enterprise) मानक के रूप में अलग-अलग तरीके से सेट किया जा सकता है।"
     },

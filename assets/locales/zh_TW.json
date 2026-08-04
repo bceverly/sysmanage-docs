@@ -20092,7 +20092,13 @@
         "token": "Proxmox API 令牌 → 存儲在 OpenBAO 中，用作供應商的承載令牌。"
       },
       "endpoints": {
-        "title": "端點"
+        "title": "端點",
+        "assignments": "<code>GET/POST/DELETE /api/v1/provisioning/install-assignments</code> — 将 MAC 地址绑定到安装源；<code>POST .../{id}/rearm</code> 重新武装网络引导（企业版）",
+        "boot": "<code>GET /api/v1/provisioning/boot.ipxe</code> 和 <code>/answer/{token}</code> — 由正在启动的机器自身消费。故意不进行身份验证：网络引导过程中的机器没有凭据，因此这些请求通过一次性、过期的引导令牌来保护。",
+        "bootdisk": "<code>GET /api/v1/provisioning/bootdisk/status</code> 和 <code>POST /api/v1/provisioning/bootdisk/{id}.ipxe|.iso</code> — 无 PXE 网络的启动介质（企业版）",
+        "discovered": "<code>GET /api/v1/provisioning/discovered-hosts</code> — 发现停放区；<code>POST .../{id}/assign</code> 和 <code>.../{id}/ignore</code> 对条目进行操作（企业版）",
+        "readiness": "<code>GET /api/v1/provisioning/readiness/{host_id}</code> 以及 <code>/advice</code>, <code>/apply</code>, <code>/install</code> 和 <code>/refresh</code> — 启动前探测和配置顾问（企业版）",
+        "sources": "<code>GET/POST/DELETE /api/v1/provisioning/install-sources</code> — 可启动的操作系统安装树目录（企业版）"
       },
       "feature_codes": {
         "description": "這些功能代碼控制著端點（開源服務器在模塊未加載時返回<code>402</code>）：",
@@ -20119,6 +20125,49 @@
         "oss": "Community Edition: deploy plans require a host that already runs an agent — there is no net-new provisioning.",
         "templates": "Professional+: author reusable, versioned provisioning templates (cloud-init / kickstart / preseed / autoinstall).",
         "title": "Community Edition vs Professional+"
+      },
+      "baremetal": {
+        "assignments": {
+          "answerfile": "機器獲取的回答文件由一次性、過期的引導令牌保護 — 在網絡引導過程中的機器沒有身份進行驗證。令牌每引導一次生成，API 也從不返回明文。",
+          "armed": "<strong>網絡引導已準備就緒</strong> 是本頁面的安全關鍵字段。當機器處於準備狀態時，每次它進行網絡引導都會重新安裝自己 — 清除其磁盤。因此，準備狀態是從安裝狀態派生的，而不是一個獨立開關：機器在 <code>assigned</code>, <code>building</code>, 或 <code>failed</code> 狀態時處於準備狀態，一旦報告為 <code>installed</code> 就會自動解除準備。這就是防止完成後的服務器永遠重新安裝自己的機制。",
+          "caption": "供應 → 裸金屬顯示每台機器的分配的操作系統、安裝狀態以及是否仍然處於網絡引導準備就緒狀態。",
+          "description": "一個 <strong>分配</strong> 將一個 MAC 地址綁定到一個安裝源，可選地附帶主機名、位置和訪問組。當該機器進行網絡引導時，MAC 端點解析分配並提供匹配的安裝程序 — 這就是為什麼“此盒子上是 Ubuntu，那個盒子上是 Rocky，第三個盒子上是 FreeBSD”是一種有意選擇而不是啟動順序意外結果的原因。",
+          "rearm": "重新準備已經安裝好的機器是一個確認動作，因為它是破壞性的：下一次網絡引導會擦除磁盤並從頭開始安裝。用於就地重建機器。",
+          "title": "<strong>MAC 地址分配和網絡引導準備就緒</strong>"
+        },
+        "bootdisk": {
+          "description": "不是每個網絡都能進行 PXE 引導 — 某個段可能沒有您可以觸碰的 DHCP 伺服器，或者機器可能位於 PXE 流量無法到達的地方。對於這些情況，分配可以轉換為直接啟動介質，一旦機器開始運行，流程就與其他情況相同。",
+          "ipxe": "<strong>iPXE 脚本</strong> — 几百字节，用于已经网络引导但指向其他地方的机器。",
+          "iso": "<strong>可引導 ISO</strong> — 寫入 USB 條或附加到遠程控制台。構建 ISO 需要 <code>xorriso</code> 或 <code>genisoimage</code>；如果兩者都不存在，則禁用此選項並顯示相應消息，而不是在下載時失敗。",
+          "title": "無 PXE 網絡的啟動介質"
+        },
+        "description": "計算提供商涵蓋虛擬化管理程序可以創建的機器。裸金屬是指尚未存在的情況：物理服務器到達時磁盤空置且沒有操作系統。SysManage 通過 <strong>PXE</strong> 引導它 — 機器進行網絡引導，詢問它是誰，然後獲取一個安裝程序，該安裝程序自動部署其分配的操作系統並將其無人值守地納入群集。運營員提供 MAC 地址和操作系統選擇；之後的一切都是自動化的。",
+        "discovery": {
+          "caption": "供應 → 發現列出沒有分配但進行了 PXE 引導的硬件，並報告其探測到的事實。",
+          "description": "安裝新機器通常意味著沒有人寫下它的 MAC 地址。發現消除了這一步：沒有分配但進行了網絡引導的硬件將被無人值守地啟動到一個 <strong>暫時的 RAM 探測</strong> — 磁盤上不會寫入任何東西 — 報告機器是什麼並停在已發現主機列表中。",
+          "facts": "Each entry carries manufacturer and model, CPU and core count, memory, disk count and primary disk, and serial number — enough to tell a 256 GB compute node from a 64 GB edge box without walking to the rack. Assigning an OS from here is the fast path: the MAC is already known, so the operator only chooses an install source. A machine that should not be provisioned can be ignored instead.",
+          "title": "硬件發現"
+        },
+        "flow": "完整的路徑是：機器進行網絡引導 → MAC 地址端點解析其分配 → 為該機器生成回答文件 → 操作系統無人值守安裝 → 第一啟動腳本使用一次性 <strong>入學令牌</strong> 安裝代理 → 主機出現在正確的租戶中 → 網絡引導解除準備，從此以後主機從其自己的磁盤引導。",
+        "readiness": {
+          "advisor": "工具到位後，<strong>配置顧問</strong> 為段生成一個即用型 <code>dnsmasq</code> 設置。它有兩種模式，正確選擇很重要：",
+          "description": "PXE needs DHCP, TFTP, and HTTP on a designated provisioning-server host. Rather than assume they exist, SysManage probes for them and refuses to arm a machine until the roles it needs are present. The probe is read-only; nothing is installed without an explicit action.",
+          "firewall": "顧問還發出選擇模式需要的防火牆規則（DHCP 的 UDP 67，TFTP 的 UDP 69，PXE 引導伺服器發現的 UDP 4011，以及伺服器的 HTTP 端口），根據平台檢測而不是假設。",
+          "own": "<strong>own-DHCP</strong> — SysManage <em>是</em> 提供配置段的 DHCP 伺服器，負責分配 IP 地址和開機檔案。在隔離的建置網路中使用此模式。同一個網段上的兩個權威 DHCP 伺服器會互相競爭，因此此模式不能指向已經有 DHCP 伺服器的網路。",
+          "proxy": "<strong>代理 DHCP</strong> — 現有的企業 DHCP 伺服器繼續分發地址，SysManage 只回答 PXE 部分。當無法更改現有 DHCP 伺服器時使用此模式，這是真實數據中心中的常見情況。",
+          "title": "<strong>準備就緒前檢查和配置顧問</strong>"
+        },
+        "sources": {
+          "caption": "供應 → 安裝源目錄列出了機器可以被網絡引導進入的操作系統樹。",
+          "debian": "Debian → <code>preseed</code>; Ubuntu → <code>autoinstall</code> (Subiquity)",
+          "delete": "仍然被分配引用的源不能刪除 — 刪除它會留下指向不再存在的樹的機器。",
+          "description": "一個 <strong>安裝源</strong> 是一個可引導的操作系統安裝樹：操作系統家族和版本、架構、樹中的內核和 initrd 路徑以及樹 URL — 這可以指向公共鏡像、由存儲庫鏡像維護的鏡像，或空氣隔斷的安裝樹。",
+          "dialect": "<strong>回答文件方言</strong> 是根據操作系統家族派生而來，而不是一個自由文本字段 — 因為錯誤會導致機器正確引導但永遠停在交互式提示上等待。每個家族映射到其安裝程序實際使用的無人值守安裝格式：",
+          "freebsd": "FreeBSD → <code>bsdinstall</code> — note that FreeBSD netboots via <code>pxeboot</code> plus an mfsroot, not the Linux kernel-and-initrd shape, so its install source is described differently",
+          "rhel": "RHEL / Rocky / Alma → <code>kickstart</code>; SUSE → <code>autoyast</code>",
+          "title": "安裝源目錄"
+        },
+        "title": "裸金屬供應（PXE）"
       }
     }
   },
@@ -21948,14 +21997,14 @@
         "title": "補丁及維護生命周期"
       },
       "provisioning": {
-        "body": "不僅管理現有的主機，還可以建立新的主機：PXE / kickstart 光盤佈置、外部虛擬化平台和雲端上的 VM 建立以及發現網絡上已存在的未管理主機。",
+        "body": "裸機 PXE 供應、每台機器的操作系統分配、硬件發現以及在外部虛擬化管理程序上進行供應今天都已發佈。未來還將推出：公共雲中的供應，以及發現已經在網絡上運行的未管理機器而不是僅僅是網絡引導的機器。",
         "title": "佈置和發現"
       },
       "title": "在路線上"
     },
     "edition": {
       "community": "免費、開源且自行主機安裝於單一伺服器和資料庫上。適用於 Linux、Windows、macOS、FreeBSD、OpenBSD 和 NetBSD 的持久代理；實時 WebSocket 監控；硬體和軟體清單；套件和作業系統更新管理；使用者和存取權限管理；標籤；防火牆狀態；即席腳本；報告；以及稽核日誌。",
-      "enterprise": "除了專業版的所有功能外，還包含 CVE 漏洞掃描、電子郵件 / 網絡hook / Slack / Teams 警報、防毒管理、防火牆協調、大規模自動化、完整的虛擬機生命週期管理（KVM、bhyve 和 OpenBSD vmm）、通過 OpenTelemetry / Grafana / Graylog 的可觀察性、內容視圖和生命周期環境，帶有門控促進，Snap Store 代理和容器映像內容生命周期，圖像模式（bootc / rpm-ostree）主機管理，多因素身份驗證和外部 IdP 單一簽入，完全隔離部署，以及跨多個網站的聯邦。",
+      "enterprise": "專業版的所有功能，加上 CVE 漏洞掃描、電子郵件 / 網絡hook / Slack / Teams 警報、防病毒管理、防火牆協調、大規模群集自動化、完整的虛擬機生命周期管理（KVM, bhyve 和 OpenBSD vmm）、通過 OpenTelemetry / Grafana / Graylog 的可觀察性、內容視圖和生命周期環境帶有門控推廣、Snap Store 代理和容器映像內容生命周期、圖像模式（bootc / rpm-ostree）主機管理、主機供應 — 在外部虛擬化管理程序上以及通過 PXE 在裸金屬上，包括硬件發現 — 多因素身份驗證和外部 IdP 單點登錄、完全空氣隔斷部署，以及多站點聯邦。",
       "professional": "Community Edition 中的所有功能，加上預排程的 PDF 報告、擴展的稽核追蹤、由 OpenBAO 支援的秘密管理、LXD 和 WSL 容器管理、AI 協助的健康分析，以及 CIS / DISA STIG 合規審計。",
       "saas": "企業版中的所有內容均作為控制平面運行，每個租戶都獨立隔離——每個租戶一個資料庫、客戶擁有單一簽入（SSO）以及按租戶分配版本，因此每個租戶可以獨立設置為社區版、專業版或企業版。"
     },

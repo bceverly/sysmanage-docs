@@ -20088,7 +20088,13 @@
         "token": "Proxmox API token → stored in OpenBAO, used as the provider's bearer token."
       },
       "endpoints": {
-        "title": "Endpoints"
+        "title": "Endpoints",
+        "assignments": "<code>GET/POST/DELETE /api/v1/provisioning/install-assignments</code> — pin a MAC to an install source; <code>POST .../{id}/rearm</code> re-arms netboot (Enterprise)",
+        "boot": "<code>GET /api/v1/provisioning/boot.ipxe</code> and <code>/answer/{token}</code> — consumed by the booting machine itself. Deliberately unauthenticated: a machine partway through a network boot has no credentials, so these are guarded by a single-use, expiring boot token instead.",
+        "bootdisk": "<code>GET /api/v1/provisioning/bootdisk/status</code> and <code>POST /api/v1/provisioning/bootdisk/{id}.ipxe|.iso</code> — boot media for networks without PXE (Enterprise)",
+        "discovered": "<code>GET /api/v1/provisioning/discovered-hosts</code> — the discovery parking lot; <code>POST .../{id}/assign</code> and <code>.../{id}/ignore</code> act on an entry (Enterprise)",
+        "readiness": "<code>GET /api/v1/provisioning/readiness/{host_id}</code> plus <code>/advice</code>, <code>/apply</code>, <code>/install</code> and <code>/refresh</code> — the preflight probe and config advisor (Enterprise)",
+        "sources": "<code>GET/POST/DELETE /api/v1/provisioning/install-sources</code> — the bootable OS install-tree catalog (Enterprise)"
       },
       "feature_codes": {
         "description": "Endpoints are gated by these feature codes (the open-source server returns <code>402</code> when the module isn't loaded):",
@@ -20115,6 +20121,49 @@
         "oss": "Community Edition: deploy plans require a host that already runs an agent — there is no net-new provisioning.",
         "templates": "Professional+: author reusable, versioned provisioning templates (cloud-init / kickstart / preseed / autoinstall).",
         "title": "Community Edition vs Professional+"
+      },
+      "baremetal": {
+        "assignments": {
+          "answerfile": "The answer file a machine fetches is guarded by a single-use, expiring boot token rather than by credentials — a machine partway through a network boot has no identity to authenticate with. The token is minted per boot, and the plaintext is never returned by the API.",
+          "armed": "<strong>Netboot armed</strong> is the safety-critical field on this page. While a machine is armed it will reinstall itself — erasing its disk — every time it network-boots. Arming is therefore derived from install state rather than being a free-standing switch: a machine is armed while it is <code>assigned</code>, <code>building</code>, or <code>failed</code>, and is automatically disarmed the moment it reports <code>installed</code>. That is what stops a finished server from reinstalling itself on its next reboot forever.",
+          "caption": "Provisioning → Bare Metal shows each machine's assigned OS, install state, and whether netboot is still armed.",
+          "description": "An <strong>assignment</strong> pins one MAC address to one install source, optionally with a hostname, site, and access group. When that machine network-boots, the per-MAC boot endpoint resolves the assignment and serves the matching installer — which is what makes “Ubuntu on this box, Rocky on that one, FreeBSD on a third” a deliberate choice rather than an accident of boot order.",
+          "rearm": "Re-arming an already-installed machine is deliberately a confirmed action, because it is destructive: the next network boot wipes the disk and reinstalls from scratch. Use it to rebuild a machine in place.",
+          "title": "Per-MAC Assignment and Netboot Arming"
+        },
+        "bootdisk": {
+          "description": "Not every network can PXE boot — a segment may have no DHCP you are allowed to touch, or the machine may sit somewhere PXE traffic does not reach. For those cases an assignment can be turned into boot media directly, and the rest of the flow is identical once the machine starts.",
+          "ipxe": "<strong>iPXE script</strong> — a few hundred bytes, for a machine that already network-boots but is pointed elsewhere.",
+          "iso": "<strong>Bootable ISO</strong> — write it to a USB stick or attach it to a remote console. Building an ISO needs <code>xorriso</code> or <code>genisoimage</code> on the server; when neither is present the option is disabled and says so rather than failing at download time.",
+          "title": "Boot Media for Networks Without PXE"
+        },
+        "description": "Compute providers cover machines a hypervisor can create. Bare metal is the case where nothing exists yet: a physical server arrives with an empty disk and no operating system. SysManage drives it over <strong>PXE</strong> — the machine network-boots, asks who it is, and is handed an installer that lays down its assigned OS and enrolls it into the fleet unattended. The operator supplies a MAC address and an OS choice; everything after that is automatic.",
+        "discovery": {
+          "caption": "Provisioning → Discovered lists hardware that PXE-booted with no assignment, with the facts its probe reported.",
+          "description": "Racking a new machine usually means nobody has written its MAC address down. Discovery removes that step: hardware that network-boots without an assignment is booted into an <strong>ephemeral RAM probe</strong> — nothing is written to disk — which reports what the machine is and parks it in a discovered-hosts list.",
+          "facts": "Each entry carries manufacturer and model, CPU and core count, memory, disk count and primary disk, and serial number — enough to tell a 256 GB compute node from a 64 GB edge box without walking to the rack. Assigning an OS from here is the fast path: the MAC is already known, so the operator only chooses an install source. A machine that should not be provisioned can be ignored instead.",
+          "title": "Host Discovery"
+        },
+        "flow": "The full path is: machine network-boots → the per-MAC boot endpoint resolves its assignment → an answer file is generated for that machine → the OS installs unattended → a first-boot script installs the agent with a single-use <strong>enrollment token</strong> → the host appears in the correct tenant → netboot is disarmed so the machine boots from its own disk from then on.",
+        "readiness": {
+          "advisor": "Once the tooling is present, the <strong>config advisor</strong> renders a ready-to-apply <code>dnsmasq</code> configuration for the segment. It has two modes, and choosing correctly matters more than it appears:",
+          "description": "PXE needs DHCP, TFTP, and HTTP on a designated provisioning-server host. Rather than assume they exist, SysManage probes for them and refuses to arm a machine until the roles it needs are present. The probe is read-only; nothing is installed without an explicit action.",
+          "firewall": "The advisor also emits the firewall rules the chosen mode needs (UDP 67 for DHCP, 69 for TFTP, 4011 for PXE boot-server discovery, plus the server's HTTP port), detected per platform rather than assumed.",
+          "own": "<strong>own-DHCP</strong> — SysManage <em>is</em> the DHCP server for the provisioning segment, handing out both addresses and the boot file. Use this on an isolated build network. Two authoritative DHCP servers on one segment will fight, so this mode must not be pointed at a network that already has one.",
+          "proxy": "<strong>proxyDHCP</strong> — the existing corporate DHCP server keeps handing out addresses, untouched, and SysManage answers only the PXE part. Use this when you cannot change the incumbent DHCP server, which is the common case in a real datacenter.",
+          "title": "Readiness Preflight and the Config Advisor"
+        },
+        "sources": {
+          "caption": "Provisioning → Install Sources catalogs the OS trees a machine can be netbooted into.",
+          "debian": "Debian → <code>preseed</code>; Ubuntu → <code>autoinstall</code> (Subiquity)",
+          "delete": "A source that is still referenced by an assignment cannot be deleted — removing it would leave a machine booting toward a tree that no longer exists.",
+          "description": "An <strong>install source</strong> is one bootable OS install tree: an OS family and version, an architecture, the kernel and initrd paths within the tree, and the tree URL itself — which can point at a public mirror, a mirror maintained by repository mirroring, or an air-gapped install tree.",
+          "dialect": "The <strong>answer-file dialect</strong> is derived from the OS family rather than being a free-text field, because getting it wrong is the single easiest way to end up with a machine that boots correctly and then waits forever at an interactive prompt. Each family maps to the unattended-install format its installer actually speaks:",
+          "freebsd": "FreeBSD → <code>bsdinstall</code> — note that FreeBSD netboots via <code>pxeboot</code> plus an mfsroot, not the Linux kernel-and-initrd shape, so its install source is described differently",
+          "rhel": "RHEL / Rocky / Alma → <code>kickstart</code>; SUSE → <code>autoyast</code>",
+          "title": "Install-Source Catalog"
+        },
+        "title": "Bare-Metal Provisioning (PXE)"
       }
     }
   },
@@ -21934,7 +21983,7 @@
     "edition": {
       "community": "Free, open-source, and self-hosted on a single server and database. A persistent agent for Linux, Windows, macOS, FreeBSD, OpenBSD, and NetBSD; real-time WebSocket monitoring; hardware and software inventory; package and OS update management; user and access management; tagging; firewall status; ad-hoc scripts; reporting; and an audit log.",
       "professional": "Everything in Community Edition, plus scheduled PDF reporting, an expanded audit trail, secrets management backed by OpenBAO, LXD and WSL container management, AI-assisted health analysis, and CIS / DISA STIG compliance auditing.",
-      "enterprise": "Everything in Professional, plus CVE vulnerability scanning, alerting to email / webhook / Slack / Teams, antivirus management, firewall orchestration, automation at fleet scale, full VM lifecycle management (KVM, bhyve, and OpenBSD vmm), observability via OpenTelemetry / Grafana / Graylog, content views and lifecycle environments with gated promotion, a Snap Store proxy and container-image content lifecycle, image-mode (bootc / rpm-ostree) host management, multi-factor authentication and external IdP single sign-on, fully air-gapped deployment, and multi-site federation.",
+      "enterprise": "Everything in Professional, plus CVE vulnerability scanning, alerting to email / webhook / Slack / Teams, antivirus management, firewall orchestration, automation at fleet scale, full VM lifecycle management (KVM, bhyve, and OpenBSD vmm), observability via OpenTelemetry / Grafana / Graylog, content views and lifecycle environments with gated promotion, a Snap Store proxy and container-image content lifecycle, image-mode (bootc / rpm-ostree) host management, host provisioning — both on external hypervisors and bare metal over PXE, with hardware discovery — multi-factor authentication and external IdP single sign-on, fully air-gapped deployment, and multi-site federation.",
       "saas": "Everything in Enterprise, run as a control plane that hosts isolated tenants — a database per tenant, customer-owned SSO, and per-tenant edition assignment so each tenant can be set to Community, Professional, or Enterprise independently."
     },
     "coming": {
@@ -21950,7 +21999,7 @@
       },
       "provisioning": {
         "title": "Provisioning & discovery",
-        "body": "Stand up new hosts, not just manage existing ones: PXE / kickstart bare-metal provisioning, provisioning VMs on external hypervisors and clouds, and discovering unmanaged machines already on the network."
+        "body": "Bare-metal PXE provisioning, per-machine OS assignment, hardware discovery, and provisioning onto external hypervisors all ship today. Still ahead: provisioning into public clouds, and discovering unmanaged machines that are already running on the network rather than only ones that network-boot."
       },
       "config": {
         "title": "Configuration management & drift",

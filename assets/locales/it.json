@@ -20092,7 +20092,13 @@
         "token": "Token API Proxmox → memorizzato in OpenBAO, utilizzato come token portatore del provider."
       },
       "endpoints": {
-        "title": "Endpoint"
+        "title": "Endpoint",
+        "assignments": "<code>GET/POST/DELETE /api/v1/provisioning/install-assignments</code> — collega un indirizzo MAC a una sorgente di installazione; <code>POST .../{id}/rearm</code> ri-armi il netboot (Enterprise)",
+        "boot": "<code>GET /api/v1/provisioning/boot.ipxe</code> e <code>/answer/{token}</code> — consumati dalla macchina stessa in fase di avvio. Non autenticati: una macchina a metà del processo di boot tramite rete non ha credenziali, quindi questi endpoint sono protetti da un token di avvio singolo-uso e scadibile.",
+        "bootdisk": "<code>GET /api/v1/provisioning/bootdisk/status</code> e <code>POST /api/v1/provisioning/bootdisk/{id}.ipxe|.iso</code> — supporti di boot per reti senza PXE (Enterprise)",
+        "discovered": "<code>GET /api/v1/provisioning/discovered-hosts</code> — la zona di parcheggio della scoperta; <code>POST .../{id}/assign</code> e <code>.../{id}/ignore</code> agiscono su un'entrata (Enterprise)",
+        "readiness": "<code>GET /api/v1/provisioning/readiness/{host_id}</code> più <code>/advice</code>, <code>/apply</code>, <code>/install</code> e <code>/refresh</code> — il sondaggio pre-installazione e l'advisor di configurazione (Enterprise)",
+        "sources": "<code>GET/POST/DELETE /api/v1/provisioning/install-sources</code> — il catalogo delle alberature OS bootabili (Enterprise)"
       },
       "feature_codes": {
         "description": "Gli endpoint sono limitati da questi codici di funzionalità (il server open-source restituisce <code>402</code> quando il modulo non è caricato):",
@@ -20119,6 +20125,49 @@
         "oss": "Community Edition: deploy plans require a host that already runs an agent — there is no net-new provisioning.",
         "templates": "Professional+: author reusable, versioned provisioning templates (cloud-init / kickstart / preseed / autoinstall).",
         "title": "Community Edition vs Professional+"
+      },
+      "baremetal": {
+        "assignments": {
+          "answerfile": "Il file di risposta che una macchina recupera è protetto da un token di avvio singolo-uso e scadibile, non da credenziali — una macchina a metà del processo di boot tramite rete non ha identità per autenticarsi. Il token viene generato per ogni boot, e il testo chiaro non viene mai restituito dall'API.",
+          "armed": "<strong>Netboot armato</strong> è il campo critico di sicurezza su questa pagina. Mentre una macchina è armata, si reinstalla automaticamente — cancellando il disco — ogni volta che avvia tramite rete. L'armamento deriva quindi dallo stato di installazione piuttosto che essere un interruttore indipendente: una macchina è armata quando è <code>assigned</code>, <code>building</code>, o <code>failed</code>, e viene automaticamente disarmata non appena segnala <code>installed</code>. Questo impedisce a un server finito di reinstallarsi ogni volta che si riavvia.",
+          "caption": "Provisioning → Bare Metal mostra l'OS assegnato a ogni macchina, lo stato di installazione, e se il netboot è ancora armato.",
+          "description": "Un <strong>assignment</strong> collega un indirizzo MAC a una singola sorgente di installazione, facoltativamente con un nome host, sito e gruppo di accesso. Quando quella macchina avvia tramite rete, l'endpoint di boot per MAC risolve l'assegnazione e serve il corrispondente installer — ciò che rende ‘Ubuntu su questa box, Rocky su quell'altra, FreeBSD su una terza’ un'opzione deliberata piuttosto che un caso fortuito dell'ordine di avvio.",
+          "rearm": "Ri-armare una macchina già installata richiede conferma, perché è distruttivo: il prossimo avvio tramite rete cancella il disco e reinstalla da zero. Usa questo per ricostruire una macchina in loco.",
+          "title": "Assegnazione Per-MAC e Armamento Netboot"
+        },
+        "bootdisk": {
+          "description": "Non tutte le reti possono avviare tramite PXE — un segmento potrebbe non avere DHCP che si può modificare, o la macchina potrebbe trovarsi in una zona dove il traffico PXE non raggiunge. Per questi casi un'assegnazione può essere trasformata direttamente in supporti di boot, e il resto del flusso è identico una volta che la macchina avvia.",
+          "ipxe": "<strong>iPXE script</strong> — poche centinaia di byte, per una macchina che già avvia tramite rete ma è puntata altrove.",
+          "iso": "<strong>ISO di avvio</strong> — scrivilo su una chiavetta USB o collegalo a un console remota. La costruzione di un ISO richiede <code>xorriso</code> o <code>genisoimage</code> sul server; se nessuno dei due è presente, l'opzione viene disabilitata e non fallisce durante il download.",
+          "title": "Supporto di Boot per Reti Senza PXE"
+        },
+        "description": "I provider di calcolo coprono le macchine che un ipervisor può creare. Il bare-metal è il caso in cui nulla esiste ancora: una server fisica arriva con un disco vuoto e senza sistema operativo. SysManage guida l'installazione tramite <strong>PXE</strong> — la macchina avvia tramite rete, chiede chi è, e riceve un installer che installa il suo OS assegnato e lo iscrive al fleet in modo non interattivo. L'operatore fornisce l'indirizzo MAC e una scelta di sistema operativo; tutto ciò che segue è automatico.",
+        "discovery": {
+          "caption": "Provisioning → Scoperte elenca hardware che ha avviato tramite PXE senza assegnazione, con i fatti segnalati dal sondaggio.",
+          "description": "Il <strong>sondaggio RAM elettronico</strong> rimuove il passo di registrazione dell'indirizzo MAC. Hardware che avvia tramite PXE senza assegnazione viene avviato in un sondaggio RAM temporaneo — nulla è scritto sul disco — che segnala cosa sia la macchina e la parcheggia nella lista delle scoperte.",
+          "facts": "Each entry carries manufacturer and model, CPU and core count, memory, disk count and primary disk, and serial number — enough to tell a 256 GB compute node from a 64 GB edge box without walking to the rack. Assigning an OS from here is the fast path: the MAC is already known, so the operator only chooses an install source. A machine that should not be provisioned can be ignored instead.",
+          "title": "Scoperta Host"
+        },
+        "flow": "Il percorso completo è: rete della macchina → il punto di accesso per-MAC risolve la propria assegnazione → viene generato un file di risposta per quella macchina → l'OS si installa in modo automatizzato → uno script di prima avvio installa l'agente con un singolo <strong>token di iscrizione</strong> → il host appare nel tenant corretto → la rete boot viene disattivata in modo che la macchina si avvii dal proprio disco da quel momento in poi.",
+        "readiness": {
+          "advisor": "Una volta che le strumentazioni sono presenti, l'<strong>advisor di configurazione</strong> genera una configurazione pronta per <code>dnsmasq</code> per il segmento. Ha due modalità, e scegliere correttamente è più importante di quanto sembri:",
+          "description": "PXE needs DHCP, TFTP, and HTTP on a designated provisioning-server host. Rather than assume they exist, SysManage probes for them and refuses to arm a machine until the roles it needs are present. The probe is read-only; nothing is installed without an explicit action.",
+          "firewall": "L'advisor emette anche le regole firewall necessarie (UDP 67 per DHCP, 69 per TFTP, 4011 per scoperta del server PXE, più la porta HTTP del server), rilevate per piattaforma invece di essere assunte.",
+          "own": "<strong>own-DHCP</strong> — SysManage <em>è</em> il server DHCP per la segmentazione di provisioning, assegnando sia indirizzi che file di boot. Usa questo su una rete isolata di costruzione. Due server DHCP autoritativi sullo stesso segmento entreranno in conflitto, quindi questa modalità non deve essere puntata a una rete già dotata di un server.",
+          "proxy": "<strong>proxyDHCP</strong> — il server DHCP aziendale esistente continua ad assegnare indirizzi senza modifiche, e SysManage risponde solo alla parte PXE. Usa questo quando non puoi cambiare il server DHCP attuale, che è la situazione comune in un datacenter reale.",
+          "title": "Sondaggio Pre-Installazione e Advisor di Configurazione"
+        },
+        "sources": {
+          "caption": "Provisioning → Sorgenti di Installazione cataloga gli alberi OS in cui una macchina può essere netbootata.",
+          "debian": "Debian → <code>preseed</code>; Ubuntu → <code>autoinstall</code> (Subiquity)",
+          "delete": "Una sorgente ancora riferita da un'assegnazione non può essere eliminata — rimuoverla lascerebbe una macchina puntata verso un albero di installazione che non esiste più.",
+          "description": "Un <strong>install source</strong> è un albero di installazione OS bootabile: una famiglia e versione di sistema operativo, architettura, percorsi del kernel e initrd all'interno dell'albero, e l'URL stesso — che può puntare a uno specchio pubblico, uno specchio mantenuto da mirroring repository, o un albero di installazione isolato.",
+          "dialect": "Il <strong>dialetto del file di risposta</strong> deriva dalla famiglia OS piuttosto che essere un campo libero, perché sbagliarlo è il modo più facile per finire con una macchina che avvia correttamente ma poi aspetta in eterno a un prompt interattivo. Ogni famiglia mappa al formato di installazione non interattiva che il suo installer effettivamente parla:",
+          "freebsd": "FreeBSD → <code>bsdinstall</code> — note that FreeBSD netboots via <code>pxeboot</code> plus an mfsroot, not the Linux kernel-and-initrd shape, so its install source is described differently",
+          "rhel": "RHEL / Rocky / Alma → <code>kickstart</code>; SUSE → <code>autoyast</code>",
+          "title": "Catalogo delle Sorgenti di Installazione"
+        },
+        "title": "Provisioning Bare-Metal (PXE)"
       }
     }
   },
@@ -21948,14 +21997,14 @@
         "title": "Ciclo di vita di patch e manutenzione"
       },
       "provisioning": {
-        "body": "Alza nuovi host, non solo gestisci quelli esistenti: PXE / kickstart provisioning per hardware fisico, provisioning VM su ipervisori esterni e cloud, e scoperta di macchine non gestite già sulla rete.",
+        "body": "Il provisioning bare-metal, la gestione per-macchina dell'OS, la scoperta hardware e il provisioning su ipervisori esterni sono disponibili oggi. Ancora da implementare: il provisioning in cloud pubblici, e la scoperta di macchine già in esecuzione sulla rete piuttosto che solo quelle che avviano tramite PXE.",
         "title": "Provisioning & scoperta"
       },
       "title": "In arrivo sulla roadmap"
     },
     "edition": {
       "community": "Libero, open-source ed auto-hosted su un singolo server e database. Un agente persistente per Linux, Windows, macOS, FreeBSD, OpenBSD e NetBSD; monitoraggio WebSocket in tempo reale; inventario hardware e software; gestione di pacchetti e aggiornamenti del sistema operativo; gestione utenti ed accessi; tagging; stato firewall; script ad hoc; reporting; e un trail di audit.",
-      "enterprise": "Tutto ciò che c'è in Professional, più la scansione delle vulnerabilità CVE, l'allarme per email / webhook / Slack / Teams, la gestione antivirus, l'orchestrazione del firewall, l'automazione a scala di flotta, il ciclo di vita completo della VM (KVM, bhyve e OpenBSD vmm), l'osservabilità tramite OpenTelemetry / Grafana / Graylog, le visualizzazioni del contenuto e gli ambienti di ciclo di vita con promozione controllata, un proxy per la Snap Store e il ciclo di vita del contenitore immagine, la gestione dell'host in modalità immagine (bootc / rpm-ostree), l'autenticazione a più fattori e single sign-on esterno IdP, una distribuzione completamente isolata dalla rete e federazione multi-sito.",
+      "enterprise": "Tutto quanto Professional, più la scansione delle vulnerabilità CVE, allerta via email / webhook / Slack / Teams, gestione antivirus, orchestrazione firewall, automazione a scala fleet, gestione ciclo di vita completo VM (KVM, bhyve e OpenBSD vmm), osservabilità tramite OpenTelemetry / Grafana / Graylog, content views e ambienti lifecycle con promozioni controllate, un proxy per Snap Store e contenitori-image lifecycle, gestione host in modalità immagine (bootc / rpm-ostree), provisioning host — sia su ipervisori esterni che bare-metal tramite PXE, con scoperta hardware — autenticazione multi-fattore e single sign-on da IdP esterno, installazione completamente isolata e federazione multi-sito.",
       "professional": "Tutto ciò che c'è nell'edizione Community, più report PDF pianificati, un trail di audit esteso, gestione dei segreti supportata da OpenBAO, gestione di contenitori LXD e WSL, analisi della salute assistita dall'intelligenza artificiale e audit di conformità CIS / DISA STIG.",
       "saas": "Tutto ciò che c'è nell'edizione Enterprise, eseguito come un piano di controllo che ospita tenant isolati — un database per ogni tenant, SSO proprietario del cliente e assegnazione dell'edizione per tenant in modo che ogni tenant possa essere impostato su Community, Professional o Enterprise indipendentemente."
     },

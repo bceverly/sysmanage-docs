@@ -4036,7 +4036,7 @@
         },
         "breadcrumb": "镜像模式主机",
         "detection": {
-          "backend": "the <strong>backend</strong> — <code>bootc</code> or <code>rpm-ostree</code>;",
+          "backend": "后端 <strong>——</strong> <code>bootc</code> 或 <code>rpm-ostree</code>;",
           "booted": "<strong>启动</strong>的镜像引用及其摘要；",
           "display_free": "此检测基于标准主机检查，且该状态的<em>显示</em>始终可见 — 您可以查看主机是否处于镜像模式及其启动/阶段/回滚状态，而无需企业版许可证。只有更改镜像的操作（阶段、应用和回滚）才依赖于<code>image_mode_engine</code>。",
           "intro": "每个代理都会报告其主机是否处于镜像模式作为常规检查的一部分。当主机处于镜像模式时，该报告还包括：",
@@ -20092,7 +20092,13 @@
         "token": "Proxmox API令牌 → 存储在OpenBAO中，作为提供者的承载令牌使用。"
       },
       "endpoints": {
-        "title": "端点"
+        "title": "端点",
+        "assignments": "<code>GET/POST/DELETE /api/v1/provisioning/install-assignments</code> — 将 MAC 地址绑定到安装源；<code>POST .../{id}/rearm</code> 重新武装网络引导（企业版）",
+        "boot": "<code>GET /api/v1/provisioning/boot.ipxe</code> 和 <code>/answer/{token}</code> — 由正在启动的机器自身消费。故意不进行身份验证：网络引导过程中的机器没有凭据，因此这些接口通过一次性、过期的引导令牌来保护安全。",
+        "bootdisk": "<code>GET /api/v1/provisioning/bootdisk/status</code> 和 <code>POST /api/v1/provisioning/bootdisk/{id}.ipxe|.iso</code> — 无 PXE 网络的启动介质（企业版）",
+        "discovered": "<code>GET /api/v1/provisioning/discovered-hosts</code> — 发现停放区；<code>POST .../{id}/assign</code> 和 <code>.../{id}/ignore</code> 对条目进行操作（企业版）",
+        "readiness": "<code>GET /api/v1/provisioning/readiness/{host_id}</code> 以及 <code>/advice</code>, <code>/apply</code>, <code>/install</code> 和 <code>/refresh</code> — 启动前探测和配置顾问（企业版）",
+        "sources": "<code>GET/POST/DELETE /api/v1/provisioning/install-sources</code> — 可启动的操作系统安装树目录（企业版）"
       },
       "feature_codes": {
         "description": "这些功能代码控制着端点（开源服务器在模块未加载时返回<code>402</code>）：",
@@ -20119,6 +20125,49 @@
         "oss": "Community Edition: deploy plans require a host that already runs an agent — there is no net-new provisioning.",
         "templates": "Professional+: author reusable, versioned provisioning templates (cloud-init / kickstart / preseed / autoinstall).",
         "title": "Community Edition vs Professional+"
+      },
+      "baremetal": {
+        "assignments": {
+          "answerfile": "机器获取的应答文件由一次性、过期的引导令牌保护 — 正在进行网络引导的机器没有身份来验证凭据。该令牌每启动一次生成，并且 API 不返回明文。",
+          "armed": "<strong>网络引导已武装</strong> 是此页面的关键安全字段。当机器处于武装状态时，每次它进行网络引导都会重新安装自己 — 清除其磁盘。因此，武装状态取决于安装状态：如果机器是 <code>assigned</code>, <code>building</code>, 或者 <code>failed</code>，则会保持武装状态；一旦报告为 <code>installed</code>，它将自动解除武装。这可以防止已部署的服务器在每次重启时重新安装自己。",
+          "caption": "配置 → 裸金属显示每台机器分配的操作系统、安装状态以及是否仍然处于网络引导武装状态。",
+          "description": "<strong>分配</strong> 将一个 MAC 地址绑定到一个安装源，可选地包含主机名、站点和访问组。当该机器进行网络引导时，MAC 地址启动端点解析分配并提供匹配的安装程序 — 这使得“此服务器使用 Ubuntu，另一台使用 Rocky，第三台使用 FreeBSD”成为有意选择而非引导顺序的结果。",
+          "rearm": "重新武装已经安装的机器是一个确认操作，因为它是破坏性的：下一次网络引导会擦除磁盘并从头开始重新安装。使用它来就地重建机器。",
+          "title": "<strong>MAC 地址分配和网络引导武装</strong>"
+        },
+        "bootdisk": {
+          "description": "并非每个网络都可以进行 PXE 引导 — 段可能没有可以更改的 DHCP 服务器，或者机器可能位于无法到达 PXE 流量的位置。对于这些情况，分配可以直接转换为启动介质，并且一旦机器开始引导，流程就与正常情况相同。",
+          "ipxe": "<strong>iPXE 脚本</strong> — 几百字节大小，用于已经进行网络引导但指向其他位置的机器。",
+          "iso": "<strong>可启动 ISO</strong> — 写入 USB 闪存驱动器或附加到远程控制台。构建 ISO 需要 <code>xorriso</code> 或 <code>genisoimage</code>；如果两者都不存在，选项将被禁用并显示提示信息，而不是在下载时失败。",
+          "title": "无 PXE 网络的启动介质"
+        },
+        "description": "计算提供商涵盖一个虚拟机可以创建的机器。裸金属是指尚未存在的物理服务器：空硬盘，没有操作系统。SysManage 通过 <strong>PXE</strong> 驱动它 — 机器进行网络引导，询问其身份，并获得安装程序以无人值守地部署分配的操作系统并将其纳入舰队中。操作员提供 MAC 地址和操作系统选择；其余过程自动完成。",
+        "discovery": {
+          "caption": "配置 → 发现列出没有分配的 PXE 引导硬件及其探测报告的事实。",
+          "description": "新机架通常意味着没有人记录 MAC 地址。发现消除了这一步：未分配的网络引导硬件将被引导到一个 <strong>临时 RAM 探测器</strong> — 无任何写入磁盘的内容 — 报告机器信息并将其停放于已发现主机列表中。",
+          "facts": "Each entry carries manufacturer and model, CPU and core count, memory, disk count and primary disk, and serial number — enough to tell a 256 GB compute node from a 64 GB edge box without walking to the rack. Assigning an OS from here is the fast path: the MAC is already known, so the operator only chooses an install source. A machine that should not be provisioned can be ignored instead.",
+          "title": "主机发现"
+        },
+        "flow": "完整的路径是：机器进行网络引导 → MAC 地址启动端点解析其分配 → 为该机器生成应答文件 → 操作系统无人值守安装 → 第一引导脚本使用一次性 <strong>注册令牌</strong> 安装代理 → 主机出现在正确的租户中 → 网络引导解除武装，此后机器从自己的磁盘启动。",
+        "readiness": {
+          "advisor": "工具到位后，<strong>配置顾问</strong> 会生成一个段的 <code>dnsmasq</code> 配置文件，它有两种模式，正确选择很重要：",
+          "description": "PXE needs DHCP, TFTP, and HTTP on a designated provisioning-server host. Rather than assume they exist, SysManage probes for them and refuses to arm a machine until the roles it needs are present. The probe is read-only; nothing is installed without an explicit action.",
+          "firewall": "顾问还根据平台检测所需防火墙规则（DHCP 的 UDP 67、TFTP 的 UDP 69 和 PXE 引导服务器发现的 UDP 4011，以及服务器的 HTTP 端口），而不是假设。",
+          "own": "<strong>own-DHCP</strong> — SysManage <em>是</em> 为配置段提供 DHCP 服务的服务器，分配地址并提供引导文件。在隔离构建网络中使用此模式。同一网段上的两个权威 DHCP 服务器会相互竞争，因此此模式不能指向已经有一个 DHCP 服务器的网络。",
+          "proxy": "<strong>proxyDHCP</strong> — 现有的企业级 DHCP 服务器继续分发地址，而 SysManage 只回答 PXE 部分请求。当无法更改现有 DHCP 服务器时使用此模式，在实际数据中心中很常见。",
+          "title": "<strong>准备性预飞行和配置顾问</strong>"
+        },
+        "sources": {
+          "caption": "配置 → 安装源目录列出可以进行网络引导进入的操作系统树。",
+          "debian": "Debian → <code>preseed</code>; Ubuntu → <code>autoinstall</code> (Subiquity)",
+          "delete": "仍然被分配引用的源不能删除 — 删除它会导致机器引导到不再存在的树上。",
+          "description": "<strong>安装源</strong> 是一个可启动的操作系统安装树：操作系统家族和版本、架构、树中的内核和 initrd 路径以及树的 URL — 可以指向公共镜像、由仓库镜像维护的镜像或空气隔绝的安装树。",
+          "dialect": "<strong>应答文件方言</strong> 由操作系统家族决定而不是自由文本字段，因为错误会导致机器正确引导但永远停留在交互提示中。每个家族映射到其实际使用的无人值守安装格式：",
+          "freebsd": "FreeBSD → <code>bsdinstall</code> — note that FreeBSD netboots via <code>pxeboot</code> plus an mfsroot, not the Linux kernel-and-initrd shape, so its install source is described differently",
+          "rhel": "RHEL / Rocky / Alma → <code>kickstart</code>; SUSE → <code>autoyast</code>",
+          "title": "安装源目录"
+        },
+        "title": "裸机配置（PXE）"
       }
     }
   },
@@ -21948,14 +21997,14 @@
         "title": "补丁及维护生命周期"
       },
       "provisioning": {
-        "body": "不仅管理现有主机，还可以启动新主机：PXE / kickstart裸机配置、外部虚拟化平台和云中的VM配置以及网络中未管理的机器发现。",
+        "body": "今天提供：裸机 PXE 配置，每台机器的操作系统分配，硬件发现以及在外部虚拟化管理程序上的部署。未来计划包括公共云中的配置和网络上未管理机器的发现。",
         "title": "配置与发现"
       },
       "title": "路线图上"
     },
     "edition": {
       "community": "免费开源，并且可以在单个服务器和数据库上自我托管。一个持久代理用于 Linux, Windows, macOS, FreeBSD, OpenBSD 和 NetBSD；实时 WebSocket 监控；硬件和软件库存；包和操作系统更新管理；用户和访问管理；标签；防火墙状态；即席脚本；报告；以及审计日志。",
-      "enterprise": "除了专业版的所有功能外，还提供CVE漏洞扫描、电子邮件/ webhook / Slack / Teams警报、防病毒管理、防火墙编排、大规模自动化、完整的虚拟机生命周期管理（KVM, bhyve 和 OpenBSD vmm）、通过OpenTelemetry / Grafana / Graylog的可观测性、内容视图和生命周期环境以及受控推广，Snap Store代理和容器镜像内容生命周期，镜像模式主机管理（bootc / rpm-ostree），多因素身份验证和外部IdP单点登录，完全离线部署，以及跨多个站点的联邦化。",
+      "enterprise": "除了专业版的所有功能外，还包括 CVE 漏洞扫描、电子邮件/ webhook / Slack / Teams 警报、防病毒管理、防火墙编排、大规模舰队自动化、完整的虚拟机生命周期管理（KVM, bhyve 和 OpenBSD vmm）、通过 OpenTelemetry / Grafana / Graylog 的可观测性，内容视图和生命周期环境带门控推广，Snap Store 代理和容器镜像内容生命周期，图像模式（bootc / rpm-ostree）主机管理，主机配置 — 包括在外部虚拟化管理程序上以及通过 PXE 在裸金属上的部署，并带有硬件发现功能，多因素身份验证和外部 IdP 单点登录，完全空气隔绝部署，以及跨多个站点的联邦。",
       "professional": "社区版的所有功能，加上计划 PDF 报告、扩展审计轨迹、OpenBAO 支持的密钥管理、LXD 和 WSL 容器管理、AI 辅助健康分析以及 CIS / DISA STIG 合规性审核。",
       "saas": "企业版的所有功能，作为控制平面运行，托管隔离租户 — 每个租户一个数据库，客户拥有的 SSO 以及每个租户的独立版本分配，以便每个租户可以分别设置为社区、专业或企业版。"
     },

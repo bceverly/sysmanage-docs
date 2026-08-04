@@ -43,6 +43,9 @@ from backend.persistence.models import (
     AntivirusStatus,
     CommercialAntivirusStatus,
     ComputeResource,
+    DiscoveredHost,
+    HostInstallAssignment,
+    InstallSource,
     ExternalIdpProvider,
     ExternalIdpSettings,
     FederationHostDirectory,
@@ -263,6 +266,57 @@ PROVISIONING_RESOURCES = [
      None, None),
 ]
 
+# ---- bare-metal provisioning (Phase 18.2) ----------------------------------
+# The install-source catalog: what a machine can be netbooted INTO.  template_type
+# is derived from os_family (preseed/autoinstall/kickstart/autoyast/bsdinstall) —
+# picking it wrongly is what leaves an install sitting at an interactive prompt.
+INSTALL_SOURCES = [
+    # (name, os_family, version, arch, tree, kernel, initrd, template_type)
+    ("ubuntu-24.04-netboot", "ubuntu", "24.04", "x86_64",
+     "http://mirror.corp.northstar.io/ubuntu",
+     "casper/vmlinuz", "casper/initrd", "autoinstall"),
+    ("debian-13-netboot", "debian", "13", "x86_64",
+     "http://mirror.corp.northstar.io/debian",
+     "dists/stable/main/installer-amd64/current/images/netboot/debian-installer/amd64/linux",
+     "dists/stable/main/installer-amd64/current/images/netboot/debian-installer/amd64/initrd.gz",
+     "preseed"),
+    ("rocky-9-netboot", "rhel", "9", "x86_64",
+     "http://mirror.corp.northstar.io/rocky/9/BaseOS/x86_64/os",
+     "images/pxeboot/vmlinuz", "images/pxeboot/initrd.img", "kickstart"),
+    ("freebsd-14-netboot", "freebsd", "14", "x86_64",
+     "http://mirror.corp.northstar.io/freebsd/14",
+     "boot/pxeboot", "boot/mfsroot.gz", "bsdinstall"),
+]
+
+# Per-MAC assignments across the lifecycle, so the list shows every state a
+# machine passes through rather than a single frozen one.
+INSTALL_ASSIGNMENTS = [
+    # (mac, hostname, source name, state).  netboot_armed is DERIVED from
+    # state (armed while assigned/building/failed), so it is not carried here.
+    ("52:54:00:8a:11:01", "blade-01.corp.northstar.io", "ubuntu-24.04-netboot",
+     "installed"),
+    ("52:54:00:8a:11:02", "blade-02.corp.northstar.io", "ubuntu-24.04-netboot",
+     "installed"),
+    ("52:54:00:8a:11:03", "blade-03.corp.northstar.io", "rocky-9-netboot",
+     "building"),
+    ("52:54:00:8a:11:04", "db-standby-01.corp.northstar.io", "debian-13-netboot",
+     "assigned"),
+    ("52:54:00:8a:11:05", "storage-02.corp.northstar.io", "freebsd-14-netboot",
+     "failed"),
+]
+
+# The parking lot: hardware that PXE-booted with no assignment yet.  Facts come
+# from the ephemeral probe, so an operator can size a box before choosing an OS.
+DISCOVERED_HOSTS = [
+    # (mac, ip, manufacturer, product, cpu, cores, mem_mb, disks, primary, serial)
+    ("ac:1f:6b:2c:40:11", "10.20.4.51", "Dell Inc.", "PowerEdge R650",
+     "Intel Xeon Gold 6338", 64, 262144, 8, "/dev/nvme0n1", "J7K2M31"),
+    ("ac:1f:6b:2c:40:12", "10.20.4.52", "Dell Inc.", "PowerEdge R650",
+     "Intel Xeon Gold 6338", 64, 262144, 8, "/dev/nvme0n1", "J7K2M32"),
+    ("b4:96:91:d8:07:a3", "10.20.4.77", "Supermicro", "AS-1114S-WN10RT",
+     "AMD EPYC 7443P", 48, 131072, 4, "/dev/sda", "S4W9X0221"),
+]
+
 # ---- air-gap ---------------------------------------------------------------
 AIRGAP_TARGETS = [  # (distro, version, repos, bytes, files)
     ("ubuntu", "22.04", "main,security,universe", 88_000_000_000, 142000),
@@ -332,6 +386,8 @@ def main():
             MirrorSettings,
             # Provisioning (Phase 18) — jobs before compute_resource (FK).
             ProvisioningJob, ComputeResource,
+            # Bare metal (18.2) — assignments reference install_source (FK).
+            HostInstallAssignment, InstallSource, DiscoveredHost,
         ):
             session.query(model).delete()
         # Virtualization: only clear the VM-type child hosts (leave seed_pro's lxd/wsl).
@@ -781,10 +837,52 @@ def main():
                 created_at=NOW - timedelta(days=3), updated_at=NOW,
             ))
 
+        # --- bare metal (Phase 18.2): catalog, per-MAC assignments, discovery ---
+        # The catalog is what a machine can be netbooted INTO; an assignment
+        # pins one MAC to one source.  States are spread across the lifecycle so
+        # the list shows armed and disarmed machines side by side rather than a
+        # single frozen state.
+        sources = {}
+        for name, family, version, arch, tree, kernel, initrd, template in INSTALL_SOURCES:
+            row = InstallSource(
+                name=name, os_family=family, version=version, arch=arch,
+                install_tree_url=tree, kernel_path=kernel, initrd_path=initrd,
+                template_type=template, purpose="install", enabled=True,
+                created_at=NOW - timedelta(days=21), updated_at=NOW,
+            )
+            session.add(row)
+            sources[name] = row
+        session.flush()  # assign PKs before the assignments reference them
+
+        for mac, hostname, source_name, state in INSTALL_ASSIGNMENTS:
+            session.add(HostInstallAssignment(
+                mac_address=mac, hostname=hostname,
+                install_source_id=sources[source_name].id,
+                state=state, params={},
+                last_boot_at=(NOW - timedelta(hours=6)) if state != "assigned" else None,
+                created_at=NOW - timedelta(days=2), updated_at=NOW,
+            ))
+
+        for (mac, ip, mfr, product, cpu, cores, mem, disks, primary,
+             serial) in DISCOVERED_HOSTS:
+            session.add(DiscoveredHost(
+                mac_address=mac, state="discovered", ip_address=ip,
+                manufacturer=mfr, product_name=product, serial_number=serial,
+                cpu_model=cpu, cpu_count=cores, memory_mb=mem,
+                disk_count=disks, primary_disk=primary, facts={},
+                first_seen_at=NOW - timedelta(hours=9),
+                last_seen_at=NOW - timedelta(minutes=12),
+            ))
+
         session.commit()
 
         print(f"  hosts: {len(hosts)}")
         print(f"  provisioning: {len(PROVISIONING_RESOURCES)} compute resources")
+        print(
+            f"  bare metal: {len(INSTALL_SOURCES)} install sources, "
+            f"{len(INSTALL_ASSIGNMENTS)} assignments, "
+            f"{len(DISCOVERED_HOSTS)} discovered"
+        )
         print(f"  antivirus: {len(AV_DEFAULTS)} defaults, {len(AV_STATUS)} host statuses, 1 commercial")
         print(f"  firewall: {len(FW_ROLES)} roles, {len(FW_STATUS)} host statuses")
         print(f"  automation: {len(SCRIPTS)} scripts, {len(SCRIPT_RUNS)} executions")

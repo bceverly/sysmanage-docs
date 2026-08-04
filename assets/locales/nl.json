@@ -20092,7 +20092,13 @@
         "token": "Proxmox API-token → opgeslagen in OpenBAO, gebruikt als het bearer-token van de provider."
       },
       "endpoints": {
-        "title": "Eindpunten"
+        "title": "Eindpunten",
+        "assignments": "<code>GET/POST/DELETE /api/v1/provisioning/install-assignments</code> — pin een MAC aan een installatiebron; <code>POST .../{id}/rearm</code> heractiveert netboot (Enterprise)",
+        "boot": "<code>GET /api/v1/provisioning/boot.ipxe</code> en <code>/answer/{token}</code> — worden verbruikt door de bootende machine zelf. Doelbewust onbeveiligd: een machine midden in een netwerkboot heeft geen referenties, dus deze worden beschermd met een één-gebruiks, vervallend boot-token.",
+        "bootdisk": "<code>GET /api/v1/provisioning/bootdisk/status</code> en <code>POST /api/v1/provisioning/bootdisk/{id}.ipxe|.iso</code> — bootmedia voor netwerken zonder PXE (Enterprise)",
+        "discovered": "<code>GET /api/v1/provisioning/discovered-hosts</code> — de ontdekking parkeergarage; <code>POST .../{id}/assign</code> en <code>.../{id}/ignore</code> werken op een item (Enterprise)",
+        "readiness": "<code>GET /api/v1/provisioning/readiness/{host_id}</code> plus <code>/advice</code>, <code>/apply</code>, <code>/install</code> en <code>/refresh</code> — de preflight-probe en config-advisor (Enterprise)",
+        "sources": "<code>GET/POST/DELETE /api/v1/provisioning/install-sources</code> — de catalogus van bootbare OS-installatietaken (Enterprise)"
       },
       "feature_codes": {
         "description": "Eindpunten worden gecentreerd rond deze functiecodes (de open-source server retourneert <code>402</code> als de module niet geladen is):",
@@ -20119,6 +20125,49 @@
         "oss": "Community Edition: deploy plans require a host that already runs an agent — there is no net-new provisioning.",
         "templates": "Professional+: author reusable, versioned provisioning templates (cloud-init / kickstart / preseed / autoinstall).",
         "title": "Community Edition vs Professional+"
+      },
+      "baremetal": {
+        "assignments": {
+          "answerfile": "Het antwoordbestand dat een machine ophaalt wordt beschermd door een enkele-gebruik, vervallende boot-token in plaats van door referenties — een machine halverwege een netwerkboot heeft geen identiteit om te authenticeren met. Het token wordt gegoten per boot, en de ongecodeerde tekst wordt nooit geretourneerd door de API.",
+          "armed": "<strong>Netboot gewapend</strong> is het veiligheidskritische veld op deze pagina. Zolang een machine gewapend is, zal het zichzelf herinstalleren — zijn schijf wissen — elke keer dat het netwerkboots. Wapening wordt daarom afgeleid van de installatietoestand in plaats van een losstaande schakelaar: een machine is gewapend als het <code>assigned</code>, <code>building</code>, of <code>failed</code> is, en wordt automatisch ongewapend zodra het <code>installed</code> rapporteert. Dat houdt een voltooide server tegen om zichzelf op elke volgende reboot her te installeren.",
+          "caption": "Provisioning → Bare Metal toont elke machine's toegewezen OS, installatietoestand, en of netboot nog gewapend is.",
+          "description": "Een <strong>toewijzing</strong> pindt één MAC-adres aan één installatiebron, optioneel met een hostname, site en toegangs groep. Wanneer dat apparaat netwerkboots, lost de per-MAC-boot-eindpunt de toewijzing op en serveert het overeenkomende installer — wat maakt “Ubuntu op deze box, Rocky op die ene, FreeBSD op een derde” tot een bewuste keuze in plaats van een ongelukkige bootvolgorde.",
+          "rearm": "Het opnieuw activeren van een al geïnstalleerde machine is bewust een bevestigd handeling, omdat het vernietigend is: de volgende netwerkboot wist de schijf en herinstalleert vanaf nul. Gebruik het om een machine in plaats daarvan opnieuw op te bouwen.",
+          "title": "Per-MAC Toewijzing en Netboot Wapening"
+        },
+        "bootdisk": {
+          "description": "Niet elk netwerk kan PXE-booten — een segment mag geen DHCP hebben die je mag aanraken, of de machine zit ergens waar PXE-verkeer niet bereikt. Voor deze gevallen kan een toewijzing worden omgezet in bootmedia en het rest van de flow is identiek wanneer de machine start.",
+          "ipxe": "<strong>iPXE script</strong> — een paar honderd bytes voor een machine die al netwerkboots maar naar een andere locatie wijst.",
+          "iso": "<strong>Bootbaar ISO</strong> — schrijf het naar een USB-stick of bevestig het aan een externe console. Een ISO bouwen vereist <code>xorriso</code> of <code>genisoimage</code> op de server; als er geen van beide aanwezig is, wordt de optie uitgeschakeld en zegt dit in plaats van te mislukken tijdens het downloaden.",
+          "title": "Boot Media voor Netwerken zonder PXE"
+        },
+        "description": "Compute providers omvatten machines waar een hypervisor kan creëren. Bare metal is de situatie waarin niets bestaat: een fysieke server arriveert met een lege schijf en geen besturingssysteem. SysManage stuurt het over <strong>PXE</strong> — het apparaat netwerkboots, vraagt wie het is, en wordt een installer aangeboden die zijn toegewezen OS installeert en het in de groep onbegeleid opneemt. De beheerder voert een MAC-adres en een OS-keuze in; alles daarna is automatisch.",
+        "discovery": {
+          "caption": "Provisioning → Ontdekte lijst hardware die PXE-boots met geen toewijzing, met de feiten die zijn probe rapporteert.",
+          "description": "Het opzetten van een nieuwe machine betekent meestal dat de MAC-adres niet is opgeschreven. Ontdekking verwijdert die stap: hardware die zonder toewijzing netwerk-boott, wordt geboots in een <strong>epheerem RAM-probe</strong> — niets wordt geschreven naar schijf — wat rapporteert wat de machine is en plaatst het in een lijst met ontdekte hosts.",
+          "facts": "Each entry carries manufacturer and model, CPU and core count, memory, disk count and primary disk, and serial number — enough to tell a 256 GB compute node from a 64 GB edge box without walking to the rack. Assigning an OS from here is the fast path: the MAC is already known, so the operator only chooses an install source. A machine that should not be provisioned can be ignored instead.",
+          "title": "Host Ontdekking"
+        },
+        "flow": "De volledige pad is: machine netwerk-boots → het per-MAC-boot-eindpunt lost zijn toewijzing op → een antwoordbestand wordt gegenereerd voor die machine → de OS installeren zonder begeleiding → een eerste-boot-script installeert de agent met een enkele-gebruik <strong>inschrijftoken</strong> → de host verschijnt in het juiste huurder → netboot is uitgeschakeld zodat de machine vanaf dat moment van zijn eigen schijf boot.",
+        "readiness": {
+          "advisor": "Zodra de hulpprogramma's aanwezig zijn, renderen de <strong>config-advisor</strong> een klaar te toepassen <code>dnsmasq</code>-configuratie voor het segment. Het heeft twee modi en correct kiezen is belangrijker dan het lijkt:",
+          "description": "PXE needs DHCP, TFTP, and HTTP on a designated provisioning-server host. Rather than assume they exist, SysManage probes for them and refuses to arm a machine until the roles it needs are present. The probe is read-only; nothing is installed without an explicit action.",
+          "firewall": "De adviseur emiteert ook de firewall-regels die het gekozen mode nodig heeft (UDP 67 voor DHCP, 69 voor TFTP, 4011 voor PXE boot-server ontdekking, plus de HTTP-poort van de server), gedetecteerd per platform in plaats van aangenomen.",
+          "own": "<strong>own-DHCP</strong> — SysManage <em>is</em> de DHCP-server voor het provisioningsegment, die adressen en de bootfile uitdeelt. Gebruik dit op een geïsoleerde buildnetwerk. Twee autoritaire DHCP-servers op één segment zullen botsen, dus deze modus moet niet worden gericht op een netwerk dat al een heeft.",
+          "proxy": "<strong>proxyDHCP</strong> — het bestaande bedrijfs-DHCP-server blijft adressen uitdelen, onaangetast, en SysManage antwoordt alleen de PXE-deel. Gebruik dit als je niet kunt veranderen in de huidige DHCP-server, wat het algemene geval is in een echte datacenter.",
+          "title": "Klaarheids Voorgecontrole en Configuratie Adviseur"
+        },
+        "sources": {
+          "caption": "Provisioning → Install-Source Catalogus catalogiseert de OS-taken waar een machine in kan worden netbooted.",
+          "debian": "Debian → <code>preseed</code>; Ubuntu → <code>autoinstall</code> (Subiquity)",
+          "delete": "Een bron die nog wordt gerefereerd door een toewijzing kan niet worden verwijderd — verwijdering zou een machine achterlaten die naar een boom bootst die niet langer bestaat.",
+          "description": "Een <strong>installatiebron</strong> is één bootbare OS-installatietak: een OS-familie en versie, een architectuur, de kernel- en initrd-paden binnen de boom, en de boom-URL zelf — die kan wijzen naar een openbaar spiegel, een door repository-mirroring onderhouden spiegel of een air-gapped installatieboom.",
+          "dialect": "De <strong>antwoordbestand dialect</strong> is afgeleid van de OS-familie, niet van een vrij tekstveld, omdat het foutmelden is de eenvoudigste manier om te eindigen met een machine die correct netwerk-boots en dan eeuwig wacht op een interactieve prompt. Elke familie wordt gemapt naar de onbegeleide-installatieformat waarin zijn of haar installer werkelijk spreekt:",
+          "freebsd": "FreeBSD → <code>bsdinstall</code> — note that FreeBSD netboots via <code>pxeboot</code> plus an mfsroot, not the Linux kernel-and-initrd shape, so its install source is described differently",
+          "rhel": "RHEL / Rocky / Alma → <code>kickstart</code>; SUSE → <code>autoyast</code>",
+          "title": "Install-Source Catalogus"
+        },
+        "title": "Bare-Metal Provisioning (PXE)"
       }
     }
   },
@@ -21948,14 +21997,14 @@
         "title": "Patch- en onderhoudscyclus"
       },
       "provisioning": {
-        "body": "Standaard nieuwe hosts opzetten en niet alleen bestaande beheren: PXE / kickstart bare-metal provisioning, virtuele machines op extern hypervisoren en clouds aanvoeren, en onbeheerde machines die al op het netwerk zijn ontdekken.",
+        "body": "Bare-metal PXE-provisioning, per-machine OS-toewijzing, hardware-ontdekking en provisioning op externe hypervisors varen vandaag. Nog te volgen: provisioning in openbare clouds, en ontdekken van niet-beheerde machines die al draaien op het netwerk in plaats van alleen maar die netwerkboots.",
         "title": "Provisioning en ontdekking"
       },
       "title": "Op de roadmap"
     },
     "edition": {
       "community": "Gratis, open-source en zelf-hosted op één server en database. Een persistente agent voor Linux, Windows, macOS, FreeBSD, OpenBSD en NetBSD; real-time WebSocket-monitoring; hardware- en software-inventaris; pakket- en OS-updatebeheer; gebruikers- en toegangsbeheer; taggen; firewall-status; ad-hoc scripts; rapportering; en een auditlog.",
-      "enterprise": "Alles wat Professioneel biedt, plus CVE kwetsbaarheidsscanning, waarschuwingen naar e-mail / webhook / Slack / Teams, antivirusbeheer, firewall-orchestratie, automatisering op schaal van een hele flottielje, volledige VM levenscyclusbeheer (KVM, bhyve en OpenBSD vmm), observabiliteit via OpenTelemetry / Grafana / Graylog, inhoudsweergaven en levenscyclusomgevingen met gategate-promotie, een Snap Store proxy en inhoudslevenscyclus van containerafbeeldingen, beheer van hosts in image-mode (bootc / rpm-ostree), multi-factor authenticatie en extern IdP single sign-on, volledig afgesloten installatie en multisite federatie.",
+      "enterprise": "Alles in Professional, plus CVE-schadebeheersingsscanning, waarschuwingen naar e-mail / webhook / Slack / Teams, antivirus-beheer, firewall-orchestration, automatisering op groepschaal, volledige VM-lifecycle beheer (KVM, bhyve en OpenBSD vmm), observabiliteit via OpenTelemetry / Grafana / Graylog, contentviews en lifecycleomgevingen met gategate-promotie, een Snap Store proxy en container-image contentlifecycle, image-mode (bootc / rpm-ostree) hostbeheer, hostprovisioning — zowel op externe hypervisors als bare metal over PXE, met hardwareontdekking — multi-factor authenticatie en extern IdP single sign-on, volledig air-gapped deployment, en multisite federatie.",
       "professional": "Alles in Community Edition, plus geplande PDF-rapportering, uitgebreid audittraject, beveiliging van geheime informatie ondersteund door OpenBAO, LXD en WSL-containerbeheer, AI-assisted gezondheidsonderzoek, en CIS / DISA STIG-compliance-audit.",
       "saas": "Alles in Enterprise, draai als een controleplane die isolerde tenants host — een database per tenant, klant-eigen SSO, en per-tenant-editiesoorten zodat elke tenant onafhankelijk ingesteld kan worden op Community, Professional of Enterprise."
     },

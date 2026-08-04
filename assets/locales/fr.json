@@ -20092,7 +20092,13 @@
         "token": "Jeton API Proxmox → stocké dans OpenBAO, utilisé comme jeton porteur du fournisseur."
       },
       "endpoints": {
-        "title": "Points de terminaison"
+        "title": "Points de terminaison",
+        "assignments": "<code>GET/POST/DELETE /api/v1/provisioning/install-assignments</code> — attache une adresse MAC à une source d’installation ; <code>POST .../{id}/rearm</code> réarme le boot réseau (Entreprise)",
+        "boot": "<code>GET /api/v1/provisioning/boot.ipxe</code> et <code>/answer/{token}</code> — consommés par la machine en cours d’amorçage. Non authentifiés intentionnellement : une machine en cours de boot réseau n’a pas d’identifiant, donc ces points de terminaison sont protégés par un jeton unique et expirable.",
+        "bootdisk": "<code>GET /api/v1/provisioning/bootdisk/status</code> et <code>POST /api/v1/provisioning/bootdisk/{id}.ipxe|.iso</code> — média d’amorçage pour les réseaux sans PXE (Entreprise)",
+        "discovered": "<code>GET /api/v1/provisioning/discovered-hosts</code> — le parking de découverte ; <code>POST .../{id}/assign</code> et <code>.../{id}/ignore</code> agissent sur une entrée (Entreprise)",
+        "readiness": "<code>GET /api/v1/provisioning/readiness/{host_id}</code> plus <code>/advice</code>, <code>/apply</code>, <code>/install</code> et <code>/refresh</code> — le sondage pré-installation et l’assistant de configuration (Entreprise)",
+        "sources": "<code>GET/POST/DELETE /api/v1/provisioning/install-sources</code> — catalogue des arbres de système d’exploitation installables (Entreprise)"
       },
       "feature_codes": {
         "description": "Les points de terminaison sont contrôlés par ces codes de fonctionnalité (le serveur open-source retourne <code>402</code> lorsque le module n'est pas chargé) :",
@@ -20119,6 +20125,49 @@
         "oss": "Community Edition: deploy plans require a host that already runs an agent — there is no net-new provisioning.",
         "templates": "Professional+: author reusable, versioned provisioning templates (cloud-init / kickstart / preseed / autoinstall).",
         "title": "Community Edition vs Professional+"
+      },
+      "baremetal": {
+        "assignments": {
+          "answerfile": "Le fichier réponse qu’une machine récupère est protégé par un jeton unique et expirable plutôt que par des identifiants — une machine en cours d’amorçage réseau n’a pas d’identité à authentifier. Le jeton est généré par amorçage, et le texte clair n’est jamais retourné par l’API.",
+          "armed": "<strong>Boot réseau armé</strong> est le champ critique de sécurité sur cette page. Tant qu’une machine est armée, elle réinstallera automatiquement son système d’exploitation — effaçant ainsi son disque — chaque fois qu’elle amorcage en réseau. L’armement dérive donc de l’état d’installation plutôt que d’être un commutateur indépendant : une machine est armée lorsqu’elle est <code>assigned</code>, <code>building</code> ou <code>failed</code>, et est automatiquement désarmée dès qu’elle signale <code>installed</code>. Cela empêche une machine terminée de se réinstaller à chaque redémarrage.",
+          "caption": "Provisionnement → Matériel physique montre l’OS assigné à chaque machine, son état d’installation, et si le boot réseau est toujours armé.",
+          "description": "Une <strong>affectation</strong> attache une adresse MAC à une source d’installation, optionnellement avec un nom d’hôte, un site et un groupe d’accès. Lorsque cette machine amorcage en réseau, le point de terminaison d’amorçage résout l’affectation et sert l’installeur correspondant — c’est ce qui fait que « Ubuntu sur cette boîte, Rocky sur celle-ci, FreeBSD sur une troisième » est un choix délibéré plutôt qu’un hasard de l’ordre d’amorçage.",
+          "rearm": "Le réarmement d’une machine déjà installée est délibérément une action confirmée, car il est destructeur : le prochain amorçage réseau efface le disque et réinstalle tout depuis zéro. Utilisez-le pour reconstruire une machine sur place.",
+          "title": "Affectation par adresse MAC unique et armement du boot réseau"
+        },
+        "bootdisk": {
+          "description": "Tous les réseaux ne peuvent pas amorcer en PXE — un segment peut n’avoir aucun serveur DHCP que vous pouvez modifier, ou la machine peut se trouver quelque part où le trafic PXE ne parvient pas. Dans ces cas, une affectation peut être transformée directement en média d’amorçage, et le reste du flux est identique dès que la machine démarre.",
+          "ipxe": "<strong>Fichier iPXE</strong> — quelques centaines d’octets, pour une machine qui amorçage déjà en réseau mais pointe ailleurs.",
+          "iso": "<strong>Média d’amorçage ISO</strong> — écrivez-le sur une clé USB ou attachez-le à un console distante. La construction d’un ISO nécessite <code>xorriso</code> ou <code>genisoimage</code> sur le serveur ; si aucun des deux n’est présent, l’option est désactivée et indique cela plutôt que de se bloquer lors du téléchargement.",
+          "title": "Média d’amorçage pour les réseaux sans PXE"
+        },
+        "description": "Les fournisseurs de calcul couvrent des machines qu’un hyperviseur peut créer. Le matériel physique est le cas où rien n’existe encore : un serveur physique arrive avec un disque vide et aucun système d’exploitation. SysManage pilote cela via <strong>PXE</strong> — la machine amorçage en réseau, demande qui elle est, et reçoit un installeur qui dépose son OS assigné et l’enregistre dans le parc sans intervention humaine. L’opérateur fournit une adresse MAC et un choix d’OS ; tout ce qui suit est automatique.",
+        "discovery": {
+          "caption": "Provisionnement → Découvertes liste les matériels qui ont amorcé en PXE sans affectation, avec les faits rapportés par leur sondage.",
+          "description": "Le branchement d’une nouvelle machine signifie généralement que personne n’a noté son adresse MAC. La découverte supprime ce pas : le matériel qui amorçage sans affectation est amorcé dans un <strong>sondage RAM éphémère</strong> — rien n’est écrit sur le disque — qui rapporte ce que la machine est et l’ajoute à une liste de matériels découverts.",
+          "facts": "Each entry carries manufacturer and model, CPU and core count, memory, disk count and primary disk, and serial number — enough to tell a 256 GB compute node from a 64 GB edge box without walking to the rack. Assigning an OS from here is the fast path: the MAC is already known, so the operator only chooses an install source. A machine that should not be provisioned can be ignored instead.",
+          "title": "Découverte des hôtes"
+        },
+        "flow": "Le chemin complet est : la machine amorçage en réseau → le point de terminaison d’amorçage résout son affectation → un fichier réponse est généré pour cette machine → le système d’exploitation installe sans intervention → un script de premier démarrage installe l’agent avec un jeton unique <strong>d’enrôlement</strong> → la machine apparaît dans le bon locataire → le boot réseau est désarmé afin que la machine démarre depuis son propre disque à partir de ce moment.",
+        "readiness": {
+          "advisor": "Une fois l’outil installé, l’<strong>assistant de configuration</strong> génère un fichier <code>dnsmasq</code> prêt à être appliqué pour le segment. Il a deux modes, et choisir correctement importe plus qu’il n’y paraît :",
+          "description": "PXE needs DHCP, TFTP, and HTTP on a designated provisioning-server host. Rather than assume they exist, SysManage probes for them and refuses to arm a machine until the roles it needs are present. The probe is read-only; nothing is installed without an explicit action.",
+          "firewall": "L’assistant émet également les règles pare-feu nécessaires (UDP 67 pour DHCP, 69 pour TFTP, 4011 pour la découverte du serveur PXE, plus le port HTTP du serveur), détectées par plateforme plutôt que supposées.",
+          "own": "<strong>DHCP propriétaire</strong> — SysManage <em>est</em> le serveur DHCP pour la segment de provisioning, distribuant à la fois les adresses et le fichier d’amorçage. Utilisez ceci sur un réseau isolé de construction. Deux serveurs DHCP autoritaires sur un même segment se battront, donc ce mode ne doit pas pointer vers un réseau qui en a déjà un.",
+          "proxy": "<strong>DHCP proxy</strong> — le serveur DHCP corporatif existant continue à distribuer les adresses sans modification, et SysManage répond uniquement au PXE. Utilisez ceci lorsque vous ne pouvez pas changer le serveur DHCP actuel, ce qui est le cas commun dans un vrai centre de données.",
+          "title": "Sondage pré-installation et l’assistant de configuration"
+        },
+        "sources": {
+          "caption": "Provisionnement → Sources d’installation catalogue les arbres de système d’exploitation dans lesquels une machine peut être amorcée en réseau.",
+          "debian": "Debian → <code>preseed</code>; Ubuntu → <code>autoinstall</code> (Subiquity)",
+          "delete": "Une source d’installation encore référencée par une affectation ne peut pas être supprimée — la suppression laisserait une machine amorçant vers un arbre qui n’existe plus.",
+          "description": "Une <strong>source d’installation</strong> est un arbre de système d’exploitation installable : une famille et version du système d’exploitation, une architecture, les chemins du noyau et initrd dans l’arbre, et l’URL de l’arbre lui-même — qui peut pointer vers un miroir public, un miroir maintenu par réplication de dépôt, ou un arbre d’installation isolé.",
+          "dialect": "Le <strong>dialecte du fichier réponse</strong> est dérivé de la famille du système d’exploitation plutôt qu’un champ libre, car le faire incorrectement est la manière la plus facile d’avoir une machine qui amorçage correctement mais attend éternellement à un prompt interactif. Chaque famille mappe au format d’installation sans intervention que son installeur parle réellement :",
+          "freebsd": "FreeBSD → <code>bsdinstall</code> — note that FreeBSD netboots via <code>pxeboot</code> plus an mfsroot, not the Linux kernel-and-initrd shape, so its install source is described differently",
+          "rhel": "RHEL / Rocky / Alma → <code>kickstart</code>; SUSE → <code>autoyast</code>",
+          "title": "Catalogue de sources d’installation"
+        },
+        "title": "Provisionnement sur matériel physique (PXE)"
       }
     }
   },
@@ -21948,14 +21997,14 @@
         "title": "Cycle de vie de maintenance et de correction"
       },
       "provisioning": {
-        "body": "Mise en place d'hôtes nouveaux, pas seulement gestion des hôtes existants : PXE / kickstart provisioning matériel, provisionnement de VMs sur des hyperviseurs externes et des clouds, et découverte de machines non gérées déjà présentes sur le réseau.",
+        "body": "Le provisionnement sur matériel physique, l’affectation OS par machine, la découverte matérielle et le provisioning vers des hyperviseurs externes sont disponibles aujourd’hui. À venir : le provisioning dans les clouds publics, et la découverte de machines non gérées qui fonctionnent déjà sur le réseau plutôt que seulement celles qui amorcent en réseau.",
         "title": "Provisionnement et découverte"
       },
       "title": "Sur le plan directeur"
     },
     "edition": {
       "community": "Gratuit, open-source et auto-hébergé sur un seul serveur et base de données. Un agent persistant pour Linux, Windows, macOS, FreeBSD, OpenBSD et NetBSD ; surveillance WebSocket en temps réel ; inventaire matériel et logiciel ; gestion des packages et mises à jour du système d'exploitation ; gestion des utilisateurs et accès ; étiquetage ; statut du pare-feu ; scripts ad hoc ; rapports ; et un journal d'audit.",
-      "enterprise": "Tout ce qui est dans Professional, plus la détection des vulnérabilités CVE, l'alerte par e-mail / webhook / Slack / Teams, la gestion antivirus, l'orchestration du pare-feu, l'automatisation à grande échelle, une gestion complète de la vie des VM (KVM, bhyve et OpenBSD vmm), la visibilité via OpenTelemetry / Grafana / Graylog, les vues de contenu et les environnements de cycle de vie avec promotion contrôlée, un proxy Snap Store et une gestion du cycle de vie des images conteneurisées, la gestion des hôtes en mode image (bootc / rpm-ostree), l'authentification à plusieurs facteurs et le sign-in unique avec un IdP externe, une déploiement totalement isolé et la fédération multi-sites.",
+      "enterprise": "Tout ce qui est inclus dans Professionnel, plus la détection de vulnérabilités CVE, l’alerte par e-mail / webhook / Slack / Teams, la gestion antivirus, l’orchestration pare-feu, l’automatisation à grande échelle du parc, la gestion complète des machines virtuelles (KVM, bhyve et OpenBSD vmm), la visibilité via OpenTelemetry / Grafana / Graylog, les vues de contenu et environnements de cycle de vie avec promotion conditionnelle, un proxy Snap Store et cycle de vie du contenu d’image, gestion des hôtes en mode image (bootc / rpm-ostree) — provisioning sur hyperviseurs externes et matériel physique via PXE, découverte matérielle incluse — authentification multi-facteur et connexion unique avec un fournisseur externe, déploiement totalement isolé et fédération multisite.",
       "professional": "Tout ce qui est dans l'édition Communauté, plus des rapports PDF planifiés, un historique d'audit étendu, la gestion des secrets basé sur OpenBAO, la gestion de conteneurs LXD et WSL, une analyse de santé assistée par IA, et l'audit de conformité CIS / DISA STIG.",
       "saas": "Tout ce qui est dans l'édition Enterprise, exécuté comme un plan de contrôle hébergeant des locataires isolés — une base de données par locataire, SSO propriétaire du client et attribution d'édition par locataire pour que chaque locataire puisse être défini sur Communauté, Professionnel ou Entreprise indépendamment."
     },

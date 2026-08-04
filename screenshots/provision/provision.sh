@@ -22,6 +22,48 @@ ADMIN_PW="${SYSMANAGE_ADMIN_PW:-ChangeMe-Dev-Only!}"
 
 echo "=== [1/7] OS dependencies ==="
 export DEBIAN_FRONTEND=noninteractive
+
+# Ubuntu cloud images start apt-daily / unattended-upgrades on first boot, which
+# races this script for the apt locks and kills the whole provision run:
+#     E: Could not get lock /var/lib/apt/lists/lock. It is held by process N (apt)
+# Hit on the Enterprise VM 2026-08-04, after the OSS and Professional VMs had
+# already built — i.e. it is a timing race, so it fails intermittently and
+# re-running "fixes" it, which is exactly why it needs handling rather than luck.
+#
+# Three layers, because each covers a case the others miss: stop the timers so
+# nothing NEW starts, wait out anything ALREADY running, and finally tell apt to
+# wait rather than fail if something slips through later.
+systemctl stop apt-daily.timer apt-daily-upgrade.timer >/dev/null 2>&1 || true
+systemctl disable apt-daily.timer apt-daily-upgrade.timer >/dev/null 2>&1 || true
+systemctl stop apt-daily.service apt-daily-upgrade.service >/dev/null 2>&1 || true
+systemctl stop unattended-upgrades.service >/dev/null 2>&1 || true
+# cloud-init installs packages too; let it finish rather than fight it.
+if command -v cloud-init >/dev/null 2>&1; then
+    cloud-init status --wait >/dev/null 2>&1 || true
+fi
+
+wait_for_apt() {
+    local waited=0
+    while pgrep -x apt >/dev/null 2>&1 \
+       || pgrep -x apt-get >/dev/null 2>&1 \
+       || pgrep -x dpkg >/dev/null 2>&1 \
+       || pgrep -f unattended-upgrade >/dev/null 2>&1; do
+        if [ "$waited" -ge 300 ]; then
+            echo "  WARNING: apt still busy after ${waited}s — continuing anyway"
+            break
+        fi
+        if [ $((waited % 30)) -eq 0 ]; then
+            echo "  waiting for the system's own apt to finish (${waited}s)..."
+        fi
+        sleep 5
+        waited=$((waited + 5))
+    done
+}
+wait_for_apt
+
+# apt 2.4 (Ubuntu 22.04) honours this: block on a held lock instead of erroring.
+echo 'DPkg::Lock::Timeout "600";' > /etc/apt/apt.conf.d/99-sysmanage-lock-timeout
+
 apt-get update -y
 apt-get install -y postgresql postgresql-contrib python3 python3-venv python3-pip \
     gettext build-essential libpq-dev git rsync curl jq ca-certificates gnupg

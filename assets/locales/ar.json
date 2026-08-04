@@ -20111,7 +20111,13 @@
         "token": "توكن API Proxmox → يخزن في OpenBAO، يستخدم كتوكن حامل للمزود."
       },
       "endpoints": {
-        "title": "نقاط النهاية"
+        "title": "نقاط النهاية",
+        "assignments": "<code>GET/POST/DELETE /api/v1/provisioning/install-assignments</code> — 将MAC地址绑定到安装源；<code>POST .../{id}/rearm</code> 重新武装网络引导（企业版）",
+        "boot": "<code>GET /api/v1/provisioning/boot.ipxe</code> و <code>/answer/{token}</code> — يستهلكها الجهاز أثناء عملية ال引导式启动。出于安全考虑，这些接口没有认证：正在网络引导的机器没有任何凭据，因此它们由一次性、过期的引导令牌保护。",
+        "bootdisk": "<code>GET /api/v1/provisioning/bootdisk/status</code> و <code>POST /api/v1/provisioning/bootdisk/{id}.ipxe|.iso</code> — 用于没有PXE功能的网络（企业版）",
+        "discovered": "<code>GET /api/v1/provisioning/discovered-hosts</code> — 发现停放区；<code>POST .../{id}/assign</code> 和 <code>.../{id}/ignore</code> 对条目进行操作（企业版）",
+        "readiness": "<code>GET /api/v1/provisioning/readiness/{host_id}</code> 以及 <code>/advice</code>, <code>/apply</code>, <code>/install</code> 和 <code>/refresh</code> — 预飞行探测和配置顾问（企业版）",
+        "sources": "<code>GET/POST/DELETE /api/v1/provisioning/install-sources</code> — 可启动的操作系统安装树目录（企业版）"
       },
       "feature_codes": {
         "description": "تتحكم نقاط النهاية بهذه الرموز الوظيفية (يرجع الخادم المفتوح المصدر رمز <code>402</code> عندما لا يتم تحميل الوحدة):",
@@ -20138,6 +20144,49 @@
         "oss": "Community Edition: deploy plans require a host that already runs an agent — there is no net-new provisioning.",
         "templates": "Professional+: author reusable, versioned provisioning templates (cloud-init / kickstart / preseed / autoinstall).",
         "title": "Community Edition vs Professional+"
+      },
+      "baremetal": {
+        "assignments": {
+          "answerfile": "机器获取的答案文件由一次性、过期的引导令牌保护 — 正在通过网络引导的机器没有任何身份可以验证。该令牌每启动一次生成，并且API从不返回明文。",
+          "armed": "<strong>网络引导已武装</strong> 是此页面的关键安全字段。当机器处于武装状态时，每次通过网络引导都会重新安装自己 — 清除其磁盘。因此，武装是根据安装状态派生的，而不是独立开关：机器在其<code>assigned</code>, <code>building</code>, 或 <code>failed</code> 状态下被武装，并在报告为<code>installed</code> 的那一刻自动解除武装。",
+          "caption": "配置 → 裸机显示每台机器分配的操作系统、安装状态以及是否仍然武装了网络引导。",
+          "description": "<strong>分配</strong> 将一个MAC地址绑定到一个安装源，可选地带有主机名、站点和访问组。当该机器通过网络引导时，基于MAC的引导端点解析分配并提供匹配的安装程序 — 这就是为什么“此盒子Ubuntu，那个盒子Rocky，第三个盒子FreeBSD”是一个有意的选择而不是启动顺序的意外。",
+          "rearm": "重新武装已经安装的机器是一个确认操作，因为它是破坏性的：下一次网络引导将擦除磁盘并从头开始重新安装。使用它来就地重建一台机器。",
+          "title": "基于MAC地址分配和网络引导武装"
+        },
+        "bootdisk": {
+          "description": "并非每个网络都可以通过PXE引导 — 段可能没有您有权更改的DHCP服务器，或者机器可能位于无法到达PXE流量的位置。对于这些情况，分配可以转换为直接启动介质，并且一旦机器开始运行，流程就完全相同。",
+          "ipxe": "<strong>iPXE脚本</strong> — 几百字节，用于已经通过网络引导但指向其他地方的机器。",
+          "iso": "<strong>可引导ISO</strong> — 写入USB闪存驱动器或附加到远程控制台。构建ISO需要<code>xorriso</code> 或 <code>genisoimage</code>；如果两者都不存在，则选项将被禁用并显示消息，而不是在下载时失败。",
+          "title": "PXE无PXE网络启动介质"
+        },
+        "description": "计算提供者涵盖一个虚拟化器可以创建的机器。裸机是还没有存在的情况：物理服务器到达时带有空白磁盘和没有操作系统。SysManage 通过 <strong>PXE</strong> 驱动它 — 系统网络引导，询问它是谁，并被分配一个安装程序，该安装程序在其分配的操作系统上进行无人值守的安装并将其纳入舰队中。操作员提供MAC地址和操作系统选择；之后的一切都是自动化的。",
+        "discovery": {
+          "caption": "配置 → 发现列出没有分配的PXE引导硬件及其探测报告的事实。",
+          "description": "上架新机器通常意味着没有人记录其MAC地址。发现消除了这一步：没有分配就进行网络引导的硬件会启动一个<strong>临时RAM探测</strong> — 没有写入磁盘 — 报告该机器是什么并将其停放在一个已发现主机列表中。",
+          "facts": "Each entry carries manufacturer and model, CPU and core count, memory, disk count and primary disk, and serial number — enough to tell a 256 GB compute node from a 64 GB edge box without walking to the rack. Assigning an OS from here is the fast path: the MAC is already known, so the operator only chooses an install source. A machine that should not be provisioned can be ignored instead.",
+          "title": "主机发现"
+        },
+        "flow": "完整的路径是：机器网络引导 → 基于MAC地址的引导端点解析分配 → 为该机器生成答案文件 → 操作系统无人值守安装 → 第一次启动脚本使用一次性 <strong>注册令牌</strong> 安装代理 → 主机出现在正确的租户中 → 网络引导解除武装，因此从那时起机器从其自己的磁盘引导。",
+        "readiness": {
+          "advisor": "工具到位后，<strong>配置顾问</strong> 会生成一个准备应用的 <code>dnsmasq</code> 配置段。它有两种模式，正确选择很重要：",
+          "description": "PXE needs DHCP, TFTP, and HTTP on a designated provisioning-server host. Rather than assume they exist, SysManage probes for them and refuses to arm a machine until the roles it needs are present. The probe is read-only; nothing is installed without an explicit action.",
+          "firewall": "顾问还发出所选模式需要的防火墙规则（DHCP UDP 67、TFTP UDP 69、PXE引导服务器发现UDP 4011，以及服务器的HTTP端口），根据平台检测而不是假设。",
+          "own": "<strong>own-DHCP</strong> — SysManage <em>هو</em> خادم DHCP للشبكة الخاصة بالتجهيز، حيث يوزع العناوين وملف التشغيل. استخدم هذا على شبكة بناء معزولة. ستحدث صراعًا بين خادمين DHCP موثوق بهما في قطاع واحد، لذا يجب ألا يكون هذا الوضع موجهًا إلى شبكة تحتوي بالفعل على خادم واحد.",
+          "proxy": "<strong>proxyDHCP</strong> — 现有的企业DHCP服务器继续分发地址，未作修改，并且SysManage仅回答PXE部分。当您无法更改现有DHCP服务器时使用此模式，在实际数据中心中这是常见情况。",
+          "title": "准备飞行探测和配置顾问"
+        },
+        "sources": {
+          "caption": "配置 → 安装源目录列出可以引导进入的操作系统树。",
+          "debian": "Debian → <code>preseed</code>; Ubuntu → <code>autoinstall</code> (Subiquity)",
+          "delete": "仍然被分配引用的源不能删除——移除它会使机器引导到不再存在的树。",
+          "description": "<strong>安装源</strong> 是一个可启动的操作系统安装树：操作系统家族和版本、架构、树中的内核和initrd路径以及树URL本身 — 可以指向公共镜像、由仓库镜像维护的镜像或空气隔绝的安装树。",
+          "dialect": "<strong>答案文件方言</strong> 是根据操作系统家族派生出来的，而不是一个自由文本字段 — 因为弄错它是导致机器正确引导但永远等待交互式提示的最简单方式。每个家庭映射到其安装程序实际使用的无人值守安装格式：",
+          "freebsd": "FreeBSD → <code>bsdinstall</code> — note that FreeBSD netboots via <code>pxeboot</code> plus an mfsroot, not the Linux kernel-and-initrd shape, so its install source is described differently",
+          "rhel": "RHEL / Rocky / Alma → <code>kickstart</code>; SUSE → <code>autoyast</code>",
+          "title": "安装源目录"
+        },
+        "title": "Bare-Metal Provisioning (PXE)"
       }
     }
   },
@@ -22020,14 +22069,14 @@
         "title": "دورة حياة المراجعات والصيانة"
       },
       "provisioning": {
-        "body": "إنشاء مضيفات جديدة وليس فقط إدارة الموجودة: PXE / تثبيت الأجهزة المادية، توفير VMs على هيبرفيزورات خارجية والغيوم، واكتشاف أجهزة غير مدبرة بالفعل في الشبكة.",
+        "body": "裸机PXE配置，每台机器的操作系统分配，硬件发现和外部虚拟化器上的配置今天都已提供。未来还将包括公共云中的配置以及网络上未管理机器的发现（而不仅仅是那些通过网络引导的）。",
         "title": "توفير وإكتشاف"
       },
       "title": "في الخطة المستقبلية"
     },
     "edition": {
       "community": "مجاني ومفتوح المصدر ويمكن استضافته ذاتيًا على خادم وقاعدة بيانات واحدة. وكيل مستمر لـ Linux، Windows، macOS، FreeBSD، OpenBSD، و NetBSD؛ مراقبة WebSocket في الوقت الفعلي؛ قائمة المكونات والمعدات والبرامج والأجهزة؛ إدارة تحديث الحزم وأنظمة التشغيل؛ إدارة المستخدمين والوصول؛ التصنيف؛ حالة حائط النيران؛ نماذج سكربت عشوائية؛ تقارير؛ وسجل مراجعة.",
-      "enterprise": "كل شيء في الاحترافي، بالإضافة إلى فحص نقاط الضعفCVE وإرسال التنبيهات عبر البريد الإلكتروني / webhook / Slack / Teams وإدارة الفيروسات وتنسيق الحواجز النارية والAutomation على نطاق الأسطول، وإدارة دورة حياة VM الكاملة (KVM، bhyve، وOpenBSD vmm)، ومراقبة النظام من خلال OpenTelemetry / Grafana / Graylog، وعرض المحتوى والأماكن البيئية مع الترويج المحكم، وكشك متجر Snap ودورة حياة محتوى الصور، وإدارة نظام المستضِيف في وضع الصورة (bootc / rpm-ostree)، والتحقق المتعدد العوامل وتسجيل الدخول بواحدة من خلال IdP الخارجية، والتثبيت بدون اتصال بالإنترنت، وتوفير الاتحاد عبر المواقع.",
+      "enterprise": "Professional中的所有内容，加上CVE漏洞扫描、电子邮件/ webhook / Slack / Teams警报、防病毒管理、防火墙编排、大规模舰队自动化、完整的VM生命周期管理（KVM，bhyve 和 OpenBSD vmm），通过OpenTelemetry / Grafana / Graylog的可观测性，带有门控升级的内容视图和生命周期环境，Snap Store代理和容器镜像内容生命周期，图像模式（bootc / rpm-ostree）主机管理，包括外部虚拟化器上的主机配置以及裸机PXE上的硬件发现，多因素身份验证和外部IdP单点登录，完全空气隔绝部署，以及跨多个站点的联邦。",
       "professional": "كل ما في النسخة المجانية، بالإضافة إلى التقارير المجدولة بصيغة PDF، وسجل مراجعة موسّع، وإدارة الأسرار مع دعم OpenBAO، إدارة حاويات LXD وWSL، تحليل صحة مدعوم بالذكاء الاصطناعي، وأتمتة التحقق من المطابقة مع CIS / DISA STIG.",
       "saas": "كل شيء في Enterprise يتم تشغيله كمنصة تحكم تضمن مستأجرين معزولين — قاعدة بيانات لكل مستأجر، وSSO مملوك للعميل، وتخصيص نسخة المستأجر بحيث يمكن لكل مستأجر أن يكون مستقلاً على Community أو Professional أو Enterprise."
     },
