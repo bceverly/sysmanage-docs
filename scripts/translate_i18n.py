@@ -117,7 +117,10 @@ def translate_to(
         try:
             resp = _post(
                 f"{service.rstrip('/')}/translate/batch",
-                {"texts": chunk, "targets": [lang]},
+                {"texts": chunk, "targets": [lang], "require_change": True},
+                # We already filtered our intentionally-English strings
+                # through i18n-allow.txt, so anything still here MUST
+                # change; identical output is a failure, not a result.
             )
         except (urllib.error.URLError, OSError) as exc:
             sys.exit(
@@ -125,71 +128,42 @@ def translate_to(
                 "  Already-finished languages are saved; re-run to resume."
             )
         for item in resp["results"]:
-            out.append(item["translations"][lang])
+            # Take the service's OWN verdict rather than inferring one by
+            # comparing output to input.  Comparing cannot distinguish "the
+            # model legitimately kept this as-is" (IPv4, FQDN) from "the
+            # service gave up and returned the English", which is why such
+            # strings used to be re-sent over the network forever.
+            # An older service omits "status"; assume ok so this still works.
+            status = (item.get("status") or {}).get(lang, "ok")
+            out.append((item["translations"][lang], status == "ok"))
         print(f"      …{min(i + client_batch, len(texts))}/{len(texts)}", flush=True)
     return out
 
 
-def _accept(source: str, translated: str) -> bool:
-    """Decide whether to write a translation back.
-
-    Write it when it actually changed.  When it comes back identical, only hold
-    it back (leave a [TODO] gap to retry) if the source is a letter-bearing
-    string that ALSO contains a placeholder/markup token — that combination is
-    the service's English fallback for a {{…}}/%s/<tag> it couldn't translate
-    safely.  An identical result with no placeholder is a term the model
-    legitimately keeps as-is (acronyms like URL/IPv4, or words such as
-    "Details") and IS written, so it doesn't linger as a gap forever."""
-    if translated != source:
-        return True
-    return not (_HAS_LETTER.search(source) and _PLACEHOLDER_RE.search(source))
-
-
-# How many times to send a source to the service within a SINGLE run before we
-# give up retrying and accept its output as-is.  ``_accept`` holds a string back
-# (leaves a ``[TODO]`` gap) when the service returns it identical-with-markup,
-# on the theory that's a transient tag-fallback worth retrying.  Some strings
-# (markup-dense, e.g. ``the <code>bootc</code> or <code>rpm-ostree</code>``)
-# come back identical EVERY time, so without a bound they linger as ``[TODO]``
-# forever and every ``make translate`` run "sticks" on them.  After this many
-# attempts we FORCE-ACCEPT the last result — writing a non-``[TODO]`` value that
-# closes the gate (English-identical is a passthrough, not a gap) while a future
-# run can still upgrade it if the service later returns a real translation.
-_MAX_TRANSLATE_ATTEMPTS = 3
 
 
 def _resolve_translations(
     service: str, sources: List[str], lang: str, client_batch: int
 ) -> Dict[str, str]:
-    """Translate ``sources``, retrying only the ones ``_accept`` holds back, up
-    to ``_MAX_TRANSLATE_ATTEMPTS``; on the final attempt every remaining source
-    is force-accepted so nothing can stay a perpetual ``[TODO]`` gap."""
+    """``{source: translation}`` for what the service actually translated.
+
+    NO retry passes.  The service retries a bad reply itself, next to the
+    model, and reports the outcome per string via ``status`` — so re-sending
+    from here was a LAN round-trip to ask the same model the same question,
+    driven by a guess ("identical output means it failed") that is wrong for
+    every term whose correct translation IS the English.
+
+    Sources the service reports as a fallback are OMITTED rather than
+    force-accepted on a final pass.  Force-accepting wrote the English while
+    clearing the ``[TODO]``, which hid the failure from the gap gate entirely;
+    leaving the gap keeps it visible and retryable.
+    """
     resolved: Dict[str, str] = {}
-    pending = list(sources)
-    for attempt in range(1, _MAX_TRANSLATE_ATTEMPTS + 1):
-        if not pending:
-            break
-        # Retry passes send the held-back strings ONE AT A TIME (batch=1): the
-        # service's identical-with-markup fallback is often batch-context noise,
-        # so isolating a hard string gives it the best chance of a real result
-        # before we force-accept on the final attempt.
-        batch = client_batch if attempt == 1 else 1
-        got = dict(zip(pending, translate_to(service, pending, lang, batch)))
-        last = attempt == _MAX_TRANSLATE_ATTEMPTS
-        still: List[str] = []
-        for src in pending:
-            cand = got.get(src, src)
-            if _accept(src, cand) or last:
-                resolved[src] = cand
-            else:
-                still.append(src)
-        if still and not last:
-            print(
-                f"      retry {attempt}/{_MAX_TRANSLATE_ATTEMPTS - 1}: "
-                f"{len(still)} string(s) came back identical-with-markup — re-sending",
-                flush=True,
-            )
-        pending = still
+    for src, (text, ok) in zip(
+        sources, translate_to(service, sources, lang, client_batch)
+    ):
+        if ok:
+            resolved[src] = text
     return resolved
 
 
@@ -222,18 +196,19 @@ def _is_json_gap(value: Optional[str]) -> bool:
 
 
 def _is_passthrough(en_src: str, value: Optional[str]) -> bool:
-    """A non-en leaf left identical to the English source — and long enough to be
-    real prose/a label rather than a trivial cognate — is an untranslated
-    passthrough.  Treat it as a gap so the service gets a chance to translate it
-    (autotagged ``docs.auto.*`` keys land as raw English without a ``[TODO]``
-    prefix, so they're otherwise invisible to this pass).  Mirrors the
-    ``i18n_validate`` budget check (len > 8); the ``_accept`` guard still refuses
-    to write an unchanged result, so genuinely-invariant terms (acronyms, proper
-    nouns) simply stay as-is instead of churning or becoming ``[TODO]`` gaps."""
+    """A non-en leaf left identical to the English source is an untranslated
+    passthrough.  Treat it as a gap so the service gets a chance at it —
+    autotagged ``docs.auto.*`` keys land as raw English with no ``[TODO]``
+    prefix, so they are otherwise invisible to this pass.
+
+    NO minimum length: a short label is as user-facing as a paragraph, and a
+    length floor is an invisible exemption nobody reviews.  Genuinely-invariant
+    terms belong in i18n-allow.txt (filtered out before sending); anything else
+    that comes back unchanged is reported by the service as a fallback and left
+    alone rather than churning."""
     return (
         isinstance(value, str)
         and value == en_src
-        and len(en_src) > 8
         and bool(_HAS_LETTER.search(en_src))
     )
 
@@ -258,7 +233,7 @@ def run_json(
             continue
         doc = json.loads(path.read_text(encoding="utf-8"))
         lang_flat = _flatten(doc)
-        # Self-heal the no-translate [TODO] trap.  A leaf flagged
+        # Self-heal the intentionally-English [TODO] trap.  A leaf flagged
         # intentionally-English (``is_no_translate`` — a proper noun, a brand/
         # tier label, an arrow-suffixed CTA, a per-language cognate, etc.) is
         # deliberately EXCLUDED from translation below, so if it was seeded with
@@ -321,20 +296,38 @@ def run_json(
         translations = _resolve_translations(service, uniq, lang, client_batch)
         written = set()
         for key, en_src in todo:
-            cand = translations.get(en_src, en_src)
-            # Every source is resolved (real translation or force-accepted on the
-            # last attempt), so we always write — nothing lingers as [TODO].
+            cand = translations.get(en_src)
+            # Write ONLY what the service actually translated.  Writing the
+            # English source as a fallback (which this used to do) turned a
+            # [TODO] gap into an English-identical value — so gaps hit zero
+            # while the untranslated count GREW, and each run manufactured more
+            # of the very thing it was meant to fix.  Leave it untouched
+            # instead: a gap stays a gap, and stays visible.
+            if cand is None:
+                continue
             _set_dotted(doc, key, cand)
-            if cand != en_src:
-                written.add(en_src)
+            written.add(en_src)
         path.write_text(
             json.dumps(doc, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
         )
-        # Remaining uses the SAME definition as the final --check, so this always
-        # matches the end-of-run summary (0 when fully translated).
-        remaining = sum(1 for k in en_flat if _is_json_gap(_flatten(doc).get(k)))
+        # Count what the pass ACTUALLY leaves untranslated — gaps AND values
+        # still equal to their English source.  Counting only [TODO] here is
+        # how the run could report "0 gap(s) remaining" while dozens of strings
+        # in that same locale were still English.
+        after = _flatten(doc)
+        remaining = sum(
+            1
+            for k, en_src in en_flat.items()
+            if (
+                _is_json_gap(after.get(k))
+                or (
+                    _is_passthrough(en_src, after.get(k))
+                    and not is_no_translate(k, en_src, lang)
+                )
+            )
+        )
         print(
-            f"  {lang}: wrote {len(written)} new, {remaining} gap(s) remaining",
+            f"  {lang}: wrote {len(written)} new, {remaining} still untranslated",
             flush=True,
         )
 
@@ -405,7 +398,18 @@ def scan_gaps(
                 result[lang] = ["<file missing>"]
                 continue
             lf = _flatten(json.loads(path.read_text(encoding="utf-8")))
-            result[lang] = [k for k in en_flat if _is_json_gap(lf.get(k))]
+            # Same definition the pass uses — see the note in the app clients.
+            result[lang] = [
+                k
+                for k, en_src in en_flat.items()
+                if (
+                    _is_json_gap(lf.get(k))
+                    or (
+                        _is_passthrough(en_src, lf.get(k))
+                        and not is_no_translate(k, en_src, lang)
+                    )
+                )
+            ]
     else:
         import polib  # noqa: PLC0415
 
@@ -429,7 +433,9 @@ def enforce_no_gaps(base: Path, template: str, langs: List[str], fmt: str) -> No
     offenders = {l: ks for l, ks in scan_gaps(base, template, langs, fmt).items() if ks}
     if not offenders:
         print(
-            f"[OK] {PROJECT}: all {len(langs)} locale(s) fully translated — 0 gaps.",
+            f"[OK] {PROJECT}: 0 untranslated gaps in {len(langs)} locale(s).\n"
+            "  (Gaps only — this does NOT check translation QUALITY.  Run\n"
+            "   `make i18n-strict` for English-identical / stale / wrong-language.)",
             flush=True,
         )
         return
@@ -448,7 +454,7 @@ def enforce_no_gaps(base: Path, template: str, langs: List[str], fmt: str) -> No
         lines.append(f"    {lang}: {len(ks):>5} gap(s)   {sample}")
     lines += [
         sep_bar,
-        "  These locales are NOT fully translated.  Fill them with:",
+        "  These locales still have untranslated gaps.  Fill them with:",
         "      make translate SERVICE=http://<gpu-box>:8765",
         "  or translate the remaining keys by hand.  Locales must be 100%.",
         sep_bar,

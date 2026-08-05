@@ -103,6 +103,7 @@ class Components {
             </div>
             <div class="footer-bottom">
                 <p data-i18n="footer.copyright">&copy; 2024 SysManage. All rights reserved.</p>
+                <p class="footer-translation-note" data-i18n="footer.translation_disclosure" data-i18n-html>Translations into languages other than English are machine-generated and have not been reviewed by a native speaker. Corrections are welcome &mdash; see <a href="https://github.com/bceverly/sysmanage/blob/main/CONTRIBUTING.md" target="_blank">CONTRIBUTING.md</a>.</p>
             </div>
         </div>
     </footer>`;

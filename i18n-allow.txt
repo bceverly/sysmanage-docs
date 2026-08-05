@@ -1,0 +1,439 @@
+# =============================================================================
+# MERGED 2026-08-05: assets/locales/no-translate.txt folded in here, so this
+# repo uses the SAME filename as the other three (i18n-allow.txt) and both
+# consumers read ONE list.
+#
+# Previously there were two files with different semantics — the pipeline's
+# matched by SUBSTRING, this gate's by WHOLE VALUE — which is why one could
+# call 5,253 values intentionally-English while the other flagged them.  Every
+# folded-in rule was converted to whole-value form, which is what the old
+# file's own header always asked for ("anchor with ^ / $"); they were written
+# unanchored only because a comment-stripping bug meant none of them compiled,
+# so nobody ever saw them behave.
+#
+# Whole-value is strictly TIGHTER: it exempts "this value IS a path / acronym /
+# product name", never "this sentence happens to mention one".
+# =============================================================================
+
+# i18n "intentionally English" allow-list — the escape hatch for the strict
+# gate in scripts/i18n_strict.py (mirrors sysmanage-docs/assets/locales/
+# no-translate.txt, which predates it).
+#
+# A value listed here may stay byte-identical to English in every locale
+# without failing `make lint`.  Use it for things that genuinely do not
+# translate: product and vendor names, CLI invocations, protocol tokens,
+# file paths, format strings that are pure interpolation.
+#
+# One rule per line:
+#   some.dotted.key        exact dotted key (JSON) or exact msgid (.po)
+#   settings.*.command     fnmatch glob on the key
+#   re:<regex>             regex matched against the ENGLISH value
+# Full-line comments start with '#'.
+#
+# Keep rules TIGHT.  A broad glob silently re-opens the hole this gate exists
+# to close — prefer three exact keys over one wildcard that also swallows the
+# prose next to them.  Anchor value regexes with ^ and $.
+
+# NOTE: this is NOT assets/locales/no-translate.txt.  That file feeds the
+# translation pipeline and matches by SUBSTRING; rules here are WHOLE-VALUE
+# (fullmatch).  Keeping them separate is deliberate — a substring rule such as
+# "value contains a URL" wrongly exempts any sentence that mentions one.
+
+# --- values that are entirely a tool / product / platform enumeration --------
+re:bash, zsh, sh, ksh, PowerShell, cmd
+re:Container Runtime: Docker, containerd, CRI-O
+re:journald / syslog / Windows Event Log, auto-selected
+re:firewalld — .+
+re:do-release-upgrade / dnf / zypper / freebsd-update
+re:Apple Silicon \(ARM64\) native
+re:<strong>[A-Za-z /]+</strong> — [\d.,  a-z()]+
+
+# --- section labels that are a single proper noun plus a category word -------
+re:(Registry / bootstrap|Multi-Tenant SaaS|Email OTP|LaunchDaemon|Satellite)
+re:(Circuit Breaker Health Dashboard|Intelligent Cache Manager)
+re:(Artillery Load Testing|Black Formatter|Backend Coverage|Chef cookbooks)
+re:Antivirus \(Open Source\)
+re:WebKit \(macOS\)
+re:PKG_ADD \(OpenBSD\)
+
+# --- shells, hypervisors, protocols, package managers -----------------------
+# Whole-value matches only (fullmatch).  These are names, not words: no locale
+# renders "Zsh" or "bhyve" differently, and asking the translation service for
+# one just burns a round-trip and comes back identical.
+re:(Ba|K|Z|Tc|C|Fi)sh
+re:(Bourne|Korn|Bourne Again|Friendly Interactive) Shell
+re:(bhyve|KVM|QEMU|KVM/QEMU|LXD|LXC|WSL|VMM|vmd|VMM/vmd|libvirt|Xen|Hyper-V)
+re:(syslog|journald|GELF|GELF TCP|GELF UDP|Syslog TCP|Syslog UDP|rsyslog)
+re:(APT|DNF|YUM|Zypper|Pacman|Snap|Flatpak|Homebrew|Chocolatey|Scoop|winget|pkg|pkgin|pkg_add)
+re:(APT|DNF|YUM|Zypper|Snap|Flatpak) \([A-Za-z0-9/ .+-]+\)
+re:(Ubuntu|Debian|Ubuntu/Debian|Fedora|RHEL|CentOS|Rocky|AlmaLinux|openSUSE|SLES|Alpine|Arch|Gentoo|NixOS)
+re:(FreeBSD|OpenBSD|NetBSD|DragonFly|macOS|Windows|Linux|Unix|BSD)
+re:(PostgreSQL|SQLite|MySQL|MariaDB|Redis|Microsoft SQL Server|Oracle)
+re:N/A
+
+# --- cognates: identical in these locales, must still translate elsewhere ---
+# Scoped deliberately.  "Status" IS the German and Dutch word; Spanish must
+# say "Estado".  An unscoped rule here would bless the English everywhere.
+de,nl: re:Status
+de,nl,fr,it,pt,es: re:Version
+de,nl,fr,it,pt,es,ru: re:URL
+de: re:Name
+nl: re:Naam
+
+# === residue triage, 2026-08-05 ==============================================
+# Whole-value (fullmatch) rules for content that is not language.  Ordinary
+# words are deliberately excluded — "Description", "Best Practices" and the
+# like are real gaps in the locales that left them English.
+
+# --- filesystem and API paths ------------------------------------------------
+re:/[\w./{}@:-]*
+re:[A-Za-z]:\\[\w\\.-]*
+# --- MAC addresses, kernel/semver strings ------------------------------------
+re:([0-9A-Fa-f]{2}:){5}[0-9A-Fa-f]{2}
+re:\d+\.\d+\.\d+[\w.-]*
+# --- sizes, rates, capacities, counts ----------------------------------------
+re:[<>]?\s*[\d,.]+\+?\s*(GB|MB|KB|TB|Gbps|Mbps|TPS|RPS|QPS|ms|s)\.?
+re:[\d,.]+\+?\s*GB SSD
+re:[\d,.]+\s*(GB|MB)\s*/\s*[\d,.]+\s*(GB|MB)
+re:[\d,.]+\+?\s*[-–]\s*[\d,.]+\+?\s*(servers?|agents?)
+re:[\d,.]+\+?\s*(servers?|agents?|cores?)
+re:[\d,.]+ req/sec
+# --- HTTP status reason phrases (conventionally untranslated in API docs) -----
+re:[1-5]\d{2} [A-Z][A-Za-z ]+
+# --- ALL-CAPS protocol/message-type constants and single-letter grades --------
+re:[A-Z][A-Z0-9_]{2,}
+re:[A-D]\+?
+# --- distros, optionally with version and/or package manager -----------------
+re:(Alpine Linux|Arch Linux|AlmaLinux|Rocky Linux|Oracle Linux|Amazon Linux|Debian|Ubuntu|Fedora|CentOS|RHEL|openSUSE|SLES|FreeBSD|OpenBSD|NetBSD|Windows Server|Windows|macOS)( \d[\w.]*)*(,? \d[\w.]*)*( \([\w ]+\))?:?
+re:(CentOS/RHEL|CentOS/RHEL/Fedora|Debian/Ubuntu|Debian & Ubuntu|RHEL/Fedora|openSUSE/SLES)( \([A-Z]+\))?
+# --- vendor, product and tool names ------------------------------------------
+re:(Ansible|Bandit|CodeQL|Chef|Coverage\.py|Docker Compose|FastAPI|Artifactory/Nexus)
+re:(AWS Security Hub/GuardDuty|Azure Security Center|DISA STIG)
+re:(Canonical Ltd\.|Cummins, Inc\.|Aprimo \| Teradata)
+re:COPR (Owner|Project): .+
+re:"localhost"
+re:\(unprefixed\)
+
+# --- language pickers render native names, by design -------------------------
+# "ko - 한국어", "ja - 日本語": a locale selector shows each language in its own
+# script in EVERY locale.  Without this the wrong-script check flags them.
+re:[a-z]{2}(_[A-Z]{2})? - .+
+
+# i18n "do not translate" list — the JSON-friendly equivalent of a `# nosec`
+# marker.  Leaves matched here are intentionally identical to English in every
+# locale and are excluded from BOTH the translation pass (scripts/translate_i18n.py
+# never sends them to the GPU service) AND the passthrough budget check
+#
+# One rule per line:
+#   some.dotted.key          exact dotted key
+#   section.*.endpoints.*    fnmatch glob on the dotted key path
+#   re:<regex>               regex matched against the ENGLISH value
+# A full-line comment starts with '#'.  Keep value regexes tight (anchor with
+# ^ / $) so a rule doesn't suppress real prose that merely mentions a product.
+#
+# To find candidates to add here, run:
+#   python3 scripts/i18n_validate.py --report-passthrough
+
+# --- file-system paths (always literal) ------------------------------------
+re:~?/[\w./{}@:-]*
+re:[\w./~-]*\.(ya?ml|json|db|sh|py|log|conf|toml|ini|service|sock|pid|cfg|env|so|deb|rpm|pkg|msi|apk|tgz)
+
+# --- URLs / scheme fragments ------------------------------------------------
+re:\w+://\S*
+
+# --- code & field identifiers (real prose never contains foo_bar) -----------
+re:[A-Za-z][A-Za-z0-9]*(_[A-Za-z0-9]+)+
+re:[a-z][a-z0-9]+(\.[a-z][a-z0-9]+)+
+
+# --- product / OS / tool labels (a value that *starts* with one of these is a
+#     product label, not prose; refine if a real sentence gets caught) -------
+re:(Unix|Linux|BSD|GNU|Ubuntu|Debian|RHEL|CentOS|Fedora|Rocky|AlmaLinux|Oracle Linux|openSUSE|SLES|Alpine|Arch|Gentoo|NixOS|macOS|Windows|FreeBSD|OpenBSD|NetBSD|PostgreSQL|SQLite|MySQL|MariaDB|Redis|Homebrew|Chocolatey|Scoop|winget|Snap|Flatpak|systemd|OpenRC|launchd|rc\.d|Grafana|Prometheus|OpenTelemetry|Graylog|Docker|Podman|Kubernetes|Helm|Ansible|Terraform|Vagrant|libvirt|KVM|QEMU|bhyve|VMM|WSL|LXD|LXC|OpenBAO|Vault|Keycloak|Okta|Entra|NGINX|Apache|PowerShell|WebSocket|OAuth|OpenID|GraphQL|gRPC|Bandit|SonarQube|SaltStack)[\w .:/+-]*
+
+# --- HTTP status lines / standards / version+codename labels ----------------
+re:\d{3} [A-Z][A-Za-z ]*
+re:ISO \d+
+re:[A-Z][A-Za-z]+ \d+(\.\d+)* \([^)]*\)
+re:\d+\.\d+(\.\d+)+[\w.-]*
+re:([0-9A-Fa-f]{2}:){5}[0-9A-Fa-f]{2}
+re:[A-Z][A-Za-z.+-]* \d+(\.\d+)*\+?
+
+# --- seeding markers (not real content; flagged by --validate / --seed) ------
+re:\[(MISSING|TODO)\].*
+
+# --- slash-separated product / tool lists -----------------------------------
+re:[A-Z][A-Za-z0-9.+-]*\s?/\s?[A-Z][\w/.+-]*
+
+# --- brand, SaaS/dev tooling, protocols (value starts with the name) --------
+re:(SysManage|Enterprise SaaS|TypeScript|JavaScript|React|Node\.js|WebSockets?|REST|JSON|YAML|gRPC|GitHub|GitLab|Bitbucket|ServiceNow|Remedy|PagerDuty|Opsgenie|Jira|Linear|Slack|Discord|WireGuard|OpenVPN|Tailscale|Cloudflare|AWS|Azure|GCP|LDAP|SAML|SCIM|JWT|TOTP|Keycloak|Trivy|Snyk|Semgrep|TruffleHog|ESLint|Prettier|Pytest|Playwright|Vitest|FastAPI|SQLAlchemy|Alembic|Pydantic|Uvicorn|Gunicorn|Vite|IPv4|IPv6)[\w .:/+-]*
+
+# --- more global identity patterns -----------------------------------------
+re:[A-Za-z]:\\[\w\\.-]*
+re:[\w.+-]+@[\w.-]+\.[A-Za-z]{2,}
+re:[a-z0-9][a-z0-9-]*\.(com|org|net|io|rs|dev|gov|edu)
+re:\w*_\*
+re:[A-Z]{2,6}
+re:(i18n|l10n)
+re:<strong>[^<]+</strong>\s*[—-]\s*[\d.,()\w ]*
+re:(MacPorts|Firewalld|DragonFly|Material-UI|Visual Studio|Google|Microsoft|Amazon|Pylint|Mypy|Sphinx)[\w .:/+-]*
+
+# --- per-locale COGNATES: words correctly identical to English in this locale
+#     but which DO differ in others, so they can't be flagged globally.  French
+#     shares many -tion/-ture/-ance/-ence words verbatim; German/Spanish/etc. do
+#     not (de "Dokumentation", es "Documentación").  Only list words VERIFIED
+#     identical in the given language.  Find candidates with:
+#       python3 scripts/i18n_validate.py --report-passthrough --lang fr
+fr: re:(?i)^(← )?(Documentation|Architecture|Administration|Navigation|Description|Configuration|Performance|Application|Maintenance|Permissions?|Installation|Idempotent|Partition|Pagination|Limitations?|Destination|Discussions?|Information|Migration|Notifications?|Orchestration|Sections?|Options?|Versions?|Modules?|Services?|Interfaces?|Transactions?|Exceptions?|Actions?|Solutions?|Conditions?|Restrictions?|Format)( →)?
+fr: re:\d+ minutes
+
+# --- specs / metrics with units (global) ------------------------------------
+re:[\d,]+\+?\s?(GB|MB|KB|TB|GHz|MHz|TPS|RPS|QPS|ms|servers?|agents?|cores?)
+re:\d+\s?[-–]\s?\d+\+?\s?(servers?|agents?|GB|MB)
+
+# --- product tiers / editions / planes (global brand labels) ----------------
+re:(Enterprise|Community Edition|Professional\+?|Open[- ]?[Ss]ource|Self-hosted|Single-tenant|Multi-tenant|Control[- ]Plane|Data[- ]Plane)[\w .:/+-]*
+
+# --- protocols / libs / standards kept English everywhere (global) ----------
+re:(← )?Mutual TLS[\w ]*
+re:CI/CD[\w /]*
+re:(musl|glibc)[\w :]*
+
+# --- "Label: code/product" rows + all-caps constants (global) ---------------
+re:(Frontend|Backend|Database|Repository|Project|Browsers?|Containers?|Tap Repo|Tap User|Uptime):\s.*
+re:[A-Z][A-Z0-9_]{3,}
+
+# --- shared English tech loanwords kept verbatim across European locales -----
+de,nl,es,it,pt,fr: re:(?i)^(← )?(Firewall|Backup|Dashboard|Plugin|Cache|Pipeline|Software|Hardware|Setup|Framework|Heartbeat|Handshake|Bearer|Token|Webhook|Endpoint|Middleware|Proxy|Gateway|Daemon|Socket|Buffer|Worker|Scheduler|Logging|Tracing|Cluster|Node|Container)( →|:)?
+
+# --- German (de) cognates / loanwords verified identical to English ----------
+de: re:(?i)^(← )?(Navigation|Installation|Administrator|Idempotent|Partition|Innovation|Parameter|Information|Optional|Pagination|Community|Best Practices|Tutorials|Standard|Format|Version|Option|Service|Server|Status|Monitor|Monitoring|Update|Deployment|Engine|Repository|Element|Modul|Funktion|Audit Log)( →|:)?
+
+# --- Dutch (nl) keeps many English tech terms (loanwords) --------------------
+nl: re:(?i)^(← )?(Tutorials|Licensing|Audit Log( Viewer)?|Server|Status|Update|Deployment|Engine|Repository|Monitoring|Enterprise|Browsers?|Collector Runs|Feature Toggles|Agent (Setup|Logs|Status|Updates)|Database (Host|Logging)|Web UI (Host|Port)|Bearer tokens)( →|:)?
+
+# --- explicit keys / subtrees: add more via
+#     `python3 scripts/i18n_validate.py --report-passthrough --lang <xx>`
+# api.reference.*.example
+
+# --- product + OS proper nouns in the comparison table / roadmap (global) ----
+re:(SysManage|Ansible|Linux|Windows|macOS|FreeBSD|OpenBSD|NetBSD)
+
+# === Curated 2026-07: HA-docs + autotagged-page passthrough (invariants) ====
+# Navigation link labels (prev/next arrows are nav chrome, never prose).
+re:(←\s.*|.* →)
+# Emoji-prefixed labels / step headings (the pictograph makes it a label).
+re:.*[📝🧪🔍🚀🐘🐧⭐🛟📦🔐🔄🌍📊🖥].*
+# Loopback + language-picker labels ("localhost", "Hindi (hi)", "fr - French").
+re:"?localhost"?
+re:.*\([a-z]{2}\)
+re:[a-z]{2}(_[A-Z]{2})? - .*
+# Tool / command / product enumerations kept verbatim in every locale.
+re:powershell
+re:scripts/sysmanage_secure_installation
+re:do-release-upgrade / dnf / zypper / freebsd-update
+re:bash, zsh, sh, ksh, PowerShell, cmd
+re:journald / syslog / Windows Event Log, auto-selected
+re:Container Runtime: Docker, containerd, CRI-O
+re:firewalld — .+
+re:PKG_ADD \(OpenBSD\)
+re:WebKit \(macOS\)
+re:LaunchDaemon
+re:400\+ CWE .+ checks
+# UI label chrome (single-word section labels ending in ':', not prose).
+re:(AppArmor|Containers|Debugging|Frontend|Metadata|Backend|Universal|Token Debugging):
+# Installation-command labels / snippets.
+# Product / feature / tool proper-noun labels kept verbatim in every locale.
+re:(Agent|Server) GitHub
+re:Agent (Logging|Zone)
+re:Monitoring API
+re:Fleet (dashboard|Engine \(Pro\+\))
+re:Circuit Breaker Health Dashboard
+re:Intelligent Cache Manager
+re:Backend Coverage
+re:Artillery Load Testing
+re:Black Formatter
+re:Chef cookbooks
+re:Antivirus \(Open Source\)
+re:Email OTP
+re:Multi-Tenant SaaS
+re:Apple Silicon \(ARM64\) native
+re:\(unprefixed\)
+re:req/sec
+re:Cross-site scripting \(XSS\)
+# Acronym-expansion labels ("... (MFA)", "... (OCSP)", "... (PFS)") — kept.
+# mTLS + CI-runner + platform labels.
+re:mTLS
+re:-latest \(
+re:Server: Linux
+re:Python 3\.
+re:Registry / bootstrap
+re:Per-host EOL & release-upgrade
+re: - SysManage
+re:Satellite
+re:sysmanage
+# Cognates / loanwords correctly identical in specific locales (scoped).
+de: re:Rate Limiting
+de: re:Integration
+de: re:8\. Best Practices
+it: re:Community
+nl: re:Parameters?
+nl: re:Scenario 3: Stress Test
+nl: re:Token Blacklisting
+pt: re:Use HTTPS
+
+# =============================================================================
+# 2026-08-05 — invariants surfaced by the first fully-clean `i18n_strict` pass.
+# These are the values that stayed byte-identical in 9-13 of the 13 locales,
+# i.e. every translator independently declined to change them.  Each block
+# below is a whole-value (fullmatch) rule; nothing here is prose.
+# =============================================================================
+
+# --- Third-party product, vendor and tool names -----------------------------
+re:^GitLeaks$
+re:^Gmail$
+re:^Nessus$
+re:^OpenVAS$
+re:^Postfix$
+re:^Puppet$
+re:^Python$
+re:^Nuclei$
+re:^ntopng$
+re:^Salt$
+re:^Fail2ban$
+re:^Firefox$
+re:^ELK Stack$
+re:^Jenkins/GitHub Actions/GitLab CI$
+re:^OWASP Dependency Check$
+re:^SonarQube Cloud \+ Pylint \(10/10\)$
+re:^Chocolatey \((?:Windows|choco)\)$
+re:^Homebrew \((?:brew|macOS)\)$
+re:^MacPorts \(port\)$
+re:^PKG \(FreeBSD\)$
+re:^(?:Grafana|Graylog|OpenTelemetry) \(Pro\+\)$
+re:^Windows Package Manager \(winget\)$
+re:^winget: Microsoft's Windows Package Manager$
+
+# --- Standards, frameworks and protocol acronyms ----------------------------
+# The expansion is part of the acronym's definition; translating half of
+# "Mutual TLS (mTLS)" produces a term no reader can look up.
+re:^NIST NVD$
+re:^PCI DSS$
+re:^FedRAMP$
+re:^SOC 2 Type II$
+re:^Mutual TLS \(mTLS\)$
+re:^mTLS Setup$
+re:^Online Certificate Status Protocol \(OCSP\)$
+re:^Perfect Forward Secrecy \(PFS\)$
+re:^TOTP \(Time-based OTP\)$
+re:^i18n / l10n$
+re:^Multi-OS CI/CD$
+
+# --- Shell names, config-schema types and literal YAML/JSON values ----------
+# These appear in "Variable / Type / Default" reference tables.  The
+# lower-case forms are the literal token a user types; the capitalised
+# forms (Type, Server, No, ...) are column headers and DO translate, so
+# these rules are deliberately case-sensitive.
+re:^(?:bash|sh|zsh|ksh|cmd|shell)$
+re:^(?:uid|gid)$
+re:^(?:true|false|no|string|type|password|roles|agents)$
+
+# --- Version, address and grade literals ------------------------------------
+re:^v1\.2\.3$
+re:^VLAN: 10\.0\.\d+\.0/\d+$
+re:^[A-F]$
+re:^(?:HTTP|HTTPS|SELinux|Rust|MTBF):$
+
+# --- URLs, filesystem paths and API routes ----------------------------------
+re:^(?:ReDoc|Swagger UI|Homepage): https?://\S+$
+re:^https?://\S+ \(fallback\)$
+re:^/var/log/sysmanage-agent\.log /var/log/sysmanage-agent-error\.log$
+re:^(?:Windows: )?C:\\Program Files\\SysManage Agent.*$
+re:^(?:GET|POST) /api/\S+.*$
+re:^PPA Name: ppa$
+re:^Installation(?: \([^)]+\))?:(?: .*)?$
+
+# --- Platform / distribution enumerations -----------------------------------
+# Distro names, package-manager names and the exact command to run.  Every
+# token is a proper noun or a literal invocation.
+re:^Ubuntu / Debian \(apt\)$
+re:^Ubuntu / Debian — do-release-upgrade$
+re:^RHEL · Rocky · Alma$
+re:^RHEL / CentOS / Fedora \(yum/dnf\)$
+re:^RHEL / Fedora / AlmaLinux / Rocky — dnf system-upgrade$
+re:^RHEL / Fedora / AlmaLinux / Rocky / SUSE — fips-mode-setup --enable / --disable$
+re:^SUSE / openSUSE \(zypper\)$
+re:^SUSE / openSUSE — zypper dup$
+re:^YUM/DNF \(RHEL/CentOS/Fedora\)$
+re:^APT / DNF / zypper / FreeBSD pkg$
+re:^FreeBSD — freebsd-update$
+re:^OpenBSD errata \(syspatch\)$
+re:^UFW \(Ubuntu/Debian\)$
+re:^Firewalld \(RHEL/CentOS/Fedora\)$
+re:^UFW, firewalld, pf, ipfw, npf, Windows, macOS$
+re:^FreeBSD, OpenBSD, NetBSD$
+re:^openSUSE & SLES$
+re:^openSUSE / SLES - OBS \(Open Build Service\)$
+re:^SUSE Linux Enterprise (?:Server )?(?:\(SLES\)|15 SP\d)$
+re:^Ubuntu \d\d\.04 LTS \([A-Z][a-z]+(?: [A-Z][a-z]+)?\)$
+re:^🔧 NetBSD$
+re:^ZFS, btrfs, dir, LVM$
+re:^(?:KVM / QEMU|LXD/LXC|Linux) \((?:Linux|systemd)\)$
+re:^bhyve \(FreeBSD\)$
+re:^VMM / vmd \(OpenBSD\)$
+re:^WSL \(Windows\)$
+re:^macos-latest \(Apple Silicon\)$
+re:^windows-latest \(Windows Server\)$
+
+# --- Employer, university and award names (the /about founder page) ---------
+# Organisation names are not translated in any locale; awards are cited by
+# their registered English name so the reader can verify them.
+re:^Epsilon Automotive \| Alliance Data Systems$
+re:^NextGear Capital \| Cox Automotive$
+re:^Veregon Inc\. \| PeopleStrategy$
+re:^IBM \| Software Artistry$
+re:^Emerald Cloud Lab$
+re:^IBJ (?:Forty Under 40|CTO of the Year) \(\d{4}\)$
+re:^TechPoint Mira Award \(\d{4}\)$
+re:^UC Berkeley — M\.S\. Information & Cybersecurity \(4\.0 GPA\)$
+
+# --- Support-matrix cells: distro release + interpreter version -------------
+re:^Python 3\.9-3\.14:$
+re:^Amazon Linux 2023 \(Python 3\.9\)$
+re:^openSUSE Leap 15\.x - Python 3\.11 \(2021\+\)$
+re:^SUSE Linux Enterprise Server 15 - Python 3\.11 \(2018\+\)$
+re:^Fedora 38\+ - Python 3\.11\+ \(2023\+\)$
+re:^OS: Windows 10, Windows 11, Windows Server 2016\+$
+re:^Linux, macOS, Windows, FreeBSD, OpenBSD, NetBSD$
+re:^Linux: APT \(Debian/Ubuntu\), YUM/DNF \(RHEL/CentOS\), Zypper \(SUSE\)$
+re:^<strong>Alpine</strong> — 3\.20\+$
+
+# --- Answer-file / installer format names (the value IS the format token) ---
+re:^RHEL / Rocky / Alma → <code>kickstart</code>; SUSE → <code>autoyast</code>$
+re:^Debian → <code>preseed</code>; Ubuntu → <code>autoinstall</code> \(Subiquity\)$
+
+# --- SysManage module names and packaging formats ---------------------------
+re:^Provisioning Engine(?: - SysManage Professional\+)?$
+re:^OpenTelemetry & Prometheus Stack$
+re:^PCI DSS \(Payment Card Industry\)$
+re:^MSI Installer$
+
+# =============================================================================
+# 2026-08-05 — LOCALE-SCOPED cognates.  Each of these came back byte-identical
+# from the translation service for the locales named, and in those languages
+# the English IS the word (loanword or shared Latin root).  They are scoped,
+# never global: "Agent" is right for German and Dutch and wrong for Japanese,
+# and an unscoped rule would silently bless the English in all 13.
+# Non-Latin-script locales are deliberately NOT listed here — an English string
+# in an Arabic or Japanese page is a defect, not a cognate.
+# =============================================================================
+de: re:^(?:Admin|Agent|Info|Port|Roadmap|Roadmap - SysManage|Tags|Operator|Hostname|Hosts|Internet|offline|online|API & Integration|🟢 Online)$
+de: re:^Fedora Copr \(Alternative\)$
+nl: re:^(?:Admin|Agent|Contact|Database|Expert|Home|Minimum|Roadmap|Roadmap - SysManage|Sites|Tags|Tenant|Service|Uptime|Prefix|Protocol|Filters|Download|Effect|Beginner|Internet|offline|online|RBAC Data Model)$
+nl: re:^Agent RAM: 10-50MB per agent$
+fr: re:^(?:Agent|Contact|Expert|Info|Minimum|Port|Sites|Variable|Note|Notes|Source|Type|Scripts|Internet)$
+es: re:^(?:Auditor|No|Variable|Scripts|Internet|🟠 Error)$
+it: re:^(?:Database|Home|No|Server|Tenant|Internet|🟢 Online)$
+pt: re:^(?:Admin|Auditor|Logs|Scripts|Internet|offline|online)$
+
+# Product/version matrix rows that stay English in the Latin-script locales.
+de,it,nl: re:^Server: Linux \(Ubuntu, RHEL, CentOS, Debian\)$
+fr,nl,pt: re:^RHEL 8 / CentOS 8 / Rocky 8 / AlmaLinux 8 / Oracle Linux 8 - Python 3\.11 via AppStream \(2019\+\)$

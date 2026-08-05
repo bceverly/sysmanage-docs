@@ -3940,6 +3940,26 @@
           "step5": "Populates the <code>proplus_module_cache</code> table in the SysManage database with a row per engine <code>.so</code> file (module code, platform, architecture, Python version, file path, SHA-512 hash). The module loader queries this table on startup to decide which engines to load — without these rows it would try to download them from <code>license.sysmanage.org</code> and fail on air-gap.",
           "verify": "The installer then runs <code>systemctl restart sysmanage</code> and prints commands to verify the activation. Confirm with <code>curl -ks http://localhost:3000/api/v1/server-info | python3 -m json.tool</code> — you should see <code>license_tier: enterprise</code> (or whatever tier the JWT carries) and <code>role_engine_loaded: true</code>. The navbar role chip in the web UI turns green after a hard refresh.",
           "grace_note": "<strong>About the offline grace period:</strong> the Pro+ overlay does <em>not</em> blank the <code>license.phone_home_url</code> setting. The license JWT includes an <code>offline_days</code> field (typically 30); the validator runs in offline-grace mode for that many days after install. Plan to rebuild the Pro+ overlay on the internet-connected build host and re-apply it on the air-gapped server before the grace window expires — otherwise Pro+ silently demotes to Community tier on the next service start. This is the intended enforcement mechanism that prevents the overlay ISO from being shared indefinitely."
+        },
+        "agentmirrors": {
+          "aur": "Arch Linux is deliberately absent. Its package is built from a <code>PKGBUILD</code> on the target machine, so there is no artifact to mirror; the channel is not offered rather than accepting a URL that would never be read.",
+          "col_channel": "Channel",
+          "col_covers": "Covers",
+          "col_shape": "What the mirror must serve",
+          "config": "Point each channel at a private mirror under <strong>Settings → Air-Gap &amp; Mirroring → Agent Install Mirrors</strong>. Configuration is per <em>channel</em>, not per distro: one <code>copr</code> entry covers Fedora, RHEL, Rocky and Alma at once, and a new RHEL-family distro inherits it without another entry. Channels you leave unconfigured keep installing from upstream, so a partially-connected site can mirror only the families it actually runs.",
+          "intro": "The bundle above installs the agent on a host you touch by hand. <strong>Provisioned</strong> hosts are different: a machine built by PXE or from a cloud image runs an unattended bootstrap that installs the agent from its distro's normal channel — the Launchpad PPA, a COPR repo, the openSUSE Build Service, winget or the Homebrew tap. None of those are reachable inside an enclave, so without configuration the machine installs its OS, fails to install an agent, and never enrolls.",
+          "legacy": "Configuring a mirror also changes how Alpine and the BSDs are treated. Those platforms are normally marked \"legacy\" — installed by direct download because no upstream repository is published yet — but a private mirror <em>is</em> that repository, so provisioned hosts on those platforms switch to the package-manager path once one is configured.",
+          "shape_apk": "An <code>apk index</code> repository",
+          "shape_apt": "A flat APT repository (<code>apt-ftparchive</code> layout, as produced by the air-gap ingestion run)",
+          "shape_apt2": "Same flat APT layout. Debian is a separate channel because the Launchpad PPA publishes Ubuntu series only.",
+          "shape_brew": "A git URL the Homebrew tap can be cloned from",
+          "shape_bsd": "The respective native package repository layout",
+          "shape_dnf": "A <code>createrepo_c</code> repository",
+          "shape_winget": "A private winget REST source",
+          "shape_zypper": "A <code>createrepo_c</code> repository, added with <code>--no-gpgcheck</code>",
+          "title": "Agent Install Mirrors (per-channel)",
+          "validation": "Mirror URLs are validated when you save them. The URL is interpolated into a command that runs as root on every machine the site provisions, so anything containing whitespace, quotes, <code>$</code> or shell metacharacters is rejected at the form rather than at provisioning time. Accepted schemes are <code>http</code>, <code>https</code>, <code>ftp</code> and <code>file</code>.",
+          "shot": "Agent Install Mirrors substitutes a private mirror per upstream channel, so hosts provisioned inside the enclave can install the agent and enrol. The channel picker only offers channels that are not already configured."
         }
       },
       "clm": {
@@ -16793,7 +16813,8 @@
     "airgap": "Air-Gapped",
     "company": "Company",
     "contact": "Contact",
-    "solutions": "Solutions"
+    "solutions": "Solutions",
+    "translation_disclosure": "Translations into languages other than English are machine-generated and have not been reviewed by a native speaker. Corrections are welcome &mdash; see <a href=\"https://github.com/bceverly/sysmanage/blob/main/CONTRIBUTING.md\" target=\"_blank\">CONTRIBUTING.md</a>."
   },
   "getting_started": {
     "breadcrumb": "Getting Started",
@@ -21989,10 +22010,6 @@
     "coming": {
       "title": "On the roadmap",
       "intro": "The next stretch closes the gap with established fleet-management tools while keeping our footing as the management-and-remediation plane rather than another agent to babysit. These land in Enterprise unless noted.",
-      "patch": {
-        "title": "Patch & maintenance lifecycle",
-        "body": "Errata and advisory management, maintenance windows so updates land when you expect them, OS release-upgrades with end-of-life tracking, and a FIPS-validated build for regulated environments."
-      },
       "content": {
         "title": "Content lifecycle & distribution",
         "body": "Content views and lifecycle environments, so a fixed set of packages and updates can be promoted through dev → staging → production gates instead of every host pulling whatever is newest. Includes a Snap proxy, container-image content, and support for image-mode hosts (bootc / rpm-ostree)."

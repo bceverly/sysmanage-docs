@@ -61,7 +61,11 @@ endif
 # interpreter is ``python3.13`` with no ``python3`` symlink) fall back to the newest
 # versioned one. ``?=`` leaves the Windows ``py`` untouched, and where ``python3``
 # exists (Linux/macOS/*BSD) this resolves to it — so nothing else changes.
-PYTHON ?= $(shell for p in python3 python3.14 python3.13 python3.12 python3.11; do command -v $$p >/dev/null 2>&1 && { echo $$p; exit 0; }; done; echo python3)
+# Prefer this repo's own ./.venv when it exists, so the interpreter is
+# deterministic rather than "whatever an activated venv put on PATH" — working
+# in one repo with another repo's venv active otherwise silently changes which
+# Python runs these scripts.
+PYTHON ?= $(shell if [ -x ./.venv/bin/python3 ]; then echo ./.venv/bin/python3; else for p in python3 python3.14 python3.13 python3.12 python3.11; do command -v $$p >/dev/null 2>&1 && { echo $$p; exit 0; }; done; echo python3; fi)
 
 # Colours for output.  The recipes print these with `echo`, so the values must be
 # REAL escape bytes, not the two-character text "\033": not every /bin/sh expands
@@ -927,12 +931,24 @@ lint-js: ensure-js-lint-tools
 	@./node_modules/.bin/eslint assets/js/*.js real-screenshot.js screenshot-generator.js screenshots/capture.mjs
 	@echo "[OK] eslint passed"
 
-lint: lint-file-length lint-python lint-security lint-js i18n-validate translate-check
+lint: lint-file-length lint-python lint-security lint-js i18n-validate i18n-strict translate-check
 	@echo "[OK] docs lint (python + security + js + i18n) passed"
 
 # i18n: collect data-i18n="..." attributes from every .html and verify
 # every key exists in every locale .json within budget.  Run
 # ``make i18n-seed`` to populate gaps with [TODO]-prefixed placeholders.
+# Strict gate: a translation byte-identical to its English source, or stale
+# because the English was edited after it was translated.  Neither is visible
+# to i18n-validate (key present) or translate-check (not [TODO]).  Staleness is
+# tracked by a sha256 sidecar of the English, since a docs key is stable while
+# its prose is edited constantly.  Escape hatch: i18n-allow.txt — the SAME
+# file the translation pipeline reads (merged 2026-08-05), so one list, one
+# meaning: whole-value match.
+i18n-strict:
+	@echo "=== i18n strict (English-identical + stale) ==="
+	@python3 scripts/i18n_strict.py
+	@echo "[OK] i18n strict gate passed"
+
 i18n-validate:
 	@echo "=== i18n validation ==="
 	@$(PYTHON) scripts/i18n_validate.py --validate

@@ -24,7 +24,7 @@ Covers the Enterprise-only engines:
   external_idp         -> external_idp_provider + idp_role_mapping + external_idp_settings
   federation           -> federation_sites + federation_host_directory
   air-gap              -> airgap_collection_run + airgap_collection_target + airgap_media_manifest
-                          + airgap_local_repository
+                          + airgap_local_repository + airgap_agent_channel_mirror
 
 Idempotent: clears the rows it manages (FK-safe order) then re-inserts.
 NOTE: fleet_engine has NO OSS model (engine-owned tables) — its host-detail tab is
@@ -87,6 +87,7 @@ from backend.persistence.models import (
 )
 # Air-gap models aren't re-exported from the package __init__ — import directly.
 from backend.persistence.models.airgap import (
+    AirgapAgentChannelMirror,
     AirgapCollectionRun,
     AirgapCollectionTarget,
     AirgapLocalRepository,
@@ -329,6 +330,21 @@ AIRGAP_REPOS = [  # (distro, version, repo_url, package_count, age_hours)
     ("freebsd", "14", "http://airgap.local/freebsd", 33500, 30),
 ]
 
+# Per-channel private mirrors for the AGENT's own install channels (Phase 12).
+# One row per channel, deliberately not per distro: the ``copr`` entry is what
+# Fedora/RHEL/Rocky/Alma all install through.  ``aur`` is absent because an Arch
+# package is built on the target and there is nothing to mirror.
+AGENT_CHANNEL_MIRRORS = [  # (channel, mirror_url, notes)
+    ("ppa", "https://mirror.corp.internal/sysmanage/apt",
+     "Ubuntu — replaces the Launchpad PPA"),
+    ("sysmanage-apt", "https://mirror.corp.internal/sysmanage/apt-debian",
+     "Debian — the PPA publishes Ubuntu series only"),
+    ("copr", "https://mirror.corp.internal/sysmanage/rpm",
+     "Covers Fedora, RHEL, Rocky and Alma"),
+    ("obs", "https://mirror.corp.internal/sysmanage/suse",
+     "openSUSE Leap + SLES"),
+]
+
 # ---- content lifecycle (Phase 16) ------------------------------------------
 # The ordered promotion path; the first environment is the Library (publish
 # target / path root).
@@ -377,7 +393,7 @@ def main():
             FederationHostDirectory, FederationSite,
             GrafanaIntegrationSettings, GraylogIntegrationSettings,
             AirgapMediaManifest, AirgapCollectionTarget, AirgapCollectionRun,
-            AirgapLocalRepository,
+            AirgapLocalRepository, AirgapAgentChannelMirror,
             # Content lifecycle (Phase 16) — children before parents.
             ContentPromotionAudit, EnvironmentContentBinding,
             EnvironmentSiteSubscription, ContentViewExportRun,
@@ -706,6 +722,12 @@ def main():
             session.add(AirgapLocalRepository(
                 distro=distro, version=ver, repo_url=url, package_count=pkgs,
                 last_ingest_at=NOW - timedelta(hours=age),
+            ))
+
+        for channel, mirror_url, notes in AGENT_CHANNEL_MIRRORS:
+            session.add(AirgapAgentChannelMirror(
+                channel=channel, mirror_url=mirror_url, enabled=True,
+                notes=notes, created_at=NOW - timedelta(days=3), updated_at=NOW,
             ))
 
         # --- content lifecycle (Phase 16): environments, content views,

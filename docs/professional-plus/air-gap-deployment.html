@@ -201,6 +201,38 @@ sudo umount /mnt</code></pre>
                 </section>
 
                 <section>
+                    <h2 data-i18n="docs.proplus.airgap.agentmirrors.title" data-i18n-html>Agent Install Mirrors (per-channel)</h2>
+                    <p data-i18n="docs.proplus.airgap.agentmirrors.intro" data-i18n-html>The bundle above installs the agent on a host you touch by hand. <strong>Provisioned</strong> hosts are different: a machine built by PXE or from a cloud image runs an unattended bootstrap that installs the agent from its distro's normal channel — the Launchpad PPA, a COPR repo, the openSUSE Build Service, winget or the Homebrew tap. None of those are reachable inside an enclave, so without configuration the machine installs its OS, fails to install an agent, and never enrolls.</p>
+                    <p data-i18n="docs.proplus.airgap.agentmirrors.config" data-i18n-html>Point each channel at a private mirror under <strong>Settings → Air-Gap &amp; Mirroring → Agent Install Mirrors</strong>. Configuration is per <em>channel</em>, not per distro: one <code>copr</code> entry covers Fedora, RHEL, Rocky and Alma at once, and a new RHEL-family distro inherits it without another entry. Channels you leave unconfigured keep installing from upstream, so a partially-connected site can mirror only the families it actually runs.</p>
+                    <figure class="docs-screenshot">
+                        <img src="/assets/images/settings-agent-mirrors.png" alt="SysManage Agent Install Mirrors settings">
+                        <figcaption data-i18n="docs.proplus.airgap.agentmirrors.shot" data-i18n-html>Agent Install Mirrors substitutes a private mirror per upstream channel, so hosts provisioned inside the enclave can install the agent and enrol. The channel picker only offers channels that are not already configured.</figcaption>
+                    </figure>
+                    <table class="comparison-table">
+                        <thead>
+                            <tr>
+                                <th data-i18n="docs.proplus.airgap.agentmirrors.col_channel" data-i18n-html>Channel</th>
+                                <th data-i18n="docs.proplus.airgap.agentmirrors.col_covers" data-i18n-html>Covers</th>
+                                <th data-i18n="docs.proplus.airgap.agentmirrors.col_shape" data-i18n-html>What the mirror must serve</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr><td><code>ppa</code></td><td>Ubuntu</td><td data-i18n="docs.proplus.airgap.agentmirrors.shape_apt" data-i18n-html>A flat APT repository (<code>apt-ftparchive</code> layout, as produced by the air-gap ingestion run)</td></tr>
+                            <tr><td><code>sysmanage-apt</code></td><td>Debian</td><td data-i18n="docs.proplus.airgap.agentmirrors.shape_apt2" data-i18n-html>Same flat APT layout. Debian is a separate channel because the Launchpad PPA publishes Ubuntu series only.</td></tr>
+                            <tr><td><code>copr</code></td><td>Fedora, RHEL, Rocky, Alma</td><td data-i18n="docs.proplus.airgap.agentmirrors.shape_dnf" data-i18n-html>A <code>createrepo_c</code> repository</td></tr>
+                            <tr><td><code>obs</code></td><td>openSUSE Leap, SLES</td><td data-i18n="docs.proplus.airgap.agentmirrors.shape_zypper" data-i18n-html>A <code>createrepo_c</code> repository, added with <code>--no-gpgcheck</code></td></tr>
+                            <tr><td><code>apk</code></td><td>Alpine</td><td data-i18n="docs.proplus.airgap.agentmirrors.shape_apk" data-i18n-html>An <code>apk index</code> repository</td></tr>
+                            <tr><td><code>freebsd-pkg</code>, <code>openbsd-pkg</code>, <code>netbsd-pkgin</code></td><td>FreeBSD, OpenBSD, NetBSD</td><td data-i18n="docs.proplus.airgap.agentmirrors.shape_bsd" data-i18n-html>The respective native package repository layout</td></tr>
+                            <tr><td><code>winget</code></td><td>Windows</td><td data-i18n="docs.proplus.airgap.agentmirrors.shape_winget" data-i18n-html>A private winget REST source</td></tr>
+                            <tr><td><code>brew</code></td><td>macOS</td><td data-i18n="docs.proplus.airgap.agentmirrors.shape_brew" data-i18n-html>A git URL the Homebrew tap can be cloned from</td></tr>
+                        </tbody>
+                    </table>
+                    <p data-i18n="docs.proplus.airgap.agentmirrors.aur" data-i18n-html>Arch Linux is deliberately absent. Its package is built from a <code>PKGBUILD</code> on the target machine, so there is no artifact to mirror; the channel is not offered rather than accepting a URL that would never be read.</p>
+                    <p data-i18n="docs.proplus.airgap.agentmirrors.validation" data-i18n-html>Mirror URLs are validated when you save them. The URL is interpolated into a command that runs as root on every machine the site provisions, so anything containing whitespace, quotes, <code>$</code> or shell metacharacters is rejected at the form rather than at provisioning time. Accepted schemes are <code>http</code>, <code>https</code>, <code>ftp</code> and <code>file</code>.</p>
+                    <p data-i18n="docs.proplus.airgap.agentmirrors.legacy" data-i18n-html>Configuring a mirror also changes how Alpine and the BSDs are treated. Those platforms are normally marked "legacy" — installed by direct download because no upstream repository is published yet — but a private mirror <em>is</em> that repository, so provisioned hosts on those platforms switch to the package-manager path once one is configured.</p>
+                </section>
+
+                <section>
                     <h2 data-i18n="docs.proplus.airgap.security.title" data-i18n-html>Security Notes</h2>
                     <ul>
                         <li data-i18n="docs.proplus.airgap.security.signed" data-i18n-html>Bundled packages are the same signed artifacts shipped to public package archives — <code>.deb</code> files from the bceverly Launchpad PPA carry the project GPG signature, <code>.rpm</code> files are signed via the COPR/OBS pipeline, <code>.msi</code> files are SignPath-signed, and <code>.pkg</code> files for macOS are notarized.</li>
