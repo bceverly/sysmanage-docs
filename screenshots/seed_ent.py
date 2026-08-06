@@ -56,6 +56,7 @@ from backend.persistence.models import (
     GrafanaIntegrationSettings,
     GraylogIntegrationSettings,
     Host,
+    ChildHostDistribution,
     HostChild,
     HostFirewallRole,
     IdpRoleMapping,
@@ -251,6 +252,30 @@ VMS = [  # (parent_fqdn, child_name, child_type, distribution, status)
     ("rhel-db-01.corp.northstar.io", "vm-pg-analytics", "kvm", "rocky-9", "running"),
     ("ubuntu-web-01.corp.northstar.io", "vm-staging", "kvm", "ubuntu-24.04", "stopped"),
     ("freebsd-build-01.corp.northstar.io", "vm-bsd-ci", "bhyve", "freebsd-14", "running"),
+]
+
+# A Windows Server guest caught MID-PROVISION (Phase 12.5), so the Child Hosts
+# screenshot shows the progress UI rather than a list of finished VMs.  step_at
+# is recent so the shot shows "Updated ..." and not the stall warning.
+WINDOWS_VM = {
+    "parent_fqdn": "ubuntu-web-01.corp.northstar.io",
+    "child_name": "win-app-01",
+    "child_type": "kvm",
+    "distribution": "Windows Server",
+    "distribution_version": "2022",
+    "hostname": "win-app-01.corp.northstar.io",
+    "status": "creating",
+    "installation_step": "build the Windows config CD (Autounattend + agent MSI)",
+    "installation_step_number": 6,
+    "installation_total_steps": 9,
+}
+
+# The create dialog only offers what is in child_host_distribution, so these
+# must exist for the Windows path to appear.  install_identifier is the token
+# the engine dispatches on — load-bearing, not display text.
+WINDOWS_DISTRIBUTIONS = [
+    ("2022", "Windows Server 2022 LTSC", "windows-server-2022"),
+    ("2025", "Windows Server 2025", "windows-server-2025"),
 ]
 
 # ---- provisioning (Phase 18) -----------------------------------------------
@@ -684,6 +709,13 @@ def main():
                 ))
 
         # --- virtualization VMs (KVM/bhyve child hosts) ---
+        # Create buttons are disabled unless the parent reports privileged
+        # mode; is_agent_privileged defaults to False and nothing else seeds it,
+        # so every demo host showed a greyed-out "Create VM".
+        for parent_fqdn in {v[0] for v in VMS} | {WINDOWS_VM["parent_fqdn"]}:
+            if parent_fqdn in hosts:
+                hosts[parent_fqdn].is_agent_privileged = True
+
         for parent_fqdn, name, ctype, distro, status in VMS:
             if parent_fqdn not in hosts:
                 continue
@@ -692,6 +724,38 @@ def main():
                 child_name=name, child_type=ctype, distribution=distro,
                 status=status, created_at=NOW, updated_at=NOW,
             ))
+
+        # --- Windows Server child host, mid-provision (Phase 12.5) ---
+        if WINDOWS_VM["parent_fqdn"] in hosts:
+            # Every WINDOWS_VM key except parent_fqdn is a HostChild column, so
+            # splat it rather than restating the mapping.
+            fields = {k: v for k, v in WINDOWS_VM.items() if k != "parent_fqdn"}
+            session.add(HostChild(
+                parent_host_id=hosts[WINDOWS_VM["parent_fqdn"]].id,
+                child_host_id=None, **fields,
+                installation_step_at=NOW - timedelta(minutes=1),
+                created_at=NOW - timedelta(minutes=14), updated_at=NOW,
+            ))
+
+        # Upserted, not inserted: migration w1winchild already seeds these on a
+        # current server and a duplicate breaks the unique (type,name,version).
+        for version, display, identifier in WINDOWS_DISTRIBUTIONS:
+            existing = session.query(ChildHostDistribution).filter(
+                ChildHostDistribution.child_type == "kvm",
+                ChildHostDistribution.distribution_name == "Windows Server",
+                ChildHostDistribution.distribution_version == version,
+            ).first()
+            if existing:
+                existing.display_name = display
+                existing.install_identifier = identifier
+                existing.is_active = True
+            else:
+                session.add(ChildHostDistribution(
+                    child_type="kvm", distribution_name="Windows Server",
+                    distribution_version=version, display_name=display,
+                    install_identifier=identifier, is_active=True,
+                    created_at=NOW, updated_at=NOW,
+                ))
 
         # --- air-gap: one completed collection run + manifest + local repos ---
         run = AirgapCollectionRun(

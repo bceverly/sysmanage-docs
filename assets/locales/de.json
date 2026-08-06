@@ -3262,13 +3262,16 @@
             "description": "Das Erstellen von Child-Hosts erfordert eine Professional+-Lizenz mit dem container_engine-Modul. Community-Edition-Benutzer können vorhandene Child-Hosts anzeigen, aber keine neuen erstellen.",
             "title": "Professional+ erforderlich"
           },
-          "step1": "Klicken Sie auf der Registerkarte „Untergeordnete Hosts“ auf die Schaltfläche „Untergeordneten Host erstellen“.",
+          "step1": "Auf der Child Hosts Registerkarte klicken Sie auf die Erstellen-Schaltfläche auf dem Hypervisor-Karten, den Sie möchten &mdash; <strong>VM erstellen</strong> für KVM, bhyve oder vmm, <strong>Container erstellen</strong> für LXD, <strong>Instanz erstellen</strong> für WSL",
           "step2": "Wählen Sie den Virtualisierungstyp (wenn mehrere verfügbar sind)",
           "step3": "Wählen Sie eine Distribution aus der Dropdown-Liste",
           "step4": "Geben Sie einen Hostnamen für den neuen Child-Host ein",
           "step5": "Geben Sie einen Benutzernamen und ein Passwort für das initiale Benutzerkonto an",
           "step6": "Klicken Sie auf \"Erstellen\", um den Installationsprozess zu starten",
-          "title": "Child-Hosts erstellen"
+          "title": "Child-Hosts erstellen",
+          "progress_detail": "Die Child Hosts Registerkarte zeigt einen Schrittzähler (z.B. <code>6/9</code>), die Beschreibung des aktuell laufenden Schritts und <strong>wie lange der letzte Bericht zurückliegt</strong>. Das Letzte ist bei langen Bereitstellungen entscheidend: Ein Gast kann an Schritt 6 von 9 hängen und tot sein, und nur die Altersangabe des letzten Berichts unterscheidet einen langsamen Installationsvorgang von einem gestoppten.",
+          "progress_stall_desc": "Nach 20 Minuten ohne Bericht wird die Altersangabe hervorgehoben und nicht nur angegeben. Diese Schwelle ist absichtlich großzügig: einzelne Schritte dauern tatsächlich so lange – das Remastering eines ~5 GB ISOs für Windows-Installationen dauert 25–45 Minuten zwischen Berichten. Eine Warnung, die bei jedem gesunden Build ausgelöst wird, wird nicht mehr gelesen.",
+          "progress_stall_title": "\"Kein Update in N Minuten\""
         },
         "detection": {
           "cap_enabled": "<strong>Aktivierte Funktionen:</strong> Welche Funktionen aktiviert und einsatzbereit sind",
@@ -3642,6 +3645,52 @@
           "req_windows": "Windows 10 Version 2004 oder höher, oder Windows 11",
           "requirements_title": "Anforderungen",
           "title": "WSL-spezifische Informationen"
+        },
+        "windows": {
+          "agent": {
+            "desc": "Der Agent erreicht den Gast als MSI auf einer per-VM-Konfigurations-CD, nicht über ein Paketchannel. Server Core hat kein winget, daher ist die außerhalb der Band-Lieferung die einzige Route, die funktioniert. RDP und SSH sind <em>vor</em> dem Ausführen des MSIs aktiviert, so dass eine fehlgeschlagene Agent-Installation immer noch zwei Wege in den Gast offen lässt.",
+            "title": "Agentinstallation"
+          },
+          "fields": {
+            "domain": "<strong>Zu einem Active Directory-Domänencontroller hinzufügen:</strong> Optionales Einstiegspunkt. Deaktivieren Sie es für ein Workgroup-System; die Antwortdatei weist dann den Join-Komponenten komplett aus, anstatt eine leere zu erzeugen, was Windows Setup fehlschlagen lassen würde.",
+            "edition": "<strong>Edition:</strong> Standard oder Datacenter, jeweils in Core (keine GUI) oder Desktop Experience. Core ist der Standard – eine kleinere Installation mit weniger Überraschungen bei der Wartung, und das Fleet-Host-Fall wird sowieso über SSH und RDP verwaltet. Der Wert muss einem Bild auf Ihrer Medien entsprechen.",
+            "iso": "<strong>Windows-ISO-Pfad:</strong> ein absoluter Pfad auf dem <em>Parent</em> Host. Erforderlich – Microsoft veröffentlicht keine stabile unauthentifizierte Download für Server-Medien, im Gegensatz zu Linux-Gästen gibt es nichts zu holen.",
+            "key": "<strong>Lizenzschlüssel:</strong> AVMA, MAK oder KMS. Optional – Evaluations-Medien installieren ohne einen Schlüssel.",
+            "locale": "<strong>Zeitzone und Sprache:</strong> Windows-Identifikatoren, z.B. <code>UTC</code> und <code>en-US</code>.",
+            "password": "<strong>Administrator-Passwort:</strong> Das eingebaute Administrator-Konto wird konfiguriert, daher versteckt das Dialogfeld das Benutzernamen-Feld und ändert die Beschriftung des Passworts.",
+            "title": "Windows Fields",
+            "version": "<strong>Version:</strong> mit der Distribution selbst gewählt. Server 2022 und 2025 sind getrennte Katalogeinträge, daher gibt es keinen zweiten Kontroller, der inkonsistent sein könnte."
+          },
+          "intro": "Windows Server 2022 und 2025 installieren aus von Betreibern bereitgestellten Medien, angetrieben durch ein generiertes <code>Autounattend.xml</code>. Wählen Sie <strong>Windows Server 2022</strong> oder <strong>Windows Server 2025</strong> im Create Child Host Dialog und das Formular wechselt zum Windows-Pfad.",
+          "licence": {
+            "desc": "Der Schlüssel wird in <strong>OpenBAO</strong> gespeichert, niemals im SysManage-Datenbank. Die <code>host_child</code> Zeile speichert nur die ID des Geheimnisses, so dass der Schlüssel nicht aus der Datenbank gelesen werden kann und erscheint auf dem Secrets-Screen wo er wie jedes andere verwaltete Geheimnis rotiert oder widerrufen werden kann.",
+            "title": "Lizenzschlüsselverwaltung",
+            "why_desc": "Ein gehashter Schlüssel kann Windows nicht installieren. Setup benötigt den Literal-Schlüssel, daher muss er wiederherstellbar sein – was eine Geheimnissebank, nicht ein Digest, als richtige Speicherstelle macht.",
+            "why_title": "Warum kein Hash?"
+          },
+          "media": {
+            "desc": "Ein Windows-UEFI-Installationsmedium hält an <em>“Drücken Sie eine beliebige Taste, um von CD/DVD zu booten”</em>. Ein unattended Pipeline hat niemanden, der es drückt – das Gast-System fällt dann auf “Keine bootfähige Option oder Gerät gefunden”. SysManage remasters das Medium mit dem <code>efisys_noprompt.bin</code>, welches auf dem gleichen ISO enthalten ist und bootet stattdessen darauf. Dies geschieht automatisch beim ersten Gebrauch.",
+            "once": "<strong>Pro Medium nur einmal, nicht pro VM.</strong> Der neu erstellte ISO wird unter <code>/var/lib/libvirt/windows/media/</code> zwischengespeichert; spätere Gäste vom gleichen Quellbild nutzen es erneut. Nur die erste Erstellung trägt den Aufwand.",
+            "refresh": "<strong>Wenn Microsoft das ISO neu veröffentlicht,</strong> ersetzen Sie die Quelldatei. Die Erstellung ist auf Änderungszeit basiert, so dass eine neuere Quelle automatisch erneut remastered wird beim nächsten Erstellen.",
+            "space": "<strong>Scratch-Space:</strong> ungefähr 2,5-fach der Quelldateigröße, also etwa 13 GB für ein 5 GB Medium. Der Schritt schlägt fehl mit einer klaren Fehlermeldung anstelle eines halbwegs geschriebenen Bildes, wenn die Festplatte zu klein ist.",
+            "title": "Unattended-Boot-Medien"
+          },
+          "tier": {
+            "desc": "Die Bereitstellung von Windows Server-Gästen erfordert eine Enterprise-Lizenz mit dem <code>virtualization_engine</code> Modul, auf einem KVM/libvirt Parent.",
+            "title": "Enterprise"
+          },
+          "timing": {
+            "desc": "Eine Windows-Server-Installation dauert viel länger als eine Linux-Wolkenimage. Verfolgen Sie sie auf der Child Hosts Registerkarte, die den aktuellen Schritt und wie lange er bereits läuft meldet.",
+            "title": "Erwarten Sie 25–45 Minuten"
+          },
+          "title": "Windows Server Child Hosts",
+          "virtio": {
+            "desc": "Windows liefert keine virtio-Speicher- oder Netzwerk-Treiber, so dass Setup “keine Laufwerke gefunden” meldet ohne sie. Das virtio-win ISO wird als zweite CD-ROM angehängt und die Treiber werden während des <code>windowsPE</code> Passes injiziert.",
+            "path": "Behalten Sie es bei <code>/var/lib/libvirt/images/virtio-win.iso</code> (der Standard). Es muss <strong>nicht</strong> unter <code>/usr/share</code> leben: AppArmor’s <code>virt-aa-helper</code> weigert sich, Pfadrechte dort zu erteilen und das Domänen-System startet nicht.",
+            "release": "Treiber werden aus dem per-Version Verzeichnis geholt, das der Gast (<code>2k22</code> oder <code>2k25</code>) entspricht. Zuweisen von Server 2025 an die 2022-Treiber gibt Setup Treiber ohne gültige Signatur für diese Version, und es weigert sich sie zu verwenden.",
+            "title": "virtio-win Treiber",
+            "update": "Aktualisieren Sie das ISO bei der Annahme einer neuen virtio-win-Version; nichts zwischenspeichert deren Inhalte, so dass die nächste Erstellung es erneut verwendet."
+          }
         }
       },
       "idp": {
@@ -22316,7 +22365,9 @@
     "report_users": "Bericht zu den SysManage-Benutzern – Accounts, Rollen, Berechtigungen und Status.",
     "reports_overview": "Das Reports-Zentrum – eine Katalogisierung von eingebauten Berichten für Hosts, Benutzer, Sicherheit und Federation.",
     "secrets_page": "Die Geheimnisliste – OpenBAO-gestützte Geheimnis-Speicherung, verwaltet über SysManage.",
-    "settings_configuration": "Der Konfigurationstab unter Einstellungen."
+    "settings_configuration": "Der Konfigurationstab unter Einstellungen.",
+    "child_host_create_windows": "Das Auswahlen einer Windows Server-Verbreitung wechselt das Dialogfeld zum Windows-Pfad: Edition, ISO-Pfad, Lizenzschlüssel, Zeitzone und Lokalisation, plus eine optionale Active Directory-Anmeldung.",
+    "child_host_provision_progress": "Ein Windows Server-Gast in der Mitte der Provisionierung — der Schrittzaehler zeigt an, wie weit das Plan bereits durchgeführt wurde, und der Alter des letzten Berichts gibt an, ob noch etwas passiert."
   },
   "about": {
     "bio": {

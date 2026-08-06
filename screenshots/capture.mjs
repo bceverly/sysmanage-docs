@@ -180,10 +180,38 @@ async function captureDetail(page, shot, vp) {
     await selectTab(page, shot.tab);
     await page.waitForTimeout((shotlist.settleMs || 2500));
   }
+  // Optional interaction ON a detail tab.  captureClick can only drive a
+  // top-level route, but some dialogs only exist inside a host-detail tab —
+  // Create Child Host lives on the Child Hosts tab, and its Windows fields do
+  // not render until a Windows distribution is picked, so the shot needs a
+  // click AND a select before it is worth taking.
+  if (shot.clickButton) {
+    await page
+      .getByRole('button', { name: shot.clickButton, exact: false })
+      .first()
+      .click({ timeout: 15000 });
+    await page.waitForTimeout(shotlist.settleMs || 2500);
+  }
+  if (shot.selectOption) {
+    await selectMuiOption(page, shot.selectOption.label, shot.selectOption.option);
+    await page.waitForTimeout(shotlist.settleMs || 2500);
+  }
   const out = join(OUT_DIR, shot.out);
   const isNew = !existsSync(out);
   await page.screenshot({ path: out, fullPage: false });
   logShot(shot, isNew, `detail: ${shot.rowText}${shot.tabHash ? ' #' + shot.tabHash : shot.tab ? ' tab:' + shot.tab : ''}`);
+}
+
+// Pick an option from a MUI Select.  MUI renders a hidden <input> plus a div
+// that opens a portal-mounted listbox, so neither selectOption() nor a plain
+// click on the visible text works — the combobox has to be opened first and the
+// option matched inside the portal.
+async function selectMuiOption(page, label, option) {
+  await page.getByLabel(label, { exact: false }).first().click({ timeout: 15000 });
+  await page
+    .getByRole('option', { name: option, exact: false })
+    .first()
+    .click({ timeout: 15000 });
 }
 
 // Open a page, then optionally drive one interaction before shooting:

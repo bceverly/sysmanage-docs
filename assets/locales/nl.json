@@ -3262,13 +3262,16 @@
             "description": "Het aanmaken van child-hosts vereist een Professional+-licentie met de container_engine-module. Community Edition-gebruikers kunnen bestaande child-hosts bekijken maar geen nieuwe aanmaken.",
             "title": "Professional+ vereist"
           },
-          "step1": "Klik op de knop \"Onderliggende host maken\" op het tabblad Onderliggende hosts",
+          "step1": "Op de Child Hosts tabblad, klik op de create knop op de hypervisor kaart die je wilt &mdash; <strong>VM maken</strong> voor KVM, bhyve of vmm, <strong>Container maken</strong> voor LXD, <strong>Instantie maken</strong> voor WSL",
           "step2": "Selecteer het virtualisatietype (als er meerdere beschikbaar zijn)",
           "step3": "Kies een distributie uit de dropdown-lijst",
           "step4": "Voer een hostnaam in voor de nieuwe child host",
           "step5": "Geef een gebruikersnaam en wachtwoord op voor het initiële gebruikersaccount",
           "step6": "Klik op \"Create\" om het installatieproces te starten",
-          "title": "Child Hosts Creëren"
+          "title": "Child Hosts Creëren",
+          "progress_detail": "De Child Hosts-tabblad toont een stapenteller (bijvoorbeeld <code>6/9</code>), de beschrijving van de huidige uitvoerende stap en <strong>hoe lang geleden die stap werd gerapporteerd</strong>. Het laatste daarvan telt het meest bij lange inrichtingen: een gast kan op stap 6 van 9 zitten en dood zijn, en alleen de leeftijd van het laatste rapport onderscheidt een trage installatie van een vastgelopen.",
+          "progress_stall_desc": "Na 20 minuten zonder rapport wordt de leeftijd aangegeven in plaats van alleen vermeld. Deze drempel is bewust ruim: individuele stappen nemen echt zo lang — herbouwen van Windows-installatie media herautheurt een ~5 GB ISO, en Windows Setup draait onbegeleid voor 25–45 minuten tussen rapporten. Een waarschuwing die op elke gezonde build afvuurt wordt niet gelezen.",
+          "progress_stall_title": "“Geen update voor N minuten”"
         },
         "detection": {
           "cap_enabled": "<strong>Ingeschakelde Functies:</strong> Welke functies zijn ingeschakeld en klaar voor gebruik",
@@ -3642,6 +3645,52 @@
           "req_windows": "Windows 10 versie 2004 of later, of Windows 11",
           "requirements_title": "Vereisten",
           "title": "WSL-specifieke Informatie"
+        },
+        "windows": {
+          "agent": {
+            "desc": "De agent arriveert als een MSI op een per-VM configuratie CD in plaats van uit een pakketkanaal. Server Core heeft geen winget, dus buitenbandbezorging is de enige route die werkt. RDP en SSH zijn ingeschakeld <em>voor</em> het MSI draait, zodat een mislukte agent-installatie nog twee manieren laat om in de box te komen.",
+            "title": "Agent Installatie"
+          },
+          "fields": {
+            "domain": "<strong>Voeg een Active Directory domein toe:</strong> optie. Laat het uit als het is een werkgroepmachine; de antwoordbestand omzeilt dan de joincomponent volledig in plaats van een blanco te genereren, wat Windows Setup zou mislukken.",
+            "edition": "<strong>Editie:</strong> Standaard of Datacenter, elk in Core (geen GUI) of Desktop Experience. Core is standaard — een kleinere installatie met minder onderhoudsvragen, en de fleet-host wordt beheerd via SSH en RDP. De waarde moet overeenkomen met een afbeelding op uw media.",
+            "iso": "<strong>Windows ISO-pad:</strong> een absoluut pad op de <em>parent</em> host. Vereist — Microsoft publiceert geen stabiele ongeauthenticeerde download voor Server-media, dus in tegenstelling tot Linux-gasten is er niets om te ophalen.",
+            "key": "<strong>Licentie-sleutel:</strong> AVMA, MAK of KMS. Optioneel — evaluatiemedia wordt geïnstalleerd zonder er één.",
+            "locale": "<strong>Tijdzone en taalinstelling:</strong> Windows-identificatoren, bijvoorbeeld <code>UTC</code> en <code>en-US</code>.",
+            "password": "<strong>Beheerderswachtwoord:</strong> het ingebouwde Beheerdersaccount wordt geconfigureerd, dus de dialoog verbergt het gebruikersnaamveld en hervormt het wachtwoordpaar.",
+            "title": "Windows Fields",
+            "version": "<strong>Versie:</strong> gekozen met de distributie zelf. Server 2022 en 2025 zijn aparte catalogusitems, dus er is geen tweede controle die in conflict kan komen met de eerste."
+          },
+          "intro": "Windows Server 2022 en 2025 installeren van operator-versupplieerde media in plaats van een cloudafbeelding, gedreven door een gegenereerd <code>Autounattend.xml</code>. Selecteer <strong>Windows Server 2022</strong> of <strong>Windows Server 2025</strong> in het Create Child Host dialoog en het formulier schakelt over naar de Windows-pad.",
+          "licence": {
+            "desc": "De sleutel wordt opgeslagen in <strong>OpenBAO</strong>, nooit in de SysManage-database. De <code>host_child</code> rij houdt alleen het id van het geheim, dus de sleutel kan niet worden teruggelezen uit de database en verschijnt op het Geheime scherm waar het kan worden omgerot of ingetrokken als elk ander beheerde geheim.",
+            "title": "Licentie-sleutelbeheer",
+            "why_desc": "Een gehashte sleutel kan Windows niet installeren. Setup heeft de letterlijke sleutel nodig, dus het moet hersteld kunnen worden — wat een geheime opslagplaats, niet een digest, als juiste plaats voor hetzelfde maakt.",
+            "why_title": "Waarom geen hash?"
+          },
+          "media": {
+            "desc": "Windows UEFI-installatie media stopt bij <em>“Druk op een toets om te starten van CD of DVD”</em>, en een onbegeleide pipeline heeft niemand om die in te drukken — de gast valt dan door naar “Geen uitvoerbare optie of apparaat gevonden”. SysManage herbouwt het medium met de <code>efisys_noprompt.bin</code> die op dezelfde ISO wordt geleverd en start dat in plaats daarvan. Dit gebeurt automatisch bij eerste gebruik.",
+            "once": "<strong>Per medium, niet per VM.</strong> De herbouwde ISO is gecacheerd onder <code>/var/lib/libvirt/windows/media/</code>; latere gasten van dezelfde bron gebruiken het opnieuw. Alleen de eerste create betaalt de kosten.",
+            "refresh": "<strong>Als Microsoft het ISO opnieuw uitbrengt,</strong> vervang de bronbestand. De herbouw wordt gecodeerd op wijzigingstijd, dus een nieuwere bron wordt automatisch herbouwd bij de volgende create.",
+            "space": "<strong>Schrapruimte:</strong> ongeveer 2,5 keer de brons ISO, dus budget ~13 GB voor een 5 GB medium. De stap mislukt met een duidelijke boodschap in plaats van half te schrijven aan het beeld als de schijf krap is.",
+            "title": "Onbeheerd-Aanmeldmedia"
+          },
+          "tier": {
+            "desc": "Het inrichten van Windows Server-gasten vereist een Enterprise-licentie met het <code>virtualization_engine</code> module, op een KVM/libvirt parent.",
+            "title": "Enterprise"
+          },
+          "timing": {
+            "desc": "Een Windows Server-installatie neemt veel langer in beslag dan een Linux-cloudafbeelding. Volg het op de Child Hosts-tabblad, die rapporteert over de huidige stap en hoe lang geleden deze werd gerapporteerd.",
+            "title": "Verwacht 25–45 minuten"
+          },
+          "title": "Windows Server Child Hosts",
+          "virtio": {
+            "desc": "Windows biedt geen virtio-opslag- of netwerkdrivers, dus Setup zou “geen schijven gevonden” melden zonder ze. De virtio-win ISO is aangebracht als een tweede CD-ROM en de drivers worden ingevoerd tijdens de <code>windowsPE</code> pass.",
+            "path": "Houd het bij <code>/var/lib/libvirt/images/virtio-win.iso</code> (de standaard). Het moet <strong>niet</strong> leven onder <code>/usr/share</code>: AppArmor’s <code>virt-aa-helper</code> weigert om paden daar te verlenen en de domein start niet.",
+            "release": "Drivers worden genomen uit de per-release directory die overeenkomt met de gast (<code>2k22</code> of <code>2k25</code>). Punt naar Server 2025 op de 2022 drivers geeft Setup drivers die niet ondertekend zijn voor dat release, en het weigert ze.",
+            "title": "virtio-win Drivers",
+            "update": "Vernieuw het ISO wanneer je een nieuwere virtio-win release adopteert; niets cacheert zijn inhoud, dus de volgende create pakt het opnieuw op."
+          }
         }
       },
       "idp": {
@@ -22250,7 +22299,9 @@
     "report_users": "Het SysManage Gebruikersrapport — accounts, rollen, rechten en status.",
     "reports_overview": "Het Rapportencentrum — een catalogus met ingebouwde rapporten voor hosts, gebruikers, beveiliging en federatie.",
     "secrets_page": "De geheime lijst — OpenBAO-ondersteunde geheim opslag, beheerd vanuit SysManage.",
-    "settings_configuration": "De Configuratie tabblad onder Instellingen."
+    "settings_configuration": "De Configuratie tabblad onder Instellingen.",
+    "child_host_create_windows": "Het selecteren van een Windows Server distributie schakelt het dialoogvenster om naar de Windows pad: editie, ISO pad, licentie sleutel, tijdzone en taalinstellingen, plus een opt-in Active Directory join.",
+    "child_host_provision_progress": "Een Windows Server gast in de middelste fase van de provisioning — de stap teller laat zien hoe ver het plan is gegaan en de leeftijd van de laatste rapport weergeeft of er nog iets gebeurt."
   },
   "about": {
     "bio": {

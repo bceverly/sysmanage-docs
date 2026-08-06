@@ -520,7 +520,48 @@ screenshots-pro-build:
 # fleet, automation, IdP, mirroring, AV, firewall) and signs a tier=enterprise
 # self-signed license. Engine/feature lists are derived from the tier, so this and
 # screenshots-pro-build share one provision path.
-screenshots-ent-build:
+# Vagrant snapshots each synced folder's config into
+# .vagrant/machines/<name>/<provider>/synced_folders at `vagrant up` and REUSES
+# that snapshot on every later `vagrant rsync` / `vagrant up --provision`.
+# Editing the Vagrantfile therefore does nothing to a VM that already exists —
+# which is how an excluded 12 GB agent.db kept being copied into the guest long
+# after it was excluded, filling the disk with an error that named the file and
+# not the reason.  Detect the drift and say exactly what to do about it.
+# Compares the excludes Vagrant PERSISTED for the running machine against the
+# ones the Vagrantfile declares now.  Exits non-zero with the remedy when they
+# differ; silent when there is no VM (nothing to be stale).
+define SYNCED_FOLDER_DRIFT_CHECK
+import glob, json, re, sys
+persisted = glob.glob(".vagrant/machines/*/*/synced_folders")
+if not persisted:
+    sys.exit(0)                      # no VM yet: `vagrant up` will read the file
+declared = set(re.findall(r'"([^"]+)",', re.search(r"RSYNC_EXCLUDE = \[(.*?)\]", open("Vagrantfile").read(), re.S).group(1)))
+stale = []
+for path in persisted:
+    for kind, folders in json.load(open(path)).items():
+        for name, cfg in folders.items():
+            got = cfg.get("exclude")
+            if got is None:
+                continue
+            if not declared.issubset(set(got)):
+                stale.append((name, sorted(set(declared) - set(got))))
+if stale:
+    print("The running screenshot VM was created with a DIFFERENT rsync exclude list.")
+    print("Vagrant reuses the config it snapshotted at `vagrant up`, so Vagrantfile")
+    print("edits do not reach an existing VM -- and files already copied in stay put.")
+    for name, missing in stale:
+        print("  %s is missing: %s" % (name, ", ".join(missing)))
+    print("")
+    print("Recreate it so the current config applies:")
+    print("    make screenshots-vm-down && make screenshots-enterprise")
+    sys.exit(1)
+endef
+export SYNCED_FOLDER_DRIFT_CHECK
+
+screenshots-check-vm-config:
+	@cd $(SHOTS_DIR) && $(PYTHON) -c "$$SYNCED_FOLDER_DRIFT_CHECK"
+
+screenshots-ent-build: screenshots-check-vm-config
 	@command -v vagrant >/dev/null 2>&1 || { echo "$(RED)Vagrant not installed (see screenshots/README.md).$(RESET)"; exit 1; }
 	@[ -d ../sysmanage-professional-plus ] || { echo "$(RED)../sysmanage-professional-plus not found.$(RESET)"; exit 1; }
 	@echo "$(BLUE)Provisioning an Enterprise-tier VM (all engines + self-signed enterprise license)...$(RESET)"

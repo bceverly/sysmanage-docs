@@ -3262,13 +3262,16 @@
             "description": "La creación de hosts secundarios requiere una licencia Professional+ con el módulo container_engine. Los usuarios de Community Edition pueden ver los hosts secundarios existentes pero no pueden crear nuevos.",
             "title": "Se requiere Professional+"
           },
-          "step1": "Haga clic en \"Crear Host Secundario\" en la pestaña Hosts Secundarios",
+          "step1": "En la pestaña Child Hosts, haga clic en el botón de creación en la tarjeta del hipervisor que desea &mdash; <strong>Crear VM</strong> para KVM, bhyve o vmm, <strong>Crear Contenedor</strong> para LXD, <strong>Crear Instancia</strong> para WSL",
           "step2": "Seleccione el tipo de virtualización (si hay varios disponibles)",
           "step3": "Elija una distribución de la lista desplegable",
           "step4": "Ingrese un nombre de host para el nuevo host secundario",
           "step5": "Proporcione un nombre de usuario y contraseña para la cuenta de usuario inicial",
           "step6": "Haga clic en \"Crear\" para iniciar el proceso de instalación",
-          "title": "Creación de Hosts Secundarios"
+          "title": "Creación de Hosts Secundarios",
+          "progress_detail": "La pestaña Invitados Hijos muestra un contador de pasos (por ejemplo <code>6/9</code>), la descripción del paso actualmente en ejecución, y <strong>cuánto hace que se reportó ese paso</strong>. Eso es lo más importante en provisiones largas: un invitado puede quedar atrapado en el paso 6 de 9 y estar muerto, y solo la edad del último reporte distingue una instalación lenta de una detenida.",
+          "progress_stall_desc": "Después de 20 minutos sin reportar se llama a la edad en lugar de simplemente declararla. Ese umbral es intencionalmente generoso: los pasos individuales realmente llevan tanto tiempo — reconstruir medios de instalación de Windows reautoriza un ISO de ~5 GB, y la instalación sin atención de Windows se ejecuta durante 25-45 minutos entre reportes. Una advertencia que se dispara en cada construcción sana deja de ser leida.",
+          "progress_stall_title": "\"Sin actualización en N minutos\""
         },
         "detection": {
           "cap_enabled": "<strong>Características Habilitadas:</strong> Qué características están habilitadas y listas para usar",
@@ -3642,6 +3645,52 @@
           "req_windows": "Windows 10 versión 2004 o posterior, o Windows 11",
           "requirements_title": "Requisitos",
           "title": "Información Específica de WSL"
+        },
+        "windows": {
+          "agent": {
+            "desc": "El agente llega como un MSI en un CD de configuración por VM en lugar de desde un canal de paquetes. Server Core no tiene winget, por lo que la entrega fuera de banda es el único camino que funciona. RDP y SSH están habilitados <em>antes</em> de que se ejecute el MSI, por lo que una instalación fallida del agente deja dos maneras para entrar en la caja.",
+            "title": "Instalación del Agente"
+          },
+          "fields": {
+            "domain": "<strong>Unirse a un dominio de Active Directory:</strong> opcional. Déjelo desactivado para una computadora de trabajo; la respuesta del archivo omite entonces el componente de unirse por completo, en lugar de emitir uno vacío, lo que fallaría en la instalación de Windows.",
+            "edition": "<strong>Edición:</strong> Estándar o Datacenter, cada una en Core (sin GUI) o Experiencia del escritorio. Core es el valor predeterminado — una instalación más pequeña con menos sorpresas de mantenimiento y la maquinaria de la flota se gestiona a través de SSH y RDP en cualquier caso. El valor debe coincidir con una imagen en su medio.",
+            "iso": "<strong>Ruta del ISO de Windows:</strong> una ruta absoluta en el <em>anfitrión</em>. Requerido — Microsoft no publica ninguna descarga estable sin autenticación para los medios del servidor, por lo que a diferencia de los invitados Linux no hay nada que descargar.",
+            "key": "<strong>Llave de licencia:</strong> AVMA, MAK o KMS. Opcional — los medios de evaluación se instalan sin ella.",
+            "locale": "<strong>Zona horaria y configuración regional:</strong> identificadores de Windows, por ejemplo <code>UTC</code> y <code>en-US</code>.",
+            "password": "<strong>Contraseña del administrador:</strong> la cuenta integrada de Administrador es la que se configura, por lo que el cuadro de diálogo oculta el campo de nombre de usuario y relabels la pareja de contraseñas.",
+            "title": "Windows Fields",
+            "version": "<strong>Versión:</strong> elegida con la distribución misma. Server 2022 y 2025 son entradas separadas en el catálogo, por lo que no hay un segundo control que pueda discrepar con el primero."
+          },
+          "intro": "Windows Server 2022 y 2025 se instalan desde medios proporcionados por el operador en lugar de una imagen de nube, impulsada por un <code>Autounattend.xml</code> generado. Seleccione <strong>Windows Server 2022</strong> o <strong>Windows Server 2025</strong> en el cuadro de diálogo Crear Invitado Hijo y la forma se cambia al camino Windows.",
+          "licence": {
+            "desc": "La clave se almacena en <strong>OpenBAO</strong>, nunca en la base de datos de SysManage. La fila <code>host_child</code> mantiene solo el id del secreto, por lo que la clave no puede leerse fuera de la base de datos y aparece en la pantalla Secretos donde se puede rotar o revocar como cualquier otro secreto gestionado.",
+            "title": "Manejo de la clave de licencia",
+            "why_desc": "Una clave cifrada no puede instalar Windows. La instalación necesita la clave literal, por lo que debe ser recuperable — lo que hace un almacén de secretos, no un resumen, el lugar adecuado para ella.",
+            "why_title": "¿Por qué no un resumen?"
+          },
+          "media": {
+            "desc": "Los medios de instalación UEFI de Windows detienen en <em>“Presione cualquier tecla para arrancar desde CD o DVD”</em>, y un pipeline sin atención no tiene nadie que lo presione — el invitado entonces cae a “No se encontró ninguna opción de arranque ni dispositivo”. SysManage remasteriza el medio con el <code>efisys_noprompt.bin</code> que se incluye en el mismo ISO y arranca ese en su lugar. Esto ocurre automáticamente en primer uso.",
+            "once": "<strong>Una vez por medio, no por VM.</strong> El ISO reconstruido se almacena en caché bajo <code>/var/lib/libvirt/windows/media/</code>; los invitados posteriores del mismo origen la reutilizan. Solo el primer crear paga el costo.",
+            "refresh": "<strong>Cuando Microsoft reemite el ISO,</strong> reemplace el archivo fuente. La reconstrucción está claveada en la hora de modificación, por lo que un origen más nuevo se remasteriza nuevamente automáticamente en el siguiente crear.",
+            "space": "<strong>Espacio de trabajo temporal:</strong> aproximadamente 2,5 veces el ISO fuente, por lo que presuponga ~13 GB para un medio de 5 GB. El paso falla con un mensaje claro en lugar de escribir a medias una imagen si el disco es corto.",
+            "title": "Medios de arranque sin atención"
+          },
+          "tier": {
+            "desc": "La provision de invitados Windows Server requiere una licencia Enterprise con el módulo <code>virtualization_engine</code> en un anfitrión KVM/libvirt.",
+            "title": "Enterprise"
+          },
+          "timing": {
+            "desc": "La instalación de Windows Server lleva mucho más tiempo que una imagen de nube Linux. Sigue el progreso en la pestaña Invitados Hijos, que informa sobre el paso actual y cuánto hace que se reportó.",
+            "title": "Esperar 25-45 minutos"
+          },
+          "title": "Windows Server Child Hosts",
+          "virtio": {
+            "desc": "Windows no proporciona controladores virtio de almacenamiento o red, por lo que la instalación reportaría “no se encontraron unidades” sin ellos. El ISO virtio-win se adjunta como un segundo CD-ROM y los controladores se inyectan durante el <code>windowsPE</code>.",
+            "path": "Manténla en <code>/var/lib/libvirt/images/virtio-win.iso</code> (el predeterminado). Debe <strong>no</strong> estar bajo <code>/usr/share</code>: virt-aa-helper de AppArmor <code>virt-aa-helper</code> se niega a conceder rutas allí y el dominio no iniciará.",
+            "release": "Los controladores se toman desde el directorio por lanzamiento que coincide con el invitado (<code>2k22</code> o <code>2k25</code>). Puntar Server 2025 a los controladores de 2022 hace que la instalación rechace controladores no firmados para esa versión.",
+            "title": "Controladores virtio-win",
+            "update": "Actualice el ISO cuando adopte una nueva versión de virtio-win; nada almacena sus contenidos, por lo que la siguiente creación los recogerá."
+          }
         }
       },
       "idp": {
@@ -22250,7 +22299,9 @@
     "report_users": "El informe de Usuarios de SysManage — cuentas, roles, permisos y estado.",
     "reports_overview": "El centro de informes — un catálogo de informes incorporados para hosts, usuarios, seguridad y federación.",
     "secrets_page": "La lista de secretos — almacenamiento secreto respaldado por OpenBAO, gestionado desde SysManage.",
-    "settings_configuration": "La pestaña Configuración bajo Ajustes."
+    "settings_configuration": "La pestaña Configuración bajo Ajustes.",
+    "child_host_create_windows": "Seleccionar una distribución de Windows Server cambia la interfaz al camino de Windows: edición, ruta del ISO, clave de licencia, zona horaria y localización, más una opción para unirse a Active Directory",
+    "child_host_provision_progress": "Un servidor de Windows en proceso de provisionamiento — el contador de pasos muestra cuán lejos ha llegado el plan y la antigúdad del último informe indica si algo está todavía sucediendo."
   },
   "about": {
     "bio": {

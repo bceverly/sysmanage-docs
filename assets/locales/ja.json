@@ -3262,13 +3262,16 @@
             "description": "子ホストの作成にはcontainer_engineモジュールを含むProfessional+ライセンスが必要です。Community Editionユーザーは既存の子ホストを表示できますが、新規作成はできません。",
             "title": "Professional+が必要です"
           },
-          "step1": "子ホストタブの「子ホストの作成」ボタンをクリック",
+          "step1": "Child Hosts タブで、ホイプervisor カードの作成ボタンをクリックして &mdash; <strong>VM の作成</strong> (KVM, bhyve または vmm)、<strong> コンテナの作成</strong> (LXD)、<strong> インスタンスの作成</strong> (WSL) を選択します。",
           "step2": "仮想化タイプを選択（複数利用可能な場合）",
           "step3": "ドロップダウンリストからディストリビューションを選択",
           "step4": "新しい子ホストのホスト名を入力",
           "step5": "初期ユーザーアカウントのユーザー名とパスワードを入力",
           "step6": "「作成」をクリックしてインストールプロセスを開始",
-          "title": "子ホストの作成"
+          "title": "子ホストの作成",
+          "progress_detail": "子ホストタブにはステップカウンター（例：<code>6/9</code>）、現在実行中のステップの説明、および<strong>そのステップが報告されてからの経過時間</strong>が表示されます。長いプロビジョニングでは最後の情報が最も重要です：ゲストはステップ6/9で停止していても動作していない可能性があり、最終レポートの経過時間が遅いインストールとスタールインストールを区別します。",
+          "progress_stall_desc": "20分間報告がない場合、経過時間が強調表示されます。このしきい値は意図的に広く設定されています：個々のステップは本当にそれだけの時間を要します — Windowsインストールメディアの再マスタリングは約5GBのISOを再作成し、Windowsセットアップは報告間隔が25〜45分です。毎回発生する警告は読まれなくなります。",
+          "progress_stall_title": "「N分間の更新なし」"
         },
         "detection": {
           "cap_enabled": "<strong>有効な機能:</strong> どの機能が有効で使用可能か",
@@ -3642,6 +3645,52 @@
           "req_windows": "Windows 10バージョン2004以降、またはWindows 11",
           "requirements_title": "要件",
           "title": "WSL固有の情報"
+        },
+        "windows": {
+          "agent": {
+            "desc": "エージェントはパッケージチャネルではなく、VMごとの構成CDとしてMSIで到着します。Server Coreにはwingetがないため、バンド外配信が唯一の方法となります。RDPとSSHはMSIが実行される前に<em>有効化されていますので、エージェントインストールに失敗しても、ボックスへのアクセス手段として2つの方法があります。</em>",
+            "title": "エージェントインストール"
+          },
+          "fields": {
+            "domain": "<strong>Active Directoryドメインに参加:</strong> オプションです。ワークグループマシンの場合にはオフにしてください；アンサーファイルはジョインコンポーネントを省略しますが、空白のものではなく、Windowsセットアップで失敗します。",
+            "edition": "<strong>エディション:</strong> StandardまたはDatacenterで、それぞれCore（GUIなし）またはDesktop Experienceがあります。Coreがデフォルトです — インストールサイズが小さく、メンテナンスの予期しない問題が少ないため、クラウドホストはSSHとRDPを通じて管理されます。値はメディア上のイメージと一致する必要があります。",
+            "iso": "<strong>Windows ISOパス:</strong>親ホスト上の絶対パスを指定してください。<em>parent</em> 必要事項 — MicrosoftはServerメディアの安定版の非認証ダウンロードを公開していないため、Linuxゲストとは異なり取得するものがありません。",
+            "key": "<strong>ライセンスキー:</strong> AVMA、MAKまたはKMS。任意です — 評価メディアでは必要ありません。",
+            "locale": "<strong>タイムゾーンとロケール:</strong> Windows識別子を使用します（例：<code>UTC</code> および <code>en-US</code>）。",
+            "password": "<strong>管理者パスワード:</strong> ビルトインのAdministratorアカウントが設定されるため、ダイアログはユーザー名フィールドを非表示にし、パスワードペアをラベル付けします。",
+            "title": "Windows Fields",
+            "version": "<strong>バージョン:</strong> ディストリビューション自体で選択されます。Server 2022と2025は別々のカタログエントリーであり、2つ目のコントロールが最初のものと異なることはありません。"
+          },
+          "intro": "Windows Server 2022と2025はクラウドイメージではなく、操作者が供給するメディアからインストールされます。生成された<code>Autounattend.xml</code>を使用します。Create Child Hostダイアログで<strong>Windows Server 2022</strong>または<strong>Windows Server 2025</strong>を選択すると、フォームがWindowsパスに切り替わります。",
+          "licence": {
+            "desc": "キーは<strong>OpenBAO</strong>で管理され、SysManageデータベースには保存されません。<code>host_child</code>レコードはシークレットのIDのみを保持し、キーはデータベースから読み出せません。シークレットスクリーンでは回転または取り消しが可能です。",
+            "title": "ライセンスキーの取り扱い",
+            "why_desc": "ハッシュ化されたキーではWindowsをインストールすることはできません。セットアップには文字通りのキーが必要であり、回復可能である必要があります — これはダイジェストではなく、シークレットストアが正しい場所です。",
+            "why_title": "なぜハッシュではないのか？"
+          },
+          "media": {
+            "desc": "UEFIインストールメディアは<em>「CDやDVDからブートするにはキーを押してください」</em>で停止します。無人パイプラインでは誰もキーを押すことができません — ゲストは「ブート可能なオプションまたはデバイスが見つかりませんでした」というメッセージに落ちます。SysManageはメディアを再度マスタリングし、同じISO上にある<code>efisys_noprompt.bin</code>でそれを代わりにブートします。これは最初の使用時に自動的に発生します。",
+            "once": "<strong>メディアごとに一度だけ、VMごとではありません。</strong> 再構築されたISOは<code>/var/lib/libvirt/windows/media/</code>にキャッシュされます；同じソースからの後続のゲストはそれを再利用します。最初の作成のみがコストを支払います。",
+            "refresh": "<strong>MicrosoftがISOを再発行した場合,</strong> ソースファイルを置き換えます。リビルドは変更時間に基づいてキー付けされるため、新しいソースは次の作成時に自動的に再マスタリングされます。",
+            "space": "<strong>一時領域:</strong> ソースISOの約2.5倍、つまり5GBのメディアの場合には約13GBが必要です。ディスクが短い場合、イメージの書き込みは中断され、明確なメッセージと共に失敗します。",
+            "title": "無人ブートメディア"
+          },
+          "tier": {
+            "desc": "Windows Server ゲストのプロビジョニングには、<code>virtualization_engine</code> モジュールを備えたエンタープライズライセンスが必要です。KVM/libvirt 親ホスト上で動作する必要があります。",
+            "title": "Enterprise"
+          },
+          "timing": {
+            "desc": "Windows ServerインストールはLinuxクラウドイメージよりも時間がかかります。子ホストタブで追跡できます。現在のステップとそれが報告されてからの経過時間を表示します。",
+            "title": "25〜45分間かかると予想してください"
+          },
+          "title": "Windows Server Child Hosts",
+          "virtio": {
+            "desc": "Windowsはvirtioストレージやネットワークドライバを提供していないため、セットアップでは「ドライブが見つかりませんでした」と報告されます。virtio-win ISOは2番目のCD-ROMとしてアタッチされ、ドライバは<code>windowsPE</code>パス中にインジェクトされます。",
+            "path": "保持するには <code>/var/lib/libvirt/images/virtio-win.iso</code> （既定値）を指定してください。このファイルは、<strong>必ず</strong> <code>/usr/share</code> の下に存在してはなりません：AppArmor の <code>virt-aa-helper</code> がそのパスの許可を拒否し、ドメインは起動しません。",
+            "release": "ドライバはゲスト（<code>2k22</code>または<code>2k25</code>）に一致するリリースごとのディレクトリから取得されます。Server 2025を2022のドライバにポイントすると、セットアップはそのリリース用に署名されていないドライバを拒否します。",
+            "title": "virtio-win ドライバー",
+            "update": "新しいvirtio-winリリースを採用した場合、ISOを更新します；その内容はキャッシュされないため、次の作成時に取得されます。"
+          }
         }
       },
       "idp": {
@@ -22250,7 +22299,9 @@
     "report_users": "SysManage ユーザー報告——アカウント、ロール、権限、およびステータス。",
     "reports_overview": "レポートセンター——ホスト、ユーザー、セキュリティ、および連携に関するビルトインレポートのカタログ。",
     "secrets_page": "シークレットリスト——OpenBAOバックエンドのシークレットストレージ、SysManageから管理します。",
-    "settings_configuration": "設定の下にある「構成」タブ。"
+    "settings_configuration": "設定の下にある「構成」タブ。",
+    "child_host_create_windows": "Windows Server ディストリビューションを選択すると、ダイアログが Windows のパスに切り替わります：エディション、ISO パス、ライセンスキー、タイムゾーンとロケール、さらに Active Directory への参加をオプトインします。",
+    "child_host_provision_progress": "Windows サーバー ゲストのプロビジョニング中 — ステップカウンターはプランがどの程度実行されたかを示し、最後のレポートからの経過時間で何か進行中の作業があるかどうかを示します。"
   },
   "about": {
     "bio": {

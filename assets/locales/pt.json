@@ -3262,13 +3262,16 @@
             "description": "A criação de hosts filhos requer uma licença Professional+ com o módulo container_engine. Usuários da Community Edition podem visualizar hosts filhos existentes, mas não podem criar novos.",
             "title": "Professional+ necessário"
           },
-          "step1": "Clique no botão \"Criar Host Filho\" na aba Hosts Filhos",
+          "step1": "Na aba Child Hosts, clique no botão criar na carta do hipervisor que deseja &mdash; <strong>Criar VM</strong> para KVM, bhyve ou vmm, <strong>Criar Container</strong> para LXD, <strong>Criar Instância</strong> para WSL",
           "step2": "Selecione o tipo de virtualização (se múltiplos estiverem disponíveis)",
           "step3": "Escolha uma distribuição da lista suspensa",
           "step4": "Insira um nome de host para o novo host filho",
           "step5": "Forneça um nome de usuário e senha para a conta de usuário inicial",
           "step6": "Clique em \"Criar\" para iniciar o processo de instalação",
-          "title": "Criando Hosts Filhos"
+          "title": "Criando Hosts Filhos",
+          "progress_detail": "A aba Hóspedes Filhos mostra um contador de passos (por exemplo <code>6/9</code>), a descrição do passo atualmente em execução, e <strong>quanto tempo atrás esse passo foi relatado</strong>. Isso último importa mais nas provisionamentos longos: um hóspede pode ficar no passo 6 de 9 e estar morto, e apenas a idade do relato más recente distingue uma instalação lenta de uma parada.",
+          "progress_stall_desc": "Após 20 minutos sem relato a idade é chamada em vez de apenas declarada. Essa margem foi intencionalmente generosa: os passos individuais realmente levam tanto tempo - remasterizar médias de instalação do Windows reautoriza um ISO ~5 GB, e a configuração do Windows executa sem intervenção por 25-45 minutos entre relatos. Um aviso que dispara em cada construção saudável deixa de ser lido.",
+          "progress_stall_title": "\"Sem atualização por N minutos\""
         },
         "detection": {
           "cap_enabled": "<strong>Recursos Habilitados:</strong> Quais recursos estão habilitados e prontos para uso",
@@ -3642,6 +3645,52 @@
           "req_windows": "Windows 10 versão 2004 ou posterior, ou Windows 11",
           "requirements_title": "Requisitos",
           "title": "Informações Específicas do WSL"
+        },
+        "windows": {
+          "agent": {
+            "desc": "O agente chega como um MSI em um CD de configuração por VM, e não de um canal de pacotes. O Core do Servidor não tem winget, então a entrega fora de banda é o unico caminho que funciona. RDP e SSH são habilitados <em>antes</em> da execução do MSI, então uma instalação de agente falhada ainda deixa duas maneiras para entrar na caixa.",
+            "title": "Instalação do Agente"
+          },
+          "fields": {
+            "domain": "<strong>Junte-se a um domínio Active Directory:</strong> opção de entrada. Deixe-o desligado para uma máquina em grupo de trabalho; o arquivo de respostas então omite completamente a parte de juntar-se, em vez de emitir um vazio que falharia na instalação do Windows.",
+            "edition": "<strong>Edição:</strong> Standard ou Datacenter, cada uma em Core (sem GUI) ou Desktop Experience. O Core é o padrão - uma instalação menor com menos surpresas de serviço e a máquina hospedeira da frota é gerenciada por SSH e RDP de qualquer maneira. O valor deve corresponder a uma imagem na sua média.",
+            "iso": "<strong>Caminho da ISO do Windows:</strong> um caminho absoluto no <em>hospedeiro pai</em>. Obrigatório - a Microsoft não publica nenhum download estabilizado sem autenticação para médias do Servidor, então diferentemente dos hóspedes Linux não existe nada a ser baixado.",
+            "key": "<strong>Chave de licença:</strong> AVMA, MAK ou KMS. Opcional - a média de avaliacao instala sem uma.",
+            "locale": "<strong>Fuso horário e localização:</strong> identificadores do Windows, por exemplo <code>UTC</code> e <code>en-US</code>.",
+            "password": "<strong>Senha do Administrador:</strong> a conta interna de Administrador é aquela que está sendo configurada, então a janela oculta o campo de nome de usuário e relabela a senha.",
+            "title": "Windows Fields",
+            "version": "<strong>Versão:</strong> escolhida junto com a distribuição em si. O Servidor 2022 e 2025 são entradas separadas no catálogo, então não há um segundo controle que possa discordar com o primeiro."
+          },
+          "intro": "O Windows Server 2022 e 2025 instalam-se a partir de médias fornecidas pelo operador em vez de uma imagem da nuvem, impulsionados por um <code>Autounattend.xml</code> gerado. Selecione <strong>Windows Server 2022</strong> ou <strong>Windows Server 2025</strong> no diálogo Criar Hóspede Filho e o formulário muda para a rota Windows.",
+          "licence": {
+            "desc": "A chave é armazenada em <strong>OpenBAO</strong>, nunca no banco de dados do SysManage. A linha <code>host_child</code> mantém apenas o id do segredo, então a chave não pode ser lida novamente do banco de dados e aparece na tela de Segredos onde ela pode ser rotacionada ou revogada como qualquer outro segredo gerenciado.",
+            "title": "Gerenciamento de Chave de Licença",
+            "why_desc": "Uma chave hashada não pode instalar Windows. A configuração precisa da chave literal, então ela tem que ser recuperável - o que faz um armazenamento de segredos e não um resumo, o lugar certo para isso.",
+            "why_title": "Por que não um hash?"
+          },
+          "media": {
+            "desc": "A ISO do Windows UEFI para instalação para instalar parou em <em>“Pressione qualquer tecla para iniciar de CD ou DVD”</em>, e uma linha de montagem desatendida não tem ninguém para pressionar - o hóspede então cai em “Nenhuma opção ou dispositivo bootável foi encontrado”. O SysManage remasteriza a média com o <code>efisys_noprompt.bin</code> que embarca na mesma ISO e inicia isso em vez disso. Isso acontece automaticamente na primeira utilização.",
+            "once": "<strong>Uma vez por média, não por VM.</strong> A ISO reconstruída é armazenada em cache sob <code>/var/lib/libvirt/windows/media/</code>; mais tarde hóspedes da mesma fonte reutilizam isso. Só a primeira cria paga o custo.",
+            "refresh": "<strong>Quando a Microsoft reemite a ISO,</strong> substitua o arquivo de origem. A reconstrução é baseada no tempo de modificação, então uma fonte mais nova é remasterizada novamente automaticamente na próxima cria.",
+            "space": "<strong>Espaço de trabalho temporária:</strong> aproximadamente 2,5 vezes o ISO de origem, então orçam ~13 GB para um média de 5 GB. O passo falha com uma mensagem clara em vez de escrever parcialmente a imagem se o disco for curto.",
+            "title": "Mídia de Boot Desatendido"
+          },
+          "tier": {
+            "desc": "A provisionamento de hóspedes do Windows Server requer uma licença Enterprise com o módulo <code>virtualization_engine</code>, em um pai KVM/libvirt.",
+            "title": "Enterprise"
+          },
+          "timing": {
+            "desc": "A instalação de um Windows Server leva muito mais tempo que uma imagem do Linux em nuvem. Monitore-a na aba Hóspedes Filhos, que relata o passo atual e quanto tempo atrás ele foi relatado.",
+            "title": "Espere 25-45 minutos"
+          },
+          "title": "Windows Server Child Hosts",
+          "virtio": {
+            "desc": "O Windows não fornece drivers de armazenamento ou rede virtio, então a configuração relatariam “nenhuma unidade foi encontrada” sem eles. A ISO do virtio-win é anexada como um segundo CD-ROM e os drivers são injetados durante o <code>windowsPE</code> pass.",
+            "path": "Manter em <code>/var/lib/libvirt/images/virtio-win.iso</code> (padrão). Deve <strong>não</strong> residir sob <code>/usr/share</code>: o AppArmor’s <code>virt-aa-helper</code> recusa-se a conceder caminhos lá e o domínio não iniciará.",
+            "release": "Drivers são tirados da pasta por versão correspondendo ao hóspede (<code>2k22</code> ou <code>2k25</code>). Apontar o Servidor 2025 para os drivers de 2022 fornece a configuração com drivers que não são assinados para essa versão, e ela recusa-os.",
+            "title": "Drivers virtio-win",
+            "update": "Atualize a ISO quando adotar uma nova versão de virtio-win; nada cacheia seus conteúdos, então a próxima cria pegará isso."
+          }
         }
       },
       "idp": {
@@ -22250,7 +22299,9 @@
     "report_users": "Relatório de Usuários SysManage — contas, papéis, permissões e status.",
     "reports_overview": "O centro de Relatórios — um catálogo de relatórios embutidos para hosts, usuários, segurança e federação.",
     "secrets_page": "A lista Secrets — armazenamento secreto baseado em OpenBAO, gerenciado pelo SysManage.",
-    "settings_configuration": "A guia Configuração sob Configurações."
+    "settings_configuration": "A guia Configuração sob Configurações.",
+    "child_host_create_windows": "Selecionar uma distribuição do Windows Server muda a conversa para o caminho Windows: edição, caminho ISO, chave de licença, fuso horário e localização, mais uma opção de adesão ao Active Directory.",
+    "child_host_provision_progress": "Um servidor Windows guest em meio à provisionamento — o contador de etapas mostra quanto da planilha foi executada e a idade do último relatório indica se algo ainda está acontecendo."
   },
   "about": {
     "bio": {

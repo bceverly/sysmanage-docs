@@ -10,6 +10,33 @@
 # This is the environment layer; the seed + capture scripts are independent of it
 # and can run against any instance via SCREENSHOT_TARGET_*.
 
+# Files the VM must never receive.  Beyond the obvious .git/.venv/node_modules,
+# this excludes LOCAL RUNTIME STATE from the dev machine — most importantly the
+# agent's SQLite database.  A long-running dev agent grows agent.db without
+# bound (12 GB on the dev box, 2026-08-06); rsyncing that in and then copying it
+# to /opt filled the guest disk and aborted provisioning with an error that
+# named the file but not the reason ("No space left on device").
+#
+# None of these are inputs to a screenshot run: the VM builds its own venv,
+# creates its own databases, and seeds its own demo data.
+# rsync's --delete does NOT remove files that are merely EXCLUDED — it treats
+# them as protected on the destination.  So adding an exclusion does nothing to
+# a guest that already received the file: agent.db stayed inside the VM at
+# 12 GB after it was excluded, and kept filling the disk.  --delete-excluded is
+# what makes an exclusion retroactive.
+RSYNC_ARGS = [
+  "--verbose", "--archive", "--delete", "--delete-excluded", "-z", "--copy-links",
+].freeze
+
+RSYNC_EXCLUDE = [
+  ".git/", ".venv/", "node_modules/",
+  "*.db", "*.db-wal", "*.db-shm", "*.sqlite", "*.sqlite3",
+  "logs/", "*.log",
+  "htmlcov/", "coverage/", ".coverage", "coverage.xml",
+  ".pytest_cache/", "__pycache__/", ".mypy_cache/", ".ruff_cache/",
+  "build/", "dist/",
+].freeze
+
 Vagrant.configure("2") do |config|
   # Override with SCREENSHOT_BOX if you prefer a different image. The default is a
   # libvirt-capable Ubuntu LTS box (the `generic/` namespace has no 24.04 image, so
@@ -24,8 +51,8 @@ Vagrant.configure("2") do |config|
   config.vm.network "forwarded_port", guest: 3000, host: 3000, auto_correct: true  # web UI
 
   # Mount the sibling repos read-only; provision.sh copies them to /opt inside.
-  config.vm.synced_folder "../../sysmanage",       "/srv/src/sysmanage",       type: "rsync", rsync__exclude: [".git/", ".venv/", "node_modules/"]
-  config.vm.synced_folder "../../sysmanage-agent", "/srv/src/sysmanage-agent", type: "rsync", rsync__exclude: [".git/", ".venv/", "node_modules/"]
+  config.vm.synced_folder "../../sysmanage",       "/srv/src/sysmanage",       type: "rsync", rsync__exclude: RSYNC_EXCLUDE, rsync__args: RSYNC_ARGS
+  config.vm.synced_folder "../../sysmanage-agent", "/srv/src/sysmanage-agent", type: "rsync", rsync__exclude: RSYNC_EXCLUDE, rsync__args: RSYNC_ARGS
   config.vm.synced_folder ".", "/vagrant", disabled: false
 
   # Professional tier: sync the Pro+ engine repo so provision.sh can Cython-build +
@@ -43,7 +70,7 @@ Vagrant.configure("2") do |config|
   pro = ENV["SYSMANAGE_PRO"] == "1" && pro_dir_present
   if pro_dir_present
     config.vm.synced_folder "../../sysmanage-professional-plus", "/srv/src/sysmanage-professional-plus",
-      type: "rsync", rsync__exclude: [".git/", ".venv/", "node_modules/"]
+      type: "rsync", rsync__exclude: RSYNC_EXCLUDE, rsync__args: RSYNC_ARGS
   end
 
   %w[libvirt virtualbox].each do |prov|
@@ -53,6 +80,14 @@ Vagrant.configure("2") do |config|
       # partway through capture. Headroom keeps the heaviest tier responsive.
       v.memory = 8192
       v.cpus = 4
+      # Explicit disk size rather than the box default.  Provisioning copies
+      # three working trees into /opt on top of the base image, a Python venv,
+      # node_modules and every Pro+ engine bundle; the box default left little
+      # headroom and a full guest disk aborts with "No space left on device"
+      # naming whichever file happened to be mid-copy, which reads like a
+      # problem with that file.  libvirt only — VirtualBox has no equivalent
+      # setting and errors on an unknown one.
+      v.machine_virtual_size = 60 if prov == "libvirt"
     end
   end
 

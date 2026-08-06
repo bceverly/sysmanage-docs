@@ -3262,13 +3262,16 @@
             "description": "建立子主機需要帶有container_engine模組的Professional+許可證。 Community Edition 使用者可以查看現有的子主機，但無法建立新的子主機。",
             "title": "需要 Professional+"
           },
-          "step1": "點擊子主機標籤上的「創建子主機」按鈕",
+          "step1": "在子主機標籤上，點擊你想要的操作虛擬化卡上的創建按鈕 &mdash; <strong>建立 VM</strong> 用於 KVM、bhyve 或 vmm，<strong>建立容器</strong> 用於 LXD，<strong>建立實例</strong> 用於 WSL",
           "step2": "選擇虛擬化類型（如果有多個可用）",
           "step3": "從下拉清單中選擇發行版",
           "step4": "輸入新子主機的主機名稱",
           "step5": "提供初始使用者帳戶的使用者名稱和密碼",
           "step6": "點擊「創建」開始安裝過程",
-          "title": "創建子主機"
+          "title": "創建子主機",
+          "progress_detail": "子主機標籤顯示步驟計數（例如 <code>6/9</code>），正在運行的步驟描述以及 <strong>該步驟上次報告的時間多久前</strong>。在長期安裝中，後者最重要：來賓可以卡在第6步中的9步並停止工作，只有最後一次報告的年齡才能區分慢速安裝和停滯不前的一個。",
+          "progress_stall_desc": "20分鐘內沒有報告時，年齡將被標記而非僅僅陳述。該閾值有意地慷慨：單個步驟確實需要那麼長的時間——重新構建Windows安裝媒體重新授權約5GB ISO，並且Windows設置在報告之間運行無人值守25-45分鐘。每健康建設就觸發一次警告，停止閱讀後不再被注意。",
+          "progress_stall_title": "“N分鐘內無更新”"
         },
         "detection": {
           "cap_enabled": "<strong>已啟用的功能：</strong>哪些功能已啟用並準備使用",
@@ -3642,6 +3645,52 @@
           "req_windows": "Windows 10版本2004或更高版本，或Windows 11",
           "requirements_title": "要求",
           "title": "WSL特定資訊"
+        },
+        "windows": {
+          "agent": {
+            "desc": "代理作為每台 VM 配置 CD 上的 MSI 到達，而不是通過包通道。Server Core 沒有 winget，因此離線交付是唯一可行的方法。RDP 和 SSH 在 <em>MSI 啓動之前</em> 就已啟用，因此即使代理安裝失敗，仍然有兩種方式可以進入該系統。",
+            "title": "代理安裝"
+          },
+          "fields": {
+            "domain": "<strong>加入Active Directory域:</strong> 可選。不勾選則為工作組模式；答應文件將省略加入組件而不是發出空白一個，後者會導致Windows安裝失敗。",
+            "edition": "<strong>版本:</strong> 標準或數據中心版，每個都有核心（無GUI）和桌面體驗。核心是默認選項——安裝更小且維護驚喜較少，並且整個機群通過SSH和RDP管理。值必須與媒體上的圖像匹配。",
+            "iso": "<strong>Windows ISO 路徑:</strong> 在父主機上的絶對路徑。<em>父主机</em> 必要 — Microsoft 沒有發布可供無認證下載的 Server 媒體，因此不像 Linux 客戶端那樣可以獲取任何內容。",
+            "key": "<strong>授權密鑰:</strong> AVMA、MAK或KMS。可選——評估媒體可以沒有它。",
+            "locale": "<strong>時區和語言環境:</strong> Windows識別符，例如 <code>UTC</code> 和 <code>en-US</code>。",
+            "password": "<strong>管理員密碼:</strong> 管理員帳戶是預設配置的，因此對話框隱藏了用戶名欄位並重新標記了密碼配對。",
+            "title": "Windows Fields",
+            "version": "<strong>版本:</strong> 與發行版本身一起選擇。Server 2022和2025是不同的目錄條目，因此沒有第二個控制項可以與第一個不一致。"
+          },
+          "intro": "Windows Server 2022和2025從操作員提供的媒體安裝，而不是雲圖像，由生成的 <code>Autounattend.xml</code> 驅動。在創建子主機對話框中選擇 <strong>Windows Server 2022</strong> 或 <strong>Windows Server 2025</strong>，表單將切換到Windows路徑。",
+          "licence": {
+            "desc": "密鑰存儲在 <strong>OpenBAO</strong> 中，從不存儲在SysManage數據庫中。 <code>host_child</code> 行僅保留秘密的ID，因此無法從數據庫中讀取密鑰，並且它出現在秘密屏幕中，可以像任何其他管理的秘密一樣進行輪換或撤銷。",
+            "title": "授權密鑰處理",
+            "why_desc": "散列密鑰無法安裝Windows。設置需要原始密鑰，因此必須可恢復——這使得秘密存儲而不是摘要成為正確的位置。",
+            "why_title": "為什麼不使用散列？"
+          },
+          "media": {
+            "desc": "Windows UEFI安裝媒體停止在 <em>“按任意鍵從CD或DVD啟動”</em>，無人值守管道沒有任何人可以按下它——來賓然後轉移到“未找到可引導選項或設備”。SysManage使用同一ISO上的 <code>efisys_noprompt.bin</code> 重新構建媒體並啟動該代碼。這在首次使用時自動發生。",
+            "once": "<strong>每張光盤一次，不是每個VM一次。</strong> 重建的ISO緩存於 <code>/var/lib/libvirt/windows/media/</code>；來自同一源的後續來賓將重用它。只有第一次創建才會支付成本。",
+            "refresh": "<strong>當Microsoft重新發布ISO時,</strong> 替換源文件。重建基於修改時間，因此較新的源將自動在下一次創建時重新構建。",
+            "space": "<strong>臨時空間:</strong> 約為源ISO的2.5倍，因此預算約13GB以供5GB光盤使用。步驟在磁盤不足時明確顯示錯誤消息而不是部分寫入圖像。",
+            "title": "無人值守啟動媒體"
+          },
+          "tier": {
+            "desc": "安裝Windows Server來賓需要具有 <code>virtualization_engine</code> 模塊的企業許可證，在KVM/libvirt父主機上。",
+            "title": "Enterprise"
+          },
+          "timing": {
+            "desc": "安裝Windows Server比Linux雲圖像要花費更長時間。在子主機標籤上跟蹤它，該標籤報告當前步驟和上次報告的時間。",
+            "title": "預期25-45分鐘"
+          },
+          "title": "Windows Server Child Hosts",
+          "virtio": {
+            "desc": "Windows沒有提供virtio存儲或網絡驅動程序，因此設置會報告“未找到磁盤”。virtio-win ISO作為第二個CD-ROM附加，驅動程序在 <code>windowsPE</code> 階段注入。",
+            "path": "保持在 <code>/var/lib/libvirt/images/virtio-win.iso</code>（默認值）。它必須 <strong>不</strong> 存儲在 <code>/usr/share</code>：AppArmor的 <code>virt-aa-helper</code> 拒絕授予該路徑，域將無法啟動。",
+            "release": "驅動程序來自與來賓匹配的每個版本目錄（<code>2k22</code> 或 <code>2k25</code>）。將Server 2025指向2022驅動程序會導致設置拒絕未為該版本簽名的驅動程序。",
+            "title": "virtio-win 驅動程式",
+            "update": "當您採用較新的virtio-win版本時刷新ISO；其內容不會緩存，因此下一次創建將使用它。"
+          }
         }
       },
       "idp": {
@@ -22250,7 +22299,9 @@
     "report_users": "SysManage 用戶報告——帳戶、角色、權限和狀態。",
     "reports_overview": "報告中心——一個包含主機、用戶、安全和聯邦的內置報告目錄。",
     "secrets_page": "OpenBAO 支援的秘密列表，從 SysManage 管理。",
-    "settings_configuration": "設定下的配置分頁。"
+    "settings_configuration": "設定下的配置分頁。",
+    "child_host_create_windows": "選擇 Windows Server 分發版會切換對話框到 Windows 路徑：版本、ISO 路徑、許可證密鑰、時區和語言環境，再加上一個選項加入 Active Directory。",
+    "child_host_provision_progress": "在 Windows Server 客戶機中間配置 — 步驟計數器顯示計劃執行的進度，而最後報告的時間則表明是否有任何活動仍在進行。"
   },
   "about": {
     "bio": {
