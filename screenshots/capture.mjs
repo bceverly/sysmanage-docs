@@ -119,6 +119,33 @@ async function gotoWithRetry(page, url, opts, attempts = 3) {
   }
 }
 
+// Bring an element into view before shooting.  Several cards worth documenting
+// (the host-detail Capabilities card, for one) sit well below the fold on a
+// long page, and every shot here is a viewport screenshot rather than a
+// full-page one — so without this they simply are not in the image.  Scrolling
+// rather than element-clipping keeps the surrounding page context, which is
+// what makes a documentation screenshot legible.
+//
+// `scrollTo` is a visible-text string; the element containing it is centred.
+// A miss is a SKIP with a clear reason, never a silently wrong image: a shot
+// that captures the top of the page while claiming to show a card further down
+// is worse than no shot at all.
+async function scrollIntoView(page, shot) {
+  if (!shot.scrollTo) return true;
+  const target = page.getByText(shot.scrollTo, { exact: false }).first();
+  try {
+    await target.scrollIntoViewIfNeeded({ timeout: 8000 });
+    await page.waitForTimeout(600);
+    return true;
+  } catch {
+    console.log(
+      `  ${YELLOW}⊘ ${shot.out}: could not find "${shot.scrollTo}" to scroll to` +
+      ` — the section may be gated, or the seed did not populate it. Skipping.${RESET}`
+    );
+    return false;
+  }
+}
+
 async function captureRoute(page, shot, vp) {
   await page.setViewportSize(shot.viewport || vp);
   await gotoWithRetry(page, `${TARGET}${shot.route}`, {
@@ -155,6 +182,7 @@ async function captureRoute(page, shot, vp) {
       return 'skipped';
     }
   }
+  if (!(await scrollIntoView(page, shot))) return 'skipped';
   const out = join(OUT_DIR, shot.out);
   const isNew = !existsSync(out);
   await page.screenshot({ path: out, fullPage: false });
@@ -196,6 +224,7 @@ async function captureDetail(page, shot, vp) {
     await selectMuiOption(page, shot.selectOption.label, shot.selectOption.option);
     await page.waitForTimeout(shotlist.settleMs || 2500);
   }
+  if (!(await scrollIntoView(page, shot))) return 'skipped';
   const out = join(OUT_DIR, shot.out);
   const isNew = !existsSync(out);
   await page.screenshot({ path: out, fullPage: false });

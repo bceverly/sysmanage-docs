@@ -725,6 +725,15 @@
       "permissions": "Permission and privilege problems",
       "platform": "Platform-specific troubleshooting",
       "title": "Troubleshooting"
+    },
+    "capabilities": {
+      "compat": "Compatibility with older agents",
+      "description": "What each agent can actually do on its platform, and how the server surfaces and enforces it.",
+      "gating": "Commands refused instead of failing remotely",
+      "limited": "Full, Limited and Unknown hosts",
+      "link": "Capabilities Guide →",
+      "reporting": "What an agent advertises, and how it decides",
+      "title": "Capabilities"
     }
   },
   "agent_installation": {
@@ -22051,7 +22060,7 @@
       "title": "Available today"
     },
     "edition": {
-      "community": "Free, open-source, and self-hosted on a single server and database. A persistent agent for Linux, Windows, macOS, FreeBSD, OpenBSD, and NetBSD; real-time WebSocket monitoring; hardware and software inventory; package and OS update management; user and access management; tagging; firewall status; ad-hoc scripts; reporting; and an audit log.",
+      "community": "Free, open-source, and self-hosted on a single server and database. A persistent agent for Linux, Windows, macOS, FreeBSD, OpenBSD, and NetBSD; real-time WebSocket monitoring; hardware and software inventory; package and OS update management; user and access management; tagging; firewall status; ad-hoc scripts; reporting; agent capability reporting, so a mixed fleet shows what each agent can actually do on its platform; and an audit log.",
       "professional": "Everything in Community Edition, plus scheduled PDF reporting, an expanded audit trail, secrets management backed by OpenBAO, LXD and WSL container management, AI-assisted health analysis, and CIS / DISA STIG compliance auditing.",
       "enterprise": "Everything in Professional, plus CVE vulnerability scanning, alerting to email / webhook / Slack / Teams, antivirus management, firewall orchestration, automation at fleet scale, full VM lifecycle management (KVM, bhyve, and OpenBSD vmm), observability via OpenTelemetry / Grafana / Graylog, content views and lifecycle environments with gated promotion, a Snap Store proxy and container-image content lifecycle, image-mode (bootc / rpm-ostree) host management, host provisioning — both on external hypervisors and bare metal over PXE, with hardware discovery — multi-factor authentication and external IdP single sign-on, fully air-gapped deployment, and multi-site federation.",
       "saas": "Everything in Enterprise, run as a control plane that hosts isolated tenants — a database per tenant, customer-owned SSO, and per-tenant edition assignment so each tenant can be set to Community, Professional, or Enterprise independently."
@@ -22933,5 +22942,57 @@
       }
     },
     "title": "Cross-platform endpoint & infrastructure management - SysManage"
+  },
+  "agent_capabilities": {
+    "asking": {
+      "p1": "The capability set travels with registration and with routine system-information reports, but those are snapshots. To ask a running agent what it supports right now — when you are working out why an action is unavailable — the server can issue a capabilities query over the existing connection, and the agent answers from the same command table it advertises from. A live answer and a stored one cannot disagree.",
+      "p2": "This is a request over the connection the agent already opened outbound to the server. The agent still listens on no ports, on any platform.",
+      "title": "Asking an agent directly"
+    },
+    "compat": {
+      "p1": "The report carries a schema version. A server ignores fields it does not recognise from a newer agent rather than rejecting the report, and an agent newer than its server is logged plainly rather than silently treated as unknown forever. Existing agents that predate the feature keep working and simply show as Unknown until they are upgraded.",
+      "title": "Compatibility"
+    },
+    "description": "",
+    "gating": {
+      "p1": "The advertised set is not only informational. When the server is asked to send a command a host has not advertised, it declines before the command is queued and tells you the agent does not support it — instead of dispatching work that fails minutes later somewhere in a log.",
+      "p2": "A host in the Unknown state is not gated. Refusing work because an agent has not reported yet would break every existing host the moment the feature shipped.",
+      "title": "Commands are refused, not attempted"
+    },
+    "header": {
+      "subtitle": "Not every agent can do everything. SysManage asks each agent what it supports, shows you the answer, and refuses to dispatch work an agent cannot run.",
+      "title": "Agent Capabilities"
+    },
+    "how": {
+      "p1": "The report is derived from the agent's live command table — the set of operations the running build can actually route — rather than from a list maintained by hand. A hand-maintained list drifts the moment a handler is added or removed; a derived one cannot.",
+      "p2": "Shipping a handler answers \"was this code built?\", which is not the same as \"will it work here\". So the agent additionally probes the host at runtime and removes what it cannot deliver: a command whose required tool is not installed, or one that is meaningless on this operating system. Each removal carries a reason code, which the server renders in your language.",
+      "p3": "A probe can only ever remove a capability, never add one. That is deliberate: a mistaken probe tells you a feature is unavailable when it would have worked, which is visible and correctable. The opposite error — claiming a capability the agent does not have — is the failure this feature exists to prevent.",
+      "reason_missing_tool": "<strong>A required tool is not installed</strong> — the code shipped, but the program it drives is absent. Ubuntu Pro management without the <code>pro</code> CLI, for example.",
+      "reason_not_built": "<strong>Not built into this agent</strong> — the build does not contain the handler at all.",
+      "reason_wrong_platform": "<strong>Not applicable to this operating system</strong> — bhyve off FreeBSD, WSL off Windows.",
+      "reasons_title": "Reason codes",
+      "title": "How an agent decides what to report"
+    },
+    "nav": {
+      "next": "Troubleshooting →",
+      "prev": "← Cross-Platform Support"
+    },
+    "section_title": "Capabilities",
+    "seeing": {
+      "fig_full": "The same card on a host advertising the full capability set.",
+      "fig_limited": "The Agent Capabilities card on a host with a reduced capability set. Unavailable groups state why.",
+      "p1": "Each host's detail page carries an Agent Capabilities card listing the groups it supports, and any it does not along with the reason. Below, a FreeBSD build host: it does full package, service and virtualization management, but has no Ubuntu Pro tooling and no FIPS mechanism on this platform.",
+      "p2": "A host whose agent supports everything shows the same card marked Full, with no unavailable section.",
+      "p3": "The Hosts list carries a Capabilities column so a mixed fleet is visible at a glance, sortable and filterable like any other column.",
+      "title": "Seeing it in the interface",
+      "unknown_p": "Three states, not two. <strong>Unknown</strong> means the host has not reported a capability set — an agent older than this feature, or one that has not yet checked in. It is deliberately distinct from Full: the server will not claim an agent supports everything merely because it has not said otherwise, and it will not light the whole fleet up as Limited during a rollout.",
+      "unknown_title": "Full, Limited and Unknown"
+    },
+    "title": "Agent Capabilities - SysManage",
+    "why": {
+      "p1": "SysManage runs on Linux, Windows, macOS and the BSDs, across several processor architectures. Those platforms are not equivalent. Ubuntu Pro exists only on Ubuntu. bhyve is FreeBSD's hypervisor and vmm is OpenBSD's. WSL is a Windows feature. A dependency may have no build for a given architecture at all.",
+      "p2": "Without a way to express that, a server has two bad options: assume every agent can do everything and let commands fail at the far end, or hide features from everyone because some hosts lack them. Capability advertisement replaces both with a straight answer from each agent.",
+      "title": "Why this exists"
+    }
   }
 }

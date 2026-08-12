@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en" data-i18n-title="agent_capabilities.title">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title data-i18n="agent_capabilities.title" data-i18n-html>Agent Capabilities - SysManage</title>
+    <meta name="description" content="How the SysManage agent advertises what it can do, how the server surfaces limited agents, and why commands are refused before they are dispatched." data-i18n-attr="content" data-i18n="agent_capabilities.description" data-i18n-html>
+    <link rel="stylesheet" href="/assets/css/style.css">
+    <link rel="icon" type="image/svg+xml" href="/assets/images/favicon.svg">
+</head>
+<body data-auto-header="documentation" data-auto-footer>
+    <!-- Header injected automatically by components.js -->
+
+    <main class="docs-main">
+        <div class="container">
+            <div class="docs-breadcrumb">
+                <a href="../" data-i18n="nav.documentation" data-i18n-html>Documentation</a> &gt; <a href="./" data-i18n="agent_docs.section_title" data-i18n-html>Agent</a> &gt; <span data-i18n="agent_capabilities.section_title" data-i18n-html>Capabilities</span>
+            </div>
+
+            <div class="docs-header">
+                <h1 data-i18n="agent_capabilities.header.title" data-i18n-html>Agent Capabilities</h1>
+                <p data-i18n="agent_capabilities.header.subtitle" data-i18n-html>Not every agent can do everything. SysManage asks each agent what it supports, shows you the answer, and refuses to dispatch work an agent cannot run.</p>
+            </div>
+
+            <div class="docs-content">
+                <section>
+                    <h2 data-i18n="agent_capabilities.why.title" data-i18n-html>Why this exists</h2>
+                    <p data-i18n="agent_capabilities.why.p1" data-i18n-html>SysManage runs on Linux, Windows, macOS and the BSDs, across several processor architectures. Those platforms are not equivalent. Ubuntu Pro exists only on Ubuntu. bhyve is FreeBSD's hypervisor and vmm is OpenBSD's. WSL is a Windows feature. A dependency may have no build for a given architecture at all.</p>
+                    <p data-i18n="agent_capabilities.why.p2" data-i18n-html>Without a way to express that, a server has two bad options: assume every agent can do everything and let commands fail at the far end, or hide features from everyone because some hosts lack them. Capability advertisement replaces both with a straight answer from each agent.</p>
+                </section>
+
+                <section>
+                    <h2 data-i18n="agent_capabilities.how.title" data-i18n-html>How an agent decides what to report</h2>
+                    <p data-i18n="agent_capabilities.how.p1" data-i18n-html>The report is derived from the agent's live command table — the set of operations the running build can actually route — rather than from a list maintained by hand. A hand-maintained list drifts the moment a handler is added or removed; a derived one cannot.</p>
+                    <p data-i18n="agent_capabilities.how.p2" data-i18n-html>Shipping a handler answers "was this code built?", which is not the same as "will it work here". So the agent additionally probes the host at runtime and removes what it cannot deliver: a command whose required tool is not installed, or one that is meaningless on this operating system. Each removal carries a reason code, which the server renders in your language.</p>
+
+                    <h3 data-i18n="agent_capabilities.how.reasons_title" data-i18n-html>Reason codes</h3>
+                    <ul>
+                        <li data-i18n="agent_capabilities.how.reason_missing_tool" data-i18n-html><strong>A required tool is not installed</strong> — the code shipped, but the program it drives is absent. Ubuntu Pro management without the <code>pro</code> CLI, for example.</li>
+                        <li data-i18n="agent_capabilities.how.reason_wrong_platform" data-i18n-html><strong>Not applicable to this operating system</strong> — bhyve off FreeBSD, WSL off Windows.</li>
+                        <li data-i18n="agent_capabilities.how.reason_not_built" data-i18n-html><strong>Not built into this agent</strong> — the build does not contain the handler at all.</li>
+                    </ul>
+
+                    <p data-i18n="agent_capabilities.how.p3" data-i18n-html>A probe can only ever remove a capability, never add one. That is deliberate: a mistaken probe tells you a feature is unavailable when it would have worked, which is visible and correctable. The opposite error — claiming a capability the agent does not have — is the failure this feature exists to prevent.</p>
+                </section>
+
+                <section>
+                    <h2 data-i18n="agent_capabilities.seeing.title" data-i18n-html>Seeing it in the interface</h2>
+                    <p data-i18n="agent_capabilities.seeing.p1" data-i18n-html>Each host's detail page carries an Agent Capabilities card listing the groups it supports, and any it does not along with the reason. Below, a FreeBSD build host: it does full package, service and virtualization management, but has no Ubuntu Pro tooling and no FIPS mechanism on this platform.</p>
+
+                    <figure class="docs-screenshot">
+                        <img src="/assets/images/host-detail-capabilities.png" alt="Agent Capabilities card showing a limited host">
+                        <figcaption data-i18n="agent_capabilities.seeing.fig_limited" data-i18n-html>The Agent Capabilities card on a host with a reduced capability set. Unavailable groups state why.</figcaption>
+                    </figure>
+
+                    <p data-i18n="agent_capabilities.seeing.p2" data-i18n-html>A host whose agent supports everything shows the same card marked Full, with no unavailable section.</p>
+
+                    <figure class="docs-screenshot">
+                        <img src="/assets/images/host-detail-capabilities-full.png" alt="Agent Capabilities card showing a full-capability host">
+                        <figcaption data-i18n="agent_capabilities.seeing.fig_full" data-i18n-html>The same card on a host advertising the full capability set.</figcaption>
+                    </figure>
+
+                    <p data-i18n="agent_capabilities.seeing.p3" data-i18n-html>The Hosts list carries a Capabilities column so a mixed fleet is visible at a glance, sortable and filterable like any other column.</p>
+
+                    <h3 data-i18n="agent_capabilities.seeing.unknown_title" data-i18n-html>Full, Limited and Unknown</h3>
+                    <p data-i18n="agent_capabilities.seeing.unknown_p" data-i18n-html>Three states, not two. <strong>Unknown</strong> means the host has not reported a capability set — an agent older than this feature, or one that has not yet checked in. It is deliberately distinct from Full: the server will not claim an agent supports everything merely because it has not said otherwise, and it will not light the whole fleet up as Limited during a rollout.</p>
+                </section>
+
+                <section>
+                    <h2 data-i18n="agent_capabilities.gating.title" data-i18n-html>Commands are refused, not attempted</h2>
+                    <p data-i18n="agent_capabilities.gating.p1" data-i18n-html>The advertised set is not only informational. When the server is asked to send a command a host has not advertised, it declines before the command is queued and tells you the agent does not support it — instead of dispatching work that fails minutes later somewhere in a log.</p>
+                    <p data-i18n="agent_capabilities.gating.p2" data-i18n-html>A host in the Unknown state is not gated. Refusing work because an agent has not reported yet would break every existing host the moment the feature shipped.</p>
+                </section>
+
+                <section>
+                    <h2 data-i18n="agent_capabilities.asking.title" data-i18n-html>Asking an agent directly</h2>
+                    <p data-i18n="agent_capabilities.asking.p1" data-i18n-html>The capability set travels with registration and with routine system-information reports, but those are snapshots. To ask a running agent what it supports right now — when you are working out why an action is unavailable — the server can issue a capabilities query over the existing connection, and the agent answers from the same command table it advertises from. A live answer and a stored one cannot disagree.</p>
+                    <p data-i18n="agent_capabilities.asking.p2" data-i18n-html>This is a request over the connection the agent already opened outbound to the server. The agent still listens on no ports, on any platform.</p>
+                </section>
+
+                <section>
+                    <h2 data-i18n="agent_capabilities.compat.title" data-i18n-html>Compatibility</h2>
+                    <p data-i18n="agent_capabilities.compat.p1" data-i18n-html>The report carries a schema version. A server ignores fields it does not recognise from a newer agent rather than rejecting the report, and an agent newer than its server is logged plainly rather than silently treated as unknown forever. Existing agents that predate the feature keep working and simply show as Unknown until they are upgraded.</p>
+                </section>
+
+                <div class="docs-nav">
+                    <a href="cross-platform.html" data-i18n="agent_capabilities.nav.prev" data-i18n-html>&larr; Cross-Platform Support</a>
+                    <a href="troubleshooting.html" data-i18n="agent_capabilities.nav.next" data-i18n-html>Troubleshooting &rarr;</a>
+                </div>
+            </div>
+        </div>
+    </main>
+</body>
+</html>

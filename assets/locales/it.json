@@ -725,6 +725,15 @@
       "permissions": "Autorizzazione e privilegio problemi",
       "platform": "Platform-specific risoluzione dei problemi",
       "title": "Risoluzione dei problemi"
+    },
+    "capabilities": {
+      "compat": "Compatibilità con agenti più vecchi",
+      "description": "Cosa ciascun agente effettivamente può fare sulla propria piattaforma, e come il server rende disponibile e applica questa informazione.",
+      "gating": "Comandi rifiutati invece di fallire remotamente",
+      "limited": "Host completi, limitati e sconosciuti",
+      "link": "Capabilities Guide →",
+      "reporting": "Cosa annuncia un agente e come decide",
+      "title": "Capacità"
     }
   },
   "agent_installation": {
@@ -22069,7 +22078,7 @@
       "title": "In arrivo sulla roadmap"
     },
     "edition": {
-      "community": "Libero, open-source ed auto-hosted su un singolo server e database. Un agente persistente per Linux, Windows, macOS, FreeBSD, OpenBSD e NetBSD; monitoraggio WebSocket in tempo reale; inventario hardware e software; gestione di pacchetti e aggiornamenti del sistema operativo; gestione utenti ed accessi; tagging; stato firewall; script ad hoc; reporting; e un trail di audit.",
+      "community": "Libero, open-source e self-hosted su un singolo server e database. Un agente persistente per Linux, Windows, macOS, FreeBSD, OpenBSD e NetBSD; monitoraggio in tempo reale tramite WebSocket; inventario di hardware e software; gestione delle aggiornamenti del pacchetto e del sistema operativo; gestione utenti e accessi; tagging; stato firewall; script ad hoc; reporting; rilevamento delle capacità dell'agente, in modo che una flotta mista mostri ciò che ogni agente può effettivamente fare sul proprio platform; e un registro di audit.",
       "enterprise": "Tutto quanto Professional, più la scansione delle vulnerabilità CVE, allerta via email / webhook / Slack / Teams, gestione antivirus, orchestrazione firewall, automazione a scala fleet, gestione ciclo di vita completo VM (KVM, bhyve e OpenBSD vmm), osservabilità tramite OpenTelemetry / Grafana / Graylog, content views e ambienti lifecycle con promozioni controllate, un proxy per Snap Store e contenitori-image lifecycle, gestione host in modalità immagine (bootc / rpm-ostree), provisioning host — sia su ipervisori esterni che bare-metal tramite PXE, con scoperta hardware — autenticazione multi-fattore e single sign-on da IdP esterno, installazione completamente isolata e federazione multi-sito.",
       "professional": "Tutto ciò che c'è nell'edizione Community, più report PDF pianificati, un trail di audit esteso, gestione dei segreti supportata da OpenBAO, gestione di contenitori LXD e WSL, analisi della salute assistita dall'intelligenza artificiale e audit di conformità CIS / DISA STIG.",
       "saas": "Tutto ciò che c'è nell'edizione Enterprise, eseguito come un piano di controllo che ospita tenant isolati — un database per ogni tenant, SSO proprietario del cliente e assegnazione dell'edizione per tenant in modo che ogni tenant possa essere impostato su Community, Professional o Enterprise indipendentemente."
@@ -22937,5 +22946,57 @@
       }
     },
     "title": "Gestione endpoint e infrastruttura cross-platform - SysManage"
+  },
+  "agent_capabilities": {
+    "asking": {
+      "p1": "Il set delle capacità viaggia con la registrazione e con i rapporti regolari di informazioni sul sistema, ma questi sono snapshot. Per chiedere a un agente in esecuzione cosa supporta ora — quando stai cercando il motivo per cui una azione è non disponibile — il server può emettere una query delle capacità attraverso la connessione esistente, e l'agente risponde dalla stessa tabella di comandi che annuncia. Una risposta in tempo reale e una memorizzata non possono essere discordi.",
+      "p2": "Questa è una richiesta attraverso la connessione aperta dall'agente verso il server. L'agente continua ad ascoltare su nessun port, su qualsiasi piattaforma.",
+      "title": "Chiedere direttamente all'agente"
+    },
+    "compat": {
+      "p1": "Il rapporto porta una versione dello schema. Un server ignora i campi che non riconosce da un agente più recente anziché respingere il rapporto, e un agente più recente del suo server è registrato chiaramente anziché trattato come sconosciuto per sempre. Gli agenti esistenti che prevedono la funzionalità continuano a funzionare e semplicemente mostrano come Sconosciuti fino a quando non vengono aggiornati.",
+      "title": "Compatibilità"
+    },
+    "description": "",
+    "gating": {
+      "p1": "Il set annunciato è non solo informativo. Quando il server viene chiesto di inviare un comando che l'host non ha annunciato, rifiuta prima che il comando venga messo in coda e ti informa che l'agente non supporta quel comando — invece di inviare lavoro che fallisce minuti dopo da qualche parte nei log.",
+      "p2": "Un host nello stato Sconosciuto non è limitato. Rifiutare il lavoro perché un agente non ha ancora riferito sarebbe dannoso per ogni host esistente al momento del lancio della funzionalità.",
+      "title": "I comandi vengono rifiutati, non tentati"
+    },
+    "header": {
+      "subtitle": "Non tutti gli agenti possono fare tutto. SysManage chiede a ciascun agente cosa supporta, mostra la risposta e rifiuta di inviare lavoro che l'agente non può eseguire.",
+      "title": "Capacità dell'Agente"
+    },
+    "how": {
+      "p1": "Il rapporto è derivato dalla tabella di comandi in tempo reale dell'agente — il set delle operazioni che la compilazione attiva può realmente gestire — anziché da una lista mantenuta a mano. Una lista mantenuta a mano si allontana dal momento che un handler è aggiunto o rimosso; una derivata non può farlo.",
+      "p2": "Invio di un handler risponde \"questo codice è stato compilato?\", il che non è lo stesso di \"funzionerà qui\". Quindi l'agente esegue una prova sul sistema in tempo reale e rimuove ciò che non può fornire: un comando per cui lo strumento richiesto è mancante, o uno che non ha senso su questo sistema operativo. Ogni rimozione porta un codice motivo, che il server rende disponibile nella tua lingua.",
+      "p3": "Una probe può rimuovere solo una capacità, mai aggiungerne una. Questo è intenzionale: un errore di probe indica che una funzionalità è non disponibile quando avrebbe dovuto funzionare, il che è visibile e correggibile. L'errore opposto — affermare una capacità che l'agente non ha — è l'errore che questa funzionalità esiste per prevenire.",
+      "reason_missing_tool": "<strong>Uno strumento necessario non è installato</strong> — il codice è stato inviato, ma la parte che lo esegue manca. La gestione di Ubuntu Pro senza il <code>pro</code> CLI, ad esempio.",
+      "reason_not_built": "<strong>Not built into this agent</strong> — the build does not contain the handler at all.",
+      "reason_wrong_platform": "<strong>Not applicable to this operating system</strong> — bhyve off FreeBSD, WSL off Windows.",
+      "reasons_title": "Codici motivo",
+      "title": "Come un agente decide cosa riferire"
+    },
+    "nav": {
+      "next": "Troubleshooting →",
+      "prev": "← Cross-Platform Support"
+    },
+    "section_title": "Capacità",
+    "seeing": {
+      "fig_full": "La stessa scheda su un host che annuncia il set completo di capacità.",
+      "fig_limited": "La scheda Capacità su un host con un set ridotto di capacità. I gruppi non disponibili spiegano il motivo.",
+      "p1": "Ogni scheda dettaglio dell'host include una scheda Capacità che elenca i gruppi che supporta, e quelli non disponibili insieme al motivo. Sotto, un host di compilazione FreeBSD: esegue la gestione completa dei pacchetti, servizi e virtualizzazione, ma non ha strumenti Ubuntu Pro e nessun meccanismo FIPS su questa piattaforma.",
+      "p2": "Un host il cui agente supporta tutto mostra la stessa scheda contrassegnata come Completa, senza una sezione non disponibile.",
+      "p3": "L'elenco degli Host include una colonna Capacità per rendere visibile a prima vista una flotta mista, ordinabile e filtrabile come qualsiasi altra colonna.",
+      "title": "Vederlo nell'interfaccia",
+      "unknown_p": "Tre stati, non due. <strong>Sconosciuto</strong> significa che l'host non ha riferito un set di capacità — un agente più vecchio rispetto a questa funzionalità, o uno che non ha ancora effettuato il check-in. È intenzionalmente distinto da Completo: il server non dirà che un agente supporta tutto solo perché non l'ha specificato, e non illuminerà tutta la flotta come Limitata durante una rollout.",
+      "unknown_title": "Completo, Limitato e Sconosciuto"
+    },
+    "title": "Capacità dell'Agente - SysManage",
+    "why": {
+      "p1": "SysManage funziona su Linux, Windows, macOS e i BSDs, su diverse architetture di processori. Queste piattaforme non sono equivalenti. Ubuntu Pro esiste solo su Ubuntu. bhyve è l'iperospazio di FreeBSD e vmm quello di OpenBSD. WSL è una funzione di Windows. Una dipendenza potrebbe non avere un build per un dato architettura.",
+      "p2": "Senza un modo per esprimere questo, un server ha due opzioni cattive: assumere che ogni agente possa fare tutto e lasciare che i comandi falliscano all'estremità opposta, o nascondere le funzionalità da tutti perché alcuni host non le hanno. L'annuncio delle capacità sostituisce entrambe con una risposta diretta da ciascun agente.",
+      "title": "Perché esiste questo"
+    }
   }
 }

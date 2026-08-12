@@ -1,26 +1,25 @@
-# SysManage Documentation Translation Scripts
+# SysManage Documentation Scripts
 
-This directory contains scripts for adding translations to the documentation locale files.
+## Translations
 
-## add_proplus_translations.py
-
-Adds Professional+ documentation translations (health analysis, vulnerability scanning, alerting engine, compliance engine) to all 14 supported language locale files.
-
-### Usage
+Translations are maintained by the standard pipeline, not by per-page scripts:
 
 ```bash
-python3 /home/bceverly/dev/sysmanage-docs/scripts/add_proplus_translations.py
+make i18n-seed        # queue new/changed strings as "[TODO] <English>"
+make translate        # fill them via the GPU translation service
+make i18n-strict      # gate: no English-identical, stale, or wrong-language values
 ```
 
-## add_alerting_page_translations.py
+`make translate` also records each translated key's English source hash in
+`assets/locales/.i18n-source-hashes.json`, which is how `i18n-strict` tells a
+later English edit from a current translation. That happens automatically —
+`--baseline` is only a rescue hatch.
 
-Adds detailed alerting and compliance page translations to all 14 supported language locale files.
-
-### Usage
-
-```bash
-python3 /home/bceverly/dev/sysmanage-docs/scripts/add_alerting_page_translations.py
-```
+Two one-shot injectors (`add_proplus_translations.py`,
+`add_alerting_page_translations.py`) were removed on 2026-08-12. They were
+run-once scripts with hardcoded absolute paths that bulk-added a specific
+page's keys; their output has long since been part of the locale files, and
+the pipeline above supersedes them.
 
 ## generate_sysmanage_pptx.py
 

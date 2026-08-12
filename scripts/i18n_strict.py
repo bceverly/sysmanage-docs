@@ -33,7 +33,8 @@ matter of effort:
     ``sha256(english)`` per key and calls a translation stale when the
     recorded hash no longer matches.
 
-ESCAPE HATCH: ``i18n-allow.txt`` lists keys that are *intentionally* identical to English
+ESCAPE HATCH: ``i18n-allow.txt`` (same syntax as the docs repo's
+``no-translate.txt``) lists keys that are *intentionally* identical to English
 — product names, CLI snippets, protocol tokens.  Prefer a tight rule over a
 broad glob; a rule that suppresses real prose is how this rots again.
 
@@ -63,6 +64,7 @@ TODO = "[TODO] "
 
 # Surfaces this repo owns.  ``kind`` picks the reader; ``hashes`` is the
 # staleness sidecar and is omitted for .po (see the module docstring).
+# ===== per-repo surfaces: the ONLY part of this file that differs =====
 SURFACES = [
     {
         "name": "docs",
@@ -72,6 +74,7 @@ SURFACES = [
         "hashes": REPO / "assets" / "locales" / ".i18n-source-hashes.json",
     },
 ]
+# ===== end per-repo surfaces ==========================================
 
 EN = "en"
 
@@ -107,8 +110,14 @@ _EXPECTED_SCRIPT = {
     "zh_TW": ("CJK",),
 }
 _SCRIPT_TAGS = (
-    "ARABIC", "DEVANAGARI", "CYRILLIC", "HANGUL",
-    "HIRAGANA", "KATAKANA", "CJK", "LATIN",
+    "ARABIC",
+    "DEVANAGARI",
+    "CYRILLIC",
+    "HANGUL",
+    "HIRAGANA",
+    "KATAKANA",
+    "CJK",
+    "LATIN",
 )
 
 
@@ -464,7 +473,9 @@ def do_requeue(english, stale):
                         d2 = _PO_DIRECTIVE.match(lines[i].strip())
                         if d2 and d2.group(1) == "msgstr":
                             k = i + 1
-                            while k < len(lines) and _PO_CONTINUATION.match(lines[k].strip()):
+                            while k < len(lines) and _PO_CONTINUATION.match(
+                                lines[k].strip()
+                            ):
                                 k += 1
                             out.append('msgstr ""')
                             seen.add(msgid)
@@ -530,7 +541,9 @@ def main() -> int:
         return 0
 
     for label, rows in (
-        ("WRONG LANGUAGE", wrong), ("ENGLISH", english), ("STALE", stale)
+        ("WRONG LANGUAGE", wrong),
+        ("ENGLISH", english),
+        ("STALE", stale),
     ):
         if not rows:
             continue
@@ -547,7 +560,23 @@ def main() -> int:
             f"{len(wrong)} wrong-language.\n"
             "  Queue them for translation:  python3 scripts/i18n_strict.py --requeue\n"
             "  Then:                        make translate SERVICE=http://<gpu-box>:8765\n"
-            "  Intentionally-English value? Add a tight rule to i18n-allow.txt.",
+            + (
+                # Neither --requeue nor `make translate` touches the hash
+                # sidecar, so a STALE key raised by a deliberate English edit
+                # survives both and reports stale forever.  Omitting this step
+                # from the hint cost a full requeue/translate/still-stale loop
+                # on docs roadmap.edition.community (2026-08-12).  Only shown
+                # when something is actually stale: after an English-identical
+                # or wrong-language failure, baselining is the WRONG move --
+                # it would record the untranslated value as the reference.
+                "  English edit now retranslated?  "
+                "python3 scripts/i18n_strict.py --baseline\n"
+                "      (records today's English as the staleness reference; run it\n"
+                "       ONLY once the translations above are genuinely current)\n"
+                if stale
+                else ""
+            )
+            + "  Intentionally-English value? Add a tight rule to i18n-allow.txt.",
             file=sys.stderr,
         )
         return 1

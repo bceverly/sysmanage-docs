@@ -36,6 +36,7 @@ from typing import Dict, List, Optional, Tuple
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 # pylint: disable=wrong-import-position  # import must follow the sys.path insert
 # above so the sibling helper module resolves when run as a script.
+from i18n_hashes import record_translated  # noqa: E402
 from i18n_no_translate import is_no_translate  # noqa: E402
 
 # ===== per-project configuration (the ONLY part that differs per repo) =====
@@ -226,6 +227,13 @@ def run_json(
         sys.exit(f"ERROR: source file not found: {en_path}")
     en_flat = _flatten(json.loads(en_path.read_text(encoding="utf-8")))
 
+    # Staleness-sidecar bookkeeping.  Collected across ALL locales because the
+    # sidecar is per KEY, not per key-per-language: recording a key after
+    # translating only some locales would hide the untranslated ones from the
+    # stale check.  See i18n_hashes for the full rule.
+    translated_keys: set = set()
+    locale_flats: Dict[str, Dict[str, str]] = {}
+
     for lang in langs:
         path = base / template.format(lang=lang)
         if not path.exists():
@@ -307,6 +315,7 @@ def run_json(
                 continue
             _set_dotted(doc, key, cand)
             written.add(en_src)
+            translated_keys.add(key)
         path.write_text(
             json.dumps(doc, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
         )
@@ -315,6 +324,7 @@ def run_json(
         # how the run could report "0 gap(s) remaining" while dozens of strings
         # in that same locale were still English.
         after = _flatten(doc)
+        locale_flats[lang] = after
         remaining = sum(
             1
             for k, en_src in en_flat.items()
@@ -330,6 +340,15 @@ def run_json(
             f"  {lang}: wrote {len(written)} new, {remaining} still untranslated",
             flush=True,
         )
+
+    # Record the English these translations were made FROM, so i18n_strict can
+    # tell a later English edit from a current translation.  Doing it here --
+    # as a byproduct of translating -- is what stops the requeue/translate/
+    # still-stale loop and stops new keys shipping unprotected.  Only keys
+    # written above, and only where no locale still has a gap.
+    recorded = record_translated(base, en_flat, locale_flats, translated_keys)
+    if recorded:
+        print(f"  recorded {recorded} source hash(es) for staleness", flush=True)
 
 
 # ---------------------------------------------------------------------------

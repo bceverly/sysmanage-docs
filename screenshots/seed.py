@@ -113,10 +113,19 @@ def register_and_approve_hosts(token: str, hosts: list[dict]) -> dict[str, str]:
         if h["fqdn"] in fqdn_to_id:
             print(f"  host exists: {h['fqdn']}")
             continue
-        status, body = _req("POST", "/host/register", body={
+        # ``agent_capabilities`` rides the real registration payload, exactly as
+        # a live agent sends it — so the host-detail Capabilities card and the
+        # hosts-list Limited badge are populated through the same ingestion path
+        # users exercise, not by writing the columns directly.  The per-platform
+        # profiles in fixtures.json mirror what the agent's runtime probes
+        # actually report (no `pro` CLI off Ubuntu, bhyve only on FreeBSD).
+        register_body = {
             "active": True, "fqdn": h["fqdn"], "hostname": h["hostname"],
             "ipv4": h.get("ipv4"), "agent_version": "1.4.0",
-        })
+        }
+        if h.get("capabilities"):
+            register_body["agent_capabilities"] = h["capabilities"]
+        status, body = _req("POST", "/host/register", body=register_body)
         if status not in (200, 201):
             print(f"  WARN register {h['fqdn']} -> {status}: {body}", file=sys.stderr)
             continue

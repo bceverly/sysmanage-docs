@@ -102,7 +102,7 @@ endif
 
 .PHONY: help install-dev install-hooks install-vm-deps install-browsers screenshot clean check-deps platform-info ensure-lint-tools \
        test test-spelling test-markdown-lint test-vale test-accessibility test-links \
-       check-test-deps website-package i18n-validate i18n-seed i18n-extract \
+       check-test-deps website-package i18n-validate i18n-seed i18n-extract i18n-fix \
        translate translate-dry translate-check lint lint-file-length lint-python lint-security lint-js
 
 # Default target
@@ -1050,3 +1050,19 @@ website-package:
 	export VERSION; \
 	echo ""; \
 	exec sh "$$CURDIR/scripts/build-website-deb.sh"
+
+# One command to FIX a failing i18n gate, in the order that actually works.
+# The check side is already composed by `make lint`; this is the other half,
+# and the ordering used to live only in someone's head.  --requeue is the step
+# that was missing from every written instruction: `make translate` only acts
+# on "[TODO] " values, so a STALE or English-identical value has to be re-marked
+# BEFORE translating or the run has nothing to do and the gate stays red.
+# Source hashes are recorded by the translate run itself, so there is no
+# separate baseline step (see scripts/i18n_hashes.py).
+i18n-fix:
+	@echo "=== i18n fix: seed -> requeue -> translate -> verify ==="
+	@$(MAKE) --no-print-directory i18n-seed
+	@$(PYTHON) scripts/i18n_strict.py --requeue
+	@$(MAKE) --no-print-directory translate SERVICE=$(SERVICE)
+	@$(MAKE) --no-print-directory i18n-strict
+	@echo "[OK] i18n gate green"
