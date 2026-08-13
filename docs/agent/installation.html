@@ -1418,7 +1418,44 @@ sudo rm -rf /var/log/sysmanage-agent*.log</code></pre>
                             <!-- Windows MSI Installation -->
                             <div class="tab-pane" id="windows-install">
                                 <div class="method-section featured-method">
-                                    <h3 data-i18n="agent_installation.installation.windows_msi.title" data-i18n-html>MSI Installer (Windows - Recommended)</h3>
+                                    <h3 data-i18n="agent_installation.installation.windows_bundle.title" data-i18n-html>Bundled Installer (Windows - Recommended)</h3>
+
+                                    <div class="apt-install-note">
+                                        <p data-i18n="agent_installation.installation.windows_bundle.intro" data-i18n-html>The bundled installer (<code>.exe</code>) is a single self-contained download that installs the Visual C++ runtime, Python, and the agent in sequence. Nothing is downloaded during installation, so it works on air-gapped hosts and behind restrictive proxies.</p>
+                                        <p><strong data-i18n="agent_installation.installation.windows_bundle.why" data-i18n-html>Why it exists:</strong> <span data-i18n="agent_installation.installation.windows_bundle.why_desc" data-i18n-html>Windows refuses to install one package from inside another. The bundle installs each prerequisite in its own transaction, so Python is genuinely present before the agent needs it, and the service is running by the time the installer returns.</span></p>
+                                    </div>
+
+                                    <h4 data-i18n="agent_installation.installation.windows_bundle.quick_start" data-i18n-html>Quick Installation</h4>
+                                    <pre><code># Download the latest bundle (x64).  Releases are published on GitHub;
+# substitute the version you want, or grab it from the Releases page.
+$VERSION = "3.5.1.0"
+$ARCH = "x64"  # or "arm64" for ARM64 Windows
+$URL = "https://github.com/bceverly/sysmanage-agent/releases/download/v$VERSION/sysmanage-agent-$VERSION-windows-$ARCH.exe"
+Invoke-WebRequest -Uri $URL -OutFile "sysmanage-agent-$VERSION-windows-$ARCH.exe"
+
+# Install (requires Administrator).  Installs VC++ runtime, Python and the agent.
+Start-Process ".\sysmanage-agent-$VERSION-windows-$ARCH.exe" -ArgumentList "/quiet","/norestart" -Wait -Verb RunAs
+
+# The service is already running at this point
+Get-Service SysManageAgent
+
+# Configure, then restart to apply
+notepad C:\ProgramData\SysManage\sysmanage-agent.yaml
+Restart-Service SysManageAgent</code></pre>
+
+                                    <div class="apt-benefits">
+                                        <h4 data-i18n="agent_installation.installation.windows_bundle.benefits_title" data-i18n-html>Benefits of the Bundle</h4>
+                                        <ul>
+                                            <li><strong data-i18n="agent_installation.installation.windows_bundle.offline" data-i18n-html>Works offline:</strong> <span data-i18n="agent_installation.installation.windows_bundle.offline_desc" data-i18n-html>Python and the Visual C++ runtime are embedded, not fetched during installation</span></li>
+                                            <li><strong data-i18n="agent_installation.installation.windows_bundle.immediate" data-i18n-html>Service running on return:</strong> <span data-i18n="agent_installation.installation.windows_bundle.immediate_desc" data-i18n-html>No deferred step; the agent is registered and started before the installer exits</span></li>
+                                            <li><strong data-i18n="agent_installation.installation.windows_bundle.respects" data-i18n-html>Respects an existing Python:</strong> <span data-i18n="agent_installation.installation.windows_bundle.respects_desc" data-i18n-html>Any Python 3.9 or newer already installed for all users is used as-is; no second interpreter is added</span></li>
+                                            <li><strong data-i18n="agent_installation.installation.windows_bundle.uninstall" data-i18n-html>Clean uninstall:</strong> <span data-i18n="agent_installation.installation.windows_bundle.uninstall_desc" data-i18n-html>Removes the service and the agent, and deliberately leaves Python in place so other software is not broken</span></li>
+                                        </ul>
+                                    </div>
+                                </div>
+
+                                <div class="method-section featured-method">
+                                    <h3 data-i18n="agent_installation.installation.windows_msi.title" data-i18n-html>MSI Installer (Windows)</h3>
 
                                     <div class="apt-install-note">
                                         <p><strong data-i18n="agent_installation.installation.windows_msi.supported" data-i18n-html>Supported Platforms:</strong></p>
@@ -1428,14 +1465,16 @@ sudo rm -rf /var/log/sysmanage-agent*.log</code></pre>
                                             <li data-i18n="agent_installation.installation.windows_msi.platforms_server" data-i18n-html>Windows Server 2019 or later</li>
                                             <li data-i18n="agent_installation.installation.windows_msi.platforms_arch" data-i18n-html>Architectures: x64 and ARM64</li>
                                         </ul>
-                                        <p><em data-i18n="agent_installation.installation.windows_msi.platforms_note" data-i18n-html>The MSI installer includes all dependencies (Python 3.12, VC++ Redistributable) and automatically installs the agent as a Windows service using NSSM.</em></p>
+                                        <p><em data-i18n="agent_installation.installation.windows_msi.platforms_note" data-i18n-html>The MSI installs the agent as a Windows service using NSSM. If Python 3.9+ is not already present, Windows will not allow the MSI to install it during the installation itself, so the MSI schedules a background task that installs Python and registers the service shortly after msiexec exits. The service therefore appears up to a minute or two after installation finishes. Use the bundled installer above to avoid the wait.</em></p>
                                     </div>
 
                                     <h4 data-i18n="agent_installation.installation.windows_msi.quick_start" data-i18n-html>Quick Installation</h4>
-                                    <pre><code># Download the latest package (x64)
-$VERSION = (Invoke-WebRequest -Uri "https://repo.sysmanage.org/agent/windows/latest.txt").Content.Trim()
+                                    <pre><code># Download the latest package (x64).  Releases are published on GitHub;
+# substitute the version you want, or grab it from the Releases page.
+$VERSION = "3.5.1.0"
 $ARCH = "x64"  # or "arm64" for ARM64 Windows
-Invoke-WebRequest -Uri "https://repo.sysmanage.org/agent/windows/packages/$VERSION/sysmanage-agent-$VERSION-windows-$ARCH.msi" -OutFile "sysmanage-agent-$VERSION-windows-$ARCH.msi"
+$URL = "https://github.com/bceverly/sysmanage-agent/releases/download/v$VERSION/sysmanage-agent-$VERSION-windows-$ARCH.msi"
+Invoke-WebRequest -Uri $URL -OutFile "sysmanage-agent-$VERSION-windows-$ARCH.msi"
 
 # Install the package (requires Administrator)
 Start-Process msiexec.exe -ArgumentList "/i sysmanage-agent-$VERSION-windows-$ARCH.msi /qn" -Wait -Verb RunAs
@@ -1492,6 +1531,41 @@ Start-Service SysManageAgent</code></pre>
                                         </table>
                                     </div>
 
+                                    <h4 data-i18n="agent_installation.installation.windows_diag.title" data-i18n-html>Checking that the install finished</h4>
+                                    <div class="apt-install-note">
+                                        <p data-i18n="agent_installation.installation.windows_diag.intro" data-i18n-html>Because the MSI can finish its work after msiexec exits, "the installer succeeded" and "the agent is running" are two different questions. The agent records the answer to the second one in the registry and in the Windows event log, so it can be checked from a script or a management tool rather than by reading a log file.</p>
+                                    </div>
+                                    <pre><code># What state is the install in?
+Get-ItemProperty 'HKLM:\SOFTWARE\SysManage\Agent' |
+    Select-Object BootstrapState, BootstrapDetail, BootstrapTimestamp
+
+# The same story, in the event log
+Get-EventLog -LogName Application -Source SysManageAgent -Newest 10</code></pre>
+                                    <div class="file-structure">
+                                        <table>
+                                            <tr>
+                                                <th data-i18n="agent_installation.installation.windows_diag.state" data-i18n-html>BootstrapState</th>
+                                                <th data-i18n="agent_installation.installation.windows_diag.meaning" data-i18n-html>Meaning</th>
+                                            </tr>
+                                            <tr>
+                                                <td><code data-i18n="docs.auto.agent.installation.wbs01">Complete</code></td>
+                                                <td data-i18n="agent_installation.installation.windows_diag.complete" data-i18n-html>Python, the virtual environment and the service are all in place. Nothing to do.</td>
+                                            </tr>
+                                            <tr>
+                                                <td><code data-i18n="docs.auto.agent.installation.wbs02">Pending</code></td>
+                                                <td data-i18n="agent_installation.installation.windows_diag.pending" data-i18n-html>Expected briefly on a host that had no Python: the background task has not finished yet. If it is still Pending after a few minutes, read BootstrapDetail, which names what is missing and the command to retry.</td>
+                                            </tr>
+                                            <tr>
+                                                <td><code data-i18n="docs.auto.agent.installation.wbs03">Running</code></td>
+                                                <td data-i18n="agent_installation.installation.windows_diag.running" data-i18n-html>The background task is working right now.</td>
+                                            </tr>
+                                            <tr>
+                                                <td><code data-i18n="docs.auto.agent.installation.wbs04">Failed</code></td>
+                                                <td data-i18n="agent_installation.installation.windows_diag.failed" data-i18n-html>The task ran and could not finish. BootstrapDetail says why; the usual cause is no route to python.org. Fix that and run <code>schtasks /run /tn SysManage-Agent-Bootstrap</code>, or use the bundled installer, which needs no network.</td>
+                                            </tr>
+                                        </table>
+                                    </div>
+
                                     <h4 data-i18n="agent_installation.installation.windows_msi.service_management" data-i18n-html>Service Management</h4>
                                     <pre><code># Check service status
 Get-Service SysManageAgent
@@ -1508,10 +1582,12 @@ Get-Content C:\ProgramData\SysManage\logs\service-stderr.log -Tail 50</code></pr
 
                                     <h4 data-i18n="agent_installation.installation.windows_msi.verify_checksum" data-i18n-html>Verify Package Integrity</h4>
                                     <pre><code># Download package and checksum
-$VERSION = "0.9.7.2"  # Replace with desired version
+$VERSION = "3.5.1.0"  # Replace with desired version
 $ARCH = "x64"  # or "arm64"
-Invoke-WebRequest -Uri "https://repo.sysmanage.org/agent/windows/packages/$VERSION/sysmanage-agent-$VERSION-windows-$ARCH.msi" -OutFile "sysmanage-agent-$VERSION-windows-$ARCH.msi"
-Invoke-WebRequest -Uri "https://repo.sysmanage.org/agent/windows/packages/$VERSION/sysmanage-agent-$VERSION-windows-$ARCH.msi.sha256" -OutFile "sysmanage-agent-$VERSION-windows-$ARCH.msi.sha256"
+$BASE = "https://github.com/bceverly/sysmanage-agent/releases/download/v$VERSION"
+# Works the same for the bundle: swap .msi for .exe below.
+Invoke-WebRequest -Uri "$BASE/sysmanage-agent-$VERSION-windows-$ARCH.msi" -OutFile "sysmanage-agent-$VERSION-windows-$ARCH.msi"
+Invoke-WebRequest -Uri "$BASE/sysmanage-agent-$VERSION-windows-$ARCH.msi.sha256" -OutFile "sysmanage-agent-$VERSION-windows-$ARCH.msi.sha256"
 
 # Verify checksum
 $expectedHash = (Get-Content "sysmanage-agent-$VERSION-windows-$ARCH.msi.sha256").Split()[0]

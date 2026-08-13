@@ -1080,7 +1080,7 @@
         "location": "Location",
         "logs": "Logs",
         "platforms_arch": "Architectures: x64 and ARM64",
-        "platforms_note": "The MSI installer includes all dependencies (Python 3.12, VC++ Redistributable) and automatically installs the agent as a Windows service using NSSM.",
+        "platforms_note": "The MSI installs the agent as a Windows service using NSSM. If Python 3.9+ is not already present, Windows will not allow the MSI to install it during the installation itself, so the MSI schedules a background task that installs Python and registers the service shortly after msiexec exits. The service therefore appears up to a minute or two after installation finishes. Use the bundled installer above to avoid the wait.",
         "platforms_server": "Windows Server 2019 or later",
         "platforms_windows10": "Windows 10 (1809) or later",
         "platforms_windows11": "Windows 11",
@@ -1090,7 +1090,7 @@
         "service_files": "Windows Service",
         "service_management": "Service Management",
         "supported": "Supported Platforms:",
-        "title": "MSI Installer (Windows - Recommended)",
+        "title": "MSI Installer (Windows)",
         "uninstall": "Uninstallation",
         "uninstall_gui": "Using Control Panel",
         "uninstall_gui_steps": "1. Open **Settings** > **Apps** > **Apps & features**\n2. Search for \"SysManage Agent\"\n3. Click **Uninstall**",
@@ -1184,6 +1184,32 @@
         "title": "Zypper Repository (SLES - Recommended)",
         "uninstall": "Uninstallation",
         "version_management": "Version Management"
+      },
+      "windows_bundle": {
+        "benefits_title": "Benefits of the Bundle",
+        "immediate": "Service running on return:",
+        "immediate_desc": "No deferred step; the agent is registered and started before the installer exits",
+        "intro": "The bundled installer (<code>.exe</code>) is a single self-contained download that installs the Visual C++ runtime, Python, and the agent in sequence. Nothing is downloaded during installation, so it works on air-gapped hosts and behind restrictive proxies.",
+        "offline": "Works offline:",
+        "offline_desc": "Python and the Visual C++ runtime are embedded, not fetched during installation",
+        "quick_start": "Quick Installation",
+        "respects": "Respects an existing Python:",
+        "respects_desc": "Any Python 3.9 or newer already installed for all users is used as-is; no second interpreter is added",
+        "title": "Bundled Installer (Windows - Recommended)",
+        "uninstall": "Clean uninstall:",
+        "uninstall_desc": "Removes the service and the agent, and deliberately leaves Python in place so other software is not broken",
+        "why": "Why it exists:",
+        "why_desc": "Windows refuses to install one package from inside another. The bundle installs each prerequisite in its own transaction, so Python is genuinely present before the agent needs it, and the service is running by the time the installer returns."
+      },
+      "windows_diag": {
+        "complete": "Python, the virtual environment and the service are all in place. Nothing to do.",
+        "failed": "The task ran and could not finish. BootstrapDetail says why; the usual cause is no route to python.org. Fix that and run <code>schtasks /run /tn SysManage-Agent-Bootstrap</code>, or use the bundled installer, which needs no network.",
+        "intro": "Because the MSI can finish its work after msiexec exits, \"the installer succeeded\" and \"the agent is running\" are two different questions. The agent records the answer to the second one in the registry and in the Windows event log, so it can be checked from a script or a management tool rather than by reading a log file.",
+        "meaning": "Meaning",
+        "pending": "Expected briefly on a host that had no Python: the background task has not finished yet. If it is still Pending after a few minutes, read BootstrapDetail, which names what is missing and the command to retry.",
+        "running": "The background task is working right now.",
+        "state": "BootstrapState",
+        "title": "Checking that the install finished"
       }
     },
     "navigation": {
@@ -7788,7 +7814,11 @@
           "039": "C:\\ProgramData\\SysManage\\sysmanage-agent.yaml.example",
           "040": "C:\\ProgramData\\SysManage\\db\\agent.db",
           "041": "C:\\ProgramData\\SysManage\\logs\\",
-          "042": "Alternative: Direct Installation"
+          "042": "Alternative: Direct Installation",
+          "wbs01": "Complete",
+          "wbs02": "Pending",
+          "wbs03": "Running",
+          "wbs04": "Failed"
         },
         "privileged-execution": {
           "001": "Documentation",
@@ -8115,6 +8145,23 @@
           "167": "Quick Navigation",
           "168": "← Cross-Platform Support",
           "169": "API Reference →"
+        },
+        "cfg": {
+          "ca": {
+            "default": "—",
+            "name": "<code>ca_bundle</code>",
+            "type": "string"
+          },
+          "proxy": {
+            "default": "—",
+            "name": "<code>proxy</code>",
+            "type": "string"
+          },
+          "url": {
+            "default": "—",
+            "name": "<code>url</code>",
+            "type": "string"
+          }
         }
       },
       "api": {
@@ -12372,7 +12419,7 @@
           "026": "Homebrew",
           "027": "Manual Installation",
           "028": "Windows Installation",
-          "029": "MSI Installer",
+          "029": "Bundled Installer",
           "030": "Chocolatey",
           "031": "2. Agent Configuration",
           "032": "Configuration File Location",
@@ -23002,6 +23049,40 @@
       "p1": "SysManage runs on Linux, Windows, macOS and the BSDs, across several processor architectures. Those platforms are not equivalent. Ubuntu Pro exists only on Ubuntu. bhyve is FreeBSD's hypervisor and vmm is OpenBSD's. WSL is a Windows feature. A dependency may have no build for a given architecture at all.",
       "p2": "Without a way to express that, a server has two bad options: assume every agent can do everything and let commands fail at the far end, or hide features from everyone because some hosts lack them. Capability advertisement replaces both with a straight answer from each agent.",
       "title": "Why this exists"
+    }
+  },
+  "agent_config": {
+    "ca_bundle": {
+      "help": "Path to the root certificate used by a TLS-inspecting (“break-and-inspect”) proxy. Trusting it keeps certificate verification switched on.",
+      "label": "Corporate CA Bundle (optional)"
+    },
+    "proxy": {
+      "help": "Usually unnecessary: the agent already honours HTTPS_PROXY, HTTP_PROXY and NO_PROXY from the environment. Set it explicitly where that environment does not reach the agent — a Windows service does not inherit a user’s shell variables.",
+      "label": "HTTP Proxy (optional)"
+    },
+    "server_url": {
+      "help": "One origin, and the only thing your firewall needs to allow: outbound 443 to this host. Leave the port off to mean 443. Add one only for development, where the backend runs without a reverse proxy in front of it — for example <code>http://localhost:8080</code>.",
+      "label": "Server URL"
+    },
+    "verify_ssl": {
+      "help": "Leave this on. If your network re-signs TLS with its own certificate authority, use the CA bundle below instead of turning verification off — turning it off accepts <em>any</em> certificate, from anyone."
+    }
+  },
+  "agent_configuration": {
+    "firewall": {
+      "detail": "There is no separate API port, no separate WebSocket port and no enrollment port. Registration, the command channel, package inventory and capability reports all travel over that one HTTPS connection, which the agent opens outbound. Nothing needs to reach the agent, so no inbound rule is required on the host running it.",
+      "proxy": "Behind a proxy? The agent honours <code>HTTPS_PROXY</code>, <code>HTTP_PROXY</code> and <code>NO_PROXY</code> from the environment, and <code>server.proxy</code> sets one explicitly where that environment does not reach it. If your proxy re-signs TLS, point <code>server.ca_bundle</code> at its root certificate — that keeps certificate verification switched on, which turning <code>verify_ssl</code> off does not.",
+      "rule": "<strong>Outbound TCP 443 from each agent to your SysManage host. That is the entire requirement.</strong>",
+      "title": "What your firewall needs to allow"
+    },
+    "server": {
+      "ca_bundle_desc": "Root certificate of a TLS-inspecting proxy. Certificate verification stays <strong>on</strong>; this simply adds that authority to the trusted set. A path that does not exist is a hard error, not a silent fallback.",
+      "hostname_desc": "Legacy. Server hostname or IP address, used only when <code>url</code> is absent.",
+      "port_default": "443 / 80",
+      "port_desc": "Legacy. Omit it: the scheme's standard port is what needs no firewall change.",
+      "proxy_desc": "Explicit outbound proxy. Normally unnecessary — <code>HTTPS_PROXY</code>, <code>HTTP_PROXY</code> and <code>NO_PROXY</code> are honoured from the environment.",
+      "url_desc": "The one origin the agent talks to, for example <code>https://sysmanage.example.com</code>. Omit the port to mean 443. Preferred over the legacy fields below.",
+      "use_https_desc": "Legacy. Superseded by the scheme in <code>url</code>."
     }
   }
 }

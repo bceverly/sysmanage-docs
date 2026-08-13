@@ -1080,7 +1080,7 @@
         "location": "Standort",
         "logs": "Protokolle",
         "platforms_arch": "Architekturen: x64 und ARM64",
-        "platforms_note": "Der MSI-Installer enthält alle Abhängigkeiten (Python 3.12, VC++ Redistributable) und installiert den Agent automatisch als Windows-Dienst mit NSSM.",
+        "platforms_note": "Das MSI installiert den Agent als Windows-Dienst mit NSSM. Wenn Python 3.9+ bereits vorhanden ist, weigert sich Windows, es zu installieren, daher plant das MSI einen Hintergrundtask, der Python und den Dienst nach dem Beenden von msiexec registriert. Der Dienst erscheint daher bis zu einer Minute oder zwei nach Abschluss der Installation. Verwenden Sie den oben stehenden Bundel-Installer, um die Wartezeit zu vermeiden.",
         "platforms_server": "Windows Server 2019 oder neuer",
         "platforms_windows10": "Windows 10 (1809) oder neuer",
         "platforms_windows11": "Windows 11",
@@ -1090,7 +1090,7 @@
         "service_files": "Windows-Dienst",
         "service_management": "Dienstverwaltung",
         "supported": "Unterstützte Plattformen:",
-        "title": "MSI Installer (Windows – empfohlen)",
+        "title": "MSI-Installer (Windows)",
         "uninstall": "Deinstallation",
         "uninstall_gui": "Über die Systemsteuerung",
         "uninstall_gui_steps": "1. Öffnen Sie **Einstellungen** > **Apps** > **Apps & Features**\n2. Suchen Sie nach \"SysManage Agent\"\n3. Klicken Sie auf **Deinstallieren**",
@@ -1184,6 +1184,32 @@
         "title": "Zypper-Repository (SLES – empfohlen)",
         "uninstall": "Deinstallation",
         "version_management": "Versionsverwaltung"
+      },
+      "windows_bundle": {
+        "benefits_title": "Vorteile der Anwendungsbundle",
+        "immediate": "Dienst beim Beenden aktiv:",
+        "immediate_desc": "Keine verschobene Schritt; der Agent wird vor dem Beenden des Installers registriert und gestartet",
+        "intro": "Der Bundel-Installer (<code>.exe</code>) ist ein einzelner selbstgekapselter Download, der die Visual C++ Laufzeit, Python und den Agent nacheinander installiert. Nichts wird beim Installationsvorgang heruntergeladen, sodass es auch auf isolierten Hosts und hinter restriktiven Proxys funktioniert.",
+        "offline": "Funktioniert offline:",
+        "offline_desc": "Python und die Visual C++ Laufzeit sind integriert, nicht beim Installationsvorgang heruntergeladen",
+        "quick_start": "Schnelle Installation",
+        "respects": "Respektiert eine bestehende Python:",
+        "respects_desc": "Jede bereits für alle Benutzer installierte Python 3.9 oder eine neuere Version wird unverändert verwendet; kein zweiter Interpreter wird hinzugefügt",
+        "title": "Bundel-Installer (Windows - Empfohlen)",
+        "uninstall": "Reiniger zur vollständigen Entfernung:",
+        "uninstall_desc": "Entfernt den Dienst und den Agent, und behütet absichtlich Python, damit andere Software nicht beeinträchtigt wird",
+        "why": "Warum es existiert:",
+        "why_desc": "Windows weigert sich, ein Paket innerhalb eines anderen zu installieren. Das Bundle installiert jedes Voraussetzungspaket in einer eigenen Transaktion, sodass Python vor dem Bedarf des Agents vorhanden ist und der Dienst beim Beenden des Installers aktiv ist."
+      },
+      "windows_diag": {
+        "complete": "Python, das virtuelle Umgebung und der Dienst sind alle vorhanden. Es gibt nichts zu tun.",
+        "failed": "Der Task wurde ausgeführt und konnte nicht beendet werden. BootstrapDetail gibt den Grund an; der häufigste Fehler ist keine Verbindung zu python.org. Beheben Sie das Problem und für die Wiederholung <code>schtasks /run /tn SysManage-Agent-Bootstrap</code> aus, oder verwenden Sie den Bundel-Installer, der kein Netzwerk benötigt.",
+        "intro": "Da das MSI seine Arbeit nach dem Beenden von msiexec fortsetzen kann, sind “der Installer war erfolgreich” und “das Agent ist aktiv” zwei verschiedene Fragen. Das Agent speichert die Antwort auf die zweite Frage im Windows-Registrierungsverzeichnis und im Windows-Ereignisprotokoll, sodass sie von einem Skript oder einer Verwaltungsoberfläche gelesen werden kann anstatt in einer Logdatei.",
+        "meaning": "Bedeutung",
+        "pending": "Erwartet kurzfristig auf einem Host ohne Python: der Hintergrundtask ist noch nicht beendet. Wenn es nach ein paar Minuten immer noch “Pending” ist, lesen Sie BootstrapDetail, das den fehlenden Bestandteil und den Befehl zum Wiederholen nennt.",
+        "running": "Der Hintergrundtask wird aktuell ausgeführt.",
+        "state": "Bootstrapsatz",
+        "title": "Prüfung, ob die Installation abgeschlossen ist"
       }
     },
     "navigation": {
@@ -7791,7 +7817,11 @@
           "039": "C:\\ProgramData\\SysManage\\sysmanage-agent.yaml.example",
           "040": "C:\\ProgramData\\SysManage\\db\\agent.db",
           "041": "C:\\ProgramData\\SysManage\\logs\\",
-          "042": "Alternative: Direkte Installation"
+          "042": "Alternative: Direkte Installation",
+          "wbs01": "Fertig",
+          "wbs02": "Ausstehend",
+          "wbs03": "Laufend",
+          "wbs04": "Fehlschlag"
         },
         "privileged-execution": {
           "001": "Dokumentation",
@@ -8118,6 +8148,23 @@
           "167": "Schnelle Navigation",
           "168": "← Plattformübergreifende Unterstützung",
           "169": "API-Referenz →"
+        },
+        "cfg": {
+          "ca": {
+            "default": "—",
+            "name": "<code>ca_bundle</code>",
+            "type": "string"
+          },
+          "proxy": {
+            "default": "—",
+            "name": "<code>proxy</code>",
+            "type": "string"
+          },
+          "url": {
+            "default": "—",
+            "name": "<code>url</code>",
+            "type": "string"
+          }
         }
       },
       "api": {
@@ -12375,7 +12422,7 @@
           "026": "Homebrew",
           "027": "Manuelle Installation",
           "028": "Installation unter Windows",
-          "029": "MSI-Installer",
+          "029": "Bereitgestellter Installator",
           "030": "Chocolatey",
           "031": "2. Agent-Konfiguration",
           "032": "Standort der Konfigurationsdatei",
@@ -23072,6 +23119,40 @@
       "p1": "SysManage läuft unter Linux, Windows, macOS und den BSDs, über mehrere Prozessorarchitekturen hinweg. Diese Plattformen sind nicht gleichwertig. Ubuntu-Pro existiert nur auf Ubuntu. bhyve ist das FreeBSD-Hypervisor und vmm ist das OpenBSD-Hypervisor. WSL ist ein Windows-Funktionalität. Eine Abhängigkeit kann für eine bestimmte Architektur überhaupt keinen Build haben.",
       "p2": "Ohne eine Möglichkeit, das auszudrücken, hat ein Server zwei schlechte Optionen: annehmen, dass jeder Agent alles kann und Befehle am weit entfernten Ende versagen lassen oder Funktionen von allen verstecken, weil einige Hosts sie fehlen. Die Fähigkeitsankündigung ersetzt beide mit einer direkten Antwort von jedem Agenten.",
       "title": "Warum es existiert"
+    }
+  },
+  "agent_config": {
+    "ca_bundle": {
+      "help": "Pfad zur Wurzelzertifikat einer TLS-inspektierenden („break-and-inspect“) Proxy. Vertrauen auf dieses Zertifikat schaltet die Zertifikatsprüfung weiterhin ein.",
+      "label": "Unternehmens-CA-Bundle (optional)"
+    },
+    "proxy": {
+      "help": "Normalerweise unnötig: Der Agent respektiert bereits HTTPS_PROXY, HTTP_PROXY und NO_PROXY aus der Umgebung. Legen Sie es explizit fest, wenn die Umgebung den Agenten nicht erreicht – ein Windows-Dienst erbt keine Shell-Variablen des Benutzers.",
+      "label": "HTTP-Proxy (optional)"
+    },
+    "server_url": {
+      "help": "Eine Ursprungsquelle und die einzige Sache, die Ihre Firewall zulassen muss: ausgehender TCP 443 zu diesem Host. Lassen Sie den Port unangetastet, um 443 zu bedeuten. Fügen Sie einen nur für Entwicklung hinzu, wo das Backend ohne Reverse-Proxy läuft – zum Beispiel <code>http://localhost:8080</code>.",
+      "label": "Server-URL"
+    },
+    "verify_ssl": {
+      "help": "Lassen Sie das aktiv. Wenn Ihr Netzwerk TLS mit seinem eigenen Zertifizierungsstelle neu signiert, verwenden Sie das unten angegebene CA-Bundle anstatt die Verifikation abzuschalten – das Ausschalten akzeptiert <em>jedes</em> Zertifikat von jedem."
+    }
+  },
+  "agent_configuration": {
+    "firewall": {
+      "detail": "Es gibt keinen separaten API-Port, keinen separaten WebSocket-Port und keinen Anmeldeport. Registrierung, der Befehlskanal, Paketinventar und Fähigkeitsberichte reisen alle über diese eine HTTPS-Verbindung, die der Agent auswärts öffnet. Nichts muss den Agenten erreichen, daher ist keine eingehende Regel auf dem Host erforderlich, der ihn ausführt.",
+      "proxy": "Hinter einem Proxy? Der Agent respektiert <code>HTTPS_PROXY</code>, <code>HTTP_PROXY</code> und <code>NO_PROXY</code> aus der Umgebung, und <code>server.proxy</code> legt einen explizit fest, wenn die Umgebung das nicht erreicht. Wenn Ihr Proxy TLS neu signiert, weisen Sie <code>server.ca_bundle</code> auf sein Wurzelzertifikat – dies schaltet Zertifikatsprüfung weiterhin ein, was das Ausschalten von <code>verify_ssl</code> nicht tut.",
+      "rule": "<strong>Outbound TCP 443 von jedem Agenten zu Ihrem SysManage-Host. Das ist die gesamte Anforderung.</strong>",
+      "title": "Was Ihre Firewall zulassen muss"
+    },
+    "server": {
+      "ca_bundle_desc": "Wurzelzertifikat einer TLS-inspektierenden Proxy. Die Zertifikatsprüfung bleibt <strong>aktiv</strong>; dies fügt diese Autorität zur vertrauenswürdigen Menge hinzu. Ein Pfad, der nicht existiert, ist ein schwerer Fehler und kein stummer Rückfall.",
+      "hostname_desc": "Veraltet. Server-Hostname oder -IP-Adresse, nur wenn <code>url</code> fehlt.",
+      "port_default": "443 / 80",
+      "port_desc": "Veraltet. Omitieren Sie es: der Standardport des Schemas ist derjenige, der keine Firewalländerungen erfordert.",
+      "proxy_desc": "Expliziter externer Proxy. Normalerweise unnötig – <code>HTTPS_PROXY</code>, <code>HTTP_PROXY</code> und <code>NO_PROXY</code> werden aus der Umgebung respektiert.",
+      "url_desc": "Die einzige Ursprungsquelle, mit der der Agent spricht, z.B. <code>https://sysmanage.example.com</code>. Omitieren Sie den Port für 443. Vorzugsweise über die veralteten Felder unten.",
+      "use_https_desc": "Veraltet. Durch das Schema in <code>url</code> ersetzt."
     }
   }
 }

@@ -1080,7 +1080,7 @@
         "location": "場所",
         "logs": "ログ",
         "platforms_arch": "アーキテクチャ：x64およびARM64",
-        "platforms_note": "MSIインストーラーには、すべての依存関係（Python 3.12、VC++ Redistributable）が含まれており、NSSMを使用してエージェントをWindowsサービスとして自動的にインストールします。",
+        "platforms_note": "MSIはNSSMを使用してエージェントをWindows サービスとしてインストールします。Python 3.9+がすでに存在しない場合、Windowsはインストール中にMSIがPythonをインストールすることを許可しませんので、MSIはmsiexecが終了した後すぐにPythonをインストールし、サービスを登録するバックグラウンドタスクをスケジューリングします。そのため、インストールが完了してから1分程度でサービスが表示されます。上記のバンドルインストーラーを使用すると、待機時間を避けることができます。",
         "platforms_server": "Windows Server 2019以降",
         "platforms_windows10": "Windows 10（1809）以降",
         "platforms_windows11": "Windows 11",
@@ -1090,7 +1090,7 @@
         "service_files": "Windowsサービス",
         "service_management": "サービス管理",
         "supported": "サポートされているプラットフォーム：",
-        "title": "MSIインストーラー（Windows - 推奨）",
+        "title": "MSIインストーラー（Windows）",
         "uninstall": "アンインストール",
         "uninstall_gui": "コントロールパネルの使用",
         "uninstall_gui_steps": "1. **設定** > **アプリ** > **アプリと機能**を開きます\n2. 「SysManage Agent」を検索します\n3. **アンインストール**をクリックします",
@@ -1184,6 +1184,32 @@
         "title": "Zypperリポジトリ（SLES - 推奨）",
         "uninstall": "アンインストール",
         "version_management": "バージョン管理"
+      },
+      "windows_bundle": {
+        "benefits_title": "バンドルの利点",
+        "immediate": "サービスの起動状態:",
+        "immediate_desc": "遅延ステップはありません；エージェントはインストーラーが終了する前に登録され、起動されます",
+        "intro": "バンドルインストーラー（<code>.exe</code>）は、Visual C++ランタイム、Python、およびエージェントを順にインストールする単一の自立型ダウンロードファイルです。インストール中に何もダウンロードされないため、空気隙間ホストや制限的なプロキシでも動作します。",
+        "offline": "オフラインでも動作",
+        "offline_desc": "PythonとVisual C++ランタイムは埋め込まれており、インストール時に取得されることはありません",
+        "quick_start": "クイックインストール",
+        "respects": "既存のPythonを尊重:",
+        "respects_desc": "既にインストールされているすべてのユーザー用のPython 3.9またはそれ以降のバージョンがそのまま使用されます；追加のインタープリターは追加されません",
+        "title": "バンドルインストーラー（Windows - 推奨）",
+        "uninstall": "クリーンアンインストール:",
+        "uninstall_desc": "サービスとエージェントを削除し、意図的にPythonを残しておきます；他のソフトウェアが壊れないようにします",
+        "why": "存在する理由:",
+        "why_desc": "パッケージが別のパッケージ内からインストールされることをWindowsは許可しません。バンドルは各前提条件を個々のトランザクションでインストールしますので、Pythonはエージェントが必要とする前に本当に存在し、サービスはインストーラーが返す前に実行されます。"
+      },
+      "windows_diag": {
+        "complete": "Python、仮想環境、およびサービスがすべて適切に配置されています。何も行う必要はありません。",
+        "failed": "タスクが実行されましたが完了できませんでした。BootstrapDetailには理由が記載されています；通常はpython.orgへのルートがないことが原因です。それを修正し、<code>schtasks /run /tn SysManage-Agent-Bootstrap</code>を実行するか、ネットワーク不要のバンドルインストーラーを使用してください。",
+        "intro": "MSIがmsiexecが終了した後でもその作業を完了できるため、「インストーラーが成功しました」と「エージェントが実行されています」は異なる質問です。エージェントは、2つ目の答えをレジストリとWindows イベント ログに記録するので、スクリプトや管理ツールから確認できます。",
+        "meaning": "意味",
+        "pending": "ホストにPythonが存在しない場合、バックグラウンドタスクがまだ終了していないため一時的に表示されます。数分後もPendingのままであれば、BootstrapDetailを確認し、欠落している部分と再試行するコマンドを参照してください。",
+        "running": "現在、バックグラウンドタスクは実行中です。",
+        "state": "ブートストラップ状態",
+        "title": "インストールが完了したかをチェックしています"
       }
     },
     "navigation": {
@@ -7791,7 +7817,11 @@
           "039": "C:\\\\ProgramData\\\\SysManage\\\\sysmanage-agent.yaml.example",
           "040": "C:\\\\ProgramData\\\\SysManage\\\\db\\\\agent.db",
           "041": "C:\\\\ProgramData\\\\SysManage\\\\logs\\\\",
-          "042": "直接インストールの代替案"
+          "042": "直接インストールの代替案",
+          "wbs01": "完全に完了しました",
+          "wbs02": "保留中",
+          "wbs03": "実行中",
+          "wbs04": "失敗しました"
         },
         "privileged-execution": {
           "001": "ドキュメンテーション",
@@ -8118,6 +8148,23 @@
           "167": "素早いナビゲーション",
           "168": "← クロスプラットフォームサポート",
           "169": "API Reference →"
+        },
+        "cfg": {
+          "ca": {
+            "default": "—",
+            "name": "<code>ca_bundle</code>",
+            "type": "string"
+          },
+          "proxy": {
+            "default": "—",
+            "name": "<code>proxy</code>",
+            "type": "string"
+          },
+          "url": {
+            "default": "—",
+            "name": "<code>url</code>",
+            "type": "string"
+          }
         }
       },
       "api": {
@@ -12375,7 +12422,7 @@
           "026": "Homebrew",
           "027": "手動インストール",
           "028": "Windows インストール",
-          "029": "MSI インストーラー",
+          "029": "バンドルインストーラ",
           "030": "Chocolatey",
           "031": "2. エージェント設定",
           "032": "設定ファイルの場所",
@@ -23006,6 +23053,40 @@
       "p1": "SysManage は Linux、Windows、macOS、および BSD の複数のプロセッサーアーキテクチャ上で動作します。これらのプラットフォームは同等ではありません。Ubuntu Pro は Ubuntu 上でのみ存在します。bhyve は FreeBSD の仮想化ソフトウェアであり、vmm は OpenBSD のものです。WSL は Windows の機能です。依存関係には特定のアーキテクチャ用にビルドされていないものもあります。",
       "p2": "これを表現する方法がない場合、サーバーには2つの悪い選択肢があります：すべてのエージェントがすべてを行うと仮定してコマンドを遠端で失敗させるか、一部のホストが欠如している機能をすべての人から隠す。機能広告は両方を直接の答えに置き換えます — 各エージェントからの。",
       "title": "なぜこれが存在するのか"
+    }
+  },
+  "agent_config": {
+    "ca_bundle": {
+      "help": "TLS検査（「ブレークアンドインスペクト」）プロキシのルート証明書へのパス。これにより証明書検証がオンのままになります。",
+      "label": "コーポレートCAバンドル（任意）"
+    },
+    "proxy": {
+      "help": "通常不要です：エージェントはすでに環境変数HTTPS_PROXY、HTTP_PROXYおよびNO_PROXYを尊重します。その環境がエージェントに到達しない場合（たとえばWindowsサービスがユーザーのシェル変数を継承しない場合）には明示的に設定してください。",
+      "label": "HTTPプロキシ（任意）"
+    },
+    "server_url": {
+      "help": "一つのオリジン、そしてファイアウォールが必要とする唯一のもの：このホストへのTCP 443のアウトバウンド接続です。ポートを指定しない場合は443がデフォルトとなります。開発環境でバックエンドがリバースプロキシなしで動作する場合にのみポートを追加します — 例えば <code>http://localhost:8080</code> のような場合です。",
+      "label": "サーバーURL"
+    },
+    "verify_ssl": {
+      "help": "オンのままに保つことをお勧めします。ネットワークが独自の証明書局でTLSを再署名する場合、下記のCAバンドルを使用して代わりに検証をオフにしないでください — 検証をオフにすると <em>任意の</em> 証明書を受け入れることになります。"
+    }
+  },
+  "agent_configuration": {
+    "firewall": {
+      "detail": "別途APIポートやWebSocketポート、登録ポートはありません。登録、コマンドチャネル、パッケージインベントリ、機能報告は全て一つのHTTPS接続を介して行われます。エージェントが開くアウトバウンド接続です。エージェントに到達する必要があるものは何もありませんので、ホスト上でインバウンドルールは不要です。",
+      "proxy": "プロキシを使用していますか？エージェントは環境変数から<code>HTTPS_PROXY</code>、<code>HTTP_PROXY</code> および <code>NO_PROXY</code> を尊重し、その環境変数が到達しない場合に <code>server.proxy</code> で明示的にプロキシを設定します。TLS 再署名を行うプロキシを使用している場合は、ルート証明書を指すように <code>server.ca_bundle</code> を設定してください — これは、<code>verify_ssl</code> をオフにすることによる検証の無効化とは異なります。",
+      "rule": "<strong>エージェントからSysManageホストへのTCP 443のアウトバウンド接続が必要です。これが全ての要件です。</strong>",
+      "title": "ファイアウォールが必要とするもの"
+    },
+    "server": {
+      "ca_bundle_desc": "TLS検査プロキシのルート証明書。証明書検証は <strong>オン</strong> のままで、この証明書局を信頼するセットに追加します。存在しないパスはハードエラーとなり、静かなフォールバックではありません。",
+      "hostname_desc": "レガシー。 <code>url</code> が存在しない場合のみ使用されます。",
+      "port_default": "443 / 80",
+      "port_desc": "レガシー。省略可能です：スキームの標準ポートは変更不要です。",
+      "proxy_desc": "明示的なアウトバウンドプロキシ。通常は不要です — <code>HTTPS_PROXY</code>, <code>HTTP_PROXY</code> および <code>NO_PROXY</code> が環境変数から尊重されます。",
+      "url_desc": "エージェントが通信を行う一つのオリジン、例えば <code>https://sysmanage.example.com</code> です。ポートを指定しない場合は443がデフォルトとなります。下記のレガシーフィールドよりも優先されます。",
+      "use_https_desc": "レガシー。 <code>url</code> のスキームによって置き換えられています。"
     }
   }
 }

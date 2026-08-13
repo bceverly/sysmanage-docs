@@ -1080,7 +1080,7 @@
         "location": "位置",
         "logs": "日志",
         "platforms_arch": "架构：x64和ARM64",
-        "platforms_note": "MSI安装程序包含所有依赖项（Python 3.12、VC++ Redistributable），并使用NSSM自动将代理安装为Windows服务。",
+        "platforms_note": "MSI 使用 NSSM 将代理作为 Windows 服务进行安装。如果未预先存在 Python 3.9+，Windows 不允许 MSI 在安装过程中安装它，因此 MSI 安排了一个后台任务，在 msiexec 退出后不久安装 Python 并注册服务。因此，服务可能在安装完成后一到两分钟内才显示为运行。使用上面的捆绑安装程序可避免等待时间。",
         "platforms_server": "Windows Server 2019 或更高版本",
         "platforms_windows10": "Windows 10（1809）或更高版本",
         "platforms_windows11": "视窗11",
@@ -1090,7 +1090,7 @@
         "service_files": "Windows服务",
         "service_management": "服务管理",
         "supported": "支持的平台：",
-        "title": "MSI安装程序（Windows - 推荐）",
+        "title": "MSI 安装程序（Windows）",
         "uninstall": "卸载",
         "uninstall_gui": "使用控制面板",
         "uninstall_gui_steps": "1. 打开**设置** > **应用** > **应用和功能**\\n2. 搜索\"SysManage Agent\"\\n3. 点击**卸载**",
@@ -1184,6 +1184,32 @@
         "title": "Zypper仓库（SLES - 推荐）",
         "uninstall": "卸载",
         "version_management": "版本管理"
+      },
+      "windows_bundle": {
+        "benefits_title": "捆绑包的优势",
+        "immediate": "返回时的服务状态：",
+        "immediate_desc": "无延迟步骤；代理在安装程序退出前已注册并启动",
+        "intro": "捆绑安装程序（<code>.exe</code>）是一个单一的自包含下载，按顺序安装 Visual C++ 运行时、Python 和代理。在安装过程中不会进行任何下载，因此它可以在没有网络连接的情况下工作。",
+        "offline": "离线工作",
+        "offline_desc": "Python 和 Visual C++ 运行时被嵌入，不会在安装过程中获取",
+        "quick_start": "快速安装",
+        "respects": "尊重现有的 Python：",
+        "respects_desc": "任何已安装的 Python 3.9 或更高版本将保持不变；不会添加第二个解释器",
+        "title": "捆绑安装程序（Windows - 推荐）",
+        "uninstall": "干净卸载：",
+        "uninstall_desc": "移除服务和代理，并故意保留 Python 以防止其他软件受到影响",
+        "why": "存在的原因：",
+        "why_desc": "Windows 不允许从一个包内部安装另一个包。捆绑包会为每个先决条件单独进行安装，因此 Python 在代理需要它之前就已经存在，并且服务在安装程序返回时已运行。"
+      },
+      "windows_diag": {
+        "complete": "Python、虚拟环境和服务均已就绪。无需执行任何操作。",
+        "failed": "该任务已运行但无法完成。BootstrapDetail 说明了原因；通常原因是无法访问 python.org。修复后，请运行 <code>schtasks /run /tn SysManage-Agent-Bootstrap</code> 或使用捆绑安装程序，后者不需要网络。",
+        "intro": "因为 MSI 在 msiexec 退出后仍可完成其工作，\"安装程序成功\" 和 \"代理正在运行\" 是两个不同的问题。代理会在注册表和 Windows 事件日志中记录对第二个问题的回答，因此可以通过脚本或管理工具进行检查，而无需查看日志文件",
+        "meaning": "含义",
+        "pending": "在没有 Python 的主机上预期出现的短暂情况：后台任务尚未完成。如果几分钟后仍处于 Pending 状态，请查看 BootstrapDetail，它会列出缺少的内容和重试命令。",
+        "running": "当前正在执行的后台任务。",
+        "state": "引导状态",
+        "title": "检查安装是否完成"
       }
     },
     "navigation": {
@@ -7791,7 +7817,11 @@
           "039": "C:\\ProgramData\\SysManage\\sysmanage-agent.yaml.example",
           "040": "C:\\\\ProgramData\\SysManage\\db\\agent.db",
           "041": "C:\\\\ProgramData\\\\SysManage\\\\logs\\\\",
-          "042": "直接安装备选项"
+          "042": "直接安装备选项",
+          "wbs01": "完整",
+          "wbs02": "等待中",
+          "wbs03": "正在运行",
+          "wbs04": "失败"
         },
         "privileged-execution": {
           "001": "文档",
@@ -8118,6 +8148,23 @@
           "167": "快速导航",
           "168": "← 跨平台支持",
           "169": "API 参考 →"
+        },
+        "cfg": {
+          "ca": {
+            "default": "—",
+            "name": "<code>ca_bundle</code>",
+            "type": "string"
+          },
+          "proxy": {
+            "default": "—",
+            "name": "<code>proxy</code>",
+            "type": "string"
+          },
+          "url": {
+            "default": "—",
+            "name": "<code>url</code>",
+            "type": "string"
+          }
         }
       },
       "api": {
@@ -12375,7 +12422,7 @@
           "026": "Homebrew",
           "027": "手动安装",
           "028": "Windows 安装",
-          "029": "MSI 安装程序",
+          "029": "捆绑安装程序",
           "030": "Chocolatey",
           "031": "2. 代理配置",
           "032": "配置文件位置",
@@ -23006,6 +23053,40 @@
       "p1": "SysManage 运行在 Linux、Windows、macOS 以及 BSD 系统上，支持多种处理器架构。这些平台并不等价。Ubuntu Pro 只存在于 Ubuntu 上。bhyve 是 FreeBSD 的虚拟化管理程序，vmm 是 OpenBSD 的。WSL 是 Windows 的一个功能。某个依赖项可能根本就没有特定架构的构建版本。",
       "p2": "没有一种方式来表达这一点，服务器有两个糟糕的选择：假设每个代理都能做所有事情，并让命令在远端失败，或者因为某些主机缺少这些功能而从所有人那里隐藏这些特性。能力广告替换了这两种选择，每个代理都直接给出一个明确的答案。",
       "title": "为什么存在这个"
+    }
+  },
+  "agent_config": {
+    "ca_bundle": {
+      "help": "指向TLS检查（“中断并检查”）代理的根证书路径。信任它保持证书验证开启。",
+      "label": "企业CA包（可选）"
+    },
+    "proxy": {
+      "help": "通常不需要：代理已经尊重环境中的 HTTPS_PROXY, HTTP_PROXY 和 NO_PROXY。当环境无法达到代理时明确设置它 — Windows服务不会继承用户的shell变量。",
+      "label": "HTTP代理（可选）"
+    },
+    "server_url": {
+      "help": "一个来源，您的防火墙需要允许的唯一内容：从这个主机到出站443。省略端口表示443。仅在开发时添加 — 后端没有反向代理运行的情况下，例如 <code>http://localhost:8080</code>。",
+      "label": "服务器URL"
+    },
+    "verify_ssl": {
+      "help": "保持开启状态。如果您的网络使用自己的证书颁发机构重新签署TLS，请使用下面的CA包代替关闭验证 — 关闭它接受 <em>任何</em> 来自任何人提供的证书。"
+    }
+  },
+  "agent_configuration": {
+    "firewall": {
+      "detail": "没有单独的API端口、WebSocket端口和注册端口。注册、命令通道、包清单和能力报告都通过一个HTTPS连接传输，代理打开该出站连接。不需要任何内容到达代理，因此在运行它的主机上无需设置入站规则。",
+      "proxy": "通过代理吗？代理尊重环境中的 <code>HTTPS_PROXY</code>, <code>HTTP_PROXY</code> 和 <code>NO_PROXY</code>，并且 <code>server.proxy</code> 明确设置一个代理，当环境无法达到时。如果您的代理重新签署TLS，请将 <code>server.ca_bundle</code> 指向其根证书 — 这样可以保持证书验证开启，而关闭 <code>verify_ssl</code> 则不会。",
+      "rule": "<strong>每个代理到您的SysManage主机的出站TCP 443。这就是全部要求。</strong>",
+      "title": "您的防火墙需要允许的内容"
+    },
+    "server": {
+      "ca_bundle_desc": "TLS检查代理的根证书。证书验证保持 <strong>开启</strong>；这仅将该权威机构添加到受信集合中。不存在的路径是硬错误，而不是静默回退。",
+      "hostname_desc": "遗留字段。仅当 <code>url</code> 缺失时使用服务器主机名或IP地址。",
+      "port_default": "443 / 80",
+      "port_desc": "遗留字段。省略：方案的标准端口不需要防火墙更改。",
+      "proxy_desc": "明确的出站代理。通常不需要 — <code>HTTPS_PROXY</code>, <code>HTTP_PROXY</code> 和 <code>NO_PROXY</code> 从环境继承。",
+      "url_desc": "代理通信的一个来源，例如 <code>https://sysmanage.example.com</code>。省略端口表示443。优先于下面的遗留字段。",
+      "use_https_desc": "遗留字段。被 <code>url</code> 中的方案所取代。"
     }
   }
 }

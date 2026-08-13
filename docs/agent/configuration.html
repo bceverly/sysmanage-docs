@@ -39,24 +39,44 @@
                 </section>
 
                 <section class="config-section">
-                    <h2 data-i18n="docs.auto.agent.configuration.013">Server Connection Settings</h2>
+<h2 data-i18n="agent_configuration.firewall.title" data-i18n-html>What your firewall needs to allow</h2>
+                    <div class="apt-install-note">
+                        <p data-i18n="agent_configuration.firewall.rule" data-i18n-html><strong>Outbound TCP 443 from each agent to your SysManage host. That is the entire requirement.</strong></p>
+                        <p data-i18n="agent_configuration.firewall.detail" data-i18n-html>There is no separate API port, no separate WebSocket port and no enrollment port. Registration, the command channel, package inventory and capability reports all travel over that one HTTPS connection, which the agent opens outbound. Nothing needs to reach the agent, so no inbound rule is required on the host running it.</p>
+                        <p data-i18n="agent_configuration.firewall.proxy" data-i18n-html>Behind a proxy? The agent honours <code>HTTPS_PROXY</code>, <code>HTTP_PROXY</code> and <code>NO_PROXY</code> from the environment, and <code>server.proxy</code> sets one explicitly where that environment does not reach it. If your proxy re-signs TLS, point <code>server.ca_bundle</code> at its root certificate &mdash; that keeps certificate verification switched on, which turning <code>verify_ssl</code> off does not.</p>
+                    </div>
+
+                                        <h2 data-i18n="docs.auto.agent.configuration.013">Server Connection Settings</h2>
                     <p data-i18n="docs.auto.agent.configuration.014">Configure how the agent connects to the SysManage server.</p>
 
                     <div class="config-example">
                         <h3 data-i18n="docs.auto.agent.configuration.015">Basic Server Configuration</h3>
                         <div class="code-block">
                             <pre><code>server:
-  # Hostname or IP address of the SysManage server
-  hostname: "sysmanage.example.com"
+  # ONE origin. The agent talks to /api on the same host and port the web UI
+  # is served from, so there is no separate API port, no separate WebSocket
+  # port, and no enrollment port.
+  #
+  # Omit the port to mean 443. Give one only for development, where the
+  # backend runs without a reverse proxy: url: "http://localhost:8080"
+  url: "https://sysmanage.example.com"
 
-  # Port number for the SysManage server
-  port: 8080
+  # Verify the server's TLS certificate. Leave this on.
+  verify_ssl: true
 
-  # Use HTTPS for secure communication
-  use_https: true
+  # If your network re-signs TLS with its own certificate authority, trust
+  # that authority here rather than switching verification off.
+  # ca_bundle: "/etc/ssl/certs/corporate-root.pem"
 
-  # Verify SSL certificates (recommended in production)
-  verify_ssl: true</code></pre>
+  # Optional. The agent already honours HTTPS_PROXY / NO_PROXY from the
+  # environment; set this where that environment does not reach the agent.
+  # proxy: "http://proxy.example.com:3128"
+
+  # LEGACY, still honoured when `url` is absent, so existing agents keep
+  # working after an upgrade. Prefer `url`.
+  # hostname: "sysmanage.example.com"
+  # port: 8080
+  # use_https: true</code></pre>
                         </div>
                     </div>
 
@@ -73,22 +93,40 @@
                             </thead>
                             <tbody>
                                 <tr>
+                                    <td data-i18n="docs.auto.agent.cfg.url.name" data-i18n-html><code>url</code></td>
+                                    <td data-i18n="docs.auto.agent.cfg.url.type">string</td>
+                                    <td data-i18n="docs.auto.agent.cfg.url.default">&mdash;</td>
+                                    <td data-i18n="agent_configuration.server.url_desc" data-i18n-html>The one origin the agent talks to, for example <code>https://sysmanage.example.com</code>. Omit the port to mean 443. Preferred over the legacy fields below.</td>
+                                </tr>
+                                <tr>
+                                    <td data-i18n="docs.auto.agent.cfg.ca.name" data-i18n-html><code>ca_bundle</code></td>
+                                    <td data-i18n="docs.auto.agent.cfg.ca.type">string</td>
+                                    <td data-i18n="docs.auto.agent.cfg.ca.default">&mdash;</td>
+                                    <td data-i18n="agent_configuration.server.ca_bundle_desc" data-i18n-html>Root certificate of a TLS-inspecting proxy. Certificate verification stays <strong>on</strong>; this simply adds that authority to the trusted set. A path that does not exist is a hard error, not a silent fallback.</td>
+                                </tr>
+                                <tr>
+                                    <td data-i18n="docs.auto.agent.cfg.proxy.name" data-i18n-html><code>proxy</code></td>
+                                    <td data-i18n="docs.auto.agent.cfg.proxy.type">string</td>
+                                    <td data-i18n="docs.auto.agent.cfg.proxy.default">&mdash;</td>
+                                    <td data-i18n="agent_configuration.server.proxy_desc" data-i18n-html>Explicit outbound proxy. Normally unnecessary &mdash; <code>HTTPS_PROXY</code>, <code>HTTP_PROXY</code> and <code>NO_PROXY</code> are honoured from the environment.</td>
+                                </tr>
+                                <tr>
                                     <td data-i18n="docs.auto.agent.configuration.021"><code>hostname</code></td>
                                     <td data-i18n="docs.auto.agent.configuration.022">string</td>
                                     <td data-i18n="docs.auto.agent.configuration.023">"localhost"</td>
-                                    <td data-i18n="docs.auto.agent.configuration.024">Server hostname or IP address</td>
+                                    <td data-i18n="agent_configuration.server.hostname_desc" data-i18n-html>Legacy. Server hostname or IP address, used only when <code>url</code> is absent.</td>
                                 </tr>
                                 <tr>
                                     <td data-i18n="docs.auto.agent.configuration.025"><code>port</code></td>
                                     <td data-i18n="docs.auto.agent.configuration.026">integer</td>
-                                    <td data-i18n="docs.auto.agent.configuration.027">8080</td>
-                                    <td data-i18n="docs.auto.agent.configuration.028">Server port number</td>
+                                    <td data-i18n="agent_configuration.server.port_default" data-i18n-html>443 / 80</td>
+                                    <td data-i18n="agent_configuration.server.port_desc" data-i18n-html>Legacy. Omit it: the scheme's standard port is what needs no firewall change.</td>
                                 </tr>
                                 <tr>
                                     <td data-i18n="docs.auto.agent.configuration.029"><code>use_https</code></td>
                                     <td data-i18n="docs.auto.agent.configuration.030">boolean</td>
                                     <td data-i18n="docs.auto.agent.configuration.031">false</td>
-                                    <td data-i18n="docs.auto.agent.configuration.032">Enable HTTPS for secure communication</td>
+                                    <td data-i18n="agent_configuration.server.use_https_desc" data-i18n-html>Legacy. Superseded by the scheme in <code>url</code>.</td>
                                 </tr>
                                 <tr>
                                     <td data-i18n="docs.auto.agent.configuration.033"><code>verify_ssl</code></td>

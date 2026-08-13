@@ -1080,7 +1080,7 @@
         "location": "Locatie",
         "logs": "Logbestanden",
         "platforms_arch": "Architecturen: x64 en ARM64",
-        "platforms_note": "Het MSI-installatieprogramma bevat alle afhankelijkheden (Python 3.12, VC++ Redistributable) en installeert de agent automatisch als een Windows-service met behulp van NSSM.",
+        "platforms_note": "De MSI installeert de agent als Windows-service met NSSM. Als Python 3.9+ al niet aanwezig is, laat Windows de MSI tijdens de installatie niet toestaan om het te installeren, dus de MSI pland een achtergrondtaak die Python installeert en de service registreert kort na afsluiten van msiexec. De service is dan maximaal een minuut of twee na installatie zichtbaar. Gebruik de bundelde installer hierboven om deze wachttijd te vermijden.",
         "platforms_server": "Windows Server 2019 of nieuwer",
         "platforms_windows10": "Windows 10 (1809) of nieuwer",
         "platforms_windows11": "Windows 11",
@@ -1090,7 +1090,7 @@
         "service_files": "Windows-service",
         "service_management": "Servicebeheer",
         "supported": "Ondersteunde platforms:",
-        "title": "MSI-installatieprogramma (Windows - Aanbevolen)",
+        "title": "MSI-Installer (Windows)",
         "uninstall": "Verwijderen",
         "uninstall_gui": "Via Configuratiescherm",
         "uninstall_gui_steps": "1. Open **Instellingen** > **Apps** > **Apps en functies**\n2. Zoek naar \"SysManage Agent\"\n3. Klik op **Verwijderen**",
@@ -1184,6 +1184,32 @@
         "title": "Zypper-repository (SLES - aanbevolen)",
         "uninstall": "Verwijderen",
         "version_management": "Versiebeheer"
+      },
+      "windows_bundle": {
+        "benefits_title": "Voordelen van de Bundle",
+        "immediate": "Service draait bij terugkeren:",
+        "immediate_desc": "Geen uitgestelde stap; de agent wordt geregistreerd en gestart voordat de installer afsluit",
+        "intro": "De bundelde installer (<code>.exe</code>) is een enkele zelfstandige download die de Visual C++ runtime, Python en de agent in volgorde installeert. Tijdens de installatie wordt niets gedownload, dus het werkt op isolerende hosts en achter restrictieve proxies.",
+        "offline": "Werkt offline:",
+        "offline_desc": "Python en het Visual C++ runtime zijn ingebouwd, niet gedownload tijdens de installatie",
+        "quick_start": "Snel Installeren",
+        "respects": "Respecteert een bestaande Python:",
+        "respects_desc": "Elke al geœtallen voor alle gebruikers beschikbare Python 3.9 of nieuwer wordt als-is gebruikt; er wordt geen tweede interpreter toegevoegd",
+        "title": "Bundelde Installer (Windows - Aanbevolen)",
+        "uninstall": "Schoon verwijderen:",
+        "uninstall_desc": "Verwijdert de service en de agent, maar laat Python opzettelijk intact zodat andere software niet wordt beschadigd",
+        "why": "Waarom het bestaat:",
+        "why_desc": "Windows weigert om een pakket te installeren vanuit binnenin een ander. De bundle installeert elk voorvereiste in zijn eigen transactie, zodat Python echt aanwezig is voordat de agent het nodig heeft en de service draait bij afsluiten van de installer."
+      },
+      "windows_diag": {
+        "complete": "Python, de virtuele omgeving en de service staan er allemaal. Er is niets te doen.",
+        "failed": "De taak is uitgevoerd en kon niet worden afgerond. BootstrapDetail geeft aan waarom; de meest voorkomende oorzaak is geen toegang tot python.org. Fix dat en voer <code>schtasks /run /tn SysManage-Agent-Bootstrap</code> uit, of gebruik de bundelde installer, die geen netwerk nodig heeft.",
+        "intro": "Omdat de MSI zijn werk kan afmaken na het uitvoeren van msiexec, vormen “the installer succeeded” en “the agent is running” twee verschillende vragen. De agent noteert het antwoord op de tweede vraag in de Windows-registre en in het Windows-eventlog, zodat het kan worden gecontroleerd vanuit een script of beheertools zonder dat een logbestand moet worden gelezen.",
+        "meaning": "Bedeeling",
+        "pending": "Tijdelijk op een host zonder Python te zien: de achtergrondtaak is nog niet afgerond. Als het na enkele minuten nog steeds in Wachtende staat verkeert, raadpleeg BootstrapDetail voor meer informatie over wat ontbreekt en welk commando moet worden heruitgevoerd.",
+        "running": "De achtergrondtaak werkt momenteel.",
+        "state": "Bootstraps-status",
+        "title": "Controleren of de installatie is voltooid"
       }
     },
     "navigation": {
@@ -7791,7 +7817,11 @@
           "039": "C:\\ProgramData\\SysManage\\sysmanage-agent.yaml.example",
           "040": "C:\\ProgramData\\SysManage\\db\\agent.db",
           "041": "C:\\ProgramData\\SysManage\\logs\\",
-          "042": "Alternatief: Directe Installatie"
+          "042": "Alternatief: Directe Installatie",
+          "wbs01": "Volledig",
+          "wbs02": "Wachtend",
+          "wbs03": "Actief",
+          "wbs04": "Mislukt"
         },
         "privileged-execution": {
           "001": "Documentatie",
@@ -8118,6 +8148,23 @@
           "167": "Snel Navigatie",
           "168": "← Overheen-platform ondersteuning",
           "169": "API Referentie →"
+        },
+        "cfg": {
+          "ca": {
+            "default": "—",
+            "name": "<code>ca_bundle</code>",
+            "type": "string"
+          },
+          "proxy": {
+            "default": "—",
+            "name": "<code>proxy</code>",
+            "type": "string"
+          },
+          "url": {
+            "default": "—",
+            "name": "<code>url</code>",
+            "type": "string"
+          }
         }
       },
       "api": {
@@ -12375,7 +12422,7 @@
           "026": "Homebrew",
           "027": "Handmatige Installatie",
           "028": "Installatie op Windows",
-          "029": "MSI-installer",
+          "029": "Gebundeld Installatieprogramma",
           "030": "Chocolatey",
           "031": "2. Agent-configuratie",
           "032": "Locatie Configuratiebestand",
@@ -23006,6 +23053,40 @@
       "p1": "SysManage draait op Linux, Windows, macOS en de BSDs, over verschillende processorarchitecturen. Deze platforms zijn niet equivalent. Ubuntu Pro bestaat alleen op Ubuntu. bhyve is het FreeBSD hypervisor en vmm is het OpenBSD hypervisor. WSL is een Windows functie. Een afhankelijkheid kan helemaal geen build hebben voor een gegeven architectuur.",
       "p2": "Zonder een manier om dat uit te drukken heeft een server slechts twee slechte opties: aannemen dat elke agent alles kan doen en toestaan dat commandoýen falen aan de andere kant, of features verbergen van iedereen omdat sommige hosts ze ontbreken. Capaciteitsadvertentie vervangt beide met een recht antwoord van elk agent.",
       "title": "Waarom dit bestaat"
+    }
+  },
+  "agent_config": {
+    "ca_bundle": {
+      "help": "Pad naar het wortelcertificaat gebruikt door een TLS-inspecterende (“break-and-inspect”) proxy. Vertrouwen op houdt certificatenverificatie aan.",
+      "label": "Bedrijfs CA Bundle (optioneel)"
+    },
+    "proxy": {
+      "help": "Normaal onnodig: de agent respecteert al HTTPS_PROXY, HTTP_PROXY en NO_PROXY vanuit de omgeving. Stel deze expliciet in waar dat niet van toepassing is — een Windows-service neemt geen shellvariabelen over van de gebruiker.",
+      "label": "HTTP Proxy (optioneel)"
+    },
+    "server_url": {
+      "help": "Een oorsprong en de enige regel die uw firewall nodig heeft: uitgaande 443 naar deze host. Laat de poort weg om te betekenen dat het 443 is. Voeg er een toe alleen voor ontwikkeling, waar de backend draait zonder een reverse proxy ervoor — bijvoorbeeld <code>http://localhost:8080</code>.",
+      "label": "Server-URL"
+    },
+    "verify_ssl": {
+      "help": "Laat dit aanstaan. Als uw netwerk TLS met een eigen certificeringsinstantie opnieuw ondertekent, gebruik dan het CA bundle hieronder in plaats van verificatie uit te schakelen — uitschakelen accepteert <em>elke</em> certificaat, van wie dan ook."
+    }
+  },
+  "agent_configuration": {
+    "firewall": {
+      "detail": "Er is geen aparte API-poort, geen aparte WebSocket-poort en geen inschrijfpoort. Registratie, de commando-kanalen, pakketinventaris en mogelijkheidsrapporten reizen allemaal over die ene HTTPS-verbinding, die de agent uitgaand opent. Niets hoeft naar de agent te komen, dus is er geen inkomende regel vereist op de host waar het draait.",
+      "proxy": "Bij een proxy? De agent respecteert <code>HTTPS_PROXY</code>, <code>HTTP_PROXY</code> en <code>NO_PROXY</code> uit de omgeving, en <code>server.proxy</code> stelt er expliciet één in waar dat niet van toepassing is. Als uw proxy TLS opnieuw ondertekent, wijst u <code>server.ca_bundle</code> naar het wortelcertificaat — dat houdt certificatenverificatie aan, wat uitschakelen van <code>verify_ssl</code> niet doet.",
+      "rule": "<strong>Uitgaande TCP 443 van elke agent naar uw SysManage-host. Dat is het enige vereiste.</strong>",
+      "title": "Wat uw firewall nodig heeft om toe te staan"
+    },
+    "server": {
+      "ca_bundle_desc": "Wortelcertificaat van een TLS-inspecterende proxy. Certificatenverificatie blijft <strong>aan</strong>; dit voegt deze instantie alleen toe aan de vertrouwde set. Een pad dat niet bestaat is een harde fout, geen stilteval.",
+      "hostname_desc": "Oudste versie. Server-hostnaam of IP-adres, alleen gebruikt als <code>url</code> ontbreekt.",
+      "port_default": "443 / 80",
+      "port_desc": "Oudste versie. Laat dit weg: de standaardpoort voor het schema hoeft geen firewall wijziging.",
+      "proxy_desc": "Expliciete uitgaande proxy. Normaal onnodig — <code>HTTPS_PROXY</code>, <code>HTTP_PROXY</code> en <code>NO_PROXY</code> worden geëerd vanuit de omgeving.",
+      "url_desc": "De enige oorsprong waar de agent naar spreekt, bijvoorbeeld <code>https://sysmanage.example.com</code>. Laat de poort weg om te betekenen dat het 443 is. Voordelig boven de oude velden hieronder.",
+      "use_https_desc": "Oudste versie. Overwonnen door het schema in <code>url</code>."
     }
   }
 }

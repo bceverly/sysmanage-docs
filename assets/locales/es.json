@@ -1080,7 +1080,7 @@
         "location": "Ubicación",
         "logs": "Registros",
         "platforms_arch": "Arquitecturas: x64 y ARM64",
-        "platforms_note": "El instalador MSI incluye todas las dependencias (Python 3.12, VC++ Redistributable) e instala automáticamente el agente como un servicio de Windows usando NSSM.",
+        "platforms_note": "El MSI instala el agente como un servicio de Windows usando NSSM. Si Python 3.9+ no está presente, Windows no permitirá que el MSI lo instale durante la instalación misma, por lo que el MSI programa una tarea de fondo que instala Python y registra el servicio poco después de que msiexec salga. El servicio aparece entonces hasta un minuto o dos después de que finaliza la instalación. Use el instalador empaquetado anterior para evitar la espera.",
         "platforms_server": "Windows Server 2019 o posterior",
         "platforms_windows10": "Windows 10 (1809) o posterior",
         "platforms_windows11": "ventanas 11",
@@ -1090,7 +1090,7 @@
         "service_files": "Servicio de Windows",
         "service_management": "Gestión del Servicio",
         "supported": "Plataformas soportadas:",
-        "title": "Instalador MSI (Windows - Recomendado)",
+        "title": "Instalador MSI (Windows)",
         "uninstall": "Desinstalación",
         "uninstall_gui": "Usando Panel de Control",
         "uninstall_gui_steps": "1. Abrir **Configuración** > **Aplicaciones** > **Aplicaciones y características**\n2. Buscar \"SysManage Agent\"\n3. Hacer clic en **Desinstalar**",
@@ -1184,6 +1184,32 @@
         "title": "Repositorio Zypper (SLES - Recomendado)",
         "uninstall": "Desinstalación",
         "version_management": "Gestión de Versiones"
+      },
+      "windows_bundle": {
+        "benefits_title": "Beneficios del Bundle",
+        "immediate": "Servicio en ejecución al regresar:",
+        "immediate_desc": "Sin paso diferido; el agente se registra y arranca antes de que el instalador salga",
+        "intro": "El instalador empaquetado (<code>.exe</code>) es una descarga autocontenida que instala la biblioteca de tiempo de ejecución del Visual C++, Python y el agente en secuencia. Nada se descarga durante la instalación, por lo que funciona en hosts aislados y detrás de proxies restrictivos.",
+        "offline": "Funciona sin conexión:",
+        "offline_desc": "Python y la biblioteca de tiempo de ejecución del Visual C++ están empaquetados, no se obtienen durante la instalación",
+        "quick_start": "Instalación rápida",
+        "respects": "Respetar un Python existente:",
+        "respects_desc": "Cualquier instalación de Python 3.9 o posterior ya existente para todos los usuarios se utiliza como está; no se agrega un segundo intérprete",
+        "title": "Instalador empaquetado (Windows - Recomendado)",
+        "uninstall": "Desinstalación limpia:",
+        "uninstall_desc": "Elimina el servicio y el agente, y deliberadamente deja Python en su lugar para que otros programas no se rompan",
+        "why": "Por qué existe:",
+        "why_desc": "Windows se niega a instalar un paquete dentro de otro. El bundle instala cada prerequisito en su propia transacción, por lo que Python está verdaderamente presente antes de que el agente la necesite, y el servicio está en ejecución cuando el instalador retorna."
+      },
+      "windows_diag": {
+        "complete": "Python, el entorno virtual y el servicio están todos en su lugar. No hay nada más por hacer.",
+        "failed": "La tarea se ejecutó pero no pudo finalizar. BootstrapDetail dice por qué; la causa habitual es falta de ruta a python.org. Arregle eso y ejecute <code>schtasks /run /tn SysManage-Agent-Bootstrap</code>, o use el instalador empaquetado, que no necesita red.",
+        "intro": "Porque el MSI puede terminar su trabajo después de que msiexec salga, \"el instalador tuvo éxito\" y \"el agente está en ejecución\" son dos preguntas diferentes. El agente registra la respuesta a la segunda una en el registro y en el evento Windows del sistema, por lo que se puede comprobar desde un script o una herramienta de administración en lugar de leer un archivo de registro.",
+        "meaning": "Significado",
+        "pending": "Se espera brevemente en un host que no tenía Python: la tarea de fondo aún no ha terminado. Si sigue Pendiente después de unos minutos, lea BootstrapDetail, que nombra lo que falta y el comando para volver a intentarlo.",
+        "running": "La tarea de fondo está trabajando en este momento.",
+        "state": "EstadoInicial",
+        "title": "Verificando que la instalación haya finalizado"
       }
     },
     "navigation": {
@@ -7791,7 +7817,11 @@
           "039": "C:\\ProgramData\\SysManage\\sysmanage-agent.yaml.example",
           "040": "C:\\ProgramData\\SysManage\\db\\agent.db",
           "041": "C:\\ProgramData\\SysManage\\logs\\",
-          "042": "Alternativa: Instalación Directa"
+          "042": "Alternativa: Instalación Directa",
+          "wbs01": "Completo",
+          "wbs02": "Pendiente",
+          "wbs03": "En ejecución",
+          "wbs04": "Fallido"
         },
         "privileged-execution": {
           "001": "Documentación",
@@ -8118,6 +8148,23 @@
           "167": "Navegación Rápida",
           "168": "← Soporte Multiplataforma",
           "169": "Referencia de API →"
+        },
+        "cfg": {
+          "ca": {
+            "default": "—",
+            "name": "<code>ca_bundle</code>",
+            "type": "string"
+          },
+          "proxy": {
+            "default": "—",
+            "name": "<code>proxy</code>",
+            "type": "string"
+          },
+          "url": {
+            "default": "—",
+            "name": "<code>url</code>",
+            "type": "string"
+          }
         }
       },
       "api": {
@@ -12375,7 +12422,7 @@
           "026": "Homebrew",
           "027": "Instalación manual",
           "028": "Instalación en Windows",
-          "029": "Instalador MSI",
+          "029": "Instalador Empaquetado",
           "030": "Chocolatey",
           "031": "2. Configuración del Agente",
           "032": "Ubicación del Archivo de Configuración",
@@ -23006,6 +23053,40 @@
       "p1": "SysManage se ejecuta en Linux, Windows, macOS y las BSDs, a través de varios arquitecturas de procesador. Esas plataformas no son equivalentes. Ubuntu Pro existe solo en Ubuntu. bhyve es el hipervisor de FreeBSD y vmm es el de OpenBSD. WSL es una característica de Windows. Una dependencia puede no tener un build para una determinada arquitectura.",
       "p2": "Sin una forma de expresar eso, un servidor tiene dos opciones malas: asumir que todos los agentes pueden hacer todo y dejar que los comandos fallen al otro extremo, o ocultar características a todos porque algunos hosts las carecen. La publicidad de capacidades reemplaza ambas con una respuesta directa desde cada agente.",
       "title": "Por qué esto existe"
+    }
+  },
+  "agent_config": {
+    "ca_bundle": {
+      "help": "Ruta al certificado raíz usado por un proxy que inspecciona TLS (“rompe y verifica”). Confiar en ello mantiene la verificación de certificados encendida.",
+      "label": "Paquete CA Corporativo (opcional)"
+    },
+    "proxy": {
+      "help": "Normalmente innecesario: el agente ya respeta HTTPS_PROXY, HTTP_PROXY y NO_PROXY del entorno. Establecelo explícitamente donde el entorno no llega al agente — un servicio de Windows no hereda las variables de shell del usuario.",
+      "label": "Proxy HTTP (opcional)"
+    },
+    "server_url": {
+      "help": "Una sola origen y la única cosa que tu firewall necesita permitir: salida 443 a este host. Déjalo sin puerto para significar 443. Agrega uno solo para desarrollo, donde el backend corre sin un proxy inverso delante de él — por ejemplo <code>http://localhost:8080</code>.",
+      "label": "URL del servidor"
+    },
+    "verify_ssl": {
+      "help": "Déjalo encendido. Si tu red re-firma TLS con su propia autoridad de certificación, usa el paquete CA a continuación en lugar de desactivar la verificación — desactivarlo acepta <em>cualquier</em> certificado, de cualquiera."
+    }
+  },
+  "agent_configuration": {
+    "firewall": {
+      "detail": "No hay un puerto de API separado, no hay un puerto WebSocket separado y no hay un puerto de inscripción. La registración, el canal de comandos, el inventario del paquete e informes de capacidad viajan todos por esa una conexión HTTPS, que el agente abre saliente. Nada necesita llegar al agente, así que ninguna regla entrante es necesaria en la máquina que lo ejecuta.",
+      "proxy": "¿Detrás de un proxy? El agente respeta <code>HTTPS_PROXY</code>, <code>HTTP_PROXY</code> y <code>NO_PROXY</code> del entorno, y <code>server.proxy</code> establece uno explícitamente donde el entorno no llega a él. Si tu proxy re-firma TLS, apunta <code>server.ca_bundle</code> al certificado raíz — eso mantiene la verificación de certificados encendida, lo que desactivar <code>verify_ssl</code> no hace.",
+      "rule": "<strong>Salida TCP 443 desde cada agente hasta tu host SysManage. Eso es todo el requisito.</strong>",
+      "title": "Lo que tu firewall necesita permitir"
+    },
+    "server": {
+      "ca_bundle_desc": "Certificado raíz del proxy que inspecciona TLS. La verificación de certificados se mantiene <strong>encendida</strong>; esto simplemente agrega esa autoridad al conjunto confiable. Una ruta que no exista es un error duro, no una caída silente.",
+      "hostname_desc": "Herencia. Nombre o dirección IP del servidor, usado solo cuando <code>url</code> esté ausente.",
+      "port_default": "443 / 80",
+      "port_desc": "Herencia. Omítelo: el puerto estándar del esquema es lo que no necesita cambios en el firewall.",
+      "proxy_desc": "Proxy saliente explícito. Normalmente innecesario — <code>HTTPS_PROXY</code>, <code>HTTP_PROXY</code> y <code>NO_PROXY</code> son respetados del entorno.",
+      "url_desc": "El único origen con el que el agente habla, por ejemplo <code>https://sysmanage.example.com</code>. Omítelo para significar 443. Preferido sobre los campos heredados a continuación.",
+      "use_https_desc": "Herencia. Sustituido por el esquema en <code>url</code>."
     }
   }
 }
