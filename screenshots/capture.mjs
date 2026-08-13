@@ -260,6 +260,15 @@ async function captureClick(page, shot, vp) {
   });
   await page.waitForTimeout(shotlist.settleMs || 2500);
   let detail = shot.route;
+  // Select the tab BEFORE clicking anything: a panel on a non-default tab is
+  // not in the DOM yet, so a click targeted at it would miss and the shot would
+  // silently capture the default tab instead — a screenshot that looks fine and
+  // documents the wrong thing.
+  if (shot.tab) {
+    await page.getByRole('tab', { name: shot.tab, exact: false }).first().click({ timeout: 15000 });
+    await page.waitForTimeout(1000);
+    detail += ` » tab "${shot.tab}"`;
+  }
   if (shot.clickButton) {
     await page.getByRole('button', { name: shot.clickButton, exact: false }).first().click({ timeout: 15000 });
     detail += ` » "${shot.clickButton}"`;

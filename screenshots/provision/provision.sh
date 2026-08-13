@@ -64,7 +64,38 @@ wait_for_apt
 # apt 2.4 (Ubuntu 22.04) honours this: block on a held lock instead of erroring.
 echo 'DPkg::Lock::Timeout "600";' > /etc/apt/apt.conf.d/99-sysmanage-lock-timeout
 
-apt-get update -y
+# Point apt at the canonical archive before updating.
+#
+# The base box bakes in whatever mirror it was built against (currently
+# mirrors.edge.kernel.org).  When that mirror's index cannot be refreshed apt
+# does NOT fail -- it prints "Ign ... InRelease", silently keeps the stale
+# package lists from the image, and the install then 404s on every single .deb
+# because those exact versions have long been superseded.  Observed 2026-08-12:
+# 17 consecutive "404 Not Found" fetches, which reads like a broken network
+# rather than a stale index.
+#
+# archive.ubuntu.com is the canonical source and is what the mirrors mirror.
+if [ -f /etc/apt/sources.list ]; then
+    sed -i -E 's#https?://[^ ]*(archive\.ubuntu\.com|mirrors\.edge\.kernel\.org)/ubuntu#http://archive.ubuntu.com/ubuntu#g' \
+        /etc/apt/sources.list
+fi
+
+# `apt-get update` exits 0 even when it could not refresh an index, so check
+# explicitly: continuing with stale lists is what produced the 404 storm.
+apt-get update -y 2>&1 | tee /tmp/apt-update.log
+if grep -qE '^(Ign|Err)' /tmp/apt-update.log; then
+    echo "  apt index refresh was incomplete — retrying once:"
+    grep -E '^(Ign|Err)' /tmp/apt-update.log | head -5
+    apt-get update -y 2>&1 | tee /tmp/apt-update.log
+    if grep -qE '^Err' /tmp/apt-update.log; then
+        echo "ERROR: apt cannot refresh its package index." >&2
+        echo "       Installing against stale lists 404s on every package," >&2
+        echo "       which looks like a network fault but is not." >&2
+        grep -E '^Err' /tmp/apt-update.log | head -10 >&2
+        exit 1
+    fi
+fi
+
 apt-get install -y postgresql postgresql-contrib python3 python3-venv python3-pip \
     gettext build-essential libpq-dev git rsync curl jq ca-certificates gnupg
 # The web UI is React + Vite, which needs Node 18+. Ubuntu's default 'nodejs' is

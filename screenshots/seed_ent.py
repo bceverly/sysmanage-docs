@@ -317,8 +317,8 @@ INSTALL_SOURCES = [
 # Per-MAC assignments across the lifecycle, so the list shows every state a
 # machine passes through rather than a single frozen one.
 INSTALL_ASSIGNMENTS = [
-    # (mac, hostname, source name, state).  netboot_armed is DERIVED from
-    # state (armed while assigned/building/failed), so it is not carried here.
+    # (mac, hostname, source, state[, detail, log_tail]).  netboot_armed is
+    # DERIVED from state (armed while assigned/building/failed), not carried.
     ("52:54:00:8a:11:01", "blade-01.corp.northstar.io", "ubuntu-24.04-netboot",
      "installed"),
     ("52:54:00:8a:11:02", "blade-02.corp.northstar.io", "ubuntu-24.04-netboot",
@@ -329,6 +329,10 @@ INSTALL_ASSIGNMENTS = [
      "assigned"),
     ("52:54:00:8a:11:05", "storage-02.corp.northstar.io", "freebsd-14-netboot",
      "failed"),
+    ("52:54:00:8a:11:06", "blade-04.corp.northstar.io", "ubuntu-24.04-netboot",
+     "agent_missing", "agent install failed",
+     "Reading package lists...\nBuilding dependency tree...\n"
+     "E: Unable to locate package sysmanage-agent\n"),  # noqa: E501
 ]
 
 # The parking lot: hardware that PXE-booted with no assignment yet.  Facts come
@@ -940,11 +944,14 @@ def main():
             sources[name] = row
         session.flush()  # assign PKs before the assignments reference them
 
-        for mac, hostname, source_name, state in INSTALL_ASSIGNMENTS:
+        for mac, hostname, source_name, state, *report in INSTALL_ASSIGNMENTS:
+            detail, log_tail = (list(report) + [None, None])[:2]
             session.add(HostInstallAssignment(
                 mac_address=mac, hostname=hostname,
                 install_source_id=sources[source_name].id,
                 state=state, params={},
+                install_detail=detail, install_log_tail=log_tail,
+                install_reported_at=(NOW - timedelta(hours=5)) if detail else None,
                 last_boot_at=(NOW - timedelta(hours=6)) if state != "assigned" else None,
                 created_at=NOW - timedelta(days=2), updated_at=NOW,
             ))

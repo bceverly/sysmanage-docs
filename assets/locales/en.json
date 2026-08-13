@@ -20204,11 +20204,12 @@
       "baremetal": {
         "assignments": {
           "answerfile": "The answer file a machine fetches is guarded by a single-use, expiring boot token rather than by credentials — a machine partway through a network boot has no identity to authenticate with. The token is minted per boot, and the plaintext is never returned by the API.",
-          "armed": "<strong>Netboot armed</strong> is the safety-critical field on this page. While a machine is armed it will reinstall itself — erasing its disk — every time it network-boots. Arming is therefore derived from install state rather than being a free-standing switch: a machine is armed while it is <code>assigned</code>, <code>building</code>, or <code>failed</code>, and is automatically disarmed the moment it reports <code>installed</code>. That is what stops a finished server from reinstalling itself on its next reboot forever.",
+          "armed": "<strong>Netboot armed</strong> is the safety-critical field on this page. While a machine is armed it will reinstall itself — erasing its disk — every time it network-boots.",
           "caption": "Provisioning → Bare Metal shows each machine's assigned OS, install state, and whether netboot is still armed.",
           "description": "An <strong>assignment</strong> pins one MAC address to one install source, optionally with a hostname, site, and access group. When that machine network-boots, the per-MAC boot endpoint resolves the assignment and serves the matching installer — which is what makes “Ubuntu on this box, Rocky on that one, FreeBSD on a third” a deliberate choice rather than an accident of boot order.",
           "rearm": "Re-arming an already-installed machine is deliberately a confirmed action, because it is destructive: the next network boot wipes the disk and reinstalls from scratch. Use it to rebuild a machine in place.",
-          "title": "Per-MAC Assignment and Netboot Arming"
+          "title": "Per-MAC Assignment and Netboot Arming",
+          "armedStates": "Arming is derived from install state rather than being a free-standing switch. A machine is armed while it is <code>assigned</code>, <code>building</code>, or <code>failed</code>, and is disarmed once it reports <code>installed</code> or <code>agent_missing</code>. That is what stops a finished server from reinstalling itself on every reboot."
         },
         "bootdisk": {
           "description": "Not every network can PXE boot — a segment may have no DHCP you are allowed to touch, or the machine may sit somewhere PXE traffic does not reach. For those cases an assignment can be turned into boot media directly, and the rest of the flow is identical once the machine starts.",
@@ -20242,7 +20243,15 @@
           "rhel": "RHEL / Rocky / Alma → <code>kickstart</code>; SUSE → <code>autoyast</code>",
           "title": "Install-Source Catalog"
         },
-        "title": "Bare-Metal Provisioning (PXE)"
+        "title": "Bare-Metal Provisioning (PXE)",
+        "report": {
+          "caption": "The install report carries the machine's own reason and the tail of its bootstrap log — here, a package the installer could not find.",
+          "description": "A machine reports its own outcome when the install finishes, and that report is kept on the assignment. This matters because the failure that costs the most time is not a machine that fails loudly — it is one that installs perfectly and then never appears in the fleet. Before the machine reported anything, the reason for that lived only in bootstrap output on a console nobody was watching.",
+          "disarm": "Both <code>installed</code> and <code>agent_missing</code> <strong>disarm</strong> netboot; only <code>failed</code> stays armed for another attempt. That asymmetry is deliberate: an install that did not complete should be retried, but a machine whose OS is fine and whose agent is broken must never be reinstalled — that would erase a working system to fix a package.",
+          "log": "The report holds a one-line reason and the tail of the bootstrap log, so a row reads <em>agent install failed: Unable to locate package sysmanage-agent</em> rather than simply <code>installed</code>. Reporting is best-effort and never blocks the disarm: a machine that cannot reach the server at all still stops netbooting, because a machine stuck reinstalling itself is a worse outcome than one with a missing agent.",
+          "states": "Two outcomes are therefore recorded separately, and the difference is not cosmetic. <code>installed</code> means the agent is up. <code>agent_missing</code> means the operating system installed and the agent did not — the machine is usable but will never enrol until someone looks at it. A third state, <code>failed</code>, means the install itself did not complete.",
+          "title": "Why an Install Ended That Way"
+        }
       }
     }
   },
