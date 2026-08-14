@@ -687,7 +687,7 @@
       "multilingual": "<strong> Meertalige ondersteuning </strong> - Native ondersteuning voor 14 talen",
       "package_management": "<strong> Platformonafhankelijk pakketbeheer </strong> - Native ondersteuning voor alle grote pakketbeheerders",
       "platform_freebsd": "⚜ FreeBSD",
-      "platform_linux": "🐧 Linux (Ubuntu, Debian, CentOS, RHEL, Fedora)",
+      "platform_linux": "🦆 Linux (Ubuntu, Debian, CentOS, RHEL, Fedora)",
       "platform_macos": "🍎 macOS (Intel en Apple Silicon)",
       "platform_netbsd": "🔧 NetBSD",
       "platform_openbsd": "🛡 ️ OpenBSD",
@@ -731,7 +731,7 @@
       "description": "Wat elk agent werkelijk op zijn platform kan doen, en hoe de server dit oppakt en enforceert.",
       "gating": "Geweigerde commandoýen in plaats van afwijzing op afstand",
       "limited": "Volledige, beperkte en onbekende hosts",
-      "link": "Capabilities Guide →",
+      "link": "Beheersgids →",
       "reporting": "Wat een agent aankondigt en hoe hij beslist",
       "title": "Capaciteiten"
     }
@@ -2704,8 +2704,8 @@
         },
         "config": {
           "title": "De role: configuratie-instelling",
-          "summary": "Add one key to /etc/sysmanage.yaml on each server:",
-          "validation": "The startup config loader validates the value at boot; an unknown role aborts startup with a clear error. The role is also exposed via the unauthenticated GET /api/v1/server-info endpoint, which the web UI uses to render a chip in the header bar so operators can see at a glance which half of an air-gap pair they're looking at.",
+          "summary": "Stel de rol in via de webinterface — geen bewerking van configuratiebestanden nodig. Ga naar <strong>Instellingen &rarr; Serverrol",
+          "validation": "De rol wordt ook onbeveiligd via de <code>GET /api/v1/server-info exposed",
           "degraded_chip": "If role: is set to collector or repository but the corresponding Pro+ engine isn't loaded (typically a license problem), the chip turns red and a tooltip explains what's missing. Server keeps running in degraded mode so you can fix the license without losing access to the rest of the UI.",
           "opt_standard": "<strong>Standaard (geen luchtkering)",
           "opt_collector": "<strong>Air-Gap Collector (online kant)",
@@ -2715,14 +2715,14 @@
         "collection_cycle": {
           "title": "Verzamelcyclus (Verzamelaar-zijde)",
           "summary": "Triggered by an operator (UI, API, or cron) on the public-side server. The engine emits a deployment plan that runs locally on the collector itself; it does not dispatch to managed agents.",
-          "step_request": "Request — POST /api/v1/airgap/collector/collection/runs with a body listing each distro/version/repo to capture, plus flags for CVE and compliance snapshot inclusion and target media size (one DVD, BD-R, etc.).",
-          "step_validate": "Validation — distros are checked against the supported list (13 families in v0.1.0); version strings are constrained to a tight regex so they cannot smuggle shell metacharacters into the dispatch templates; iso_label is constrained the same way.",
-          "step_mirror": "Mirror — per-distro dispatch templates run apt-mirror (Debian / Ubuntu), dnf reposync (RHEL family), zypper download (openSUSE / SLES), pkg fetch (FreeBSD), apk fetch (Alpine), or distribution-specific equivalents. Each command has a 4-hour timeout ceiling; the agent's in-flight journal (Phase 11.6) covers the multi-hour run across WebSocket reconnects.",
+          "step_request": "ontvangst van een <strong>POST /api/v1/airgap/collector/runs</strong>-aanvraag met een lichaam dat elke doel als een <code>ontvangst van een </code>ontvangst van een <code>ontvangst van een {mirror_id}ontvangst van een </code>ontvangst van een <code>/api/mirror-repositories</code>-lijst bevat, plus de parameters <code>iso_label</code>, <code>media_size_bytes</code>, <code>include_cve</code>, <code>include_compliance</code> en optioneel <code>burn_device</code>. De distributie / versie / repos worden serverkant afgeleid van elke spiegel's <code>known_version</code> catalogus-item.",
+          "step_validate": "<strong>Validatie</strong> — elk geselecteerd spiegel moet bestaan, zijn ingeschakeld, een <code>known_version_id</code> hebben en dezelfde <code>host_id</code> delen met de andere selecties (het verzamelplan roept één agent aan, dus doelgroepen op verschillende hosts worden niet ondersteund in v1). Versie-strings zijn beperkt tot een strakke regex zodat ze geen shell-meta-characteren kunnen smokkelen naar de dispatch-sjablonen; <code>iso_label</code> is eveneens aan dezelfde regels gebonden.",
+          "step_mirror": "<strong>Spiegelbeeld (afname-basis)</strong> — zodra alle afnames gereed zijn, bouwt de orchestrator <code>build_snapshot_collection_run_plan</code> met een <code>source_snapshots</code> map van <code>\"&lt;distro&gt;:&lt;version&gt;\"</code> → pad naar snapshotmap. Het plan rsync­ht elk afnamebestandstelsel in per-doel stage-mappen. Er worden geen upstream apt-mirror / reposync / pkg fetch uitvoeringen op tijd van de collectie — het pakket is bewijsbaar byte-voor-byte identiek aan de afname. Elk rsync heeft een 4-uurs tijdschriftruimte; de journal van de agent in transit (Fase 11.6) dekt de multi­uurlopende uitvoering over WebSocket herverbindingen.",
           "step_cve": "CVE / compatibiliteitsopname — indien gevraagd, worden de NVD en leverancier-adviesfeeds op hetzelfde moment gevangen zodat de resulterende media set een coherent punt-in-tijdbeeld van openbare kwetsbaarheidsgegevens heeft.",
-          "step_iso": "ISO build — xorriso -as mkisofs bundles the staging tree into one ISO with the manifest embedded at /manifest.json. The post-build step computes the ISO's SHA-256 for the transfer log.",
+          "step_iso": "<strong>ISO build</strong> — <code>xorriso -as mkisofs</code> bundelt de staging tree in één ISO op <code>/var/lib/sysmanage/airgap-iso/&lt;run_id&gt;.iso</code> met het manifest ingebed op <code>/manifest.json</code>. De post-build stap berekent de SHA-256 van het ISO voor de overdrachtlog.",
           "step_sign": "Handtekening — het manifest is canoniek (gesorteerde sleutels, geen spaties) en ondertekend met de operator's ed25519 privé-sleutel. Het omhulsel draagt de handtekening, de SHA-256 van de openbare sleutel als een vingerafdruk, het algoritme-ID en de manifestformatie-versie.",
-          "step_burn": "Burn — optional. POST /api/v1/airgap/collector/iso/burn wraps growisofs against the configured optical-drive device. The burn-step timeout ceiling is 4 hours so slow drives don't trip a watchdog mid-write.",
-          "multidisc_note": "Note on multi-disc spanning. v0.1.0 ships the single-disc happy path — if the staging tree exceeds the configured media size, the burn step fails at runtime. Multi-disc bin-packing is tracked as a Phase 11.1 follow-up. The schema already supports it (the manifest table carries disc_index + disc_count) so it lands additively.",
+          "step_burn": "<strong>Brand (optioneel)</strong> — als <code>brand_apparaat</code> op de uitvoerrij is ingesteld, stelt de orchestrator ISO_BUILT → BURNING in door <code>build_burn_plan</code> te dispatchen naar dat apparaatpad (meestal <code>/dev/sr0</code>). De brand-stap tijdslimiet bedraagt 4 uur zodat langzame apparaten geen watchdog niet midden in een schrijfbewerking activeren. Als <code>brand_apparaat</code> NULL is, gaat de uitvoering direct ISO_BUILT → COMPLETE — het \"maak een downloadbare ISO en stop\"-scenario dat geen fysieke media aanraakt.",
+          "multidisc_note": "<strong>Multi-disc spanning (Fase 12).</strong> Wanneer <code>sum(target.source_snapshot.size_bytes) &gt; run.media_size_bytes</code> sturen de orchestrator naar <code>build_snapshot_multidisc_collection_plan</code>, die de hele doelbomen eerst-volledig-dalend in pakketten op discs plaatst. Elke disc krijgt zijn eigen staging directory + rsync + xorriso + sha256 in één inline plan; het resultaat is <code>&lt;run_id&gt;-disc-&lt;N&gt;.iso</code>. De orchestrator rapporteert een duidelijke fout als de boom van enig doel groter is dan de discgrootte — bestandsniveau-splitsing (een spiegelboom over meerdere discs verdelen) wordt uitgesteld; de operator kiest grotere media (BD-25 → BD-50) of splitst in aparte runs.",
           "step_snapshot": "<strong>Auto-snapshot</strong> — bij het maken van een run wordt één snapshot per doelmirror gestart. Elke <code>AirgapCollectionTarget</code>-rij pinnt zijn <code>source_snapshot_id</code> aan de placeholder-snapshot-rij zodat de orchestrator weet welke snapshot er moet worden gebundeld wanneer de agent melding maakt van voltooiing. Snapshots lopen in parallel; de run blijft op <code>QUEUED</code> tot het <code>last_snapshot_message_id</code> van elk doel is gecleared.",
           "step_download": "<strong>Downloaden</strong> — <code>GET /api/v1/airgap/collector/runs/{id}/iso</code> streamt het ISO-bestand. Voor meerdisc-runnen, <code>GET /runs/{id}/discs</code> toont de disc-bestanden en <code>/iso?disc=N</code> selecteert een specifieke disc. De Air-Gap Collecties UI detecteert automatisch meerdisc-runnen en opent een picker dialoog wanneer de operator Download klikt.",
           "lifecycle": "<strong>Lifecycle states die de <code>airgap_run_tick</code>-orchestrator beheert:</strong> <code>QUEUED</code> (wacht op per-doel snapshots) → <code>MIRRORING</code> (rsync vanuit snapshot-taken naar staging) → <code>STAGING_COMPLETE</code> (enkel voor single-disc; multi-disc overslaat dit) → <code>BUILDING_ISO</code> (xorriso) → <code>ISO_BUILT</code> → <code>BURNING</code> (alleen als <code>burn_device</code> is ingesteld) → <code>COMPLETE</code>. Bij een mislukking wordt de run overgezet naar <code>FAILED</code> met de weergegeven foutboodschap zichtbaar in de statuskolom van het UI."
@@ -2875,32 +2875,32 @@
           "title": "[ONTBREKEND:docs.admin.airgap_workflow.repeat.title]"
         },
         "repoint": {
-          "summary": "[ONTBREKEND:docs.admin.airgap_workflow.repoint.summary]",
+          "summary": "Elke agent die beheerd wordt door een server met de rol <em>Air-Gap Repository</em>, wordt automatisch gericht naar de lokale spiegel: zijn pakketbeheerder wordt geconfigureerd om gebruik te maken van de spiegels van het repository en zijn online bronnen worden uitgeschakeld. Dit gebeurt tijdens de normale communicatiecyclus van de agent, zodat agents die reeds verbonden waren wanneer u de rol veranderde, bijwerken op hun volgende incheckmoment. De richtlijn is zelf-regulerend: het herdispatcht alleen wanneer de spiegelconfiguratie werkelijk wijzigt (een rolomkeer of een nieuwe import), dus er ontstaat geen herhaalde <code>apt-get update</code>-chaos.",
           "title": "[ONTBREKEND:docs.admin.airgap_workflow.repoint.title]",
-          "verify": "[ONTBREKEND:docs.admin.airgap_workflow.repoint.verify]"
+          "verify": "Op een air-gapped host kunt u bevestigen met <code>apt-cache policy &lt;pkg&gt;</code> (de kandidaat moet komen uit de repository's <code>/airgap-repo/</code>-URL) en <code>apt list --upgradable</code> (volledig afkomstig van de spiegel)."
         },
         "roles": {
-          "collector": "[ONTBREKEND:docs.admin.airgap_workflow.roles.collector]",
-          "repository": "[ONTBREKEND:docs.admin.airgap_workflow.roles.repository]",
-          "summary": "[ONTBREKEND:docs.admin_airgap_workflow_roles_summary]",
+          "collector": "Op de internetverbonden box kiezen voor <em>Air-Gap Collector</em>. Het selecteren van deze rol genereert automatisch het ed25519 manifest-onderhandelings sleutelpaar op <code>/var/lib/sysmanage/airgap/collector-ed25519.pem</code> (persoonlijk, modus 0600) plus zijn <code>.pub</code> broertje - geen handmatige sleutelgeneratie nodig.",
+          "repository": "In de geïsoleerde box selecteer <em>Luchtdichte opslagplaats</em>.",
+          "summary": "Op elke server, ga naar <strong>Instellingen → Serverrol</strong> en kies de rol. De rol wordt opgeslagen in de database en heeft volledig effect na de volgende herstart van de server (de rol-specifieke Pro+ engine laadt bij opstarten).",
           "title": "[ONTBREKEND:docs.admin_airgap_workflow_roles_title]"
         },
         "serve": {
-          "summary": "[ONTBREKEND:docs.admin.airgap_workflow.serve.summary]",
+          "summary": "Op <code>COMPLETE</code> registreert de repository een per-distributie lokale repository (zichtbaar op de Air-Gap Repositories pagina met pakkettelijkheid, laatste ingest-tijd, verscheidenheid en het signer vingerafdruk) en serveert deze via HTTP vanaf de SysManage web-poort op <code>/airgap-repo/</code>. De geregistreerde repository-URL wijst naar de echte apt/dnf boom binnen de media, dus er is geen handmatige webserver of symlink-instelling nodig.",
           "title": "[ONTBREKEND:docs.admin.airgap_workflow.serve.title]"
         },
         "transport": {
-          "device": "[ONTBREKEND:docs.admin.airgap_workflow.transport.device]",
-          "import": "[ONTBREKEND:docs.admin.airgap_workflow.transport.import]",
+          "device": "In het <strong>repository</strong>, in Instellingen → Serverrol, wordt de <em>Import Drive</em> kaart een lijst met geschikte blokapparaten (het besturingssysteemvolume wordt nooit aangeboden). Selecteer de optische/USB-drive — de laagste nummering van de optische drive is standaard. Gebruik <strong>Opnieuw scannen</strong> na het invoeren van media.",
+          "import": "Ga naar de <strong>Air-Gap Repositories</strong> pagina. De <em>Import van Media</em> paneel toont het live status van de schijf; de <strong>ISO Importeren</strong> knop wordt beschikbaar wanneer de schijf leesbare ISO media bevat. Druk op deze knop. (Gebruik <strong>Opnieuw Scannen</strong> als je net een disc hebt ingevoerd of gerepareerd.)",
           "insert": "[ONTBREKEND:docs.admin.airgap_workflow.transport.insert]",
           "summary": "[ONTBREKEND:docs.admin_airgap_workflow_transport_summary]",
           "title": "[ONTBREKEND:docs.admin_airgap_workflow_transport_title]",
-          "verify": "[ONTBREKEND:docs.admin.airgap_workflow.transport.verify]"
+          "verify": "Import monte het medium readonly, valideert de ingebakken ondertekende <code>/manifest.json</code> tegen uw betrouwbare-collector sleutelring en rsynct de geverifieerde payload naar <code>/var/lib/sysmanage/airgap-repo</code>. Volg de uitvoeringsstatus: <code>VERIFYING_SIG</code> (handtekening controle), <code>COPYING</code> (rsync in actie), <code>COMPLETE</code>. Een schijf van een onbetrouwbare collector mislukt eenvoudig bij de verificatie."
         },
         "trust": {
-          "copy": "[ONTBREKEND:docs.admin.airgap_workflow.trust.copy]",
-          "import": "[ONTBREKEND:docs.admin.airgap_workflow.trust.import]",
-          "summary": "[ONTBREKEND:docs.admin_airgap_workflow_trust_summary]",
+          "copy": "Op de <strong>collector</strong>, in Instellingen → Serverrol, wordt op het tabblad <em>Collector Publieke Sleutel</em> de publieke sleutel en haar vingerafdruk weergegeven. Klik op <strong>Kopiëer Publieke Sleutel</strong> om de PEM naar je klembord te zetten (en noteer de vingerafdruk — deze komt overeen met de <code>signer_fingerprint</code> die in elk manifest wordt gestempeld).",
+          "import": "In het <strong>repository</strong>, in Instellingen → Serverrol, gebruik de <em>Geverifieerde Collector Sleutels</em> kaart: geef de collector een naam, plak de PEM en klik op <strong>Sleutel importeren</strong>. De geïmporteerde sleutel wordt geschreven naar <code>/var/lib/sysmanage/airgap/trusted-collectors/&lt;naam&gt;.pub</code> en de kaart list het met zijn vingerafdruk. Het sleutelarchief houdt meerdere sleutels in, dus je kunt verschillende collectors vertrouwen en sleutels roteren zonder onderbreking.",
+          "summary": "De opslagplaats zal alleen mediagegevens inkomen die zijn ondertekend door een verzamelaar waar hij in vertrouwen staat. Vertrouwen wordt opgebouwd door de <em>publieke</em> sleutel van de verzamelaar naar de opslagplaats te kopiëren — de privé-onder-tekeningsleutel blijft altijd bij de verzamelaar.",
           "title": "[ONTBREKEND:docs.admin_airgap_workflow_trust_title]",
           "transfer": "[ONTBREKEND:docs.admin.airgap_workflow.trust.transfer]"
         }
@@ -2968,8 +2968,8 @@
         "meta_description": "REST-eindpuntreferentie voor elke Professional+ engine: automatisering, waarschuwingen, audit, av, compliance, containers, vloot, firewall, gezondheid, waarneembaarheid, geheimen, virtualisatie, kwetsbaarheden.",
         "observability": {
           "title": "Observability-engine",
-          "builders": "[ONTBREKEND:docs.api.engines.observability.builders]",
-          "shim": "[ONTBREKEND:docs.api.engines.observability.shim]"
+          "builders": "Plan-builders die door de engine worden blootgesteld zijn: <code>build_otel_multiplatform_deploy_plan</code>, <code>build_otel_multiplatform_remove_plan</code>, <code>build_otel_service_control_plan</code> (start/stop/restart), <code>build_otel_grafana_connection_plan</code> (connect/disconnect), <code>build_otel_status_plan</code>, <code>build_graylog_linux_autodetect_plan</code>, <code>build_graylog_bsd_syslog_append_plan</code>, <code>build_graylog_sidecar_plan</code> (api_token variant), <code>build_graylog_sidecar_no_token_plan</code> (Windows OSS payload variant), <code>build_graylog_status_plan</code>, <code>build_grafana_provision_plan</code>.",
+          "shim": "OSS-observabiliteits-eindpunten (<code>POST /hosts/{id}/deploy-opentelemetry</code>, <code>/remove-opentelemetry</code>, <code>/opentelemetry/{start,stop,restart,connect,disconnect}</code>, <code>/host/{id}/attach_to_graylog</code>) routeerden allemaal eerst door <code>backend/services/observability_shim.py</code>; wanneer de engine geladen is, sturen ze <code>APPLY_DEPLOYMENT_PLAN</code> via de algemene uitvoerder van de agent. Als de engine niet geladen is, valt terug op legacy <code>generic_command</code> WS-uitvoering. De geselecteerde pad voor elke aanvraag wordt opgenomen in <code>details.dispatch_path</code> in het auditlogboek."
         },
         "page_title": "Pro+-motoren API Referentie - SysManage",
         "secrets": {
@@ -3462,7 +3462,7 @@
           "creation_step7": "Wacht tot de container is aangemaakt en de agent is geïnstalleerd",
           "creation_step8": "Keur de nieuwe child host goed wanneer deze verschijnt in In Afwachting Zijnde Hosts",
           "creation_title": "Proces voor het maken van containers",
-          "detect_1": "De sysmanage-agent controleert op LXD-installatie",
+          "detect_1": "LXD socket beschikbaarheid bij <code>/var/snap/lxd/common/lxd/unix.socket</code> of <code>/var/lib/lxd/unix.socket</code>",
           "detect_2": "Verifieert dat LXD geïnitialiseerd is en draait",
           "detect_3": "Rapporteert LXD-status aan de SysManage-server",
           "detection_desc": "SysManage detecteert automatisch wanneer een host LXD-mogelijkheden heeft:",
@@ -3640,7 +3640,7 @@
           "issue6_sol1": "Controleer of de lxdbr0 brug bestaat: <code>ip addr show lxdbr0</code>",
           "issue6_sol2": "Controleer de configuratie van het containernetwerk: <code> lxc config toon CONTAINER </code>",
           "issue6_sol3": "Zorg dat IP forwarding is ingeschakeld: <code>sysctl net.ipv4.ip_forward</code>",
-          "issue6_sol4": "Controleer firewall-regels voor NAT-verkeer",
+          "issue6_sol4": "Probeer het netwerk opnieuw op te starten: <code>lxc restart CONTAINER</code>",
           "issue6_title": "LXD Container Heeft Geen Netwerk",
           "issue7_desc": "Als de LXD host rol niet wordt gedetecteerd:",
           "issue7_sol1": "Controleer of LXD geïnstalleerd is: <code>which lxd</code> of <code>snap list lxd</code>",
@@ -3803,10 +3803,10 @@
           "get": "lezen one spiegel",
           "intro": "Elke route hieronder retourneert 402 zonder dat <code> repository_mirroring_engine </code> is geladen.",
           "list": "list spiegels",
-          "list_snapshots": "snapshots weergeven",
-          "restore": "een snapshot herstellen",
+          "list_snapshots": "lijst met schaduwen (inclusief <code>grootte_in_byte</code> + <code>bestand_teller</code> van rsync <code>--stats</code>)",
+          "restore": "herstellen van een schietschijf (stamps <code>last_restore_message_id</code>)",
           "settings": "beheerdersinstellingen (verouderde singleton)",
-          "snapshot": "nu een snapshot maken",
+          "snapshot": "een schets maken nu (merkt <code>last_snapshot_message_id</code> aan voor volgzame tracking)",
           "sync": "activeer het synchronisatieplan onmiddellijk",
           "tick": "cron-aangedreven driverhaak",
           "title": "API-referentie",
@@ -3851,7 +3851,7 @@
         },
         "snapshots": {
           "gc": "Het bewaren van momentopnamen wordt bepaald door <code> snapshot_count_to_keep </code> . Het garbagecollection-plan somt snapshots op in alfabetische (= chronologische) volgorde, verwijdert alles dat ouder is dan de keepcount, en <code> rm -rf </code> s de rest na het versoepelen van de alleen-lezen-vlag.",
-          "intro": "Een momentopname is een <code> rsync -aH --delete </code> van de live-boom in een vergelijkbare alleen-lezen map op <code> {mirror_root}/{name}/.snapshots/{snapshot_id} </code> . Momentopname-ID's zijn sorteerbare tijdstempels ( <code> YYYYMMDDTHHMMSS </code> ). Na de rsync voert de engine <code> chmod -R a-w </code> uit, zodat de momentopname niet op zijn plaats kan worden gewijzigd.",
+          "intro": "Een schets is een <code>rsync -aH --delete --stats</code> van de live boom in een zusterlezerdirectory op <code>{mirror_root}/{name}/.snapshots/{snapshot_id}</code>. Schets-ID's zijn sorteerbare tijdstippen (<code>YYYYMMDDTHHMMSS</code>). Na het rsync voert de engine <code>chmod -R a-w</code> uit zodat de schets niet kan worden gewijzigd in plaats. De <code>--stats</code> output wordt serverkant ingelezen om <code>size_bytes</code> en <code>file_count</code> op te vullen in de <code>mirror_snapshot</code> rij - geen tweede doorloop is nodig om het gewicht van een schets te leren.",
           "restore": "Herstellen is het omgekeerde: een rsync van de gekozen momentopname terug naar de live-boom. De engine maakt geen symlink-flip, omdat de meeste mirrorservers (httpd, nginx) cache-on-stat en de in-place rsync eenvoudiger te redeneren zijn dan het coördineren van een flip over werkprocessen.",
           "title": "Snapshots en herstel",
           "sudoers": "<strong>Sudoers vereiste.</strong> Zowel de snapshot als de herstelplannen roepen <code>sudo rsync</code> + <code>sudo chmod</code> op. De gepackeerde sudoers fragment van het sysmanage-agent (<code>/etc/sudoers.d/sysmanage-agent</code> op Linux, <code>/etc/doas.d/sysmanage-agent</code> op OpenBSD) toestaat expliciet voor deze acties — een ontbrekende rsync regel zou zich tonen als een snel mislukkend plan met sudo's \"user not allowed to run\" bericht in de command_result van het agent. Als je je eigen sudoers lokaal maakt, spiegel dan de toestaanlijst van het geïnstalleerde bestand."
@@ -4075,7 +4075,7 @@
             "federation": "Federatieve site synchronisatie + versieverschillen",
             "views": "Gefilterde, onveranderlijke, versiegericht inhoudsweergaven (inclusief samengestelden)"
           },
-          "link": "Content Lifecycle Guide →",
+          "link": "Inhoudslevenscyclusgids →",
           "title": "📦 Content Lifecycle Management"
         },
         "composite": {
@@ -4209,7 +4209,7 @@
         },
         "serve": {
           "action": "Dit is het <strong>Repoint images</strong>-actie op de inhoudsweergave's promotielijn. Zodra geladen, is het image een eerste-klas lokaal image — uitvoerbaar meteen met <code>podman run</code> op de host, zonder afhankelijkheid van een externe registry.",
-          "intro": "Een bestedende host is <strong>teruggezet</strong> om een omgeving's aangeboden images offline in de lokale containeropslag te laden. De host haalt het aangeboden OCI-bomenbestand van de omgeving en voert vervolgens <code>skopeo copy oci:… containers-storage:…</code> uit om het in lokale opslag te laden — geen live registry is vereist, dus werkt dit volledig luchtdicht.",
+          "intro": "Een consumende host wordt <strong>herdirecteerd</strong> om de afbeeldingen van een omgeving in het lokale containeropslag te laden <strong>offline</strong>. De host trekt de geserveerde OCI boom uit de omgeving en voert vervolgens <code>skopeo copy oci:… containers-storage:…</code> uit om deze naar het lokale opslag te laden — er is geen live registry vereist, dus dit werkt volledig zonder externe verbindingen.",
           "title": "Hosts serveren en repointen"
         },
         "title": "Containerafbeeldingsinhoudscyclus - Professioneel+ - SysManage",
@@ -4226,7 +4226,7 @@
           "li1": "Detecteer booted / gestageerde / rollback image-status",
           "li2": "Stagen / toepassen / rollen terug (bootc + rpm-ostree)",
           "li3": "Pakket-update UI voor hosts in image-mode is afgesloten",
-          "link": "Image-Mode Hosts Guide →",
+          "link": "Gids voor Image-Mode Gastheeren →",
           "title": "💾 Afbeeldingmodus-hosts"
         },
         "imgcontent": {
@@ -4234,7 +4234,7 @@
           "li1": "Afbeeldingen volgen per register / repository / tag",
           "li2": "Digest-pinned skopeo-vang (daemonless)",
           "li3": "Luchtdichte ISO + offline terugstelling",
-          "link": "Container Image Content Guide →",
+          "link": "Gids voor Containerafbeeldingsinhoud →",
           "title": "📦 Container Image Content"
         },
         "snapproxy": {
@@ -4242,7 +4242,7 @@
           "li1": "Snaps volgen per naam + kanaal",
           "li2": "Snaps + asserties vangen (daemonless)",
           "li3": "Offline promoveren en repointen van hosts",
-          "link": "Snap Store Proxy Guide →",
+          "link": "Gids voor Snap Store Proxy →",
           "title": "📦 Snap Store Proxy"
         }
       },
@@ -4275,7 +4275,7 @@
           "body": "Een bestedende host is <strong>teruggezet</strong> om een omgeving's aangeboden snaps volledig offline te installeren: het haalt de snap-bundel, voert <code>snap ack</code> uit op de gevangen asserties en installeert vanuit lokale inhoud — geen contact met de upstream store is vereist, dus werkt dit in luchtdichte netwerken. Dit is de <strong>Snaps terugzetten</strong>-actie op het content-view's promotion lane, spiegelend hoe pakketterugstelling werkt voor DEB/RPM-inhoud.",
           "title": "Hosts serveren en repointen"
         },
-        "title": "Snap Store Proxy - Professional+ - SysManage",
+        "title": "Snap Store Proxy - Professionele+ - SysManage",
         "track": {
           "body": "Op een spiegel (<strong>Instellingen → Repository Spiegelen</strong>) volg je de snaps die je wilt curate door <strong>naam + kanaal</strong> — bijvoorbeeld <code>firefox</code> op <code>latest/stable</code>. Elke gemoniteerde snap draagt een <strong>captuurstatus</strong> die het door de pipeline leidt: <code>GEVOLGD → GEZONDIGD → CAPTUURDE</code>, of <code>GESLAAGD</code> als een captuur niet kon worden voltooid.",
           "title": "Snaps volgen"
@@ -4417,10 +4417,10 @@
           "107": "Systeem Metriekken",
           "108": "YAML kopiëren",
           "109": "📥 Configuratiebestand downloaden",
-          "emailMoved": "[ONTBREKEND:docs.auto.home.config-builder.emailMoved]",
-          "secrets-body": "[ONTBREKEND:docs.auto.home.config-builder.secrets-body]",
-          "secrets-li1": "[ONTBREKEND:docs.auto.home.config-builder.secrets-li1]",
-          "secrets-li2": "[ONTBREKEND:docs.auto.home.config-builder.secrets-li2]",
+          "emailMoved": "E-mail is niet langer geconfigureerd in <code>sysmanage.yaml</code> (vanaf versie 3.0). Configureer de SMTP-server, referenties en sjablonen in het apparaat onder <strong>Instellingen → Configuratie</strong> (per tenant); de SMTP-wachtwoord is opgeslagen in OpenBAO, niet in YAML.",
+          "secrets-body": "Vanaf v3.0 is <code>sysmanage.yaml</code> een <strong>minimaal bootstrap-puntër</strong>: het heeft alleen nodig hoe je toegang krijgt tot de database/registreerlijst en OpenBAO, plus luisteraars/TLS-instellingen. Je zet in principe <strong>geen</strong> geheime of operationele instellingen hierin:",
+          "secrets-li1": "<strong>Geheime waarden</strong> (JWT-geheim, wachtwoord-zout, admin-wachtwoord, DB-wachtwoord, SMTP-wachtwoord) worden <strong>gemaakt door de beveiligde-installatie stap in OpenBAO</strong> — houd ze buiten YAML.",
+          "secrets-li2": "<strong>Operationele instellingen</strong> (inlog-/sessietijdschriften, berichtwachtrij-tuning, monitoring) en <strong>e-mail</strong> (server, referenties, sjablonen) zijn geconfigureerd in <strong>Instellingen</strong> na de eerste login — e-mail is per tenant.",
           "secrets-li3": "[ONTBREKEND:docs.auto.home.config-builder.secrets-li3]",
           "secrets-title": "[ONTBREKEND:docs.auto.home.config-builder.secrets-title]",
           "110": "Databaseopties (optioneel)"
@@ -4716,7 +4716,7 @@
           "015": "Registratieproces",
           "016": "Wanneer een nieuwe agent geïnstalleerd en geconfigureerd wordt, volgt deze registratieproces:",
           "017": "Initiële Verbinding: Agent stelt een beveiligde verbinding op met de server",
-          "018": "Проверка подлинности: сервер проверяет сертификат и учетные данные агента",
+          "018": "Identiteitsverificatie: de server valideert het agentcertificaat en referenties",
           "019": "Systeem Ontdekking: Agent rapporteert hard- en softwareinventaris",
           "020": "Goedkeuwenwachtrij: Host verschijnt in beheerinterface voor goedkeuring",
           "021": "Beheerrevisie: Admin controleert hostdetails en goedgeeft/afwijst",
@@ -5191,7 +5191,7 @@
           "270": "Maintenancesvensters Handleiding →",
           "271": "PostgreSQL High Availability",
           "272": "Voer de server uit tegen een HA PostgreSQL-cluster en overlee een primaārfout zonder handmatige interventie: verbindingseindpuntstrategie, automatische pre-ping/herschap/health-behavior en wat de server aan het clusterbeheer overlaat.",
-          "273": "PostgreSQL High Availability Guide →"
+          "273": "Gids voor hoge beschikbaarheid PostgreSQL →"
         },
         "maintenance": {
           "001": "Documentatie",
@@ -5398,7 +5398,7 @@
           "040": "Webinterfaces benaderen:",
           "041": "Prometheus-UI: http://localhost:9091",
           "042": "OpenTelemetry Collector zPages: http://localhost:55679/debug/tracez",
-          "043": "SysManage Metrics Endpoint: http://localhost:9090/metrics",
+          "043": "SysManage Metriekseindpunt: http://lokaal:9090/metrieken",
           "044": "Configuratie",
           "045": "Omgevingsvariabelen",
           "046": "Variabele",
@@ -5531,7 +5531,7 @@
           "173": "Database Prestatiedashboard",
           "174": "Queryduur: histogram_quantile(0.95, db_client_operation_duration_bucket)",
           "175": "Verbindingspoolgebruik: db_client_connections_usage / db_client_connections_max",
-          "176": "Незадействованные соединения: db_client_connections_idle",
+          "176": "Onbeheerde verbindingen: db_client_connections_idle",
           "177": "Operaties Tempo: rate(db_client_operations_total[5m])",
           "178": "Systeembronnen Dashboard",
           "179": "CPU Gebruik: rate(process_cpu_seconds_total[1m])",
@@ -5973,7 +5973,7 @@
           "006": "Overzicht",
           "007": "De oninstallatie van een pakket kan verschillende problemen ontmoeten door systeemafhankelijkheden, rechten, toestand van het pakketbeheersysteem en netwerkvoorwaarden. Dit handboek biedt systematische benaderingen om gemeenschappelijke oninstallatieproblemen te diagnostiseren en op te lossen.",
           "008": "Systematische troubleshootbenadering",
-          "009": "Определите проблему: понимайте конкретную ошибку или режим неисправности",
+          "009": "Het probleem identificeren: de specifieke fout of falingsmodus begrijpen",
           "010": "Gather Information: Samenvoegen van logs, systeemstatus en omgevingsdetails",
           "011": "Oorzaak bepalen: Bepaal of de issue systeem-, pakket- of SysManage gerelateerd is",
           "012": "Implementeer oplossing: Pas geschikte correcties toe gebaseerd op de oorzaak",
@@ -6081,14 +6081,14 @@
           "114": "Recuperatiestrategieën",
           "115": "Herinstalleer verwijderde pakket",
           "116": "Snel herstel als het ongeïnstalleerde pakket cruciaal was:",
-          "117": "Определите точную версию пакета, которая была удалена",
+          "117": "De exacte versie van het pakket dat is verwijderd identificeren",
           "118": "Herinstalleer het pakket met behulp van SysManage of de opdrachtprompt",
           "119": "Herstart betrokken services",
           "120": "Controleer systeemfuncties",
           "121": "Systeemherstel van Backup",
           "122": "Bij ernstige systeemcompromissen:",
           "123": "Beoordeel of back-up herstel nodig is",
-          "124": "Определите самый последний стабильный резервный копию",
+          "124": "De meest recente stabiele back-up identificeren",
           "125": "Herstel plannen tijdens onderhoudsvenster",
           "126": "Voer het back-up herstelproces uit",
           "127": "Controleer systeemintegriteit na herstel",
@@ -6120,7 +6120,7 @@
           "153": "Herstel van correcte werking bewaken",
           "154": "Handmatige Voltooiing van Operaties",
           "155": "Handmatig voltooien als veilig:",
-          "156": "Определите конкретный пакет и операцию",
+          "156": "De specifieke pakket- en bewerkingsgegevens identificeren",
           "157": "Handmatig de oninstallatie-opdracht uitvoeren",
           "158": "Bewerkingstatus in SysManage-database bijwerken",
           "159": "Controleer systeem consistentie",
@@ -6200,7 +6200,7 @@
           "233": "Opties voor Recuperatie",
           "234": "Pakketteruginstallatie",
           "235": "Snelst mogelijke herstel voor onjuist verwijderde pakketten:",
-          "236": "Определите точную версию пакета, которая была удалена",
+          "236": "De exacte versie van het pakket dat is verwijderd identificeren",
           "237": "Gebruik SysManage of de opdrachtprompt om opnieuw in te stellen",
           "238": "Controleer dat de configuratie correct wordt hersteld",
           "239": "Gevolgen van de functie testen",
@@ -6812,7 +6812,7 @@
           "175": "Account data archiveren",
           "176": "Schema voor accountverwijderingscontrole",
           "177": "Beveiligingsincidentbeheer",
-          "178": "Identificeer gecomпромтованые учетные записи",
+          "178": "Gecompromitteerde accounts identificeren",
           "179": "Onmiddellijk schakel betrokken accounts uit",
           "180": "Wachtwoord vernieuwing dwingen",
           "181": "Ontbind alle actieve sessies",
@@ -7137,7 +7137,7 @@
           "030": "Monitoring &amp; Waarschuwingen →",
           "031": "De Instellingen → Logboekweergave pagina: native-sink configuratie voor de server en OS-agent standaardwaarden, plus de optionele remote-syslog forwarding velden (Professioneel).",
           "032": "Verwijzing van remote syslog",
-          "033": "De lokale zinken zoals hierboven beschreven — de draaiende bestandslog, journald, de lokale syslog-daemon en het Windows Event Log — zijn onderdeel van de gratis, open-source editie en blijven gratis. Bovendien kan SysManage de <em>eigen</em> server- en agentlogs doorsturen naar een <strong>centrale syslog-server</strong>, zodat ze naast de rest van uw infrastructuur-logboeken belanden.",
+          "033": "De lokale sinks die hierboven worden beschreven — de rotatiebestandlog, journald, de lokale syslog-daemon en de Windows Event Log — zijn <strong>deel van de gratis, open-source editie</strong> en blijven gratis. Bovendien kan SysManage zijn <em>eigen</em> server- en agentlogs doorsturen naar een <strong>centrale syslog-server</strong> zodat ze naast het overige logboek van uw infrastructuur belanden.",
           "034": "Het selecteren van het <strong>remote syslog</strong> doel voegt velden toe voor de bestemming <strong>host</strong>, <strong>poort</strong>, <strong>faciliteit</strong>, en <strong>protocol</strong> (UDP of TCP). Dit werkt zowel voor de servers eigen logs als elke OS familie's agent standaardwaarden, en — net als elk ander logging verandering — wordt het live doorgevoerd naar verbonden agents en opnieuw toegepast bij herverbinding.",
           "035": "<strong>Edition:</strong> remote syslog forwarding is a <strong>Professional</strong> capability gated behind the <code>LOG_ROUTING</code> feature. Saving a remote destination without a Professional (of hoger) licentie wordt geweigerd met HTTP <code>402</code>; de <strong>lokale</strong> sinks blijven volledig beschikbaar in elke editie.",
           "036": "⭐ PRO+"
@@ -7987,7 +7987,7 @@
           "006": "Overzicht",
           "007": "Deze handleiding biedt systematische benaderingen voor het oplossen van algemene problemen met SysManage agents. Volg de troubleshoot-stappen in volgorde, beginnend met basisconnectiviteitcontroles en voortgaand naar geavanceerde debugtechnieken.",
           "008": "Probleemoplossingsmethodologie",
-          "009": "Определите проблему: соберите симптомы и сообщения об ошибках",
+          "009": "Het probleem identificeren: symptomen en foutmeldingen verzamelen",
           "010": "Basiseisen controleren: Controleer systeemeisen en configuratie",
           "011": "Logboeken controleren: Examineer agent- en systeemlogboeken voor aanwijzingen",
           "012": "Componenten isoleren en testen",
@@ -8419,7 +8419,7 @@
           "041": "GET /api/v1/health/grades — A/B/C/D/F lettercijfers",
           "042": "POST /api/v1/observability/otel/deploy — OTEL collector implementeren",
           "043": "POST /api/v1/observability/otel/{action} — levenscyclus (starten/stoppen/herstarten/deinstalleren)",
-          "044": "GET /api/v1/observability/otel/status — per-host status",
+          "044": "HAAL /api/v1/observability/otel/status OP — status per host",
           "045": "POST /api/v1/observability/graylog/{attach|detach} — Graylog forwarder levenscyclus",
           "046": "POST /api/v1/observability/grafana/connect — datasource en dashboards vastleggen",
           "047": "GET /api/v1/secrets / POST /api/v1/secrets — geheime CRUD (Vault-gebaseerd)",
@@ -8585,7 +8585,7 @@
           "040": "Real-time statusupdates",
           "041": "Uitvoering van commando's en resultaten",
           "042": "Evenementstreaming en meldingen",
-          "043": "WebSocket API →",
+          "043": "WebSocket API → WebSocket API",
           "044": "Monitorering",
           "045": "Systeemonitoring, metriek verzameling en waarschuwingen via programmaaties interfaces.",
           "046": "Systeemmetrische en prestatiedata",
@@ -8658,7 +8658,7 @@
           "113": "Federing API →",
           "114": "Besturingsvlak",
           "115": "Eindpunten voor multitenant beheer — tenants, plaatsing en inrichting, inschrijftokens en toewijzingen (Professional+ multitenancy).",
-          "116": "Control Plane API →"
+          "116": "Besturingspanel API →"
         },
         "monitoring": {
           "001": "Documentatie",
@@ -8895,7 +8895,7 @@
           "135": "Gebruik goedkeuingsworkflows voor kritieke systeemwijzigingen",
           "136": "Snel Navigatie",
           "137": "← Hostbeheer",
-          "138": "WebSocket API →"
+          "138": "WebSocket API → WebSocket API"
         },
         "phase8-features": {
           "001": "Documentatie",
@@ -9498,7 +9498,7 @@
           "035": "GET /api/v1/airgap-bundles/{bundle_id}/download-stream — stream het ISO-pakket (token-geauthenticeerd)",
           "036": "DELETE /api/v1/airgap-bundles/{bundle_id} — verwijder het pakket en zijn op-schijf-artefacten",
           "037": "Apparaatimporteren",
-          "038": "Op de kant van het depot (niet aangesloten), arriveren ISO's op draagbare媒介省略过多，请提供更多信息以便准确翻译剩余部分。由于上下文不完整，我将根据现有信息继续翻译。media. Deze eindpunten doorzoeken mogelijke importdrive-opties, behouden de geselecteerde importapparaat en controleert zijn gereedheid om te worden geïmporteerd, waarna het inhoud ervan wordt afgestemd voor opname in het depot.",
+          "038": "Op de opslagplaats (losgekoppeld) kant, komen ISO's aan op verwijderbare media. Deze eindpunten doorzoeken potentiële schijven, bewaren de gekozen invoerapparaat, testen of het klaar is, en plannen van de inhoud van het apparaat in de opslagplaats.",
           "039": "GET /api/v1/airgap/block-devices — enumerate kandidaat-importschijven",
           "040": "PUT /api/v1/airgap/import-device — de geselecteerde importdrive opslaan (of verwijderen)",
           "041": "GET /api/v1/airgap/import-device/status — controleer de gereedheid van het apparaat voor import",
@@ -10592,7 +10592,7 @@
           "069": "Oplossingen:",
           "070": "Controleer de sessie affiniteitsconfiguratie",
           "071": "WebSocket-timeout-instellingen controleren",
-          "072": "Monitорer server-failovergedrag",
+          "072": "Server-failovergedrag bewaken",
           "073": "Bekijk proxybuffersizes",
           "074": "Mislukkingen bij gezondheidscontroles",
           "075": "Bijwerkingen: False positive gezondheidstoets mislukkingen",
@@ -11752,7 +11752,7 @@
           "061": "Invoeverificatie",
           "062": "Auditlogging",
           "063": "DevOps & Testen",
-          "064": "GitHub Actions CI/CD",
+          "064": "GitHub Acties CI/CD",
           "065": "Pytest Framework",
           "066": "Coverage.py",
           "067": "Black Formatter",
@@ -11918,7 +11918,7 @@
           "138": "Integratiepunten",
           "139": "Integratie met extern systeem",
           "140": "Authenticatiesystemen",
-          "141": "LDAP/Active Directory",
+          "141": "LDAP/Actief Directory",
           "142": "SAML 2.0-provider",
           "143": "OAuth 2.0/OpenID Connect",
           "144": "Multi-factor authenticatie",
@@ -12389,7 +12389,7 @@
           "061": "Omdat elke tenant zijn eigen database heeft, houdt SysManage de back-up recovery-point objective (RPO) van elke tenant onafhankelijk bij. SysManage orkestreert back-ups — het slaat de back-upgegevens niet zelf op. U configureert eenmalig een back-upopdracht aan de serverzijde in sysmanage.yaml; SysManage voert deze uit op de RPO-cadans van elke tenant, registreert elke uitvoering, verifieert de integriteit van elke back-up en voert periodiek een volledige herstelverificatie uit. De Tenants-pagina van het control plane toont per tenant de RPO-naleving (conform, risico of overschreden), de recente uitvoeringen en een knop ‘nu back-uppen’.",
           "062": "De backupopdracht is een serverconfiguratie en kan nooit per tenant aangepast worden. Gebruik gedefinieerde placeholders — {tenant_id}, {slug}, {host}, {port}, {dbname}, {region} — om één opdracht te gebruiken voor elke tenantsdatabase. Richt het op de backuptool die je al gebruikt (pgBackRest, wal-g of een pg_dump wrapper):",
           "063": "PostgreSQL uitvoeren in hoog beschikbaarheid — dit is een vereiste, geen optie.",
-          "064": "Een multi-tenant controlevlak concentreert <em>elke</em> tenant's data achter PostgreSQL. Een enkele database node is dus een single point of failure voor je gehele klantbasis tegelijk — als het stopt, gaat de hele platform donker en zijn alle tenants tegelijk offline. Dat is het tegenovergestelde van wat een SaaS controlevlak moet bieden. Voer een hoge-verbonden PostgreSQL cluster (een primaire plus ten minste één streaming-replicatie standby achter een stabiele read-write endpoint) uit, en wijzig zowel de SysManage server <strong>als</strong> OpenBAO's database secrets engine om dat eindpunt aan te geven zodat tenant credential leasing overleeft een failover. Volg <a href=\"../administration/postgresql-ha.html\">PostgreSQL High Availability</a> voordat je naar productie gaat. De enkele-noodzakelijke <code>host: db-registry.internal</code> voorbeelden hieronder zijn weergegeven om duidelijkheid — vervang deze door het stabiele eindpunt van jouw cluster (een libpq multi-host lijst of een VIP/proxy)."
+          "064": "Een multi-tenant controlevlak concentreert <em>elke</em> huurders gegevens achter PostgreSQL. Een enkele databasenoode is dus een enige punt van mislukking voor uw hele klantbasis tegelijk — als het stopt, gaat de hele platform donker en zijn alle huurders tegelijk offline. Dat is het tegenovergestelde van wat een SaaS controlevlak moet bieden. Voer een hoog Beschikbaarheid PostgreSQL-cluster uit (een primaire plus ten minste één streaming-replicatie standby achter een stabiele lees-schrijf-eindpunt), en wijzig <strong>zowel</strong> de SysManage-server <strong>als</strong> OpenBAOs database-geheime-engine in dat eindpunt zodat huurderscredenleasing overleeft een failover ook. Volg <a href=\"../administration/postgresql-ha.html\">PostgreSQL High Availability</a> voordat u naar productie gaat. De enkele-noode <code>host: db-registry.internal</code> voorbeelden hieronder staan om duidelijkheid — vervang uw clusters stabiele eindpunt (een libpq multi-host lijst of een VIP/proxy)."
         }
       },
       "getting-started": {
@@ -12692,7 +12692,7 @@
           "164": "Actieve Sessies",
           "165": "Navigeer naar Gebruikers → Actieve sessies",
           "166": "Bekijk momenteel ingelogde gebruikers",
-          "167": "Monitорeer sessieduur en activiteit",
+          "167": "Sessieduur en activiteit bewaken",
           "168": "Sessies beëindigen als nodig",
           "169": "Beveiligingsinstellingen",
           "170": "Configureren van wachtwoordbeleid",
@@ -13278,7 +13278,7 @@
           "160": "Controleer of de bewerking succesvol is voltrokken in \"Software Changes\"",
           "161": "Afhankelijke Diensten Werken Niet Meer",
           "162": "Onmiddellijke Acties:",
-          "163": "Определите, какие службы затронуты",
+          "163": "De services die zijn beïnvloed identificeren",
           "164": "Controleer of het ongeïnstalleerde pakket een cruciale afhankelijkheid was",
           "165": "Proberen de beínvloede diensten opnieuw te starten",
           "166": "Herinstalleer het pakket indien nodig",
@@ -13316,127 +13316,6 @@
           "002": "Beginnen",
           "003": "Snel Start",
           "004": "Snel Startgids",
-          "005": "Haal SysManage snel op met Docker Compose. Ideaal voor evaluatie, ontwikkeling en kleine schaal implementaties.",
-          "006": "Overzicht",
-          "007": "Deze quick start handleiding heeft je SysManage draaien binnen 10 minuten met Docker Compose. Deze methode biedt een volledige, zelfstandige SysManage installatie perfect voor test-, ontwikkel- of kleine productieomgevingen.",
-          "008": "Voorwaarden",
-          "009": "Systeerequirements",
-          "010": "Linux-server of VM met minimaal 4GB RAM (8GB aanbevolen)",
-          "011": "2 CPU-kernen minimum (4+ aanbevolen)",
-          "012": "20GB beschikbaar schijfruimte (50GB+ aanbevolen)",
-          "013": "Toegang tot het netwerk op poorten 80, 443 en 8443",
-          "014": "Softwarevereisten",
-          "015": "Docker Engine 20.10+ geœtalleerd",
-          "016": "Docker Compose 2.0+ geœtalleerd",
-          "017": "Git (voor het klonen van de repository)",
-          "018": "Administratieve/sudo-toegang",
-          "019": "Netwerkvereisten",
-          "020": "Internettoegang om Docker-afbeeldingen te downloaden",
-          "021": "De firewall is ingesteld om binnenkomende verbindingen toe te staan",
-          "022": "Vaste IP-adres of DNS-naam (aanbevolen)",
-          "023": "Docker installeren (indien nodig)",
-          "024": "Als je Docker niet geïnstalleerd hebt, hier zijn snelle installatie-opdrachten voor veelgebruikte platforms:",
-          "025": "Ubuntu/Debian",
-          "026": "RHEL/CentOS/Fedora",
-          "027": "Installatiestappen",
-          "028": "Kloon de repository",
-          "029": "Kloon de SysManage-repository om het Docker Compose-configuratiebestand te verkrijgen:",
-          "030": "Opmerking:",
-          "031": "Configureer Omgeving",
-          "032": "Kopieer en pas de omgevingsconfiguratie aan:",
-          "033": "Sleutelconfiguratieopties",
-          "034": "Instelling",
-          "035": "Standaard",
-          "036": "Omschrijving",
-          "037": "POSTGRES_WACHTWOORD",
-          "038": "sysmanage",
-          "039": "Databasewachtwoord (wijzigen voor productie)",
-          "040": "SECRET_KEY",
-          "041": "auto-gegenereerd",
-          "042": "Geheime sleutel van de toepassing",
-          "043": "LISTEN_PORT",
-          "044": "8443",
-          "045": "Poort van de webinterface",
-          "046": "DOMAIN_NAME",
-          "047": "localhost",
-          "048": "Server domeinnaam of IP-adres",
-          "049": "Voor Quick Start:",
-          "050": "SSL-certificaten genereren",
-          "051": "SysManage vereist SSL-certificaten voor veilige communicatie. Genereer zelfondertekende certificaten voor testdoeleinden:",
-          "052": "Productienoot:",
-          "053": "SysManage starten",
-          "054": "Gebruik Docker Compose om alle SysManage services te starten:",
-          "055": "U ziet output die vergelijkbaar is met:",
-          "056": "Maak Beheerder Gebruiker",
-          "057": "Maak uw eerste beheerdersaccount:",
-          "058": "Beveiliging:",
-          "059": "Toegang tot de Webinterface",
-          "060": "Open uw webbrowser en navigeer naar SysManage:",
-          "061": "Certificaat waarschuwing:",
-          "062": "Log in met de adminreferenties die je hebt gemaakt in stap 5.",
-          "063": "Installatie controleren",
-          "064": "Gezondheidscontroles",
-          "065": "Controleer of alle componenten correct werken:",
-          "066": "1. Service-status",
-          "067": "2. API-health check",
-          "068": "3. Databaseverbinding",
-          "069": "4. Webinterface",
-          "070": "De loginpagina laadt correct",
-          "071": "Kan zich authenticeren met beheergegevens",
-          "072": "Het dashboard wordt zonder fouten weergegeven",
-          "073": "Het navigatiemenu werkt correct",
-          "074": "Snel Oproep tot actie",
-          "075": "Container start niet op",
-          "076": "Kan niet toegang krijgen tot de webinterface",
-          "077": "Controleer of de firewallinstellingen poort 8443 toestaan",
-          "078": "Docker-poortmapping controleren: docker compose ps",
-          "079": "Probeer eerst via HTTP te accederen: http://localhost:8080",
-          "080": "SSL-certificatenproblemen",
-          "081": "Volgende Stappen",
-          "082": "Ontdek de interface",
-          "083": "Word bekend met de SysManage webinterface en zijn functies.",
-          "084": "Tour Webinterface →",
-          "085": "⁯🤖 Install Your First Agent",
-          "086": "Monitoringagents toevoegen aan je hosts om gegevens te beginnen verzamelen.",
-          "087": "Agent Installatie →",
-          "088": "Basisbeheer",
-          "089": "Leer de essentiële managementtaken en workflows.",
-          "090": "Basiskennis Beheer →",
-          "091": "Productiedeployement",
-          "092": "Skalere naar een productie-geoptimaliseerde implementatie met HA en beveiliging.",
-          "093": "Productieopstelling →",
-          "094": "Algemene post-installatieopdrachten",
-          "095": "Configureer E-mail Notificaties",
-          "096": "E-mailinstellingen voor waarschuwingen en notificaties instellen:",
-          "097": "Navigeer naar Instellingen → E-mailconfiguratie",
-          "098": "Voer SMTP-serverdetails in",
-          "099": "E-mailaflevering testen",
-          "100": "Configureer waarschuwingsnotificaties",
-          "101": "Maak Aanvullende Gebruikers",
-          "102": "Teamleden met passende rechten toevoegen:",
-          "103": "Ga naar Administratie → Gebruikers",
-          "104": "Klik op \"Gebruiker aanmaken\"",
-          "105": "Gebruikersnaam, e-mailadres en rol instellen",
-          "106": "Configureren van rechten zoals nodig",
-          "107": "Hostgroepen opzetten",
-          "108": "Organiseer uw infrastructuur op een logische manier:",
-          "109": "Navigeer naar Hosts → Groepen",
-          "110": "Maak groepen per omgeving, functie of locatie",
-          "111": "Groeps-specifieke rechten instellen",
-          "112": "Configureren van groepsgesloten monitoring",
-          "113": "Configureer Monitoringsdrempels",
-          "114": "Waarschuwingssysteem voor uw omgeving opzetten:",
-          "115": "Ga naar Monitoring → Waarschuwingen",
-          "116": "Maak waarschuwingsregels voor CPU, geheugen, schijf",
-          "117": "Gewenste drempels instellen",
-          "118": "Waarschuwingendelivery testen",
-          "119": "Handige commando's",
-          "120": "Docker Compose bewerkingen",
-          "121": "Backup en Onderhoud",
-          "122": "Logbeheer",
-          "123": "Snel Navigatie",
-          "124": "← Aan de slag",
-          "125": "Overzicht Webinterface →",
           "126": "De SysManage inlogpagina."
         },
         "tutorials": {
@@ -13855,7 +13734,7 @@
           "024": "Waarom Enterprise SaaS",
           "025": "Isolatie die u kunt bewijzen",
           "026": "Elke tenant bestaat in zijn eigen PostgreSQL-database. Er is geen gedeelde tabel, geen tenant_id kolom om te vergeten en geen verbinding tussen tenants. Wanneer een klant vraagt “kan iemand anders onze gegevens zien?”, is het antwoord een grens die je kunt aanwijzen, niet een beleid dat ze moeten vertrouwen. Zie de veiligheidsbehandeling.",
-          "027": "閱钥⁮ Credenties die zichzelf verlopen",
+          "027": "Afloopende referenties",
           "028": "De referenties voor elke tenants database worden op aanvraag ingehuurd uit OpenBAO — kortlevend, automatisch verlopend en gespecificeerd naar één tenant. Er is geen gedeelde master-wachtwoord om te lekken, en een gegrepen referentie is beperkt en korte tijd door constructie.",
           "029": "Gegevensresidentie, per tenant",
           "030": "Omdat een tenant een zelfstandige database is, kun je deze plaatsen waar het moet staan — in een specifieke regio of jurisdictie — en back-uppen, exporteren of volledig verwijderen zonder ooit de andere tenants aan te raken. Het recht om vergeten te worden wordt een per-database operatie.",
@@ -13931,14 +13810,14 @@
           "024": "Per-host EOL-status uit endoflife.date",
           "025": "do-release-upgrade / dnf / zypper / freebsd-update",
           "026": "Geplande, onderhoudsvenster-bewuste upgraden",
-          "027": "OS Lifecycle Guide →",
+          "027": "Levenscyclusgids OS →",
           "028": "🔎 FIPS Compliance Modus",
           "029": "Zie welke hosts draaien in FIPS 140-gevalideerd-kryptografie modus en schakel het in of uit per host met behulp van elk platforms eigen mechanisme.",
           "030": "Fleet FIPS houding (ingeschakeld / beschikbaar / uitgeschakeld)",
           "031": "Detectie is gratis; inschakelen/uitschakelen is Enterprise",
-          "032": "Ubuntu Pro / RHEL fips-mode-setup / Windows policy",
+          "032": "Ubuntu Professional / Red Hat Enterprise Linux fips-modus-instelling / Windows beleid",
           "033": "Gecontroleerd, onderhoudsvensters-bewust, herstart-bewust",
-          "034": "FIPS Compliance Guide →"
+          "034": "Compliance met FIPS →"
         },
         "alerting": {
           "001": "De Alarms-pagina toont actieve alarms per ernheidsgraad met knoppen om te markeren en op te lossen.",
@@ -14024,8 +13903,8 @@
           "015": "FIPS-detectie is geleverd met de open-source agent — geen licentie vereist. Bij elke controle rapporteert elk agent zijn houding, en de server registreert deze op de host zodat de dashboard en de per-host-tabblad altijd de realiteit weergeven. Detectie gebruikt elke platform's autoritaire bron:",
           "016": "Linux (kernel): /proc/sys/crypto/fips_enabled — het definitieve \"is FIPS momenteel ingeschakeld\" vlag.",
           "017": "RHEL en herbouwen: fips-mode-setup --check .",
-          "018": "Ubuntu: the Ubuntu Pro fips service status.",
-          "019": "Windows: the FipsAlgorithmPolicy registry value.",
+          "018": "Ubuntu: de Ubuntu Pro FIPs service status.",
+          "019": "Windows: de FipsAlgoritmeBeleid registerwaarde.",
           "020": "macOS & BSD: gerapporteerd als niet van toepassing .",
           "021": "Fleet dashboard",
           "022": "De FIPS-compatibiliteitspagina in de hoofnavigatie samenvat hoeveel hosts zijn ingeschakeld, beschikbaar, uitgeschakeld of niet van toepassing. Hier volgt een tabel met elke host en hun status, het gebruikte schakelmoment en wanneer ze voor het laatst gerapporteerd hebben. Gebruik deze pagina om op een glimp te zien welke hosts niet in FIPS-modus zijn voordat je een audit uitvoert.",
@@ -14587,7 +14466,7 @@
           "284": "Veilige coderingspraktijken",
           "285": "Implementatie van API-beveiliging",
           "286": "Kwantificatie van kwetsbaarheid",
-          "287": "Beveiligtестирование методик",
+          "287": "Beveiligingstestmethodologieën",
           "288": "Volgende Stappen",
           "289": "Na implementatie van veiligheidsbest practices:",
           "290": "Authenticatie Opzet : Configureer robuuste authenticatiesystemen",
@@ -14898,7 +14777,7 @@
           "172": "Automatische Beveiligingsscanning : Implementeer automatische beveiligingscontroles",
           "173": "Best practices : Volg uitgebreide beveiligingsrichtlijnen",
           "174": "Navigatie",
-          "175": "← Best Practices",
+          "175": "← Beste praktijken",
           "176": "Netwerkbeveiliging →"
         },
         "network-security": {
@@ -15015,7 +14894,7 @@
           "111": "Ingebouwde roamingondersteuning",
           "112": "Zero Trust Netwerktoegang",
           "113": "Toegang specifiek voor toepassing",
-          "114": "Аутентификация на основе удостоверений",
+          "114": "Identiteitsgebaseerde authenticatie",
           "115": "Continu verificatie",
           "116": "Microsegmentatie ondersteuning",
           "117": "OpenVPN-configuratievoorbeeld",
@@ -15646,7 +15525,7 @@
           "056": "Build tool integratie",
           "057": "Uitgebreid rapportageformaat",
           "058": "Geheimen Detectie",
-          "059": "TruffleHog",
+          "059": "TruffelVarken",
           "060": "Scanner voor hoge-entropie geheimen",
           "061": "Git-historie-scanning",
           "062": "Echt-tijdse geheime detectie",
@@ -15940,8 +15819,8 @@
           "350": "Ontwikkelingsgereedschappen",
           "351": "GitHub/GitLab/Bitbucket",
           "352": "Jenkins/GitHub Actions/GitLab CI",
-          "353": "SonarQube Cloud /CodeClimate",
-          "354": "Docker Registry/Harbor",
+          "353": "SonarQube Cloud / CodeClimate",
+          "354": "Docker Registrie/Harbor",
           "355": "Artifactory/Nexus",
           "356": "Issue-tracking",
           "357": "Jira/Linear/Azure DevOps",
@@ -16067,7 +15946,7 @@
           "063": "Architectuur →",
           "064": "Enterprise SaaS",
           "065": "Het gehoste, multi-tenant editie — wat het bevat en voor wie het is.",
-          "066": "Enterprise SaaS →",
+          "066": "Bedrijfsgebaseerde SaaS →",
           "067": "Implementeer Multi-Tenant",
           "068": "Registry en tenantdatabases, OpenBAO, migraties en tenantprovisionering.",
           "069": "Implementatie →"
@@ -18633,7 +18512,7 @@
             "providers": "Pluggable compute providers (afstandelijke libvirt, Proxmox VE)",
             "templates": "Herbruikbare, versie-getekende provisioning-sjablonen"
           },
-          "link": "Provisioning Engine Guide →",
+          "link": "Inrichtingsmotor Gids →",
           "title": "🚀 Provisioning Engine"
         }
       },
@@ -18925,22 +18804,22 @@
           "title": "[ONTBREKEND:pro_plus.observability_engine.endpoints.grafana.title]"
         },
         "graylog": {
-          "bsd_syslog": "[ONTBREKEND:pro_plus.observability_engine.endpoints.graylog.bsd_syslog]",
-          "rsyslog": "[ONTBREKEND:pro_plus.observability_engine.endpoints.graylog.rsyslog]",
-          "sidecar_install": "[ONTBREKEND:pro_plus.observability_engine.endpoints.graylog.sidecar_install]",
-          "syslog_ng": "[ONTBREKEND:pro_plus.observability_engine.endpoints.graylog.syslog_ng]",
+          "bsd_syslog": "<code>POST /api/v1/observability/graylog/{host_id}/bsd-syslog-deploy</code> — configureer de standaard syslogd van een BSD. De body voegt <code>{bsd_variant, existing_config}</code> toe: de aanroeper haalt het huidige <code>/etc/syslog.conf</code> van de host op en stelt dit in als <code>existing_config</code>; de engine voert een idempotente fusie uit die onverwante forwarding regels behoudt. De parameter <code>bsd_variant</code> selecteert het herstart commando (<code>service syslogd restart</code> op FreeBSD, <code>rcctl restart syslogd</code> op OpenBSD/NetBSD). GELF wordt afgewezen door de validator (standaard BSD syslogd kan dit niet spreken).",
+          "rsyslog": "<code>POST /api/v1/observability/graylog/{host_id}rsyslog-deploy</code> — configure rsyslog om te forwarding naar Graylog. Body: <code>{graylog_server, port, mechanism}</code> waarbij <code>mechanismus</code> kan zijn <code>syslog_tcp</code>, <code>syslog_udp</code> of <code>gelf_tcp</code>. Schrijft <code>/etc/rsyslog.d/60-graylog.conf</code> en herstart de daemon.",
+          "sidecar_install": "<code>POST /api/v1/observability/graylog/{host_id}/sidecar-install</code> — Windows-only. Downloadt het upstream <code>graylog-sidecar-installer-{amd64|386}.exe</code> van Graylogs GitHub releases en voert het stil uit (<code>/S</code>). Combineer met de deploy endpoint hierboven om <code>sidecar.yml</code> te plaatsen zodra het binair aanwezig is.",
+          "syslog_ng": "<code>POST /api/v1/observability/graylog/{host_id}/syslog-ng-deploy</code> — configureer syslog-ng met dezelfde drie forwardermechanismen. Schrijft <code>/etc/syslog-ng/conf.d/60-graylog.conf</code>.",
           "title": "[ONTBREKEND:pro_plus.observability_engine.endpoints.graylog.title]",
-          "bsd_append": "[ONTBREKEND:pro_plus.observability_engine.endpoints.graylog.bsd_append]",
-          "linux_autodetect": "[ONTBREKEND:pro_plus.observability_engine.endpoints.graylog.linux_autodetect]",
-          "windows_no_token": "[ONTBREKEND:pro_plus.observability_engine.endpoints.graylog.windows_no_token]"
+          "bsd_append": "<strong>BSD uitvoertijd samenvoegen</strong> — <code>build_graylog_bsd_syslog_append_plan</code> voert de <code>/etc/syslog.conf</code> samenvoeging uit op agent-uitvoertijd via shell (<code>sed -i.bak</code> verwijderen + <code>printf</code> toevoegen + variant-specifieke herstart). Bypass de noodzaak voor een OSS-zijde bestands-verhaal-primitive: het BSD-eindpunt dispatcht af op <code>host.platform</code> alleen, geen <code>existing_config</code> vereist.",
+          "linux_autodetect": "<strong>Linux autodetect</strong> — <code>build_graylog_linux_autodetect_plan</code> configureert zowel rsyslog als syslog-ng naar <code>/tmp/sysmanage-graylog-{rsyslog,syslog-ng}.conf</code> en emiteert per-daemon conditionele shell branches gebaseerd op <code>systemctl is-active --quiet &lt;daemon&gt;</code>. De actieve daemon krijgt zijn configuratie gekopieerd naar de juiste locatie en wordt herstart; de andere branch is een no-op. Verwijderd de noodzaak voor het OSS-server om te weten welke forwarder de host uitvoert.",
+          "windows_no_token": "<strong>Windows-sidecar-installatie zonder token</strong> — <code>build_graylog_sidecar_no_token_plan</code> verzorgt het OSS-pad <code>POST /host/{id}/attach_to_graylog</code> op Windows. De OSS-payload bevat alleen <code>{mechanism, graylog_server, port}</code> — geen <code>api_token</code>/<code>node_id</code> — dus schrijft het plan <code>sidecar.yml</code> met een lege <code>server_api_token</code> (de operator vult die daarna in via de Sidecar-beheerinterface). Aangestuurd door PowerShell: het detecteert ARM64-hosts en weigert die (upstream heeft geen ARM64-build), controleert met <code>Test-Path</code> of er al een installatie aanwezig is, downloadt zo nodig het AMD64-installatieprogramma van GitHub, voert <code>/S</code> uit en registreert en start vervolgens de Windows-service."
         },
-        "intro": "[ONTBREKEND:pro_plus.observability_engine.endpoints.intro]",
+        "intro": "Alle eindpunten leven onder het <code>/api/v1/toezicht</code> prefix. Auth: bearer JWT. Elk door de engine gedreven eindpunt vereist ook dat het overeenkomstige Pro+ functie-vaandel aanwezig is in de actieve licentie; zonder deze retourneert de route HTTP 402.",
         "otel": {
-          "multiplatform_deploy": "[ONTBREKEND:pro_plus.observability_engine.endpoints.otel.multiplatform_deploy]",
-          "multiplatform_remove": "[ONTBREKEND:pro_plus.observability_engine.endpoints.otel.multiplatform_remove]",
+          "multiplatform_deploy": "<code>POST /api/v1/observability/otel/{host_id}/multiplatform-deploy</code> — volledige installatie, configuratie en start voor elk van zeven platforms (<code>linux_apt</code>, <code>linux_dnf</code>, <code>freebsd</code>, <code>openbsd</code>, <code>netbsd</code>, <code>macos</code>, <code>windows</code>). Body: <code>{platform, grafana_url}</code>. FreeBSD installeert Grafana Alloy (River-DSL configuratie) in plaats van otelcol-contrib; elk ander platform installeert het upstream <code>otelcol-contrib</code> via zijn eigen package manager.",
+          "multiplatform_remove": "<code>POST /api/v1/observability/otel/{host_id}/{platform}/multiplatform-remove</code> — symmetrisch: stop service, verwijder pakket, verwijder config map (Windows springt de expliciete config-map opruiming over omdat Chocolatey het beheert).",
           "title": "[ONTBREKEND:pro_plus.observability_engine.endpoints.otel.title]",
-          "grafana_connection": "[ONTBREKEND:pro_plus.observability_engine.endpoints.otel.grafana_connection]",
-          "service_control": "[ONTBREKEND:pro_plus.observability_engine.endpoints.otel.service_control]"
+          "grafana_connection": "<strong>Grafana verbinden / verbinding verbreken</strong> — <code>POST /hosts/{host_id}/opentelemetry/{connect,disconnect}</code>. Engine-gerouteerd via <code>build_otel_grafana_connection_plan(platform, action, grafana_url)</code> wat een herstart-enkel plan genereert (het OTEL-config was vastgemaakt aan het doel-Grafana bij de implementatie; verbinden/verbreken activeert alleen een service-herstart zodat eventuele handmatige wijzigingen effectief worden en de audit-traceerlijn de intentie van de beheerder registreert).",
+          "service_control": "<strong>Service beheer</strong> — <code>POST /hosts/{host_id}/opentelemetry/{start,stop,restart}</code> zijn de OSS-eindpunten. Ze routeren via <code>try_engine_otel_service_control</code> in <code>backend/services/observability_shim.py</code>; wanneer het Pro+ engine geladen is, sturen ze elk een <code>build_otel_service_control_plan(platform, actie)</code>-reeks (systemctl / service / rcctl / /etc/rc.d / brew services / sc.exe afhankelijk van de platform). De engine-plan gaat door het agents <code>apply_deployment_plan</code> pad. Valt terug op de legacy <code>generic_command</code> WS-uitzending wanneer de engine niet geladen is."
         }
       },
       "header": {
@@ -18997,13 +18876,13 @@
         "title": "De gebruikersinterface gebruiken"
       },
       "dispatch": {
-        "intro": "[ONTBREKEND:pro_plus.observability_engine.dispatch.intro]",
-        "linux_default": "[ONTBREKEND:pro_plus.observability_engine.dispatch.linux_default]",
-        "step1": "[ONTBREKEND:pro_plus.observability_engine.dispatch.step1]",
+        "intro": "OSS-observabiliteits-eindpunten (deploy, verwijderen, start/stop/herstarten, Grafana verbinden/dissociëren, Graylog koppelen) volgen een consistent engine-first / legacy-fallback contract geïmplementeerd in <code>backend/services/observability_shim.py</code>:",
+        "linux_default": "Op Linux raadpleegt de platformdetectiefunctie twee signaalbronnen voordat er een standaardwaarde wordt gebruikt: (1) het pakketinventaris van de host (meest autoritair — één apt/dnf/yum-installatie bepaalt het); (2) de <code>platform_release</code>-tekenreeks binnen OS_INFO, die binnen 1 seconde na eerste verbinding beschikbaar is (sluit de race voor nieuwe hosts af met typische distributies — Ubuntu, Debian, RHEL, Rocky, Fedora enz. passen via substring-sleutelwoord). Wanneer geen van beide signaalbronnen beschikbaar zijn, gebruikt de functie een standaardwaarde <code>linux_apt</code> met een WAARSCHUWING-logregel; een dnf-familie-host die deze standaardwaarde raakt zal een duidelijke <code>apt-get: command not found</code> fout zien in plaats van een stiltevallende fallback naar snel te verwijderen agentcode.",
+        "step1": "Eindpunt roept een <code>proberen_motor_∗</code> hulpfunctie op.",
         "step2": "[ONTBREKEND:pro_plus.observability_engine.dispatch.step2]",
-        "step3": "[ONTBREKEND:pro_plus.observability_engine.dispatch.step3]",
-        "step4": "[ONTBREKEND:pro_plus.observability_engine.dispatch.step4]",
-        "step5": "[ONTBREKEND:pro_plus.observability_engine.dispatch.step5]",
+        "step3": "Helper resolveert de platformtoken via <code>_detect_otel_platform</code> (voor OTEL paden) of direct vanaf <code>host.platform</code> (voor Graylog).",
+        "step4": "Op elke mislukking (engine niet geladen, ontbrekende builder, ondetecteerbare platform, uitzondering tijdens het bouwen van het plan of het aanroepen) retourneert de helper <code>None</code>; het eindpunt wacht de legacy <code>generic_command</code> WS-bericht exact zoals eerder",
+        "step5": "Elk eindpunt registreert de geselecteerde pad (<code>engine_plan</code> vs <code>legacy_ws_command</code>) in zijn <code>AuditService.log</code>-entry onder <code>details.dispatch_path</code>, zodat beheerders productietrajecten kunnen auditeren.",
         "title": "[ONTBREKEND:pro_plus.observability_engine.dispatch.title]"
       }
     },
@@ -20298,9 +20177,9 @@
         "report": {
           "caption": "[ONTbrekend:pro_plus.provisioning_engine.baremetal.report.caption]",
           "description": "[ONTBREKEND:pro_plus.provisioning_engine.baremetal.report.description]",
-          "disarm": "[ONTBREKEND:pro_plus.provisioning_engine.baremetal.report.disarm]",
-          "log": "[VERLOREN:pro_plus.provisioning_engine.baremetal.report.log]",
-          "states": "[ONTBREKEND:pro_plus.provisioning_engine.baremetal.report.states]",
+          "disarm": "Zowel <code>geïnstalleerd</code> en <code>agent_missing</code> <strong>uitschakelen</strong> netboot; alleen <code>mislukt</code> blijft geactiveerd voor een nieuwe poging. Die onevenwichtige behandeling is opzettelijk: een installatie die niet is voltooid moet worden herhaald, maar een machine waarvan de OS in orde is en waarvan de agent defect is, mag nooit opnieuw worden geïnstalleerd — dat zou een werkkende systeem wissen om een pakket te repareren.",
+          "log": "De rapportage bevat een enkele regel met de reden en het einde van de bootstrap-logboek, zodat een rij leest <em>agent installatie mislukt: Kan pakket sysmanage-agent niet lokaliseren</em> in plaats van eenvoudigweg <code>geïnstalleerd</code>. Het rapportage is best-effort en blokkeert nooit het uitschakelen: een machine die helemaal geen verbinding kan maken met de server, stopt toch met netbooten, omdat een machine die vastloopt bij opnieuw installeren zichzelf een slechtere uitkomst is dan een met een ontbrekende agent.",
+          "states": "Twee uitkomsten worden daarom apart opgehaald, en de verschillen zijn niet cosmetisch. <code>geźinstalleerd</code> betekent dat de agent actief is. <code>agent_missing</code> betekent dat het besturingssysteem gežinstalleerd is en de agent niet - de machine is bruikbaar maar zal nooit inlijven totdat iemand naar hem kijkt. Een derde staat, <code>failed</code>, betekent dat de installatie zelf niet voltooid is.",
           "title": "[ONBEKEND:pro_plus.provisioning_engine.baremetal.report.title]"
         }
       }
@@ -20833,8 +20712,8 @@
       "default_roles": "Standaardrollen",
       "diagnostic_commands": "Diagnostische commando's",
       "email_otp": {
-        "endpoint": "[ONTBREKEND:security.authentication.email_otp.endpoint]",
-        "enumeration": "[ONTBREKEND:security.authentication.email_otp.enumeration]",
+        "endpoint": "<code>POST /api/auth/mfa/email/request</code> verzendt een code (hetzelfde MFA-wachtwoordtoken dat het <code>/api/auth/mfa/verify</code>-eindpunt accepteert); <code>/api/auth/mfa/verify</code> accepteert de geëmailde code in dezelfde velden als TOTP en back-upcodes",
+        "enumeration": "<code>email/verzoek</code> retourneert een algemene \"als uw account MFA heeft geconfigureerd, is er een code verzonden\" envelop ongeacht of de gebruiker zich heeft aangemeld of het e-mailbericht is verstuurd - voorkomt gebruikersenumeratie via het eindpunt",
         "rate_limit": "[ONTBREKEND:security.authentication.email_otp.rate_limit]"
       },
       "external_auth_integration": "Externe auth-integratie",
@@ -21343,9 +21222,9 @@
       "title": "Snelle navigatie"
     },
     "overview": {
-      "backend_api": "Backend API - FastAPI met asynchrone ondersteuning, JWT authenticatie en WebSocket communicatie",
+      "backend_api": "<strong>Backend API</strong> - FastAPI with async support, JWT authentication, and WebSocket communication",
       "components_title": "Server Componenten",
-      "database": "Database - PostgreSQL met SQLAlchemy ORM en Alembic migraties",
+      "database": "<strong>Database</strong> - PostgreSQL with Alembic migrations and comprehensive data models",
       "description": "De SysManage server is een moderne webapplicatie gebouwd met FastAPI (Python) backend en React (TypeScript) frontend. Het biedt een gecentraliseerd platform voor het beheren van meerdere systemen via lichtgewicht agents.",
       "frontend_ui": "<strong> Frontend UI </strong> - Reageer met TypeScript, materiaal-UI-componenten en realtime updates",
       "security_layer": "<strong>-beveiligingslaag </strong> - Beveiliging op ondernemingsniveau met mTLS, RBAC en uitgebreid scannen",
@@ -21577,9 +21456,10 @@
       "title": "Systeemvereisten"
     },
     "ssl": {
-      "description": "Voor HTTPS ontwikkeling, plaats uw SSL certificaten in:",
-      "fallback": "Als certificaten niet gevonden worden, schakelt het systeem automatisch over naar HTTP op localhost.",
-      "title": "SSL Certificaten (Optioneel)"
+      "description": "SysManage serveert de webinterface en de API van één oorsprong over HTTPS op poort 443. nginx beëindigt TLS en proxy's naar de backend op loopback, waarom agents externe toegang nodig hebben tot deze host via poort 443.",
+      "title": "TLS Certificaten (Verplicht voor Productie)",
+      "config_path": "Punt nginx naar uw certificaat en sleutel. De configuratiebestand bevindt zich op een verschillende locatie op elk platform, dus de post-installatietoets drukt de exacte pad voor uw systeem samen met de twee regels om te wijzigen:",
+      "dev_mode": "Voor lokale ontwikkeling kun je helemaal zonder certificaten door <code>dev_mode: true</code> in te stellen in <code>/etc/sysmanage.yaml</code>. De server serveert dan de API op poort 8080 en de webinterface op poort 3000 over plain HTTP, en bindt elke interface zodat agents elders op je LAN het zonder verdere configuratie kunnen bereiken. Nooit dev mode inschakelen op een productie-host."
     },
     "title": "Serverinstallatiehandleiding - SysManage",
     "troubleshooting": {
@@ -21605,9 +21485,9 @@
         "title": "Rechten Problemen"
       },
       "port_conflicts": {
-        "check_services": "Controleer op bestaande services: <code> netstat -tlnp | grep:6443 </code>",
-        "ensure_ports": "Zorg ervoor dat poorten 6443 (API) en 7443 (frontend) beschikbaar zijn",
-        "modify_ports": "Wijzig poorten in configuratie indien nodig",
+        "check_services": "Controleer of er al een luisteraar is: <code>ss -tlnp | grep -E ':(80|443|8080)'</code>",
+        "ensure_ports": "In productie, zorg ervoor dat poort 443 vrij is (en 80, die alleen redirect naar het eerste). Het backend luistert op 127.0.0.1:8080 achter nginx en wordt niet geëxposeerd.",
+        "modify_ports": "In dev mode is de API op poort 8080 en de webinterface op poort 3000; pas ze aan onder <code>api</code> en <code>webui</code> in <code>/etc/sysmanage.yaml</code> als ze botsen.",
         "title": "Poort Conflicten"
       },
       "title": "Probleemoplossing"
@@ -22340,6 +22220,19 @@
       "bsd": "Een FreeBSD-host met dezelfde volledige details als elke Linux-, Windows- of macOS-host.",
       "compliance": "Meldingen voor naleving die de hele omgeving omvatten, niet slechts één besturingssysteem.",
       "vuln": "Overhele klantflotkwetsbaarheidsviziviteit over elke besturingssysteem."
+    },
+    "monday": {
+      "bsd": "De BSDs worden beheerd met scripts die iemand jaren geleden heeft geschreven.",
+      "close": "Dat is het probleem dat SysManage is ontworpen om op te lossen.",
+      "compliance": "Compliance-rapportage bevindt zich ergens anders opnieuw.",
+      "eyebrow": "Maandag, 9:04 uur",
+      "macos": "macOS is in Jamf.",
+      "punch": "U heeft zes consoles geopend voordat u een enkele host heeft gepatched — en u kunt nog steeds niet beantwoorden aan de enige vraag die iemand werkelijk stelt: <strong>zijn we blootgesteld?</strong>",
+      "rhel": "RHEL is in Satellite.",
+      "scanning": "Vulnerability scanning vindt zich elders.",
+      "title": "Een kritieke kwetsbaarheid verschijnt. Waar begin je dan?",
+      "ubuntu": "Ubuntu is in Landscape.",
+      "windows": "Windows is in Intune."
     }
   },
   "shot": {
@@ -22490,7 +22383,7 @@
     "cta": {
       "body": "Laten we doorgaan met een air-gapped implementatie tegenover uw beveiligingsvereisten.",
       "contact": "Vraag een demo zonder internet aan",
-      "gov": "Government & Defense →",
+      "gov": "Overheid en Defensie →",
       "title": "Heb je een netwerk waar internet niet bereikbaar is?"
     },
     "hero": {
@@ -22537,7 +22430,7 @@
   "bsd": {
     "cta": {
       "body": "Beheer FreeBSD, OpenBSD en NetBSD als gelijken met de rest van uw vloot – met de AGPLv3 kern, in 14 talen.",
-      "compare": "Compare Tools →",
+      "compare": "Vergelijkingsgereedschappen →",
       "start": "Gratis beginnen",
       "title": "Eindelijk eersteklas ondersteuning voor de BSDs"
     },
@@ -22666,7 +22559,7 @@
     },
     "grows": {
       "body": "Begin gratis met de open-source Community-editie en haar AGPLv3-kern. Voeg AI-geleide gezondheidsanalyse toe met Professional. Leg er kwetsbaarheidsscanning, naleving, single sign-on en geavanceerde rolgebaseerde toegangscontrole op met Enterprise. Of draai het volledig multi-tenant en gehost met Enterprise SaaS, compleet met per-tenant databaseisolatie. Het is hetzelfde platform en dezelfde workflow op elk moment — u voegt functionaliteit toe zonder de tool opnieuw te leren of uw vloot over te hevelen.",
-      "editions": "Compare Editions →",
+      "editions": "Edities vergelijken →",
       "title": "Met jou groeien"
     },
     "hero": {
@@ -22707,7 +22600,7 @@
       "title": "Compliancy die u kunt rapporteren over, voor elk besturingssysteem"
     },
     "cta": {
-      "airgap": "Air-Gapped Details →",
+      "airgap": "Details van Air-Gapped →",
       "body": "Laten we doorgaan met een implementatie tegenover uw beveiligings-, conformiteits- en isolatierequirements.",
       "demo": "Vraag een Demovoorbeeld aan",
       "title": "Infrastructuur die geen compromissen maakt"
@@ -22786,7 +22679,7 @@
     },
     "cta": {
       "body": "Laten we doorgaan met hoe een aparte database per tenant verandert wat u aan uw klanten kunt beloven.",
-      "compare": "Compare Tools →",
+      "compare": "Vergelijkingsgereedschappen →",
       "contact": "Vraag een Demovoorbeeld aan",
       "title": "Run uw praktijk vanaf één platform"
     },
@@ -22813,7 +22706,7 @@
     },
     "hetero": {
       "body": "MSP-clients zijn nooit uniform. Een account is rijk aan Windows met een flotterij laptops; het volgende draait op Linux-servers en FreeBSD-appliances; nog een mengt macOS, OpenBSD en NetBSD. SysManage beheert ze allemaal dezelfde manier — en alles wat een klant je toewerpt consistent beheren, is de hele punt van een MSP-tool. Het kerngedeelte is AGPLv3, en het interface wordt in 14 talen geleverd.",
-      "cta": "Learn about Enterprise SaaS — the multi-tenant hosted edition →",
+      "cta": "Meer weten over Enterprise SaaS — de gehoste meertennantieditie →",
       "title": "Heterogeen standaard"
     },
     "iso": {
@@ -22853,7 +22746,7 @@
     "cta": {
       "body": "Zie hoe consistent zichtbaarheid over elk besturingssysteem de manier waarop uw team meet en vermindert risico verandert.",
       "demo": "Vraag een Demovoorbeeld aan",
-      "model": "Read the Security Model →",
+      "model": "Lees het Beveiligingsmodel →",
       "title": "Een bron van waarheid voor elke host"
     },
     "hero": {
@@ -22874,7 +22767,7 @@
     "meta_description": "",
     "operational": {
       "body": "Inventarisatie, patchbeheer en kwetsbaarheidbestrijding zijn nu kernbeveiligingscontroles – geen IT-huishoudelijke taken om af te geven en te vergeten. SysManage brengt ze in één controlevlak zodat herstel samengesteld, waarborgbaar en verdedigbaar is. Inventarisatie, patchbeheer en auditlogboek zijn in de opensource kern; kwetsbaarheidsscanning, het CVE-database en conformiteitsrapportering zijn Professional+ en Enterprise-vaardigheden. Toegang wordt overal beschermd door JWT, mTLS en rolgebaseerde toegangscontrole.",
-      "proplus": "Explore Professional+ & Enterprise →",
+      "proplus": "Ontdek Professionele+ & Bedrijfsuitvoeringen →",
       "title": "Beveiliging IS operationeel"
     },
     "see": {
@@ -22893,12 +22786,12 @@
   "solutions": {
     "airgap": {
       "body": "Gehandeld voor netwerken zonder internet: eenhuurdersapparaat, lokale geheime sleutels en inhoud die via fysieke media wordt meegebracht.",
-      "go": "Explore air-gapped →",
+      "go": "Ontdek luchtgekoppeld →",
       "title": "Luchtgeïsoleerde infrastructuur"
     },
     "compare": {
       "body": "Zie hoe SysManage zich vergelijkt met Ansible, Puppet, Salt, Chef, Landscape en Satellite — functie voor functie.",
-      "go": "Compare tools →",
+      "go": "Vergelijkingsgereedschappen →",
       "title": "Overgaan vanaf een ander hulpmiddel?"
     },
     "cta": {
@@ -22909,12 +22802,12 @@
     },
     "enterprise": {
       "body": "Samenvoegen van een rek met single-OS-hulpprogramma's in één besturingsvlak en besparen aan licentiekosten, complexiteit en afhankelijkheid van sleutelpersoneel binnen een heterogeen vloot.",
-      "go": "Explore enterprise →",
+      "go": "Ontdek onderneming →",
       "title": "Enterprise IT"
     },
     "government": {
       "body": "Volslagen afgesloten installatie, FIPS-bewust ondersteuning en eersteklas ondersteuning voor de platforms waar critieke infrastructuur werkelijk draait.",
-      "go": "Explore government →",
+      "go": "Ontdek overheidsbeleid →",
       "title": "Overheid & Verdediging"
     },
     "hero": {
@@ -22925,12 +22818,12 @@
     "meta_description": "",
     "msp": {
       "body": "Run veel clientfleets vanaf één platform met een aparte database voor elke tenant — echte isolatie, geen rijniveau-filtering.",
-      "go": "Explore MSP →",
+      "go": "Ontdek MSP →",
       "title": "Gehoste Dienstenleveranciers"
     },
     "security": {
       "body": "Consistente inventaris, patchtoestand en kwetsbaarheidszichtbaarheid op elk besturingssysteem - één bron van waarheid in plaats van zes doezels.",
-      "go": "Explore security →",
+      "go": "Beveiliging verkennen →",
       "title": "Beveiligingsteam"
     },
     "title": "Oplossingen per industrie - SysManage"
@@ -22938,7 +22831,7 @@
   "xplat": {
     "concrete": {
       "body": "Geïntegreerd infrastructuurbeheer is hier geen slogan — het zijn dezelfde mogelijkheden die identiek werken op elk platform. Echt-tijd WebSocket-monitoring houdt elke host levend in zicht. Pakket- en patchbeheer volgt één goedkeur-en-deploy-flows. Kwetsbaarheidsscanning en nalevingsrapportering — beschikbaar in de Professional en Enterprise-edities — omvat het hele bedrijf in plaats van slechts één besturingssysteem. Het kerngedeelte is open source onder de AGPLv3, beveiligd met JWT, mTLS en rolgebaseerde toegangscontrole, en geïdentificeerd in 14 talen.",
-      "solutions": "See solutions by industry →",
+      "solutions": "Bekijk oplossingen per sector →",
       "title": "Concreet geïntegreerd kruisplatformbeheer"
     },
     "control": {
@@ -22952,7 +22845,7 @@
     },
     "cta": {
       "body": "Windows, Linux, macOS en de BSD-varianten onder één controlevlak brengen en je team een enkele bron van waarheid geven.",
-      "compare": "Compare Tools →",
+      "compare": "Vergelijkingsgereedschappen →",
       "start": "Gratis beginnen",
       "title": "Stop met besturingssystemen beheren. Beheer uw vloot."
     },
@@ -23034,8 +22927,8 @@
       "title": "Hoe een agent beslist wat te rapporteren"
     },
     "nav": {
-      "next": "Troubleshooting →",
-      "prev": "← Cross-Platform Support"
+      "next": "Probleemoplossing →",
+      "prev": "← Platformondersteuning"
     },
     "section_title": "Capaciteiten",
     "seeing": {
@@ -23087,6 +22980,80 @@
       "proxy_desc": "Expliciete uitgaande proxy. Normaal onnodig — <code>HTTPS_PROXY</code>, <code>HTTP_PROXY</code> en <code>NO_PROXY</code> worden geëerd vanuit de omgeving.",
       "url_desc": "De enige oorsprong waar de agent naar spreekt, bijvoorbeeld <code>https://sysmanage.example.com</code>. Laat de poort weg om te betekenen dat het 443 is. Voordelig boven de oude velden hieronder.",
       "use_https_desc": "Oudste versie. Overwonnen door het schema in <code>url</code>."
+    }
+  },
+  "server_quickstart": {
+    "before": {
+      "body": "Deze gids installeert de server vanuit het pakket dat is gebouwd voor uw platform. Voor de volledige platformmatrix, instructies om zelf te bouwen en per-distributie vereisten, zie de <a href=\"/docs/server/installation.html\">Server Installatie</a> handleiding.",
+      "cert": "<strong>Een TLS-certificaat en privé-sleutel</strong> voor de servers hostname. nginx weigert om op te starten zonder een certificaat — doelbewust, omdat een beheerconsole niet mag opkomen in cleartekst alleen maar omdat er geen certificaat was.",
+      "ports": "<strong>Inkomende 443</strong> (plus 80 als je de redirect wilt). Niets anders hoeft geopend te worden: agents bereiken de server over uitgaande 443 en het backend blijft op loopback achter nginx.",
+      "postgres": "<strong>PostgreSQL 12 of nieuwer</strong>, op deze host of een externe. SysManage start niet zonder dit.",
+      "root": "<strong>Root of sudo</strong> op de doel-host.",
+      "tip": "Het pakket drukt elke stap hieronder als zijn post-installatietoets, met de paden al ingevuld voor uw platform. Als u het verliest, is het in het logboek van de package manager.",
+      "tip_label": "TIP:",
+      "title": "Voordat Je Begint"
+    },
+    "intro": "Installeer de SysManage-server vanuit een native package, wijst het aan PostgreSQL, geeft nginx een certificaat, en open de console. Ongeveer vijfentwintig minuten op een versie-host.",
+    "next": {
+      "agent": "<a href=\"/docs/agent/installation.html\">Agent Installatie</a> — pakketten voor Windows, Linux, macOS en de BSDs.",
+      "approval": "<a href=\"/docs/getting-started/agent-approval.html\">Agent Toestemminglijst verwerven</a> — hoe een nieuwe host zich bij de groep voegt.",
+      "body": "Een server zonder hosts doet weinig. Installeer het agent op de machines die je wilt beheren, en gooi ze toe:",
+      "config": "<a href=\"/docs/server/configuration.html\">Server Configuratie</a> — e-mail, authenticatie, bewaarperiode en meer.",
+      "security": "<a href=\"/docs/security/best-practices.html\">Veiligheids Best Practices</a> — lees dit voordat je deze inzet voor een echte groep.",
+      "title": "Volgende Stappen"
+    },
+    "step1": {
+      "body": "Download het pakket voor je platform van de <a href=\"https://github.com/bceverly/sysmanage/releases\">releases pagina</a> en installeer het. Vervang <code>X.Y.Z</code> met de release die je installeert.",
+      "debian": "Debian / Ubuntu",
+      "other": "Andere platforms",
+      "other_body": "openSUSE, Alpine, FreeBSD, OpenBSD, NetBSD, macOS en Windows pakketten worden gepubliceerd op dezelfde releases pagina. De stappen hieronder zijn identiek op elk platform; alleen de installatiecommando en het nginx configuratiepad verschillen, en de post-installatietoets drukt het juiste pad voor u.",
+      "rhel": "RHEL / CentOS / Fedora",
+      "title": "Het Pakket Installeren"
+    },
+    "step2": {
+      "body": "Om een lokale PostgreSQL instantie te gebruiken:",
+      "remote": "Een externe database werkt net zo goed — je zult zijn host en referenties opgeven in de volgende stap.",
+      "title": "Maak de Database aan"
+    },
+    "step3": {
+      "body": "De server leest <code>/etc/sysmanage.yaml</code>. De <a href=\"/config-builder.html\">configuratiebuilder</a> genereert een volledig bestand — databaseverbinding, hostname, TLS, authenticatie en logging — wat sneller en foutlozer is dan het handmatig schrijven.",
+      "perms": "Het bestand bevat database-credentials, dus houd het alleen leesbaar door root.",
+      "title": "Schrijf de Configuratie"
+    },
+    "step4": {
+      "body": "Controleer wat er nog moet worden aangebracht, en voer dit uit. Dit migratie de schema van het beheersysteem en, als multi-tenanting is ingeschakeld, elke tenant-database ook.",
+      "openbao": "Met multi-tenancy ingeschakeld leest elke tenant pass credentials van OpenBAO, dus OpenBAO moet draaien tijdens het migreren.",
+      "title": "Voer de Database Migraties uit"
+    },
+    "step5": {
+      "body": "Plaats uw certificaat en sleutel waar nginx ze verwacht:",
+      "dev": "Stel <code>dev_mode: true</code> in <code>/etc/sysmanage.yaml</code> om nginx en TLS volledig te skippen. De server serveert dan de webinterface op poort 3000 en de API op 8080 over plain HTTP, bindend elke interface zodat agents elders op uw LAN het kunnen bereiken. Doe dit nooit op een productie-host.",
+      "dev_label": "Lokaal evalueren?",
+      "elsewhere": "Of wijst nginx ergens anders door deze twee regels in zijn configuratie te bewerken — de pad varieert per platform, en het post-install bericht drukt jouw aan:",
+      "letsencrypt": "Als je nog geen certificaat hebt, <code>certbot certonly --standalone -d your-server.example.com</code> zal er één verkrijgen; dan wijst je de twee regels naar het <code>fullchain.pem</code> en <code>privkey.pem</code> van dat naam. Controleer het resultaat voordat je begint:",
+      "title": "De TLS-certificaat installeren"
+    },
+    "step6": {
+      "body": "Op de BSDs en andere niet-systemd-platformen, gebruik de service commando dat het post-install bericht afdrukte.",
+      "title": "Start de Service"
+    },
+    "step7": {
+      "body": "De webinterface en de API delen deze één oorsprong. Log in met het administrator-account uit uw configuratiebestand — de gebruikersnaam is een e-mailadres.",
+      "title": "Open de Console"
+    },
+    "steps": {
+      "title": "Installatie"
+    },
+    "verify": {
+      "api": "2. De API reageert",
+      "logs": "3. De logs zijn schoon",
+      "service": "1. De service loopt",
+      "t_db": "<strong>De service start en stopt direct:</strong> controleer de databaseverbinding in <code>/etc/sysmanage.yaml</code> en bevestig dat de migraties zijn uitgevoerd.",
+      "t_login": "<strong>Login retourneert een foutmelding:</strong> de administrator gebruikersnaam moet een volledig e-mailadres zijn, geen alleen naam.",
+      "t_nginx": "<strong>nginx wil niet opstarten:</strong> bijna altijd een ontbrekend of onleesbaar certificaat. <code>sudo nginx -t</code> noemt het bestand dat niet kan worden gelezen.",
+      "t_port": "<strong>Niets luistert op 443:</strong> controleer of nginx loopt en dat er geen andere service al het poortnummer bezet houdt.",
+      "title": "Controleer de Installatie",
+      "trouble": "Als er iets mis is"
     }
   }
 }

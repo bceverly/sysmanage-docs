@@ -99,7 +99,9 @@ re:[\d,.]+\+?\s*[-–]\s*[\d,.]+\+?\s*(servers?|agents?)
 re:[\d,.]+\+?\s*(servers?|agents?|cores?)
 re:[\d,.]+ req/sec
 # --- HTTP status reason phrases (conventionally untranslated in API docs) -----
-re:[1-5]\d{2} [A-Z][A-Za-z ]+
+# TIGHTENED 2026-08-14: `[A-Za-z ]+` was unbounded, so a whole sentence after a status code matched.
+#   Now at most four capitalised words ("500 Internal Server Error").
+re:[1-5]\d{2} [A-Z][A-Za-z]*(?: [A-Z][A-Za-z]*){0,3}
 # --- ALL-CAPS protocol/message-type constants and single-letter grades --------
 re:[A-Z][A-Z0-9_]{2,}
 re:[A-D]\+?
@@ -147,7 +149,7 @@ re:[a-z][a-z0-9]+(\.[a-z][a-z0-9]+)+
 
 # --- product / OS / tool labels (a value that *starts* with one of these is a
 #     product label, not prose; refine if a real sentence gets caught) -------
-re:(Unix|Linux|BSD|GNU|Ubuntu|Debian|RHEL|CentOS|Fedora|Rocky|AlmaLinux|Oracle Linux|openSUSE|SLES|Alpine|Arch|Gentoo|NixOS|macOS|Windows|FreeBSD|OpenBSD|NetBSD|PostgreSQL|SQLite|MySQL|MariaDB|Redis|Homebrew|Chocolatey|Scoop|winget|Snap|Flatpak|systemd|OpenRC|launchd|rc\.d|Grafana|Prometheus|OpenTelemetry|Graylog|Docker|Podman|Kubernetes|Helm|Ansible|Terraform|Vagrant|libvirt|KVM|QEMU|bhyve|VMM|WSL|LXD|LXC|OpenBAO|Vault|Keycloak|Okta|Entra|NGINX|Apache|PowerShell|WebSocket|OAuth|OpenID|GraphQL|gRPC|Bandit|SonarQube|SaltStack)[\w .:/+-]*
+# REMOVED 2026-08-14: superseded by the bounded rule added below
 
 # --- HTTP status lines / standards / version+codename labels ----------------
 re:\d{3} [A-Z][A-Za-z ]*
@@ -164,7 +166,7 @@ re:\[(MISSING|TODO)\].*
 re:[A-Z][A-Za-z0-9.+-]*\s?/\s?[A-Z][\w/.+-]*
 
 # --- brand, SaaS/dev tooling, protocols (value starts with the name) --------
-re:(SysManage|Enterprise SaaS|TypeScript|JavaScript|React|Node\.js|WebSockets?|REST|JSON|YAML|gRPC|GitHub|GitLab|Bitbucket|ServiceNow|Remedy|PagerDuty|Opsgenie|Jira|Linear|Slack|Discord|WireGuard|OpenVPN|Tailscale|Cloudflare|AWS|Azure|GCP|LDAP|SAML|SCIM|JWT|TOTP|Keycloak|Trivy|Snyk|Semgrep|TruffleHog|ESLint|Prettier|Pytest|Playwright|Vitest|FastAPI|SQLAlchemy|Alembic|Pydantic|Uvicorn|Gunicorn|Vite|IPv4|IPv6)[\w .:/+-]*
+# REMOVED 2026-08-14: superseded by the bounded rule added below
 
 # --- more global identity patterns -----------------------------------------
 re:[A-Za-z]:\\[\w\\.-]*
@@ -219,9 +221,13 @@ re:(SysManage|Ansible|Linux|Windows|macOS|FreeBSD|OpenBSD|NetBSD)
 
 # === Curated 2026-07: HA-docs + autotagged-page passthrough (invariants) ====
 # Navigation link labels (prev/next arrows are nav chrome, never prose).
-re:(←\s.*|.* →)
+# REMOVED 2026-08-14: was `(<-\s.*|.* ->)` -- any value ending in an arrow (315 keys). A call to action
+#   is prose and must be translated; the arrow itself is punctuation, not a reason
+#   to exempt the sentence in front of it.
 # Emoji-prefixed labels / step headings (the pictograph makes it a label).
-re:.*[📝🧪🔍🚀🐘🐧⭐🛟📦🔐🔄🌍📊🖥].*
+# TIGHTENED 2026-08-14: was `.*<emoji>.*`, i.e. ANY value containing an emoji (71 keys). Now only an
+#   emoji plus a short label; emoji-bearing prose is translatable like any other.
+re:[📝🧪🔍🚀🐘🐧⭐🛟📦🔐🔄🌍📊🖥](?:\s+[\w.+:/()-]+|,)*
 # Loopback + language-picker labels ("localhost", "Hindi (hi)", "fr - French").
 re:"?localhost"?
 re:.*\([a-z]{2}\)
@@ -347,7 +353,9 @@ re:^(?:ReDoc|Swagger UI|Homepage): https?://\S+$
 re:^https?://\S+ \(fallback\)$
 re:^/var/log/sysmanage-agent\.log /var/log/sysmanage-agent-error\.log$
 re:^(?:Windows: )?C:\\Program Files\\SysManage Agent.*$
-re:^(?:GET|POST) /api/\S+.*$
+# TIGHTENED 2026-08-14: the old `.*$` tail exempted the prose AFTER the endpoint -- 200 keys, 181 of
+#   them real documentation ("GET /api/... - list saved scripts"). Endpoint only now.
+re:^(?:GET|POST|PUT|PATCH|DELETE) /\S+(?:\s*/\s*/\S+)*(?:\s*[—-]\s*[\w]+(?:\s*/\s*[\w]+)*)?$
 re:^PPA Name: ppa$
 re:^Installation(?: \([^)]+\))?:(?: .*)?$
 
@@ -448,3 +456,21 @@ nl: re:^virtio-win Drivers$
 # would produce a config file the agent cannot read.  Added 2026-08-13 with the
 # single-origin (443-only) work.
 re:<code>(url|ca_bundle|proxy|hostname|port|use_https|verify_ssl)</code>
+
+# --- product / tool labels, BOUNDED (replaces the two unbounded rules removed
+# above, which exempted 663 and 360 keys -- 239 of them real prose, because a
+# sentence STARTING with "Prometheus" or "SysManage" matched the whole value).
+# A label may carry a version or a short qualifier; a sentence may not.
+re:(Unix|Linux|BSD|GNU|Ubuntu|Debian|RHEL|CentOS|Fedora|Rocky|AlmaLinux|Oracle Linux|openSUSE|SLES|Alpine|Arch|Gentoo|NixOS|macOS|Windows|FreeBSD|OpenBSD|NetBSD|PostgreSQL|SQLite|MySQL|MariaDB|Redis|Homebrew|Chocolatey|Scoop|winget|Snap|Flatpak|systemd|OpenRC|launchd|rc\.d|Grafana|Prometheus|OpenTelemetry|Graylog|Docker|Podman|Kubernetes|Helm|Ansible|Terraform|Vagrant|libvirt|KVM|QEMU|bhyve|VMM|WSL|LXD|LXC|OpenBAO|Vault|Keycloak|Okta|Entra|NGINX|Apache|PowerShell|WebSocket|OAuth|OpenID|GraphQL|gRPC|Bandit|SonarQube|SaltStack|SysManage|Enterprise SaaS|TypeScript|JavaScript|React|Node\.js|WebSockets?|REST|JSON|YAML|GitHub|GitLab|Bitbucket|ServiceNow|PagerDuty|Jira|Slack|WireGuard|OpenVPN|Cloudflare|AWS|Azure|GCP|LDAP|SAML|SCIM|JWT|TOTP|Trivy|Snyk|Semgrep|ESLint|Prettier|Pytest|Playwright|Vitest|FastAPI|SQLAlchemy|Alembic|Pydantic|Uvicorn|Gunicorn|Vite|IPv4|IPv6)(?:\s*[/,+-]?\s*(Unix|Linux|BSD|GNU|Ubuntu|Debian|RHEL|CentOS|Fedora|Rocky|AlmaLinux|Oracle Linux|openSUSE|SLES|Alpine|Arch|Gentoo|NixOS|macOS|Windows|FreeBSD|OpenBSD|NetBSD|PostgreSQL|SQLite|MySQL|MariaDB|Redis|Homebrew|Chocolatey|Scoop|winget|Snap|Flatpak|systemd|OpenRC|launchd|rc\.d|Grafana|Prometheus|OpenTelemetry|Graylog|Docker|Podman|Kubernetes|Helm|Ansible|Terraform|Vagrant|libvirt|KVM|QEMU|bhyve|VMM|WSL|LXD|LXC|OpenBAO|Vault|Keycloak|Okta|Entra|NGINX|Apache|PowerShell|WebSocket|OAuth|OpenID|GraphQL|gRPC|Bandit|SonarQube|SaltStack|SysManage|Enterprise SaaS|TypeScript|JavaScript|React|Node\.js|WebSockets?|REST|JSON|YAML|GitHub|GitLab|Bitbucket|ServiceNow|PagerDuty|Jira|Slack|WireGuard|OpenVPN|Cloudflare|AWS|Azure|GCP|LDAP|SAML|SCIM|JWT|TOTP|Trivy|Snyk|Semgrep|ESLint|Prettier|Pytest|Playwright|Vitest|FastAPI|SQLAlchemy|Alembic|Pydantic|Uvicorn|Gunicorn|Vite|IPv4|IPv6)|\s+[\w.+:#-]+){0,4}:?
+
+# --- product/tech NAME LISTS, with optional nav arrows.  A value that is only
+# product names joined by / , or + is untranslatable however many there are
+# ("Ubuntu / Debian / Fedora / RHEL / openSUSE / Alpine / BSD"), which the
+# 4-token bound above wrongly caught.  The arrow is allowed only AROUND such a
+# list -- the deleted blanket `.* →` rule exempted any sentence ending in one.
+re:(?:←\s*)?(?:(?:Unix|Linux|BSD|GNU|Ubuntu|Debian|RHEL|CentOS|Fedora|Rocky|AlmaLinux|Oracle Linux|openSUSE|Leap|Tumbleweed|SLES|Alpine|Arch|Gentoo|NixOS|macOS|Windows|FreeBSD|OpenBSD|NetBSD|PostgreSQL|SQLite|MySQL|MariaDB|Redis|Homebrew|Chocolatey|Scoop|winget|Snap|Flatpak|systemd|OpenRC|launchd|rc\.d|Grafana|Prometheus|OpenTelemetry|Graylog|Docker|Podman|Kubernetes|Helm|Ansible|Terraform|Vagrant|libvirt|KVM|QEMU|bhyve|VMM|WSL|LXD|LXC|OpenBAO|Vault|Keycloak|Okta|Entra|NGINX|Apache|PowerShell|WebSocket|OAuth|OpenID|GraphQL|gRPC|Bandit|SonarQube|SaltStack|SysManage|TypeScript|JavaScript|React|Node\.js|REST|JSON|YAML|GitHub|GitLab|Bitbucket|ServiceNow|PagerDuty|Opsgenie|Jira|Linear|Slack|Discord|WireGuard|OpenVPN|Tailscale|Cloudflare|AWS|Azure|GCP|LDAP|SAML|SCIM|JWT|TOTP|Trivy|Snyk|Semgrep|TruffleHog|ESLint|Prettier|Pytest(?:-cov)?|Playwright|Vitest|FastAPI|SQLAlchemy|Alembic|Pydantic|Uvicorn|Gunicorn|Vite|IPv4|IPv6|Active Directory|Microsoft Teams|Azure DevOps|SonarQube Cloud|Collector|zPages|Stream|Cloud|Server|API|DevOps)|\d[\w.]*)(?:\s*[/,+]\s*(?:(?:Unix|Linux|BSD|GNU|Ubuntu|Debian|RHEL|CentOS|Fedora|Rocky|AlmaLinux|Oracle Linux|openSUSE|Leap|Tumbleweed|SLES|Alpine|Arch|Gentoo|NixOS|macOS|Windows|FreeBSD|OpenBSD|NetBSD|PostgreSQL|SQLite|MySQL|MariaDB|Redis|Homebrew|Chocolatey|Scoop|winget|Snap|Flatpak|systemd|OpenRC|launchd|rc\.d|Grafana|Prometheus|OpenTelemetry|Graylog|Docker|Podman|Kubernetes|Helm|Ansible|Terraform|Vagrant|libvirt|KVM|QEMU|bhyve|VMM|WSL|LXD|LXC|OpenBAO|Vault|Keycloak|Okta|Entra|NGINX|Apache|PowerShell|WebSocket|OAuth|OpenID|GraphQL|gRPC|Bandit|SonarQube|SaltStack|SysManage|TypeScript|JavaScript|React|Node\.js|REST|JSON|YAML|GitHub|GitLab|Bitbucket|ServiceNow|PagerDuty|Opsgenie|Jira|Linear|Slack|Discord|WireGuard|OpenVPN|Tailscale|Cloudflare|AWS|Azure|GCP|LDAP|SAML|SCIM|JWT|TOTP|Trivy|Snyk|Semgrep|TruffleHog|ESLint|Prettier|Pytest(?:-cov)?|Playwright|Vitest|FastAPI|SQLAlchemy|Alembic|Pydantic|Uvicorn|Gunicorn|Vite|IPv4|IPv6|Active Directory|Microsoft Teams|Azure DevOps|SonarQube Cloud|Collector|zPages|Stream|Cloud|Server|API|DevOps)|\d[\w.]*)|\s+(?:(?:Unix|Linux|BSD|GNU|Ubuntu|Debian|RHEL|CentOS|Fedora|Rocky|AlmaLinux|Oracle Linux|openSUSE|Leap|Tumbleweed|SLES|Alpine|Arch|Gentoo|NixOS|macOS|Windows|FreeBSD|OpenBSD|NetBSD|PostgreSQL|SQLite|MySQL|MariaDB|Redis|Homebrew|Chocolatey|Scoop|winget|Snap|Flatpak|systemd|OpenRC|launchd|rc\.d|Grafana|Prometheus|OpenTelemetry|Graylog|Docker|Podman|Kubernetes|Helm|Ansible|Terraform|Vagrant|libvirt|KVM|QEMU|bhyve|VMM|WSL|LXD|LXC|OpenBAO|Vault|Keycloak|Okta|Entra|NGINX|Apache|PowerShell|WebSocket|OAuth|OpenID|GraphQL|gRPC|Bandit|SonarQube|SaltStack|SysManage|TypeScript|JavaScript|React|Node\.js|REST|JSON|YAML|GitHub|GitLab|Bitbucket|ServiceNow|PagerDuty|Opsgenie|Jira|Linear|Slack|Discord|WireGuard|OpenVPN|Tailscale|Cloudflare|AWS|Azure|GCP|LDAP|SAML|SCIM|JWT|TOTP|Trivy|Snyk|Semgrep|TruffleHog|ESLint|Prettier|Pytest(?:-cov)?|Playwright|Vitest|FastAPI|SQLAlchemy|Alembic|Pydantic|Uvicorn|Gunicorn|Vite|IPv4|IPv6|Active Directory|Microsoft Teams|Azure DevOps|SonarQube Cloud|Collector|zPages|Stream|Cloud|Server|API|DevOps)|\d[\w.]*)){0,10}(?:\s*→)?:?
+
+# --- "<short label>: <path|URL>".  The label is bounded and the tail must be a
+# real path or URL, so "macOS: /usr/local/etc/..." is exempt while
+# "Security Audit: Review security logs and access patterns" is not.
+re:[A-Za-z][\w ()/+.&-]{0,44}:\s*(?:~?/\S+|\w+://\S+)

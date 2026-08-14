@@ -731,7 +731,7 @@
       "description": "Что каждый агент действительно может делать на своей платформе, и как сервер представляет и применяет это.",
       "gating": "Команды отклоняются вместо удаленного отказа",
       "limited": "Хосты Полные, Ограниченные и Неизвестные",
-      "link": "Capabilities Guide →",
+      "link": "Руководство по возможностям →",
       "reporting": "Что объявляет агент и как это решает",
       "title": "Возможности"
     }
@@ -998,7 +998,7 @@
         "copr_note": "Примечание: EPEL 8 не поддерживается, поскольку использует Python 3.6, который слишком старый для наших зависимостей.",
         "copr_quick_start": "Быстрая установка через Copr",
         "copr_rhel_10_title": "RHEL 10 / CentOS Поток 10:",
-        "copr_rhel_9_title": "RHEL 9 / Rocky 9 / AlmaLinux 9 / Oracle Linux 9 / CentOS Stream 9:",
+        "copr_rhel_9_title": "РHEL 9 / Рокки 9 / Альмалинукс 9 / Оракл Линукс 9 / Центос Стрим 9:",
         "copr_specific_versions": "Инструкции для конкретных дистрибутивов",
         "copr_supported": "Поддерживаемые дистрибутивы:",
         "copr_title": "Fedora Копр (Альтернатива)",
@@ -2704,8 +2704,8 @@
         },
         "config": {
           "title": "Параметр конфигурации role:",
-          "summary": "Add one key to /etc/sysmanage.yaml on each server:",
-          "validation": "The startup config loader validates the value at boot; an unknown role aborts startup with a clear error. The role is also exposed via the unauthenticated GET /api/v1/server-info endpoint, which the web UI uses to render a chip in the header bar so operators can see at a glance which half of an air-gap pair they're looking at.",
+          "summary": "Установите роль через веб-интерфейс — редактирование конфигурационных файлов не требуется. Перейдите к <strong>Settings &rarr; Server Role",
+          "validation": "Роль также доступна через анонимный <code>GET /api/v1/server-info",
           "degraded_chip": "If role: is set to collector or repository but the corresponding Pro+ engine isn't loaded (typically a license problem), the chip turns red and a tooltip explains what's missing. Server keeps running in degraded mode so you can fix the license without losing access to the rest of the UI.",
           "opt_standard": "<strong>Стандартный (без офлайн-режима)",
           "opt_collector": "<strong>Коллектор в режиме офлайн (онлайн сторона)",
@@ -2715,15 +2715,15 @@
         "collection_cycle": {
           "title": "Цикл сбора (сторона Сборщика)",
           "summary": "Triggered by an operator (UI, API, or cron) on the public-side server. The engine emits a deployment plan that runs locally on the collector itself; it does not dispatch to managed agents.",
-          "step_request": "Request — POST /api/v1/airgap/collector/collection/runs with a body listing each distro/version/repo to capture, plus flags for CVE and compliance snapshot inclusion and target media size (one DVD, BD-R, etc.).",
-          "step_validate": "Validation — distros are checked against the supported list (13 families in v0.1.0); version strings are constrained to a tight regex so they cannot smuggle shell metacharacters into the dispatch templates; iso_label is constrained the same way.",
-          "step_mirror": "Mirror — per-distro dispatch templates run apt-mirror (Debian / Ubuntu), dnf reposync (RHEL family), zypper download (openSUSE / SLES), pkg fetch (FreeBSD), apk fetch (Alpine), or distribution-specific equivalents. Each command has a 4-hour timeout ceiling; the agent's in-flight journal (Phase 11.6) covers the multi-hour run across WebSocket reconnects.",
+          "step_request": "<strong>Запрос</strong> — <code>POST /api/v1/airgap/collector/runs</code> с телом, в котором каждый целевой узел представлен как <code>{mirror_id}</code>, выбранный из <code>/api/mirror-repositories</code>, а также <code>iso_label</code>, <code>media_size_bytes</code>, <code>include_cve</code>, <code>include_compliance</code> и необязательный <code>burn_device</code>. Версия дистрибутива / репозитории вычисляются на стороне сервера из записи <code>known_version</code> каждого зеркала.",
+          "step_validate": "<strong>Валидация</strong> — каждое выбранное зеркало должно существовать, быть включено, иметь <code>known_version_id</code> и обладать <code>host_id</code> таким же, как у других выбранных (план сборки распределяет задачи к одному агенту, поэтому целевые объекты на разных хостах не поддерживаются в версии v1). Строка версий ограничена жестким регулярным выражением, чтобы избежать передачи символов командной строки в шаблоны распределения; <code>iso_label</code> также подчиняется этому ограничению.",
+          "step_mirror": "<strong>Зеркало (созданное на основе снимков)</strong> — как только все снимки будут готовы, оркестратор создаёт <code>build_snapshot_collection_run_plan</code> со словарём <code>source_snapshots</code> вида <code>\"&lt;distro&gt;:&lt;version&gt;\"</code> → путь к директории снимка. План использует rsync для переноса каждого дерева снимков в стадийные директории целевых узлов. В момент сборки не выполняются upstream apt-mirror / reposync / pkg fetch — содержимое зеркала гарантированно байт-в-байте идентично снимкам. Каждый rsync имеет предельное время выполнения 4 часа; журнал агента в режиме онлайн (Фаза 11.6) обеспечивает работу через переподключения WebSocket на протяжении нескольких часов.",
           "step_cve": "Снимок CVE / соответствия — если требуется, фиды NVD и вендорских advisories захватываются одновременно, чтобы результирующий набор носителей имел согласованное представление о текущих данных об уязвимостях.",
-          "step_iso": "ISO build — xorriso -as mkisofs bundles the staging tree into one ISO with the manifest embedded at /manifest.json. The post-build step computes the ISO's SHA-256 for the transfer log.",
+          "step_iso": "<strong>ISO сборка</strong> — <code>xorriso -as mkisofs</code> упаковывает стадийное дерево в один ISO по пути <code>/var/lib/sysmanage/airgap-iso/&lt;run_id&gt;.iso</code> с вложенным манифестом по пути <code>/manifest.json</code>. Послестроительный шаг вычисляет SHA-256 ISO для журнала передачи.",
           "step_sign": "Подпись — манифест сортируется по ключам (без пробелов) и подписывается операторским приватным ключом ed25519. Обёртка включает подпись, SHA-256 публичного ключа как отпечаток, идентификатор алгоритма и версию формата манифеста.",
-          "step_burn": "Burn — optional. POST /api/v1/airgap/collector/iso/burn wraps growisofs against the configured optical-drive device. The burn-step timeout ceiling is 4 hours so slow drives don't trip a watchdog mid-write.",
-          "multidisc_note": "Note on multi-disc spanning. v0.1.0 ships the single-disc happy path — if the staging tree exceeds the configured media size, the burn step fails at runtime. Multi-disc bin-packing is tracked as a Phase 11.1 follow-up. The schema already supports it (the manifest table carries disc_index + disc_count) so it lands additively.",
-          "step_snapshot": "<strong>Автоматическое создание снимка:</strong> при запуске, один снимок отправляется на каждый целевой зеркало. Каждая строка <code>AirgapCollectionTarget</code> привязывает свой <code>source_snapshot_id</code> к строке-заглушке, чтобы оркестратор знал, какой снимок упаковывать при отчёте об окончании агента. Снимки запускаются параллельно; задача остаётся в состоянии <code>QUEUED</code>, пока не будет очищен каждый целевой <code>last_snapshot_message_id>.",
+          "step_burn": "<strong>Сжечь (необязательно)</strong> — если <code>burn_device</code> установлен в строке запуска, оркестратор продвигает ISO_BUILT → BURNING путем отправки <code>build_burn_plan</code> по указанному пути устройства (обычно <code>/dev/sr0</code>). Верхний предел тайм-аута для шага сжигания составляет 4 часа, чтобы медленные диски не вызывали срабатывание защиты от зависаний во время записи. Когда <code>burn_device</code> равно NULL, запуск переходит сразу к ISO_BUILT → COMPLETE — поток \"создать загружаемый ISO и остановиться\", который не включает работу с оптическими носителями.",
+          "multidisc_note": "<strong>Многоносное разбиение (Фаза 12).</strong> Когда <code>sum(target.source_snapshot.size_bytes) &gt; run.media_size_bytes</code> оркестратор направляет на <code>build_snapshot_multidisc_collection_plan</code>, который упаковывает целевые деревья в диски методом first-fit-decreasing. Каждый диск получает свой собственный каталог подготовки + rsync + xorriso + sha256 в одном плане; выходные данные имеют формат <code>&lt;run_id&gt;-disc-&lt;N&gt;.iso</code>. Оркестратор выдает ясную ошибку, если дерево какого-либо целевого элемента превышает размер диска — разбиение на уровне файлов (разделение одного зеркального дерева между дисками) откладывается; оператор выбирает большие носители (BD-25 → BD-50) или делит на несколько запусков.",
+          "step_snapshot": "<strong>Автоснапшот</strong> — при создании запуска отправляется один снимок на каждое целевое зеркало. Каждая строка <code>AirgapCollectionTarget</code> привязывает свой <code>source_snapshot_id</code> к строке-заглушке, чтобы оркестратор знал, какой снимок упаковать после того, как агент сообщит об окончании. Снимки выполняются параллельно; запуск находится в состоянии <code>QUEUED</code> до тех пор, пока не будет очищено значение <code>last_snapshot_message_id</code> для каждого целевого зеркала.",
           "step_download": "<strong>Скачать:</strong> <code>GET /api/v1/airgap/collector/runs/{id}/iso</code> потоком передаёт ISO-файл. Для многодисковых задач, <code>GET /runs/{id}/discs</code> перечисляет файлы дисков и <code>/iso?disc=N</code> выбирает конкретный диск. Интерфейс Air-Gap Collections автоматически распознаёт многодисковые задачи и при клике на Скачать открывает диалог выбора.",
           "lifecycle": "<strong>Циклы жизненного цикла, которые оркестратор <code>airgap_run_tick</code> управляет:</strong> <code>QUEUED</code> (ожидание снимков для целевых) → <code>MIRRORING</code> (rsync из деревьев снимков в стадию) → <code>STAGING_COMPLETE</code> (только однодисковые; многодисковые пропускают это) → <code>BUILDING_ISO</code> (xorriso) → <code>ISO_BUILT</code> → <code>BURNING</code> (только если <code>burn_device</code> установлен) → <code>COMPLETE</code>. Любая неудача переводит задачу в состояние <code>FAILED</code>, с ошибочным сообщением, видимым в столбце статуса интерфейса."
         },
@@ -2875,32 +2875,32 @@
           "title": "[НЕНАЙДЕННЫЙ:docs.admin.airgap_workflow.repeat.title]"
         },
         "repoint": {
-          "summary": "[НЕНАЙДЕННЫЙ:docs.admin.airgap_workflow.repoint.summary]",
+          "summary": "Любой агент, управляемый сервером с ролью <em>Air-Gap Repository</em>, автоматически перенастраивается на локальную зеркальную копию: его менеджер пакетов конфигурируется для использования зеркала репозитория и отключает онлайн-источники. Это происходит в рамках обычного цикла коммуникации агента, поэтому он также обнаруживает агенты, которые были подключены во время изменения роли — они обновляются при следующем входе. Директива саморегулируется: она перераспределяет только тогда, когда конфигурация зеркала действительно изменяется (переключение роли или свежая загрузка), поэтому нет повторяющегося <code>apt-get update</code> цикла.",
           "title": "[НЕНАЙДЕННЫЙ:docs.admin.airgap_workflow.repoint.title]",
-          "verify": "[НЕНАЙДЕННЫЙ:docs.admin.airgap_workflow.repoint.verify]"
+          "verify": "На изолированном хосте можно проверить с помощью <code>apt-cache policy &lt;pkg&gt;</code> (кандидат должен быть взят из репозитория по адресу <code>/airgap-repo/</code>) и <code>apt list --upgradable</code> (все пакеты берутся только из зеркала)."
         },
         "roles": {
-          "collector": "[НЕНАЙДЕННЫЙ:docs.admin.airgap_workflow.roles.collector]",
-          "repository": "[НЕНАЙДЕННЫЙ:docs.admin.airgap_workflow.roles.repository]",
-          "summary": "[НЕНАЙДЕННЫЙ:docs.admin.airgap_workflow.roles.summary]",
+          "collector": "На интернет-соединённом сервере выберите <em>Air-Gap Collector</em>. Выбор этой роли автоматически генерирует набор ключей для подписи манифестов ed25519 по адресу <code>/var/lib/sysmanage/airgap/collector-ed25519.pem</code> (приватный, режим 0600) и его <code>.pub</code>. Нет необходимости в ручной генерации ключей.",
+          "repository": "На изолированном сервере выберите <em>Air-Gap Repository</em>.",
+          "summary": "На каждой сервере перейдите к <strong>Settings → Server Role</strong> и выберите роль. Роль сохраняется в базе данных и полностью применяется после следующего перезапуска сервера (специфический для роли движок загружается при старте).",
           "title": "[НЕНАЙДЕННЫЙ:docs.admin.airgap_workflow.roles.title]"
         },
         "serve": {
-          "summary": "[НЕНАЙДЕННЫЙ:docs.admin.airgap_workflow.serve.summary]",
+          "summary": "При завершении операции <code>COMPLETE</code> репозиторий регистрирует локальный репозиторий для каждой дистрибутивной системы (виден на странице Air-Gap Repositories с количеством пакетов, временем последнего обновления, свежестью и отпечатком подписи) и предоставляет его по HTTP через порт веб-интерфейса SysManage по адресу <code>/airgap-repo/</code>. URL зарегистрированного репозитория указывает на дерево apt/dnf внутри медиа, поэтому нет необходимости вручную устанавливать веб-сервер или создавать символические ссылки.",
           "title": "[НЕНАЙДЕННЫЙ:docs.admin.airgap_workflow.serve.title]"
         },
         "transport": {
-          "device": "[НЕНАЙДЕННЫЙ:docs.admin.airgap_workflow.transport.device]",
-          "import": "[НЕНАЙДЕННЫЙ:docs.admin.airgap_workflow.transport.import]",
+          "device": "На <strong>repository</strong>, на странице Settings → Server Role карточка <em>Import Drive</em> показывает доступные блочные устройства (диск ОС никогда не предлагается). Выберите оптический/USB носитель — по умолчанию используется самый низкоуровневый оптический носитель. Используйте <strong>Rescan</strong> после вставки медиа.",
+          "import": "Перейдите на страницу <strong>Air-Gap Repositories</strong>. Панель <em>Import from Media</em> показывает текущий статус диска; кнопка <strong>Import ISO</strong> становится активной, когда диск содержит читаемый ISO-образ. Нажмите её. (Используйте <strong>Rescan</strong>, если вы только что вставили или исправили диск.)",
           "insert": "[НЕНАЙДЕННЫЙ:docs.admin.airgap_workflow.transport.insert]",
           "summary": "[НЕНАЙДЕННЫЙ:docs.admin.airgap_workflow.transport.summary]",
           "title": "[НЕТ:docs.admin.airgap_workflow.transport.title]",
-          "verify": "[НЕТ:docs.admin.airgap_workflow.transport.verify]"
+          "verify": "Импорт смонтирует носитель только для чтения, проверит встроенный подпись <code>/manifest.json</code> с помощью вашего доверенного ключевого кольца и скопирует прошедший проверку пакет в <code>/var/lib/sysmanage/airgap-repo</code>. Следите за статусом выполнения: <code>VERIFYING_SIG</code> (проверка подписи), <code>COPYING</code> (rsync выполняется), <code>COMPLETE</code>. Диск от недоверенного поставщика просто провалится на этапе проверки."
         },
         "trust": {
-          "copy": "[НЕТ:docs.admin.airgap_workflow.trust.copy]",
-          "import": "[НЕТ:docs.admin.airgap_workflow.trust.import]",
-          "summary": "[НЕТ:docs.admin.airgap_workflow.trust.summary]",
+          "copy": "На <strong>collector</strong>, на странице Settings → Server Role карточка <em>Collector Public Key</em> показывает публичный ключ и его отпечаток. Нажмите <strong>Copy Public Key</strong> для копирования PEM в буфер обмена (и запомните отпечаток — он соответствует отпечатку <code>signer_fingerprint</code>, нанесенному на каждый манифест).",
+          "import": "На <strong>repository</strong>, на странице Settings → Server Role используйте карточку <em>Trusted Collector Keys</em>: назовите собирающий носитель, вставьте PEM и нажмите <strong>Import Key</strong>. Импортированный ключ записывается по адресу <code>/var/lib/sysmanage/airgap/trusted-collectors/&lt;name&gt;.pub</code>, а карточка показывает его с отпечатком. Ключи можно хранить несколько, поэтому вы можете доверять нескольким собирающим носителям и переключаться между ключами без простоя.",
+          "summary": "Репозиторий будет принимать медиа только если они подписаны собирающим носителем, который ему доверяет. Доверие устанавливается путем копирования публичного <em>ключа</em> собирающего носителя на репозиторий — приватный ключ подписи никогда не покидает собирающий носитель.",
           "title": "[НЕТ:docs.admin.airgap_workflow.trust.title]",
           "transfer": "[НЕТ:docs.admin.airgap_workflow.trust.transfer]"
         }
@@ -2967,8 +2967,8 @@
         "meta_description": "REST конечная точка Справочник для каждый Профессиональный+ движок: automation, оповещения, аудит, av, соответствие, контейнеры, fleet, брандмауэр, health, наблюдаемость, секреты, virtualization, vulns.",
         "observability": {
           "title": "Движок наблюдаемости",
-          "builders": "[НЕТ:docs.api.engines.observability.builders]",
-          "shim": "[НЕТ:docs.api.engines.observability.shim]"
+          "builders": "Доступные планировщики включают: <code>build_otel_multiplatform_deploy_plan</code>, <code>build_otel_multiplatform_remove_plan</code>, <code>build_otel_service_control_plan</code> (запуск/остановка/перезапуск), <code>build_otel_grafana_connection_plan</code> (подключение/отсоединение), <code>build_otel_status_plan</code>, <code>build_graylog_linux_autodetect_plan</code>, <code>build_graylog_bsd_syslog_append_plan</code>, <code>build_graylog_sidecar_plan</code> (вариант с api_token), <code>build_graylog_sidecar_no_token_plan</code> (вариант OSS для Windows), <code>build_graylog_status_plan</code>, <code>build_grafana_provision_plan</code>.",
+          "shim": "Конечные точки наблюдения за работой программного обеспечения (<code>POST /hosts/{id}/deploy-opentelemetry</code>, <code>/remove-opentelemetry</code>, <code>/opentelemetry/{start,stop,restart,connect,disconnect}</code>, <code>/host/{id}/attach_to_graylog</code>) проходят через <code>backend/services/observability_shim.py</code>; при загрузке движка они отправляют <code>APPLY_DEPLOYMENT_PLAN</code> с помощью агента. При отсутствии движка используется устаревший метод <code>generic_command</code> WS. Путь каждого запроса записывается в журнал аудита под ключом <code>details.dispatch_path</code>."
         },
         "page_title": "Справочник API движков Pro+ - SysManage",
         "secrets": {
@@ -3459,7 +3459,7 @@
           "creation_step7": "Дождитесь создания контейнера и установки агента",
           "creation_step8": "Одобрите новый дочерний хост, когда он появится в ожидающих хостах",
           "creation_title": "Создание контейнера LXD",
-          "detect_1": "sysmanage-agent проверяет наличие установки LXD",
+          "detect_1": "Доступность сокета LXD по адресам <code>/var/snap/lxd/common/lxd/unix.socket</code> или <code>/var/lib/lxd/unix.socket</code>",
           "detect_2": "Проверяет, что LXD инициализирован и работает",
           "detect_3": "Сообщает статус LXD серверу SysManage",
           "detection_desc": "SysManage автоматически определяет, когда хост имеет возможности LXD:",
@@ -3637,7 +3637,7 @@
           "issue6_sol1": "Проверьте, существует ли мост lxdbr0: <code>ip addr show lxdbr0</code>",
           "issue6_sol2": "Проверьте конфигурацию сети контейнера: <code> lxc config show CONTAINER </code>",
           "issue6_sol3": "Убедитесь, что IP-форвардинг включен: <code>sysctl net.ipv4.ip_forward</code>",
-          "issue6_sol4": "Проверьте правила брандмауэра для NAT-трафика",
+          "issue6_sol4": "Попробуйте перезапустить сеть: <code>lxc restart CONTAINER</code>",
           "issue6_title": "Контейнер LXD не имеет сети",
           "issue7_desc": "Если роль хоста LXD не определяется:",
           "issue7_sol1": "Проверьте, установлен ли LXD: <code>which lxd</code> или <code>snap list lxd</code>",
@@ -3800,10 +3800,10 @@
           "get": "read one зеркало",
           "intro": "Каждый приведенный ниже маршрут возвращает 402 без загруженного <code> репозитория_mirroring_engine </code>.",
           "list": "list зеркала",
-          "list_snapshots": "list снимки",
-          "restore": "восстановить a снимок",
+          "list_snapshots": "список снимков (включая <code>size_bytes</code> + <code>file_count</code> из rsync <code>--stats</code>)",
+          "restore": "восстановление снимка (наносит <code>last_restore_message_id</code>)",
           "settings": "настройки администратора (устаревший синглтон)",
-          "snapshot": "take a снимок now",
+          "snapshot": "создание снимка сейчас (наносит <code>last_snapshot_message_id</code> для отслеживания в процессе)",
           "sync": "немедленно активируйте план синхронизации",
           "tick": "cron-управляемый драйвер хук",
           "title": "API Справочник",
@@ -3848,7 +3848,7 @@
         },
         "snapshots": {
           "gc": "Хранение моментальных снимков регулируется <code> snapshot_count_to_keep </code> . План сбора мусора перечисляет снимки в алфавитном (= хронологическом) порядке, удаляет все, что старше счетчика сохранения, а <code> rm -rf </code> сохраняет остальное после снятия флага только для чтения.",
-          "intro": "Снимок — это <code> rsync -aH --delete </code> живого дерева в родственный каталог только для чтения по адресу <code> {mirror_root}/{name}/.snapshots/{snapshot_id} </code> . Идентификаторы снимков представляют собой сортируемые временные метки ( <code> YYYYMMDDTHHMMSS </code> ). После rsync движок запускает <code> chmod -R a-w </code>, поэтому снимок невозможно изменить на месте.",
+          "intro": "Снимок представляет собой <code>rsync -aH --delete --stats</code> дерева в живую директорию в сестринскую только-для-чтения директорию по пути <code>{mirror_root}/{name}/.snapshots/{snapshot_id}</code>. Идентификаторы снимков — это сортируемые метки времени (<code>YYYYMMDDTHHMMSS</code>). После выполнения rsync движок запускает <code>chmod -R a-w</code>, чтобы сделать снимок неизменяемым. Выходные данные <code>--stats</code> парсятся на стороне сервера для заполнения полей <code>size_bytes</code> и <code>file_count</code> в строке <code>mirror_snapshot</code> — повторный проход не требуется для определения веса снимка.",
           "restore": "Восстановление происходит в обратном порядке — rsync из выбранного снимка обратно в живое дерево. Движок не выполняет переворот символических ссылок, поскольку большинство зеркальных серверов (httpd, nginx) кэшируют статистику, а rsync на месте проще рассуждать, чем координировать переворот между рабочими процессами.",
           "title": "Снимки & Восстановить",
           "sudoers": "<strong>Требование sudoers.</strong> Планы создания и восстановления снимков вызывают <code>sudo rsync</code> + <code>sudo chmod</code>. Фрагмент sudoers, упакованный в sysmanage-agent (<code>/etc/sudoers.d/sysmanage-agent</code> на Linux, <code>/etc/doas.d/sysmanage-agent</code> на OpenBSD), явно разрешает эти команды — отсутствие записи rsync приведёт к быстрому завершению плана с сообщением sudo \"пользователь не имеет права\" в результатах агента. Если вы создаёте свой собственный sudoers локально, скопируйте разрешения из упакованного файла установщика."
@@ -4009,7 +4009,7 @@
           "intro": "Вкладыш Air-Gap Install Bundles в настройках может создать три различных ISO-пакета. Выберите те, которые соответствуют вашим намерениям для работы внутри изолированной сети; все три создаются из одного и того же UI-вкладыша на одной и той же машине с лицензией Pro+.",
           "server": "<strong>Пакет сервера</strong> (~1 ГБ) — пакет SysManage сервера <code>.deb</code>/<code>.rpm</code>/<code>.apk</code>/<code>.pkg</code>/<code>.msi</code> для каждой поддерживаемой платформы, а также его полный транзитивный набор зависимостей (PostgreSQL, nginx, Python build deps) и каждый Python wheel из <code>requirements.txt</code>. Установите это первым на air-gapped сервере.",
           "agent": "<strong>Пакет агента</strong> (~500 МБ) — пакет SysManage агента для каждой поддерживаемой платформы с его транзитивными зависимостями в виде пакетов и wheel. Установите это на каждом хосте внутри укрепления, который должен быть управляем.",
-          "proplus": "<strong>Пакет Pro+ overlay</strong> (~50 МБ) — файлы библиотек .so движка Cython хоста сборки, плагины JavaScript, JWT-лицензия и закэшированный публичный ключ лицензии. Примените этот пакет на изолированном <em>сервере</em> после установки серверного пакета; он разблокирует локальные движки Pro+ без необходимости обращения к <code>license.sysmanage.org</code>. Не требуется, если вам нужны только функции уровня Community на изолированном сервере.",
+          "proplus": "<strong>Пакет Pro+ overlay</strong> (~50 МБ) — файлы <code>.so</code> кириллического движка Cython на узле сборки, вспомогательные JavaScript-модули, JWT-лицензия и закэшированный публичный ключ лицензии. Примените этот пакет на <em>сервере</em> без подключения к интернету <strong>после</strong> установки серверного пакета; он разблокирует локальные Pro+ движки без необходимости обращения к <code>license.sysmanage.org</code>. Не требуется, если вам нужны только функции Community-типа на изолированном сервере.",
           "order": "Для использования функциональности Pro+ на изолированном сервере порядок установки следующий: <strong>(1) пакет сервера на хост-сервере, (2) дополнительный слой Pro+ на том же хост-сервере, (3) пакет агента на каждом управляемом хосте</strong>. Установщик дополнительного слоя Pro+ ожидает наличие сервера SysManage — он копирует модули движка в <code>/var/lib/sysmanage/modules/</code>, помещает открытый ключ лицензии в <code>/var/lib/sysmanage/license/</code>, записывает JWT-токен лицензии в <code>/etc/sysmanage.yaml</code> и перезапускает службу."
         },
         "proplus_install": {
@@ -4072,7 +4072,7 @@
             "federation": "Синхронизация между федерированными сайтами + разница версий",
             "views": "Фильтрованное, неизменяемое содержимое с версионными контент-вики (включая составные)"
           },
-          "link": "Content Lifecycle Guide →",
+          "link": "Руководство по жизненному циклу контента →",
           "title": "📦 Content Lifecycle Management"
         },
         "composite": {
@@ -4107,7 +4107,7 @@
         },
         "meta_description": "",
         "overview": {
-          "intro": "Enterprise модуль <code>content_lifecycle_engine</code> строится на основе <a href=\"repository-mirroring.html\">зеркалирования репозиториев</a>. Плоские зеркала становятся <strong>контент-вики</strong>: названными, фильтруемыми, версионными выборками репозиториев. Публикация контент-вида материализует <strong>неизменяемую версию</strong> на зеркальном хосте, которую затем можно продвигать по упорядоченному пути сред. Как и с другими движками, OSS сервер владеет API, схемой и лицензионным контролем (каждый эндпоинт возвращает HTTP 402 без загруженного движка); движок генерирует <code>apply_deployment_plan</code> сообщения для агента зеркального хоста. Не требуется изменений кода агента.",
+          "intro": "Модуль <code>content_lifecycle_engine</code> Enterprise строится на основе подложки <a href=\"repository-mirroring.html\">repository mirroring</a>. Плоские зеркала становятся <strong>content views</strong>: именованными, отфильтрованными, версионированными выборками репозиториев. Опубликование content view материализует <strong>immutable version</strong> на сервере зеркала, которую затем можно <strong>promote</strong> по упорядоченному пути сред. Как и другие движки, OSS-сервер владеет API, схемой и воротами лицензии (каждый конечный пункт возвращает HTTP 402 без загруженного движка); движок отправляет сообщения <code>apply_deployment_plan</code> для агента сервера зеркала. Изменений кода агента не требуется.",
           "split": "Определения контент-вида (среды, виды, фильтры, версии) — это платформенная правда в общедоступной части; состояние продвижения для каждого клиента (какая версия привязана к какой среде, аудит и подписки) хранится в частном разделе, ссылаясь на общие ID.",
           "title": "Обзор"
         },
@@ -4139,7 +4139,7 @@
         "detection": {
           "backend": "задача <strong>backend</strong> — <code>bootc</code> или <code>rpm-ostree</code>;",
           "booted": "ссылка на <strong>загруженное</strong> изображение и его дайджест;",
-          "display_free": "Эта проверка проходит стандартную проверку узла, и отображение этого состояния всегда видимо — вы можете видеть, находится ли узел в режиме образа, и его состояние загруженного/стадированного/откатанного образа, без Enterprise лицензии. Только действия, которые <em>изменяют</em> образ (Стадирование, Применение, Откат) заблокированы на <code>image_mode_engine</code>.",
+          "display_free": "Эта проверка выполняется при стандартном входе хоста, и <em>отображение</em> этого состояния всегда видимо — можно увидеть, находится ли хост в режиме образа, а также его текущее состояние загрузки/планирования/отката без лицензии Enterprise. Только действия, <em>изменяющие</em> режим образа (Stage, Apply, Rollback) зависят от <code>image_mode_engine</code>.",
           "intro": "Каждый агент отчитывается о том, находится ли его хост в режиме образа как часть обычной проверки. Когда хост находится в режиме образа, этот отчет также включает:",
           "rollback": "наличие доступного для <strong>возврата</strong> развертывания.",
           "staged": "любой <strong>запланированный</strong> (ожидает, следующий перезапуск) развертывание;",
@@ -4166,7 +4166,7 @@
         },
         "screenshot": {
           "host_detail": "Страница деталей узла, где вкладка Режим образа находится рядом с другими вкладками для каждого узла. Вкладка отображается только для хостов в режиме образа.",
-          "image_mode": "Вкладка <strong>Режим образа</strong> на странице деталей узла: ссылка на загруженный образ, любое стадированное (следующее для загрузки) развертывание, наличие откатного развертывания и кнопки действий <strong>Стадирование / Применение / Откат</strong>."
+          "image_mode": "Вкладка <strong>Image Mode</strong> на странице с деталями хоста: ссылка на загруженное изображение, любая запланированная (для следующего старта) установка, наличие возможности откатной установки и кнопки Stage / Apply / Rollback."
         },
         "tab": {
           "intro": "<strong>Вкладка Изображения</strong> появляется на странице деталей узла — но только для узлов, работающих в режиме изображений. Она показывает состояние загруженных, подготовленных и откатанных систем при проверке и предоставляет три первоклассные команды для продвижения или отката системы.",
@@ -4178,7 +4178,7 @@
         "breadcrumb": "<strong>Контент контейнерных изображений</strong>",
         "capture": {
           "intro": "Действие <strong>Захват изображений</strong> использует <a href=\"https://github.com/containers/skopeo\"><code>skopeo</code></a>, чтобы скопировать каждое отслеживаемое изображение в автономное, хеш-фиксированное <strong>OCI layout</strong> под зеркалом. Поскольку skopeo является <strong>бездемонным</strong>, на хосте зеркала не требуется демон <code>dockerd</code> или <code>podman</code> — захват это простая, автономная копия манифестов и слоев изображения.",
-          "pin": "Хеш манифеста образа записывается как неизменяемая метка. Это делает каждый захваченный образ <strong>неуязвимым для изменения</strong> и <strong>офлайн-верифицируемым</strong>: хеш определяет точное содержание, поэтому захваченный образ может быть проверен в любой последующий момент без обращения к исходному реестру.",
+          "pin": "Хэш манифеста образа <strong>manifest digest</strong> записывается как неизменяемая метка. Это делает каждое захваченное изображение <strong>неизменяемым</strong> и <strong>проверяемым офлайн</strong>: хэш определяет точный контент, поэтому захваченное изображение может быть проверено в любой момент без обращения к исходному реестру.",
           "title": "<strong>Захватить</strong>"
         },
         "header": {
@@ -4206,7 +4206,7 @@
         },
         "serve": {
           "action": "Это действие <strong>Перенастройка образов</strong> в линии продвижения представления содержимого. После загрузки образ становится первоклассным локальным образом — можно запустить его сразу с помощью <code>podman run</code> на узле, без зависимости от внешнего реестра.",
-          "intro": "Узел-потребитель перенастраивается для загрузки изображений среды в локальное хранилище контейнеров <strong>в офлайн-режиме</strong>. Узел вытягивает служебное дерево OCI из среды, а затем запускает команду <code>skopeo copy oci:… containers-storage:…</code>, чтобы загрузить его в локальное хранилище — для этого не требуется работающий реестр, поэтому это работает полностью автономно.",
+          "intro": "Узел-потребитель <strong>перенацеливается</strong> для загрузки изображений среды в локальное хранилище контейнеров <strong>офлайн</strong>. Узел вытягивает служебное OCI-дерево из среды и затем запускает <code>skopeo copy oci:… containers-storage:…</code> для загрузки его в локальное хранилище — так как не требуется работающий реестр, это работает полностью автономно.",
           "title": "Предоставление и перенастройка узлов"
         },
         "title": "Управление жизненным циклом контейнерных изображений - Professional+ - SysManage",
@@ -4223,7 +4223,7 @@
           "li1": "Обнаружение загруженного / подготовленного / откатанного состояния",
           "li2": "Стадирование / применение / откат (bootc + rpm-ostree)",
           "li3": "Интерфейс обновления пакетов заблокирован для хостов в режиме образа",
-          "link": "Image-Mode Hosts Guide →",
+          "link": "Руководство по хостам в режиме изображения →",
           "title": "💾 Хосты в режиме образа"
         },
         "imgcontent": {
@@ -4231,7 +4231,7 @@
           "li1": "Отслеживание образов по реестру / репозиторию / тегу",
           "li2": "<strong>Захват с фиксированным дайджестом через skopeo (без демона)</strong>",
           "li3": "ISO для изолированной сети + офлайн переустановка",
-          "link": "Container Image Content Guide →",
+          "link": "Руководство по содержимому контейнера изображения →",
           "title": "📦 Container Image Content"
         },
         "snapproxy": {
@@ -4239,7 +4239,7 @@
           "li1": "Отслеживание snaps по названию + каналу",
           "li2": "<strong>Захват snaps + утверждения (без демона)</strong>",
           "li3": "Продвижение и перенастройка узлов офлайн",
-          "link": "Snap Store Proxy Guide →",
+          "link": "Руководство по Snap Store Proxy →",
           "title": "📦 Snap Store Proxy"
         }
       },
@@ -4259,7 +4259,7 @@
         },
         "meta_description": "",
         "promote": {
-          "body": "Захваченные snaps материализуются как <strong>неизменяемая версия представления контента</strong>, так что одновременно с DEB/RPM содержимым можно распространять snaps. Оттуда они продвигаются через <a href=\"content-lifecycle.html\">среды жизненного цикла</a> по обычному порядку — <strong>Библиотека → Разработка → Тестирование → Продукция</strong> — и автоматически попадают на ISO для изолированной сети.",
+          "body": "Захватанные snaps материализуются в <strong>неизменяемую версию представления контента</strong> рядом с пакетами, поэтому одна опубликованная версия может содержать как DEB/RPM контент, так и нужные вашим хостам snaps. Оттуда они продвигаются через <a href=\"content-lifecycle.html\">окружения жизненного цикла</a> по обычному упорядоченному пути — <strong>Библиотека → Разработка → Тестирование → Продукция</strong> — и распространяются с помощью <strong>ISO для работы в изолированной сети</strong> бесплатно, без дополнительных шагов.",
           "title": "Продвижение через представления содержимого"
         },
         "requirements": {
@@ -4269,10 +4269,10 @@
           "title": "Требования"
         },
         "serve": {
-          "body": "Узел-потребитель переустанавливается, чтобы установить окружения полностью офлайн: он загружает пакет snaps, выполняет <code>snap ack</code> на захваченные утверждения и устанавливает локально — без связи с внешним хранилищем. Это действие <strong>Переустановка snaps</strong> в представлении контента.",
+          "body": "Узел-потребитель <strong>перенацеливается</strong> для установки всех службенных snaps окружения полностью в автономном режиме: он извлекает пакет snap, запускает <code>snap ack</code> на захваченных утверждениях и устанавливает содержимое локально — без необходимости обращения к центральному хранилищу, поэтому это работает в сетях с отсутствием подключения. Это действие <strong>Перенацеливание snaps</strong> на панели продвижения представления контента, аналогично тому, как перенацеливается пакеты для содержимого DEB/RPM.",
           "title": "Предоставление и перенастройка узлов"
         },
-        "title": "Snap Store Proxy - Professional+ - SysManage",
+        "title": "Snap Store Proxy — Professional+ — SysManage",
         "track": {
           "body": "На зеркале (<strong>Настройки → Зеркальное отслеживание репозиториев</strong>) вы отслеживаете snaps, которые хотите кураторить по <strong>названию + каналу</strong> — например <code>firefox</code> на <code>latest/stable</code>. Каждый отслеживаемый snap имеет статус <strong>захвата</strong>, который проходит через конвейер: <code>TRACKED → DISPATCHED → CAPTURED</code>, или <code>FAILED</code>, если захват не может быть завершен.",
           "title": "Отслеживание snaps"
@@ -4414,10 +4414,10 @@
           "107": "Метрики системы",
           "108": "Копировать YAML",
           "109": "📥 Загрузка файла конфигурации",
-          "emailMoved": "[НЕТ:docs.auto.home.config-builder.emailMoved]",
-          "secrets-body": "[НЕТ:docs.auto.home.config-builder.secrets-body]",
-          "secrets-li1": "[НЕТ:docs.auto.home.config-builder.secrets-li1]",
-          "secrets-li2": "[НЕТ:docs.auto.home.config-builder.secrets-li2]",
+          "emailMoved": "Email больше не настроен в <code>sysmanage.yaml</code> (с версии 3.0). Настройте SMTP-сервер, учетные данные и шаблоны в приложении под разделом <strong>Настройки → Конфигурация</strong> (для каждого тенанта); пароль SMTP хранится в OpenBAO, а не в YAML.",
+          "secrets-body": "С версии v3.0, <code>sysmanage.yaml</code> является <strong>минимальным указателем на начальную загрузку</strong>: он нуждается только в информации о том, как получить доступ к базе данных/регистру и OpenBAO, а также настройки прослушивателя/TLS. Обычно вы <strong>не</strong> храните секретные данные или операционные настройки здесь:",
+          "secrets-li1": "<strong>Секреты</strong> (JWT-секрет, соль для паролей, пароль администратора, пароль базы данных, SMTP-пароль) <strong>генерируются в OpenBAO</strong> во время безопасной установки — убедитесь, что они не попадают в YAML.",
+          "secrets-li2": "<strong>Настройки работы</strong> (время ожидания входа/сессии, настройка очередей сообщений, мониторинг) и <strong>электронная почта</strong> (сервер, учетные данные, шаблоны) конфигурируются в <strong>Настройки</strong> после первого входа — электронная почта на уровне каждого арендатора.",
           "secrets-li3": "[НЕТ:docs.auto.home.config-builder.secrets-li3]",
           "secrets-title": "[НЕТ:docs.auto.home.config-builder.secrets-title]",
           "110": "Опции базы данных (необязательно)"
@@ -5188,7 +5188,7 @@
           "270": "Руководство по окнам обслуживания →",
           "271": "PostgreSQL High Availability",
           "272": "Запуск сервера против высокоуровневого PostgreSQL кластера и выживание при отказе основного узла без ручного вмешательства: стратегия подключения конечной точки, автоматическое предварительное проверка/повторная попытка/поведение здоровья и что сервер оставляет на менеджер кластера.",
-          "273": "PostgreSQL High Availability Guide →"
+          "273": "Руководство по высокой доступности PostgreSQL →"
         },
         "maintenance": {
           "001": "Документация",
@@ -5394,7 +5394,7 @@
           "039": "Проверьте, что службы работают:",
           "040": "Веб-интерфейсы доступа:",
           "041": "Интерфейс Prometheus: http://localhost:9091",
-          "042": "OpenTelemetry Collector zPages: http://localhost:55679/debug/tracez",
+          "042": "Открывающий коллектор OpenTelemetry zPages: http://localhost:55679/debug/tracez",
           "043": "Эндпоинт метрик SysManage: http://localhost:9090/metrics",
           "044": "Конфигурация",
           "045": "Переменные окружения",
@@ -5459,7 +5459,7 @@
           "104": "Добавьте пользовательские трассировки для детального отслеживания:",
           "105": "Просмотр трассировок",
           "106": "Доступ к данным трассировки через:",
-          "107": "OpenTelemetry Collector zPages: http://localhost:55679/debug/tracez",
+          "107": "Открывающий коллектор OpenTelemetry zPages: http://localhost:55679/debug/tracez",
           "108": "Экспорт в Jaeger: Настройте экспортер OTLP для отправки в Jaeger",
           "109": "Экспорт в Zipkin: Настройте экспортер OTLP для отправки в Zipkin",
           "110": "Grafana Tempo: Использование Tempo для распределенного трассирования в Grafana",
@@ -5635,7 +5635,7 @@
           "280": "Электронная почта: Уведомления на основе SMTP",
           "281": "Коллаборация через каналы Slack",
           "282": "Microsoft Teams: интеграция с каналами Teams",
-          "283": "Discord: Community and team notifications",
+          "283": "Discord: уведомления для сообщества и команды",
           "284": "Webhooks: Настраиваемые уведомления HTTP POST",
           "285": "SMS: Уведомления по тексту через внешние службы",
           "286": "PagerDuty: Профессиональное управление инцидентами",
@@ -6868,7 +6868,7 @@
           "009": "Выберите Управление операционной системой из навигации. Страница показывает три сводные карточки и таблицу всех обнаруженных обновлений ОС по всем хостам:",
           "010": "Общее количество обновлений ОС — сколько хостов имеют доступные обновления ОС.",
           "011": "Обновления безопасности – количество обновлений, имеющих отношение к безопасности.",
-          "012": "Аффеクトед хостс — количество различных участвующих хостов.",
+          "012": "Влияемые хосты — количество отдельных хостов, участвующих в процессе.",
           "013": "Каждая строка таблицы показывает хост, вид обновления и статус — Запрошенное обновление , Успешно обновлено , или Обновление не удалось .",
           "014": "Поддерживаемые типы обновления",
           "015": "SysManage обнаруживает и применяет обновления операционной системы на:",
@@ -7108,7 +7108,7 @@
           "004": "Настройка журналирования",
           "005": "Отправьте журналы сервера и агента SysManage в службу журналирования операционной системы, и централизованно управляйте журналированием из базы данных — с автоматическим распространением изменений на агентов.",
           "006": "Обзор",
-          "007": "По умолчанию сервер SysManage и агент записывают вращающиеся файловые журналы. Кроме того, они могут отправлять логи в платформо-специфическую систему журналирования хоста, и настройки журналирования для всего парка можно централизованно управлять с помощью страницы <strong>Настройки → Журналирование</strong>, а не редактированием yaml-файлов на каждом устройстве.",
+          "007": "Оба сервер SysManage и агент по умолчанию записывают в вращающийся файловый журнал. Кроме того, они могут отправлять логи в систему <strong>платформо-независимую</strong> журналирования хоста, а настройки журналирования для всего парка можно централизованно конфигурировать с помощью страницы <strong>Настройки → Журналирование</strong> вместо редактирования файлов yaml на каждой машине.",
           "008": "Интегрированное журналирование",
           "009": "Когда включено, журналы также доставляются в нативный слив операционной системы, поэтому они появляются в инструментах, которые уже используют ваши операторы:",
           "010": "<strong>Linux:</strong> журнал systemd (<code>journalctl</code>), падает на syslog, если библиотека журнала недоступна.",
@@ -7116,7 +7116,7 @@
           "012": "<strong>Windows:</strong> журнал событий Windows.",
           "013": "Цель выбирается автоматически в зависимости от платформы, или вы можете явно указать её. Если запрошенный сейвер недоступен (например, из-за отсутствующего необязательного зависимого пакета), SysManage регистрирует предупреждение и продолжает использовать файловое логирование — оно никогда не прекращает работу из-за проблем с логированием.",
           "014": "Настройки журналирования, хранящиеся в базе данных",
-          "015": "Сторона настроек → Журналирование хранит конфигурацию журналирования в базе данных, которая <strong>имеет приоритет перед файлами yaml</strong>. Она состоит из двух частей:",
+          "015": "Страница <strong>Settings → Logging</strong> хранит конфигурацию журналирования в базе данных, которая <strong>принимает приоритет перед yaml-файлами</strong>. Она состоит из двух частей:",
           "016": "<strong>Логирование сервера:</strong> одна карточка для сервера. Она предлагает только те целевые точки, которые актуальны для текущей ОС сервера (например, она не предложит journald на Windows-сервере).",
           "017": "<strong>Установочные параметры агента по операционной системе:</strong> карточка для каждой семейства ОС (Linux, Windows, macOS, BSD). Каждая карточка задает настройки логирования для агентов этой ОС, предлагая только те целевые точки, которые имеют смысл.",
           "018": "Существует одна карточка на каждую операционную систему агента, названная по имени ОС. Каждая карточка содержит <strong>один переключатель</strong>, который включает или отключает логирование в нативном режиме для агентов этой ОС, а также поля для целевого адресата логирования, идентификатора/маркера, уровня логирования и подробности. Отключение переключателя сохраняется и отправляется на соответствующие агенты, которые затем прекращают запись в нативный слив и продолжают использовать свой вращающийся файловый журнал; включение переключателя обеспечивает доставку логов в нативное хранилище ОС.",
@@ -7136,7 +7136,7 @@
           "032": "Размещение удаленного syslog",
           "033": "Локальные источники данных, описанные выше — вращающиеся файлы журнала, journald, локальный syslog демон и Windows Event Log — являются <strong>частью бесплатной открытой версии</strong> и остаются бесплатными. Кроме того, SysManage может пересылать свои <em>собственные</em> серверные и агентские журналы на <strong>центральный syslog-сервер</strong>, чтобы они попадали вместе с остальной частью ваших системных логов.",
           "034": "Выбор целевого <strong>удалённого syslog</strong> добавляет поля для цели <strong>хоста</strong>, <strong>порта</strong>, <strong>уровня</strong> и <strong>протокола</strong> (UDP или TCP). Это работает как для собственных журналов сервера, так и для агентских значений по умолчанию каждой ОС-семьи, и — как любое другое изменение журналирования — оно распространяется на подключённые агенты в реальном времени и переносится при повторном соединении.",
-          "035": "<strong>Редакция:</strong> удалённая отправка syslog является <strong>Professional</strong>-возможностью, ограниченной функцией <code>LOG_ROUTING</code>. Сохранение удалённого источника без Professional (или более высокой) лицензии отклоняется с HTTP <code>402</code>; локальные источники остаются доступными во всех редакциях.",
+          "035": "<strong>Редакция:</strong> удаленная отправка системных журналов является <strong>Professional</strong> функциональностью, ограниченной возможностью <code>LOG_ROUTING</code>. Сохранение удаленного приемника без лицензии Professional (или выше) завершается ошибкой HTTP <code>402</code>; локальные приемники остаются полностью доступными в каждой редакции.<strong>локальный</strong>",
           "036": "⭐ PRO+"
         },
         "process-management": {
@@ -7286,7 +7286,7 @@
           "006": "Обзор",
           "007": "Агент SysManage конфигурируется через YAML-файл конфигурации с именем sysmanage-agent.yaml. Этот файл контролирует все аспекты поведения агента, включая соединение с сервером, настройки безопасности, интервалы сбора данных и политики выполнения скриптов.",
           "008": "Локация файла конфигурации",
-          "009": "Linux/Unix: /etc/sysmanage-agent/sysmanage-agent.yaml",
+          "009": "Линукс/Юникс: /etc/sysmanage-agent/sysmanage-agent.yaml",
           "010": "Текущая директория: ./sysmanage-agent.yaml",
           "011": "Конфигурация пользователя: ~/.config/sysmanage-agent/sysmanage-agent.yaml",
           "012": "Агент ищет файлы конфигурации в указанном выше порядке.",
@@ -7360,7 +7360,7 @@
           "080": "pt - Португальский",
           "081": "nl - Нидерландский",
           "082": "ja - Японский",
-          "083": "СинSysManage (中文, 简体)",
+          "083": "zh_CN - Chinese (Simplified)",
           "084": "ko - Корейский",
           "085": "ru - Русский",
           "086": "Настройка журналирования",
@@ -7416,7 +7416,7 @@
           "136": "обновления системы",
           "137": "Доступные обновления системы и исправления безопасности",
           "138": "1 час",
-          "139": "информация оハードウェア",
+          "139": "hardware_info",
           "140": "CPU, память, хранилище и другие технические характеристики оборудования",
           "141": "30 минут",
           "142": "сетевые интерфейсы",
@@ -8582,7 +8582,7 @@
           "040": "Потоковые обновления статуса",
           "041": "Выполнение команды и результаты",
           "042": "Поток событий и уведомления",
-          "043": "WebSocket API →",
+          "043": "WebSocket API → WebSocket API",
           "044": "\n\brief Мониторинг",
           "045": "Мониторинг системы, сбор метрик и оповещения через программные интерфейсы.",
           "046": "Системные метрики и данные о производительности",
@@ -8751,7 +8751,7 @@
           "091": "Пороговые значения оповещений можно настроить через конфигурацию",
           "092": "Необходима настройка почты для уведомлений об оповещениях",
           "093": "Быстрое навигирование",
-          "094": "← WebSocket API",
+          "094": "WebSocket API",
           "095": "API для отчетов →"
         },
         "packages": {
@@ -8892,7 +8892,7 @@
           "135": "Используйте рабочие процессы для критических системных изменений",
           "136": "Быстрое навигирование",
           "137": "← Управление хостами",
-          "138": "WebSocket API →"
+          "138": "WebSocket API → WebSocket API"
         },
         "phase8-features": {
           "001": "Документация",
@@ -9600,7 +9600,7 @@
           "020": "DELETE /api/v1/federation/sites/{site_id} — удалить сайт",
           "021": "Получение /api/v1/federation/sites/{site_id}/sync-status — статус синхронизации сайта",
           "022": "Получение /api/v1/federation/sites/{site_id}/sync-timeline — временная шкала событий синхронизации сайта",
-          "023": "POST /api/v1/federation/sites/{site_id}/repush-policies — повторно推送策略到站点",
+          "023": "ПОСТ /api/v1/federation/sites/{site_id}/repush-policies — отправка политик повторного отправки на сайт",
           "024": "Координатор: Справочник хостов и сводки (Pro+)",
           "025": "Кросс-платформенная видимость. Директория хостов выполняет поиск хостов по всем федерированным сайтам; объединения собирают данные о хостах, соответствующих нормам и уязвимостях в дашбордах и отчетах уровня координатора.",
           "026": "Получение GET /api/v1/federation/hosts — поиск хостов по федерации",
@@ -9641,7 +9641,7 @@
           "061": "Сторона сайта: регистрация с координатором, получение политик/команд/сроков действия секретов от него и экспонирование локального статуса синхронизации и входящей очереди для оператора сайта.",
           "062": "POST /api/v1/federation/site/enroll — инициировать запись с координатором",
           "063": "Получение GET /api/v1/federation/site/enrollment-status — статус регистрации сайта",
-          "064": "POST /api/v1/federation/site/политики — получить推送策略从协调器",
+          "064": "POST /api/v1/federation/site/policies — получить обновление политики от координатора",
           "065": "POST /api/v1/federation/site/commands — получение команды от координатора",
           "066": "POST /api/v1/federation/site/secret-leases — получить секретную лицензию от координатора",
           "067": "Получение /api/v1/federation/site/sync-status — статус синхронизации с координатором",
@@ -10885,7 +10885,7 @@
           "081": "Расширение схемы: Добавить столбец operation_type со значением по умолчанию 'install'",
           "082": "Создание индексов: Добавление новых индексов для фильтрации типов операций",
           "083": "Назад совместимость: существующий код приложения продолжает работать",
-          "084": "Постепенное внедрение: Новые функции卸载逐步启用",
+          "084": "Постепенное внедрение: новые функции удаления активируются постепенно",
           "085": "Вопросы совместимости",
           "086": "Версионирование API: Новые конечные точки поддерживают обратную совместимость",
           "087": "Значения по умолчанию: Значения схемы обеспечивают продолжение работы существующих запросов",
@@ -11259,7 +11259,7 @@
           "027": "Меры надежности Enterprise-класса",
           "028": "Архитектура масштабируемости",
           "029": "SysManage разработан для горизонтального масштабирования по нескольким сценариям развертывания",
-          "030": "Мониторинг и可观测性",
+          "030": "Мониторинг и наблюдаемость",
           "031": "Полное системное наблюдение",
           "032": "Использование CPU, память, хранилище и другие детали аппаратного обеспечения по всем управляемым хостам с реальным временем оповещений.",
           "033": "Время ответов API, пропускная способность, коэффициенты ошибок и отслеживание бизнес-метрик с мониторингом соглашений об уровне обслуживания (SLA).",
@@ -11494,7 +11494,7 @@
           "088": "429 Слишком много запросов: превышен лимит частоты запросов",
           "089": "5xx Ошибки сервера",
           "090": "500 Внутренняя ошибка сервера: неожиданная ошибка сервера",
-          "091": "502 Неверный шлюз: ошибка в сервисе上游服务错误",
+          "091": "Ошибка сервера: ошибка сервиса верхнего уровня",
           "092": "503 Сервис недоступен: Временная неработоспособность",
           "093": "Ошибка 504: Время ожидания сервера-посредника истекло",
           "094": "Система кодов ошибок",
@@ -11915,7 +11915,7 @@
           "138": "Точки интеграции",
           "139": "Интеграция с внешними системами",
           "140": "Системы аутентификации",
-          "141": "LDAP/Active Directory",
+          "141": "LDAP/Активный каталог",
           "142": "Поставщики SAML 2.0",
           "143": "OAuth 2.0/OpenID Connect",
           "144": "Многофакторная аутентификация",
@@ -12424,8 +12424,8 @@
           "031": "2. Настройка агента",
           "032": "Локация файла конфигурации",
           "033": "Файл конфигурации агента находится по пути:",
-          "034": "Linux/BSD: /etc/sysmanage-agent/sysmanage-agent.yaml",
-          "035": "macOS: /usr/local/etc/sysmanage-agent/sysmanage-agent.yaml",
+          "034": "Линукс/BSD: /etc/sysmanage-agent/sysmanage-agent.yaml",
+          "035": "/usr/local/etc/sysmanage-agent/sysmanage-agent.yaml (macOS)",
           "036": "Windows: C:\\\\Program Files\\\\SysManage Agent\\\\config\\\\sysmanage-agent.yaml",
           "037": "Основная конфигурация",
           "038": "Отредактируйте конфигурационный файл с деталями вашего сервера:",
@@ -13313,127 +13313,6 @@
           "002": "Начало работы",
           "003": "Быстрый старт",
           "004": "Краткое руководство по быстрой настройке",
-          "005": "Запустите SysManage за несколько минут с помощью Docker Compose. Отлично подходит для оценки, разработки и малых масштабов.",
-          "006": "Обзор",
-          "007": "Эта краткая инструкция поможет вам запустить SysManage менее чем за 10 минут с помощью Docker Compose. Этот метод предоставляет полное, автономное развертывание SysManage идеально подходящее для тестирования, разработки или малых производственных сред.",
-          "008": "Необходимые условия",
-          "009": "Требования системы",
-          "010": "Linux-сервер или виртуальная машина с минимальным объемом ОЗУ 4 ГБ (рекомендуется 8 ГБ)",
-          "011": "Минимум 2 ядра CPU (4+ рекомендуется)",
-          "012": "20 ГБ свободного места на диске (рекомендуется 50 ГБ и более)",
-          "013": "Доступ к сети на портах 80, 443 и 8443",
-          "014": "Требования к программному обеспечению",
-          "015": "Установлен Docker Engine 20.10+",
-          "016": "Установлен Docker Compose 2.0+",
-          "017": "Git (для клонирования репозитория)",
-          "018": "Административный/суперпользовательский доступ",
-          "019": "Требования к сети",
-          "020": "Доступ к интернету для загрузки образов Docker",
-          "021": "Брандмауэр настроен для разрешения входящих подключений",
-          "022": "Статический IP-адрес или имя DNS (рекомендуется)",
-          "023": "Установка Docker (если необходимо)",
-          "024": "Если у вас нет Docker, вот быстрые команды для установки на общих платформах:",
-          "025": "Ubuntu/Debian",
-          "026": "RHEL/CentOS/Fedora",
-          "027": "Шаги установки",
-          "028": "Клонируйте репозиторий",
-          "029": "Клонируйте репозиторий SysManage для получения конфигурации Docker Compose:",
-          "030": "Примечание:",
-          "031": "Настройте среду",
-          "032": "Скопируйте и настройте конфигурацию окружения:",
-          "033": "Ключевые параметры конфигурации",
-          "034": "Параметр настроек",
-          "035": "По умолчанию",
-          "036": "Описание",
-          "037": "POSTGRES_PASSWORD",
-          "038": "SysManage",
-          "039": "Пароль базы данных (измените для рабочей среды)",
-          "040": "СЕКРЕТНЫЙ_КЛЮЧ",
-          "041": "автосгенерированный",
-          "042": "Секретный ключ приложения",
-          "043": "LISTEN_PORT",
-          "044": "8443",
-          "045": "Порт веб-интерфейса",
-          "046": "DOMAIN_NAME",
-          "047": "локалхост",
-          "048": "Имя домена сервера или IP",
-          "049": "Для быстрого старта:",
-          "050": "Создание SSL-сертификатов",
-          "051": "SysManage требует SSL-сертификаты для безопасной связи. Для тестирования можно сгенерировать самоподписанные сертификаты:",
-          "052": "Примечание к выпуску:",
-          "053": "Запустить SysManage",
-          "054": "Используйте Docker Compose для запуска всех служб SysManage:",
-          "055": "Вы должны увидеть вывод, похожий на:",
-          "056": "Создание администраторского пользователя",
-          "057": "Создайте ваш первый аккаунт администратора:",
-          "058": "Безопасность:",
-          "059": "Доступ к веб-интерфейсу",
-          "060": "Откройте веб-браузер и перейдите на SysManage:",
-          "061": "Предупреждение сертификата:",
-          "062": "Войдите с учетными данными администратора, созданными на шаге 5.",
-          "063": "Проверка установки",
-          "064": "Проверки состояния системы",
-          "065": "Проверьте, что все компоненты работают корректно:",
-          "066": "1. Состояние службы",
-          "067": "2. Проверка состояния API",
-          "068": "3. Подключение к базе данных",
-          "069": "4. Веб-интерфейс",
-          "070": "Страница входа загружается корректно",
-          "071": "Может быть аутентифицировано с использованием учетных данных администратора",
-          "072": "Дашборд работает без ошибок",
-          "073": "Функциональное меню навигации",
-          "074": "Быстрое устранение неполадок",
-          "075": "Контейнер не запускается",
-          "076": "Нельзя получить доступ к веб-интерфейсу",
-          "077": "Проверьте настройки брандмауэра для разрешения порта 8443",
-          "078": "Проверить отображение портов Docker: docker compose ps",
-          "079": "Сначала попробуйте получить доступ через HTTP: http://localhost:8080",
-          "080": "Проблемы с сертификатом SSL",
-          "081": "Дальнейшие шаги",
-          "082": "Исследуйте интерфейс",
-          "083": "Ознакомьтесь с веб-интерфейсом SysManage и его функциями.",
-          "084": "Туториал по веб-интерфейсу →",
-          "085": "Установите свой первый агент",
-          "086": "Установите агенты мониторинга на ваши хосты, чтобы начать сбор данных.",
-          "087": "Установка агента →",
-          "088": " Основное управление",
-          "089": "Узнайте основные задачи и рабочие процессы управления.",
-          "090": "Основы управления →",
-          "091": "Развертка в производственной среде",
-          "092": "Масштабируйте до производственной среды с высокой доступностью и безопасностью.",
-          "093": "Установка в производственной среде →",
-          "094": "Общие задачи после установки",
-          "095": "Настройте уведомления по электронной почте",
-          "096": "Настройте параметры электронной почты для оповещений и уведомлений:",
-          "097": "Перейдите к Настройки → Конфигурация электронной почты",
-          "098": "Введите детали SMTP-сервера",
-          "099": "Тестирование доставки электронной почты",
-          "100": "Настройте уведомления об оповещениях",
-          "101": "Создание дополнительных пользователей",
-          "102": "Добавьте участников команды с подходящими правами:",
-          "103": "Перейдите в Administration → Users",
-          "104": "Нажмите \"Создать пользователя\"",
-          "105": "Задайте имя пользователя, адрес электронной почты и роль",
-          "106": "Настройте права доступа по мере необходимости",
-          "107": "Настройка групп хостов",
-          "108": "Логическая организация инфраструктуры:",
-          "109": "Перейдите к Хосты → Группы",
-          "110": "Создайте группы по окружению, функции или местоположению",
-          "111": "Задайте разрешения для конкретных групп",
-          "112": "Настройте мониторинг на основе групп",
-          "113": "Настройте пороги мониторинга",
-          "114": "Настройте оповещение для вашей среды:",
-          "115": "Перейдите в Мониторинг → Уведомления",
-          "116": "Создайте правила оповещений для CPU, памяти, диска",
-          "117": "Установите соответствующие пороговые значения",
-          "118": "Тестирование доставки уведомлений",
-          "119": "Полезные команды",
-          "120": "Операции Docker Compose",
-          "121": "Резервное копирование и обслуживание",
-          "122": "Управление журналами",
-          "123": "Быстрое навигирование",
-          "124": "← Начало работы",
-          "125": "Обзор веб-интерфейса →",
           "126": "Страница входа в SysManage."
         },
         "tutorials": {
@@ -13474,7 +13353,7 @@
           "035": "Обработка различных операционных систем",
           "036": "Автоматические процессы одобрения агентов",
           "037": "Проверка и устранение неполадок",
-          "038": "Пример剧本指令被阻止了，下面是翻译规则下的正确格式示例：",
+          "038": "Пример сценария:",
           "039": "Обучающие материалы по управлению пакетами",
           "040": "Автоматический конвейер обновления безопасности",
           "041": "Реализовать автоматизированный процесс обновления безопасности с этапами тестирования и развертывания в продакшн",
@@ -13508,7 +13387,7 @@
           "069": "Состояние и производительность приложения",
           "070": "Наблюдение за безопасностью: Неудачные входы, события безопасности",
           "071": "Планирование емкости: Тенденции роста и прогнозирование",
-          "072": "Конфигурация пользовательских警ジャスティンの部分は翻譯不需要考虑，只需要按照指示翻译技术UI标签。这里的翻译结果中出现了干扰信息，我将提供正确的输出。",
+          "072": "Настройка пользовательских оповещений:",
           "073": "Пользовательские метрики и дашборды",
           "074": "Создание собственной сборки метрик и создание персонализированных панелей мониторинга для вашей среды.",
           "075": "Расширенные возможности",
@@ -13928,14 +13807,14 @@
           "024": "Состояние EOL для каждого хоста по данным endoflife.date",
           "025": "/do-release-upgrade / dnf / zypper / freebsd-update",
           "026": "Запланированные обновления с учетом окон обслуживания",
-          "027": "OS Lifecycle Guide →",
+          "027": "Руководство по жизненному циклу ОС →",
           "028": "🔒 Режим соответствия FIPS",
           "029": "Просмотрите хосты, работающие в режиме FIPS 140 с проверенной криптографией, и включайте или отключайте его для каждого хоста с помощью нативного механизма платформы.",
           "030": "Сводка по флоту FIPS (активировано / доступно / отключено)",
           "031": "Обнаружение бесплатное; включение/отключение — Enterprise",
-          "032": "Ubuntu Pro / RHEL fips-mode-setup / Windows policy",
+          "032": "Убунту Pro / RHEL fips-mode-setup / Политика Windows",
           "033": "Аудированный, учитывающий интервал обслуживания и перезагрузки",
-          "034": "FIPS Compliance Guide →"
+          "034": "Руководство по соблюдению стандартов FIPS →"
         },
         "alerting": {
           "001": "Страница Уведомлений отображает активные уведомления по степени серьезности с возможностью подтверждения и разрешения.",
@@ -14021,8 +13900,8 @@
           "015": "Обнаружение FIPS поставляется с открытым исходным кодом агентом — лицензия не требуется. При каждом обновлении каждый агент отправляет свою позицию, и сервер фиксирует ее на хосте для отображения в дашборде и на вкладке каждого хоста. Обнаружение использует авторитетный источник каждой платформы:",
           "016": "Linux (ядро): /proc/sys/crypto/fips_enabled — определитель того, что FIPS в данный момент активен.",
           "017": "RHEL и пересборки: fips-mode-setup --check .",
-          "018": "Ubuntu: the Ubuntu Pro fips service status.",
-          "019": "Windows: the FipsAlgorithmPolicy registry value.",
+          "018": "Убунту: статус службы Ubuntu Pro fips.",
+          "019": "Windows: значение реестра FipsAlgorithmPolicy.",
           "020": "macOS & BSD: отмечается как не применимо.",
           "021": "Панель управления флотом",
           "022": "Страница соответствия FIPS в основном навигационном меню сводит общую информацию о парке: сколько хостов включено, доступно, отключено или не применимо, за которым следует таблица каждого хоста со статусом, используемым переключательным механизмом и когда он последний раз отчитался. Используйте его для ответа на вопрос \"какие хосты не находятся в режиме FIPS?\" одним взглядом перед аудитом.",
@@ -14295,7 +14174,7 @@
           "203": "Сканирование безопасности : Реализация комплексного сканирования безопасности",
           "204": "Навигация",
           "205": "← Страница безопасности",
-          "206": "Mutual TLS →"
+          "206": "Мутуальный TLS →"
         },
         "best-practices": {
           "001": "Документация",
@@ -14593,7 +14472,7 @@
           "293": "Сканирование безопасности : Развертывание автоматизированного сканирования безопасности",
           "294": "Навигация",
           "295": "← Аутентификация",
-          "296": "Mutual TLS →"
+          "296": "Мутуальный TLS →"
         },
         "index": {
           "001": "Обзор безопасности",
@@ -14658,7 +14537,7 @@
           "060": "Конфигурация безопасности →",
           "061": "Лучшие практики",
           "062": "Рекомендации по безопасности и руководства по развертыванию.",
-          "063": "Проверочный список безопасности для промышленного раз部署安全检查清单",
+          "063": "Список проверок безопасности для развертывания в производстве",
           "064": "Рекомендации по управлению сертификатами",
           "065": "Рекомендации по сетевой безопасности",
           "066": "Рекомендации по безопасности учетных записей пользователей",
@@ -15323,7 +15202,7 @@
           "188": "Квартальные обзоры: Периодический обзор изменений пакетов в CDE",
           "189": "HIPAA (Здравоохранение)",
           "190": "Защита ПЧИ: Убедитесь, что изменения пакетов не выдают защищенные сведения о здоровье",
-          "191": "Контроль доступа: Поддерживать适当的访问控制在更改后",
+          "191": "Контроль доступа: Обеспечьте соответствующие меры контроля доступа после изменений",
           "192": "Журналы аудита: Усиленное логирование для систем здравоохранения",
           "193": "Оценка рисков: оценка рисков по стандарту HIPAA для всех изменений пакетов",
           "194": "Соглашения о бизнес-ассоциации: Соответствие поставщиков для инструментов управления пакетами",
@@ -15430,7 +15309,7 @@
           "295": "Улучшенное мониторинг: внедрение дополнительного мониторинга после инцидента",
           "296": "Улучшение процесса: Обновление процедур на основе извлеченных уроков",
           "297": "Обновление обучения на основе результатов расследования инцидентов",
-          "298": "Цифровая取证调查用于包操作",
+          "298": "Цифровая криминалистика для операций с пакетами",
           "299": "Сбор доказательств",
           "300": "Изображения системы: Полные дисковые изображения поврежденных систем",
           "301": "Конфигурации памяти: дампы RAM для временных данных",
@@ -15527,7 +15406,7 @@
           "026": "Утечка или раскрытие данных",
           "027": "Уязвимости инъекций (SQL, команды и т.д.)",
           "028": "Уязвимости средней степени опасности",
-          "029": "Кросс-сайтный скриптовый攻击（XSS）",
+          "029": "Cross-site scripting (XSS)",
           "030": "Подделка запросов через CSRF",
           "031": "Публикация информации",
           "032": "Атаки, приводящие к отказу в обслуживании",
@@ -15643,7 +15522,7 @@
           "056": "Интеграция с инструментами сборки",
           "057": "Полные форматы отчетности",
           "058": "Обнаружение секретов",
-          "059": "TruffleHog",
+          "059": "ТрюфльХог",
           "060": "Сканер секретов с высокой энтропией",
           "061": "Сканирование истории Git",
           "062": "Обнаружение секретов в реальном времени",
@@ -15937,11 +15816,11 @@
           "350": "Инструменты разработки",
           "351": "GitHub/GitLab/Bitbucket",
           "352": "Jenkins/GitHub Actions/GitLab CI",
-          "353": "SonarQube Cloud /CodeClimate",
+          "353": "SonarQube Cloud / CodeClimate",
           "354": "Реестр Docker/Harbor",
           "355": "Artifactory/Nexus",
           "356": "Отслеживание проблем",
-          "357": "Jira/Linear/Azure DevOps",
+          "357": "Джира/Линер/Azure DevOps",
           "358": "ServiceNow/Remedy",
           "359": "PagerDuty/Opsgenie",
           "360": "Slack / Microsoft Teams",
@@ -16022,7 +15901,7 @@
           "021": "Аутентификация, пользователи и роли являются глобальными для сервера; управляемые данные относятся к каждому арендатору отдельно. Человек аутентифицируется один раз, но каждый запрос к управляемым данным обслуживается из базы данных активного арендатора. Авторизация оценивается на уровне управления, независимо от того, какая база данных арендатора используется.",
           "022": "Почему сложно атаковать",
           "023": "Наиболее ясный способ оценки модели изоляции — проанализировать атаки на неё.",
-          "024": "«Я внедрю SQL или устраню фильтр клиента, чтобы прочитать хосты другого客户的主机。",
+          "024": "Я внедрю SQL или применю фильтр по арендатору, чтобы прочитать хосты другого клиента.",
           "025": "Запрос привязан к базе данных вашего тенанта. Данные других тенантов находятся в других базах данных. Нет запросов — злонамеренных или случайных — которые могли бы достичь этих данных, потому что подключения просто нет. Ограничен только вашими собственными данными.",
           "026": "«Я похитил базовый пароль данных из конфигурации или памяти.»",
           "027": "Нет общего долгосрочного пароля для хищения. Учетные данные арендаторов выдаются из OpenBAO, истекают автоматически и ограничиваются одной базой данных клиента. Захваченные учетные данные узко направлены и имеют короткий срок действия по своей природе. Радиус воздействия — один клиент на непродолжительное время.",
@@ -16064,7 +15943,7 @@
           "063": "Архитектура →",
           "064": "Корпоративное SaaS-решение",
           "065": "Управляемая, многотенантная версия — что она включает и для кого предназначена.",
-          "066": "Enterprise SaaS →",
+          "066": "Облачное корпоративное решение →",
           "067": " Развертывание многосезонного режима",
           "068": "Реестр и базы данных клиентов, OpenBAO, миграции и настройка клиентских профилей.",
           "069": "Развертывание →"
@@ -17311,7 +17190,7 @@
     },
     "description": "Многоплатформенный CI/CD-трубопровод для SysManage",
     "header": {
-      "description": "<strong>Достижение:</strong> SysManage реализует надежный процесс непрерывной интеграции и развертывания. Наша многоплатформенная матрица тестирования проверена на可靠性较高的翻译应该是关注技术实现和多平台支持的表述，而不是强调“成就”。以下是更准确的技术性描述翻译结果：{",
+      "description": "<strong>Достижение:</strong> SysManage реализует надёжный конвейер непрерывной интеграции и развёртывания. Наша мультиплатформенная матрица тестирования проверена на надёжность в Linux, Windows и macOS.",
       "title": "Многоплатформенная CI/CD-трубопровод"
     },
     "implementation": {
@@ -17542,7 +17421,7 @@
       "leap_note": "Использует стабильные пакеты, может потребоваться ручная установка Rust",
       "package_notes": "Заметки о Менеджере Пакетов",
       "python_versions": "Leap поставляется с Python 3.9+, Tumbleweed с последней стабильной версией",
-      "title": "openSUSE Leap/Tumbleweed",
+      "title": "открытая SUSE Leap/Tumbleweed",
       "tumbleweed_note": "Скользящий релиз, Rust доступен через zypper"
     },
     "sles": {
@@ -18592,7 +18471,7 @@
           "title": "🔌 Развертывание в изолированной сети",
           "description": "Создание единого ISO-образа для нескольких ОС, содержащего сервер SysManage (или агента) и все транзитные пакеты операционной системы и Python wheel. Затем установите в сеть без доступа к интернету одним командом.",
           "features": {
-            "platforms": "Ubuntu / Debian / Fedora / RHEL / openSUSE / Alpine / BSD / macOS / Windows",
+            "platforms": "Убунту / Дебиан / Федора / RHEL / openSUSE / Альпина / BSD / macOS / Windows",
             "deps": "Транзитивные зависимости ОС + Python wheels упакованы",
             "dispatcher": "Автоматический скрипт распознавания ОС-диспетчер в корне ISO",
             "ui": "UI-драйвированное построение, загрузка и управление жизненным циклом"
@@ -18629,7 +18508,7 @@
             "providers": "Модульные поставщики вычислительных ресурсов (удаленный libvirt, Proxmox VE)",
             "templates": "Переиспользуемые, версионированные шаблоны подготовки"
           },
-          "link": "Provisioning Engine Guide →",
+          "link": "Руководство по движку провизоринга →",
           "title": "🚀 Provisioning Engine"
         }
       },
@@ -18921,22 +18800,22 @@
           "title": "[НЕТ:pro_plus.observability_engine.endpoints.grafana.title]"
         },
         "graylog": {
-          "bsd_syslog": "[НЕТ:pro_plus.observability_engine.endpoints.graylog.bsd_syslog]",
-          "rsyslog": "[НЕТ:pro_plus.observability_engine.endpoints.graylog.rsyslog]",
-          "sidecar_install": "[НЕТ:pro_plus.observability_engine.endpoints.graylog.sidecar_install]",
-          "syslog_ng": "[НЕТ:pro_plus.observability_engine.endpoints.graylog.syslog_ng]",
+          "bsd_syslog": "<code>POST /api/v1/observability/graylog/{host_id}/bsd-syslog-deploy</code> — настройка стандартного syslogd BSD. Тело добавляет <code>{bsd_variant, existing_config}</code>: вызывающая сторона получает текущий <code>/etc/syslog.conf</code> хоста и передает его как <code>existing_config</code>; движок выполняет идемпотентное слияние, сохраняющее правила пересылки, не связанные с изменением. <code>bsd_variant</code> выбирает команду перезапуска (<code>service syslogd restart</code> на FreeBSD, <code>rcctl restart syslogd</code> на OpenBSD/NetBSD). GELF отклоняется валидатором (стандартный BSD syslogd не может с ним работать).",
+          "rsyslog": "<code>POST /api/v1/observability/graylog/{host_id}rsyslog-deploy</code> — настроить rsyslog для пересылки в Graylog. Тело запроса: <code>{graylog_server, port, mechanism}</code>, где <code>mechanism</code> может быть <code>syslog_tcp</code>, <code>syslog_udp</code> или <code>gelf_tcp</code>. Записывает <code>/etc/rsyslog.d/60-graylog.conf</code> и перезапускает демона.",
+          "sidecar_install": "<code>POST /api/v1/observability/graylog/{host_id}/sidecar-install</code> — Windows-only. Скачивает исходный <code>graylog-sidecar-installer-{amd64|386}.exe</code> с релизов GitHub Graylog и запускает его в тихом режиме (<code>/S</code>). Используйте вместе с конечной точкой развертывания выше для установки <code>sidecar.yml</code> после того, как бинарный файл будет присутствовать.",
+          "syslog_ng": "<code>POST /api/v1/observability/graylog/{host_id}/syslog-ng-deploy</code> — настроить syslog-ng с теми же тремя механизмами пересылки. Записывает <code>/etc/syslog-ng/conf.d/60-graylog.conf</code>.",
           "title": "[НЕТ:pro_plus.observability_engine.endpoints.graylog.title]",
-          "bsd_append": "[НЕТ:pro_plus.observability_engine.endpoints.graylog.bsd_append]",
-          "linux_autodetect": "[НЕТ:pro_plus.observability_engine.endpoints.graylog.linux_autodetect]",
-          "windows_no_token": "[НЕТ:pro_plus.observability_engine.endpoints.graylog.windows_no_token]"
+          "bsd_append": "<strong>Слияние во время выполнения на BSD</strong> — <code>build_graylog_bsd_syslog_append_plan</code> выполняет слияние <code>/etc/syslog.conf</code> во время выполнения агента через оболочку (очистка <code>sed -i.bak</code> + добавление <code>printf</code> + перезапуск, специфичный для варианта). Это позволяет обойтись без примитива загрузки файлов на стороне открытого кода: конечная точка BSD выбирает ветку только по <code>host.platform</code>, поле <code>existing_config</code> не требуется.",
+          "linux_autodetect": "<strong>Автодетекция Linux</strong> — <code>build_graylog_linux_autodetect_plan</code> собирает конфигурации как rsyslog, так и syslog-ng в <code>/tmp/sysmanage-graylog-{rsyslog,syslog-ng}.conf</code> и генерирует условные блоки командной строки для каждого демона на основе проверки <code>systemctl is-active --quiet &lt;daemon&gt;</code>. Активный демон получает копию своего конфигурационного файла и перезапускается; остальные блоки являются пустыми операциями. Это устраняет необходимость для сервера OSS знать, какой форвардер используется на хосте.",
+          "windows_no_token": "<strong>Установка без токена для Windows стороннего контейнера</strong> — <code>build_graylog_sidecar_no_token_plan</code> обрабатывает путь <code>POST /host/{id}/attach_to_graylog</code> на Windows в OSS. В OSS полезная нагрузка содержит только <code>{mechanism, graylog_server, port}</code> — без <code>api_token</code>/<code>node_id</code>, поэтому план записывает <code>sidecar.yml</code> с пустым <code>server_api_token</code> (администратор заполняет его через UI Sidecar после установки). PowerShell-драйвер: обнаруживает ARM64 хосты и отказывается от их использования (у верхнего уровня нет сборок для ARM64), проверяет наличие существующей установки с помощью <code>Test-Path</code>, загружает установщик AMD64 с GitHub при необходимости, запускает <code>/S</code>, затем регистрирует и запускает службу Windows."
         },
-        "intro": "[НЕТ:pro_plus.observability_engine.endpoints.intro]",
+        "intro": "Все конечные точки находятся под префиксом <code>/api/v1/observability</code>. Аутентификация: bearer JWT. Каждая конечная точка, управляемая движком, также требует наличия соответствующего флаг Pro+ в действующей лицензии; без него маршрут возвращает HTTP 402.",
         "otel": {
-          "multiplatform_deploy": "[НЕТ:pro_plus.observability_engine.endpoints.otel.multiplatform_deploy]",
-          "multiplatform_remove": "[НЕТ:pro_plus.observability_engine.endpoints.otel.multiplatform_remove]",
+          "multiplatform_deploy": "<code>POST /api/v1/observability/otel/{host_id}/multiplatform-deploy</code> — полная установка, конфигурация и запуск для любого из семи платформ (<code>linux_apt</code>, <code>linux_dnf</code>, <code>freebsd</code>, <code>openbsd</code>, <code>netbsd</code>, <code>macos</code>, <code>windows</code>). Тело: <code>{platform, grafana_url}</code>. На FreeBSD устанавливается Grafana Alloy (конфигурация River-DSL) вместо otelcol-contrib; на всех остальных платформах устанавливается стандартный <code>otelcol-contrib</code> через их собственные менеджеры пакетов.",
+          "multiplatform_remove": "<code>POST /api/v1/observability/otel/{host_id}/{platform}/multiplatform-remove</code> — симметричный: остановить службу, удалить пакет, удалить конфигурационную директорию (Windows пропускает явное очистку конфигурационной директории, так как Chocolatey владеет ей).",
           "title": "[НЕТ:pro_plus.observability_engine.endpoints.otel.title]",
-          "grafana_connection": "[НЕТ:pro_plus.observability_engine.endpoints.otel.grafana_connection]",
-          "service_control": "[НЕТ:pro_plus.observability_engine.endpoints.otel.service_control]"
+          "grafana_connection": "<strong>Соединение / отсоединение с Grafana</strong> — <code>POST /hosts/{host_id}/opentelemetry/{connect,disconnect}</code>. Управляемое соединение через <code>build_otel_grafana_connection_plan(platform, action, grafana_url)</code>, которое генерирует план перезапуска (конфигурация OTEL была закреплена за целевым Grafana при развертывании; соединение / отсоединение просто запускает перезапуск службы, чтобы любые изменения в конфигурации внесенные вне системы вступили в силу и аудиторская запись фиксирует намерения оператора).",
+          "service_control": "<strong>Управление службой</strong> — <code>POST /hosts/{host_id}/opentelemetry/{start,stop,restart}</code> являются OSS конечными точками. Они проходят через <code>try_engine_otel_service_control</code> в <code>backend/services/observability_shim.py</code>; когда загружается Pro+ движок каждая из них генерирует последовательность <code>build_otel_service_control_plan(platform, action)</code> (systemctl / service / rcctl / /etc/rc.d / brew services / sc.exe в зависимости от платформы). План работы движка проходит через путь агента <code>apply_deployment_plan</code>. В случае отсутствия загруженного движка переходит к устаревшему <code>generic_command</code> WS-диспетчеризации."
         }
       },
       "header": {
@@ -18993,13 +18872,13 @@
         "title": "Используя the UI"
       },
       "dispatch": {
-        "intro": "[НЕТ:pro_plus.observability_engine.dispatch.intro]",
-        "linux_default": "[НЕТ:pro_plus.observability_engine.dispatch.linux_default]",
-        "step1": "[НЕТ:pro_plus.observability_engine.dispatch.step1]",
+        "intro": "Конечные точки наблюдения за работой программного обеспечения (установка, удаление, запуск/остановка/перезапуск, подключение к Grafana и отсоединение, присоединение к Graylog) следуют соглашению о приоритете движка перед устаревшим методом, реализованному в <code>backend/services/observability_shim.py</code>:",
+        "linux_default": "На Linux функция обнаружения платформы консультирует два сигнала перед переходом к значению по умолчанию: (1) инвентарь установленных пакетов хоста (самый авторитетный — один вхождение apt/dnf/yum решает); (2) строку <code>platform_release</code> из коллекции OS_INFO, которая появляется примерно через 1 секунду после первого подключения (закрывает гонку на свежем хосте для типичных дистрибутивов — Ubuntu, Debian, RHEL, Rocky, Fedora и т.д.). Если оба сигнала недоступны, функция устанавливает значение по умолчанию <code>linux_apt</code> с предупреждающей записью в журнале; хост на основе dnf получит явную ошибку <code>apt-get: command not found</code> вместо тихого перехода к устаревшему коду агента.",
+        "step1": "Конечная точка вызывает <code>try_engine_*</code> помощник.",
         "step2": "[НЕТ:pro_plus.observability_engine.dispatch.step2]",
-        "step3": "[НЕТ:pro_plus.observability_engine.dispatch.step3]",
-        "step4": "[НЕТ:pro_plus.observability_engine.dispatch.step4]",
-        "step5": "[НЕТ:pro_plus.observability_engine.dispatch.step5]",
+        "step3": "Помощник разрешает токен платформы через <code>_detect_otel_platform</code> (для путей OTEL) или напрямую из <code>host.platform</code> (для Graylog).",
+        "step4": "При любом пропуске (движок не загружен, отсутствует сборщик, недоступная платформа, исключение при построении или отправке плана) помощник возвращает <code>None</code>; конечная точка очереди устаревшее сообщение <code>generic_command</code> WS точно так же, как раньше.",
+        "step5": "Каждый конечный пункт записи фиксирует выбранную строку (<code>engine_plan</code> против <code>legacy_ws_command</code>) в своем ведомстве <code>AuditService.log</code> под разделом <code>details.dispatch_path</code>, чтобы операторы могли проверять трафик производства.",
         "title": "[НЕТ:pro_plus.observability_engine.dispatch.title]"
       }
     },
@@ -20009,7 +19888,7 @@
           "title": "Принудительная проверка подписей (HTTP против HTTPS)"
         },
         "identity": {
-          "body": "Закрепление сертификата, полученного через сеть, само по себе приведет к доверию на первое использование: атакующий, перехватывающий процесс регистрации, может предложить свой собственный сертификат и закрепить его. Токен регистрации не может закрыть эту дыру, так как это общая секретная информация, передаваемая по той же самой канале. SysManage поэтому использует долгосрочное <strong>Ed25519-идентификационное ключ</strong>, чей <em>частный</em> экземпляр никогда не покидает сервер. Перед регистрацией администратор обменивается публичными идентификационными ключами двух серверов вне канала (они публичные, поэтому любой канал подходит &mdash; страница Роль Сервера показывает каждый ключ и его отпечаток). Во время регистрации каждая сторона подписывает представленный сертификат своим идентификационным частным ключом, а другая сторона проверяет эту подпись против заранее обмененного публичного идентификационного ключа перед закреплением. Мужчина в центре не может заменить сертификат и подделать соответствующую подпись, поэтому регистрация отклоняется вместо того чтобы быть закрепленной. Эта проверка <strong>строгая и обязательная</strong>: регистрация проваливается, если ключ идентификации не был заранее зарегистрирован или доказательство не прошло проверку. Поскольку доказательство основано на отпечатке сертификата, позднее замена TLS-сертификата просто требует подписи тем же идентификационным ключом &mdash; нет необходимости во втором вне канала обмене.",
+          "body": "Закрепление сертификата, полученного через сеть, само по себе было бы доверием на первое использование: атакующий мог перехватить процесс регистрации и предложить свой собственный сертификат. Токен регистрации не может закрыть эту дыру, так как он является секретом, передаваемым через тот же канал. SysManage поэтому использует долгосрочный <strong>Ed25519 identity key</strong> каждого сервера для закрепления регистрации. Приватная часть этого ключа <em>никогда не покидает сервер</em>. Перед регистрацией оператор обменивается публичными <em>ключами</em> серверов вне сети (они публичные, поэтому любой канал подходит &mdash; страница Server Role показывает каждый ключ и его отпечаток). Во время регистрации каждая сторона подписывает представленный сертификат своим приватным ключом, а другая сторона проверяет эту подпись против заранее обмененного публичного ключа перед закреплением. МитМ не может подделать подпись, поэтому регистрация отклоняется вместо закрепления. Проверка <strong>строгая и обязательная</strong>: регистрация проваливается, если ключ был не зарегестрирован или проверка не прошла. Поскольку проверка осуществляется по отпечатку сертификата, позднее обновление TLS-сертификата требует только повторной подписи тем же ключом &mdash; без дополнительного обмена вне сети.",
           "title": "Вне-канальный верификационный процесс идентификации"
         }
       }
@@ -20294,9 +20173,9 @@
         "report": {
           "caption": "[НЕ НАЙДЕН:pro_plus.provisioning_engine.baremetal.report.caption]",
           "description": "[НЕ НАЙДЕН:pro_plus.provisioning_engine.baremetal.report.description]",
-          "disarm": "[НЕ НАЙДЕН:pro_plus.provisioning_engine.baremetal.report.disarm]",
-          "log": "[НЕ НАЙДЕН:pro_plus.provisioning_engine.baremetal.report.log]",
-          "states": "[НЕ НАЙДЕН:pro_plus.provisioning_engine.baremetal.report.states]",
+          "disarm": "Оба <code>установленный</code> и <code>отсутствующий агент</code> <strong>дисконфигурированны</strong> для сетевого загрузки; только <code>неудачная</code> остается в режиме готовности к повторной попытке. Эта асимметрия намеренная: установка, которая не завершилась успешно, должна быть повторена, но машина с исправной ОС и сломанным агентом никогда не должна перезагружаться заново — это стерло бы рабочую систему для устранения проблемы с пакетом.",
+          "log": "Отчет содержит однустрочную причину и конец журнала бутстрапа, так что строка выглядит как <em>agent install failed: Unable to locate package sysmanage-agent</em> вместо <code>installed</code>. Отчет составляется с усилиями и никогда не блокирует отключение: машина, которая вообще не может достичь сервера, прекращает загрузку по сети, потому что машина, застрявшая в процессе повторной установки, хуже исходного состояния.",
+          "states": "Два исхода поэтому записываются отдельно, и разница не только косметическая. <code>установленный</code> означает, что агент запущен. <code>отсутствующий агент</code> означает, что операционная система установлена, но агент отсутствует — машина может использоваться, но никогда не будет зарегистрирована до тех пор, пока кто-то не обратит на это внимание. Третий состояние, <code>неуспешный</code>, означает, что установка сама по себе не завершена.",
           "title": "[НЕ НАЙДЕН:pro_plus.provisioning_engine.baremetal.report.title]"
         }
       }
@@ -20829,8 +20708,8 @@
       "default_roles": "По умолчанию Роли",
       "diagnostic_commands": "Диагностические команды",
       "email_otp": {
-        "endpoint": "[НЕТ:security.authentication.email_otp.endpoint]",
-        "enumeration": "[НЕТ:security.authentication.email_otp.enumeration]",
+        "endpoint": "<code>POST /api/auth/mfa/email/request</code> отправляет код (использует тот же временный токен, что и конечная точка <code>/api/auth/mfa/verify</code>); <code>/api/auth/mfa/verify</code> принимает отправленный по электронной почте код в том же поле, где принимаются TOTP-коды и резервные коды",
+        "enumeration": "<code>email/запрос</code> возвращает общий ответ типа «если у вашего аккаунта настроено MFA, код был отправлен» независимо от того, зарегистрирован пользователь или успешно отправился email — предотвращает перебор пользователей через этот конечный пункт",
         "rate_limit": "Запрос нового кода автоматически аннулирует любое предыдущее неиспользованное уведомление для того же пользователя, поэтому спаминг эндпоинта запросов не может захлестнуть почтовый ящик."
       },
       "external_auth_integration": "External Auth Интеграция",
@@ -21339,11 +21218,11 @@
       "title": "Quick Навигация"
     },
     "overview": {
-      "backend_api": "Бэкенд API - FastAPI с асинхронной поддержкой, JWT аутентификацией и WebSocket связью",
+      "backend_api": "<strong>Backend API</strong> - FastAPI with async support, JWT authentication, and WebSocket communication",
       "components_title": "Компоненты Сервера",
-      "database": "База данных - PostgreSQL с SQLAlchemy ORM и миграциями Alembic",
+      "database": "<strong>Database</strong> - PostgreSQL with Alembic migrations and comprehensive data models",
       "description": "Сервер SysManage — это современное веб-приложение, построенное с бэкендом FastAPI (Python) и фронтендом React (TypeScript). Он предоставляет централизованную платформу для управления несколькими системами через лёгкие агенты.",
-      "frontend_ui": "Фронтенд UI - React с TypeScript, компонентами Material-UI и обновлениями в реальном времени",
+      "frontend_ui": "<strong>Фронтенд интерфейс пользователя</strong> - React с TypeScript, компоненты Material-UI и обновления в реальном времени",
       "security_layer": "<strong> Уровень безопасности </strong> — безопасность корпоративного уровня с использованием mTLS, RBAC и комплексного сканирования.",
       "title": "Обзор",
       "websocket_engine": "<strong> WebSocket Engine </strong> — двусторонняя связь с агентами в режиме реального времени."
@@ -21573,9 +21452,10 @@
       "title": "Система Требования"
     },
     "ssl": {
-      "description": "Для разработки HTTPS разместите сертификаты SSL в:",
-      "fallback": "Если сертификаты не найдены, система автоматически возвращается к HTTP на локальном хосте.",
-      "title": "SSL Сертификаты (Опционально)"
+      "description": "SysManage обслуживает веб-интерфейс и API с одного источника по HTTPS на порту 443. nginx завершает TLS и проксирует к бэкенду на loopback, поэтому агентам требуется исходящий доступ только на порт 443 для этого хоста.",
+      "title": "Сертификаты TLS (Обязательно для рабочей среды)",
+      "config_path": "Укажите nginx на ваш сертификат и ключ. Файл конфигурации находится в разных местах на каждой платформе, поэтому сообщение после установки выводит точный путь для вашего системы вместе с двумя строками для изменения:",
+      "dev_mode": "Для локального разработки можно пропустить сертификаты полностью, указав <code>dev_mode: true</code> в <code>/etc/sysmanage.yaml</code>. Сервер тогда будет обслуживать API на 8080 и веб-интерфейс на 3000 через обычный HTTP, и привязывается ко всем интерфейсам так, чтобы агенты из вашей локальной сети могли до него достучаться без дополнительной конфигурации. Никогда не включайте режим разработки на производственном хосте."
     },
     "title": "Сервер Установка Руководство - SysManage",
     "troubleshooting": {
@@ -21601,9 +21481,9 @@
         "title": "Разрешение Проблемы"
       },
       "port_conflicts": {
-        "check_services": "Проверьте наличие существующих служб: <code> netstat -tlnp | grep: 6443 </code>",
-        "ensure_ports": "Убедитесь, что порты 6443 ( API ) и 7443 (интерфейс) доступны.",
-        "modify_ports": "При необходимости измените порты в конфигурации.",
+        "check_services": "Проверьте наличие прослушивающего соединения: <code>ss -tlnp | grep -E ':(80|443|8080)'</code>",
+        "ensure_ports": "В производственной среде убедитесь, что порт 443 свободен (и 80, который только перенаправляет на него). Бэкенд прослушивает 127.0.0.1:8080 за nginx и не открыт для внешнего доступа.",
+        "modify_ports": "В режиме разработки API работает на 8080, а веб-интерфейс на 3000; измените их под <code>api</code> и <code>webui</code> в <code>/etc/sysmanage.yaml</code>, если они конфликтуют.",
         "title": "Порт Conflicts"
       },
       "title": "Устранение неполадок"
@@ -22111,7 +21991,7 @@
     "breadcrumb": "План развития",
     "coming": {
       "advisor": {
-        "body": "Виджеты с рекомендациями в стиле Insights, оцененными по уровню риска на основе собранных фактов, уязвимостей CVE и состояния конфигурации; обнаружение сигнатур / YARA-шаблонов для вредоносного ПО; интеграция с вашими существующими инструментами — оркестрирование Velociraptor для реагирования на инциденты и прием Wazuh警觉！你遇到的响应警报，而不是替换你已经运行的工具。",
+        "body": "Рекомендации в стиле аналитики с оценкой риска на основе собранных фактов, CVEs и состояния конфигурации; подпись/обнаружение вредоносного ПО YARA; а также интеграции, которые соответствуют вашим текущим инструментам — оркестрация Velociraptor для реагирования на инциденты и обработка оповещений Wazuh, вместо замены уже используемых вами инструментов.",
         "title": "Профилактические операции и советник"
       },
       "config": {
@@ -22336,6 +22216,19 @@
       "bsd": "Узел FreeBSD с теми же полными данными, что и любой узел на базе Linux, Windows или macOS.",
       "compliance": "Соответствие отчетность, охватывающая всю среду, а не одну операционную систему.",
       "vuln": "Платформенная видимость уязвимости на уровне флотилии для каждой операционной системы."
+    },
+    "monday": {
+      "bsd": "BSD-системы управляются сценариями, которые кто-то написал много лет назад.",
+      "close": "Это проблема, которую SysManage был создан для решения.",
+      "compliance": "Отчеты по соответствию находятся где-то еще.",
+      "eyebrow": "Понедельник, 9:04 утра",
+      "macos": "macOS is in Jamf.",
+      "punch": "Вы открыли шесть консолей до того, как исправили хотя бы один хост — и все еще не можете ответить на единственный вопрос, который кто-то действительно задает: <strong>мы подвержены угрозам?</strong>",
+      "rhel": "RHEL is in Satellite.",
+      "scanning": "Сканирование уязвимостей находится где-то еще.",
+      "title": "Критическая уязвимость обнаружена. С чего начать?",
+      "ubuntu": "Ubuntu is in Landscape.",
+      "windows": "Windows is in Intune."
     }
   },
   "shot": {
@@ -22486,7 +22379,7 @@
     "cta": {
       "body": "Давайте проведем развертывание в условиях отсутствия подключения к интернету с учетом ваших требований к безопасности.",
       "contact": "Запросить демонстрацию в изолированном режиме",
-      "gov": "Government & Defense →",
+      "gov": "Правительство и защита →",
       "title": "Есть сеть, недоступную из интернета?"
     },
     "hero": {
@@ -22508,7 +22401,7 @@
     "who": {
       "body": "Сети с отсутствием подключения к Интернету и изолированные сети не являются редким случаем — именно так работают самые критически важные системы в мире. У SysManage практически нет прямых конкурентов в этой области.",
       "defense": {
-        "b": "Классифицированные эн클авы и тактические сети с жесткими требованиями отсутствия исходящего трафика.",
+        "b": "Защищённые энклавы и тактические сети с строгими требованиями отсутствия выхода",
         "t": "Оборона и разведка"
       },
       "finance": {
@@ -22533,7 +22426,7 @@
   "bsd": {
     "cta": {
       "body": "Управляйте FreeBSD, OpenBSD и NetBSD как равными остальной части вашего парка — с AGPLv3 ядром, на 14 языках.",
-      "compare": "Compare Tools →",
+      "compare": "Сравнить инструменты →",
       "start": "Начните бесплатно",
       "title": "Наконец-то, первый классная поддержка BSD"
     },
@@ -22662,7 +22555,7 @@
     },
     "grows": {
       "body": "Начните бесплатно с открытой версии Community Edition и ее ядра AGPLv3. Добавьте анализ состояния AI в Professional. Увеличьте функциональность с Enterprise: сканирование уязвимостей, соответствием требованиям, единой системой аутентификации и продвинутым контролем доступа по ролям. Или запустите его полностью многоклиентским и хостированным с Enterprise SaaS, включая изолированную базу данных для каждого клиента. Это та же платформа и тот же рабочий процесс на каждом этапе — вы добавляете функциональность без переобучения инструментов или миграции флотилии.",
-      "editions": "Compare Editions →",
+      "editions": "Сравнить издания →",
       "title": "Растет вместе с вами"
     },
     "hero": {
@@ -22703,7 +22596,7 @@
       "title": "Соответствие, которое можно отчитываться о нем, на каждой операционной системе"
     },
     "cta": {
-      "airgap": "Air-Gapped Details →",
+      "airgap": "Детали без подключения к сети →",
       "body": "Давайте проведем развертывание с учетом ваших требований к безопасности, соответствию и изоляции.",
       "demo": "Запросить демонстрацию",
       "title": "Инфраструктура, которая не может компрометировать себя"
@@ -22782,7 +22675,7 @@
     },
     "cta": {
       "body": "Давайте поговорим о том, как база данных для каждого клиента изменяет то, что вы можете обещать своим клиентам.",
-      "compare": "Compare Tools →",
+      "compare": "Сравнить инструменты →",
       "contact": "Запросить демонстрацию",
       "title": "Управляйте своей практикой с одной платформы"
     },
@@ -22809,7 +22702,7 @@
     },
     "hetero": {
       "body": "Клиенты MSP никогда не являются однородными. Одна учетная запись в основном использует Windows с большим количеством ноутбуков; следующая — Linux-сервера и FreeBSD-аппаратуру; другая — смесь macOS, OpenBSD и NetBSD. SysManage управляет всеми этими системами одинаково — и управляя любыми системами, которые клиенты предлагают вам, последовательно, является главной целью инструмента MSP. Основа AGPLv3, а интерфейс доступен на 14 языках.",
-      "cta": "Learn about Enterprise SaaS — the multi-tenant hosted edition →",
+      "cta": "Узнайте больше об Enterprise SaaS — многоарендной облачной версии →",
       "title": "Неравномерность по умолчанию"
     },
     "iso": {
@@ -22822,7 +22715,7 @@
   "sec": {
     "card": {
       "audit": {
-        "body": "Устойчивая запись того, что изменилось на хосте и кто это сделал — трассировка问责以供事故响应和审计员查阅。",
+        "body": "Долговечный отчёт о том, что изменилось на хосте и кто это сделал — след ответственности, инцидентный ответ и аудиторы его требуют.",
         "title": "След аудита изменений"
       },
       "compliance": {
@@ -22849,7 +22742,7 @@
     "cta": {
       "body": "Увидьте, как последовательная видимость на всех ОС меняет подход вашей команды к измерению и снижению рисков.",
       "demo": "Запросить демонстрацию",
-      "model": "Read the Security Model →",
+      "model": "Прочитать модель безопасности →",
       "title": "Единый источник истины для каждого хоста"
     },
     "hero": {
@@ -22870,7 +22763,7 @@
     "meta_description": "",
     "operational": {
       "body": "Инвентаризация, патчинг и уязвимости — это теперь ключевые элементы безопасности, а не IT-домашнее хозяйство для передачи и забывания. SysManage объединяет их в единую платформу управления, чтобы обеспечить согласованное исправление, проверяемое и обоснованное. Инвентаризация, патчинг и журналы аудита поставляются с открытым исходным кодом; сканирование уязвимостей, база данных CVE и отчеты о соответствиях — это возможности Professional+ и Enterprise. Доступ к этим функциям защищен JWT, взаимной TLS и RBAC.",
-      "proplus": "Explore Professional+ & Enterprise →",
+      "proplus": "Исследовать Professional+ и Enterprise →",
       "title": "Безопасность — это операционная задача"
     },
     "see": {
@@ -22889,12 +22782,12 @@
   "solutions": {
     "airgap": {
       "body": "Специально разработано для сетей без интернета: однопользовательское устройство, локальные секреты и контент, который доставляется на физическом носителе.",
-      "go": "Explore air-gapped →",
+      "go": "Исследовать без подключения к сети →",
       "title": "Изолированная инфраструктура"
     },
     "compare": {
       "body": "Увидьте, как SysManage сравнивается с Ansible, Puppet, Salt, Chef, Landscape и Satellite — функция за функцией.",
-      "go": "Compare tools →",
+      "go": "Сравнить инструменты →",
       "title": "Переходите с другого инструмента?"
     },
     "cta": {
@@ -22905,12 +22798,12 @@
     },
     "enterprise": {
       "body": "Соедините стойку односистемных инструментов в одну плоскость управления и сократите затраты на лицензии, сложность и риск зависимости от ключевых сотрудников для разнородного парка оборудования.",
-      "go": "Explore enterprise →",
+      "go": "Исследовать корпоративные решения →",
       "title": "Enterprise IT"
     },
     "government": {
       "body": "Полная изоляция (air-gapped) развертывание, осведомленность о FIPS и первый классная поддержка BSD для платформ критической инфраструктуры.",
-      "go": "Explore government →",
+      "go": "Исследовать правительственные решения →",
       "title": "Государство и оборона"
     },
     "hero": {
@@ -22921,12 +22814,12 @@
     "meta_description": "",
     "msp": {
       "body": "Управляйте многими клиентскими флотами с одной платформы с отдельной базой данных для каждого клиента — истинная изоляция, а не фильтрация по строкам.",
-      "go": "Explore MSP →",
+      "go": "Исследовать MSP →",
       "title": "Поставщики управляющих услуг"
     },
     "security": {
       "body": "Последовательный инвентарь, состояние патчей и видимость уязвимостей на каждой операционной системе — одна точка истины вместо шести слепых зон.",
-      "go": "Explore security →",
+      "go": "Исследовать безопасность →",
       "title": "Команды по обеспечению безопасности"
     },
     "title": "Решения для отраслей - SysManage"
@@ -22934,7 +22827,7 @@
   "xplat": {
     "concrete": {
       "body": "Унифицированное управление инфраструктурой здесь не просто слоган — это одни и те же возможности, работающие одинаково на каждой платформе. Временная мониторинг WebSocket в реальном времени держит каждый хост под контролем. Управление пакетами и исправлениями следует одной процедуре утверждения и развертывания. Обнаружение уязвимостей и отчеты о соответствии — доступны в профессиональной и корпоративной версиях — охватывают всю инфраструктуру, а не только одну операционную систему. Ядро является открытым исходным кодом под лицензией AGPLv3, защищено JWT, mTLS и управлением доступом на основе ролей, и локализовано на 14 языках.",
-      "solutions": "See solutions by industry →",
+      "solutions": "Посмотреть решения по отраслям →",
       "title": "Конкретная унифицированная кросс-платформенная управляющая среда"
     },
     "control": {
@@ -22948,7 +22841,7 @@
     },
     "cta": {
       "body": "Приведите Windows, Linux, macOS и версии BSD под одну панель управления и дайте вашей команде единый источник истины.",
-      "compare": "Compare Tools →",
+      "compare": "Сравнить инструменты →",
       "start": "Начните бесплатно",
       "title": "Остановите управление операционными системами. Управляйте своей флотилией."
     },
@@ -23030,8 +22923,8 @@
       "title": "Как агент решает, что отчитываться"
     },
     "nav": {
-      "next": "Troubleshooting →",
-      "prev": "← Cross-Platform Support"
+      "next": "Диагностика →",
+      "prev": "← Поддержка кросс-платформы"
     },
     "section_title": "Возможности",
     "seeing": {
@@ -23083,6 +22976,80 @@
       "proxy_desc": "Явное исходящее прокси. Обычно не требуется — <code>HTTPS_PROXY</code>, <code>HTTP_PROXY</code> и <code>NO_PROXY</code> уважаются из окружения.",
       "url_desc": "Один источник, с которым агент общается, например <code>https://sysmanage.example.com</code>. Пропустите порт для значения по умолчанию 443. Предпочтительнее перед устаревшими полями ниже.",
       "use_https_desc": "Устаревшее. Заменено схемой в <code>url</code>."
+    }
+  },
+  "server_quickstart": {
+    "before": {
+      "body": "Эта инструкция устанавливает сервер из пакета, построенного для вашей платформы. Для полной матрицы платформ, инструкций сборки с исходников и предварительных требований для каждой дистрибутивной системы, см. <a href=\"/docs/server/installation.html\">Инструкции по установке сервера</a>.",
+      "cert": "<strong>Сертификат TLS и приватный ключ</strong> для имени хоста сервера. nginx отказывается запуститься без него — намеренно, потому что консоль управления не должна работать в открытом виде только из-за отсутствия сертификата.",
+      "ports": "<strong>Входящий 443</strong> (и 80, если требуется перенаправление). Ничего другого открывать не нужно: агенты достигают сервера через исходящий 443 и бэкенд остается на loopback за nginx.",
+      "postgres": "<strong>PostgreSQL 12 или новее</strong>, на этом хосте или удалённом. SysManage не запустится без него.",
+      "root": "<strong>Root или sudo</strong> на целевом хосте.",
+      "tip": "Пакет выводит каждую из следующих шагов как сообщение после установки, с путями уже заполненными для вашей платформы. Если вы потеряли это сообщение, оно находится в журнале пакетного менеджера.",
+      "tip_label": "Совет:",
+      "title": "Перед началом"
+    },
+    "intro": "Установите сервер SysManage из нативного пакета, укажите PostgreSQL, дайте nginx сертификат и откройте консоль. Около пятнадцати минут на свежем хосте.",
+    "next": {
+      "agent": "<a href=\"/docs/agent/installation.html\">Установка агента</a> — пакеты для Windows, Linux, macOS и BSD.",
+      "approval": "<a href=\"/docs/getting-started/agent-approval.html\">Подтверждение агента</a> — как новый хост присоединяется к флоту.",
+      "body": "Сервер без управляемых хостов не делает ничего полезного. Установите агент на машины, которые хотите управлять, затем подтвердите их:",
+      "config": "<a href=\"/docs/server/configuration.html\">Настройка сервера</a> — электронная почта, аутентификация, хранение и остальное.",
+      "security": "<a href=\"/docs/security/best-practices.html\">Рекомендации по безопасности</a> — стоит прочитать перед тем, как запустить это в реальном флоте.",
+      "title": "Следующие шаги"
+    },
+    "step1": {
+      "body": "Загрузите пакет для вашей платформы с <a href=\"https://github.com/bceverly/sysmanage/releases\">страницы релизов</a> и установите его. Замените <code>X.Y.Z</code> на версию, которую вы устанавливаете.",
+      "debian": "Debian / Ubuntu",
+      "other": "Другие платформы",
+      "other_body": "openSUSE, Alpine, FreeBSD, OpenBSD, NetBSD, macOS и пакеты Windows опубликованы на той же странице релизов. Шаги ниже одинаковы для каждой платформы; только команда установки и путь конфигурации nginx отличаются, и сообщение после установки выводит правильный путь для вас.",
+      "rhel": "RHEL / CentOS / Fedora",
+      "title": "Установка пакета"
+    },
+    "step2": {
+      "body": "Чтобы использовать локальный экземпляр PostgreSQL:",
+      "remote": "Удалённая база данных работает так же хорошо — вы предоставите её хост и учетные данные на следующем шаге.",
+      "title": "Создание базы данных"
+    },
+    "step3": {
+      "body": "Сервер читает <code>/etc/sysmanage.yaml</code>. <a href=\"/config-builder.html\">Конфигуратор конфигурации</a> генерирует полный файл — соединение с базой данных, имя хоста, TLS, аутентификация и логирование — что быстрее и менее ошибочно, чем вводить его вручную.",
+      "perms": "Файл содержит учетные данные базы данных, поэтому держите его доступным только для root.",
+      "title": "Написать конфигурацию"
+    },
+    "step4": {
+      "body": "Проверьте ожидающие изменения и примите их. Это мигрирует схему управления и, если включена многосторонняя поддержка, каждую базу данных для каждого тенанта.",
+      "openbao": "С включенной многопользовательской поддержкой каждая учетная запись арендует учетные данные от OpenBAO, поэтому OpenBAO должен быть запущен при миграции.",
+      "title": "Выполнить миграции базы данных"
+    },
+    "step5": {
+      "body": "Поместите ваш сертификат и ключ туда, где nginx ожидает их:",
+      "dev": "Установите <code>dev_mode: true</code> в <code>/etc/sysmanage.yaml</code>, чтобы пропустить nginx и TLS полностью. Сервер затем обслуживает веб-интерфейс на порту 3000 и API на 8080 через обычный HTTP, связывая каждый интерфейс так, чтобы агенты из других мест вашей локальной сети могли к нему подключиться. Никогда не делайте этого на рабочем хосте.",
+      "dev_label": "Локальная оценка?",
+      "elsewhere": "Или измените эти две строки в конфигурации nginx для перенаправления на другой адрес — путь различается по платформам, и сообщение после установки указывает ваш:",
+      "letsencrypt": "Если у вас еще нет сертификата, <code>certbot certonly --standalone -d your-server.example.com</code> получит его; затем укажите две строки на полный путь к <code>fullchain.pem</code> и <code>privkey.pem</code>. Проверьте результат перед запуском:",
+      "title": "Установка сертификата TLS"
+    },
+    "step6": {
+      "body": "На BSD и других платформах без systemd используйте команду service, указанную в сообщении после установки.",
+      "title": "Запустить службу"
+    },
+    "step7": {
+      "body": "Веб-интерфейс и API используют этот один источник. Войдите с учетной записью администратора из вашего файла конфигурации — имя пользователя является адресом электронной почты.",
+      "title": "Открыть консоль"
+    },
+    "steps": {
+      "title": "Установка"
+    },
+    "verify": {
+      "api": "2. API отвечает",
+      "logs": "3. Журналы чистые",
+      "service": "1. Сервис запущен",
+      "t_db": "<strong>Сервис запускается и сразу завершается:</strong> проверьте соединение с базой данных в <code>/etc/sysmanage.yaml</code> и подтвердите, что миграции были выполнены.",
+      "t_login": "<strong>Вход возвращает ошибку:</strong> имя администраторского пользователя должно быть полным адресом электронной почты, а не просто именем.",
+      "t_nginx": "<strong>nginx не может запуститься:</strong> почти всегда это связано с отсутствием или неправильным сертификатом. <code>sudo nginx -t</code> указывает файл, который он не смог прочитать.",
+      "t_port": "<strong>Ничего не прослушивает 443:</strong> убедитесь, что nginx запущен и что другой сервис не занимает порт.",
+      "title": "Проверить установку",
+      "trouble": "Если что-то пошло не так"
     }
   }
 }

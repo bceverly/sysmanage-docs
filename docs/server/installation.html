@@ -115,9 +115,11 @@ sudo dnf groupinstall "Development Tools"
 sudo dnf install libffi-devel openssl-devel postgresql-devel
 sudo dnf install libuv-devel python3-setuptools
 
-# Configure firewall to allow SysManage ports
-sudo firewall-cmd --permanent --add-port=8080/tcp  # Backend API
-sudo firewall-cmd --permanent --add-port=3000/tcp  # Frontend UI
+# Configure firewall — SysManage needs 443, and 80 only to redirect to it.
+# The API and the web UI are served on the same origin behind nginx, so
+# 8080 and 3000 stay on loopback and must NOT be opened.
+sudo firewall-cmd --permanent --add-service=https
+sudo firewall-cmd --permanent --add-service=http
 sudo firewall-cmd --reload</code></pre>
                             </div>
 
@@ -375,9 +377,11 @@ sudo zypper install gcc gcc-c++ make cmake pkg-config
 sudo zypper install libopenssl-devel libffi-devel postgresql14-devel
 sudo zypper install libuv-devel python311-setuptools
 
-# Configure firewall to allow SysManage ports
-sudo firewall-cmd --permanent --add-port=8080/tcp  # Backend API
-sudo firewall-cmd --permanent --add-port=3000/tcp  # Frontend UI
+# Configure firewall — SysManage needs 443, and 80 only to redirect to it.
+# The API and the web UI are served on the same origin behind nginx, so
+# 8080 and 3000 stay on loopback and must NOT be opened.
+sudo firewall-cmd --permanent --add-service=https
+sudo firewall-cmd --permanent --add-service=http
 sudo firewall-cmd --reload</code></pre>
 
                                 <div class="opensuse-note">
@@ -417,9 +421,10 @@ sudo zypper install libuv-devel python311-setuptools
 # For SLES 15 SP4+, you may also need:
 sudo zypper install glibc-devel kernel-devel
 
-# Configure firewall (SuSEfirewall2 or firewalld)
-sudo firewall-cmd --permanent --add-port=8080/tcp  # Backend API
-sudo firewall-cmd --permanent --add-port=3000/tcp  # Frontend UI
+# Configure firewall (SuSEfirewall2 or firewalld) — 443, plus 80 to redirect.
+# 8080 and 3000 stay on loopback behind nginx and must NOT be opened.
+sudo firewall-cmd --permanent --add-service=https
+sudo firewall-cmd --permanent --add-service=http
 sudo firewall-cmd --reload</code></pre>
 
                                 <div class="sles-note">
@@ -739,12 +744,12 @@ npm run dev</code></pre>
                 </section>
 
                 <section class="docs-section">
-                    <h2 data-i18n="server_installation.ssl.title" data-i18n-html>SSL Certificates (Optional)</h2>
-                    <p data-i18n="server_installation.ssl.description" data-i18n-html>For HTTPS development, place your SSL certificates in:</p>
-                    <pre><code>~/dev/certs/sysmanage.org/
-├── cert.pem
-└── privkey.pem</code></pre>
-                    <p data-i18n="server_installation.ssl.fallback" data-i18n-html>If certificates are not found, the system automatically falls back to HTTP on localhost.</p>
+                    <h2 data-i18n="server_installation.ssl.title" data-i18n-html>TLS Certificates (Required for Production)</h2>
+                    <p data-i18n="server_installation.ssl.description" data-i18n-html>SysManage serves the web interface and the API from one origin over HTTPS on port 443. nginx terminates TLS and proxies to the backend on loopback, which is why agents need outbound 443 to this host and nothing else. A certificate must be in place before the server will serve production traffic.</p>
+                    <p data-i18n="server_installation.ssl.config_path" data-i18n-html>Point nginx at your certificate and key. The configuration file lives in a different place on every platform, so the post-install message prints the exact path for your system together with the two lines to change:</p>
+                    <pre><code>ssl_certificate     /path/to/fullchain.pem;
+ssl_certificate_key /path/to/privkey.pem;</code></pre>
+                    <p data-i18n="server_installation.ssl.dev_mode" data-i18n-html>For local development you can skip certificates entirely by setting <code>dev_mode: true</code> in <code>/etc/sysmanage.yaml</code>. The server then serves the API on 8080 and the web interface on 3000 over plain HTTP, and binds every interface so agents elsewhere on your LAN can reach it without further configuration. Never enable dev mode on a production host.</p>
                 </section>
 
                 <section class="docs-section">
@@ -772,9 +777,9 @@ npm run dev</code></pre>
                         <div class="trouble-item">
                             <h3 data-i18n="server_installation.troubleshooting.port_conflicts.title" data-i18n-html>Port Conflicts</h3>
                             <ul>
-                                <li data-i18n="server_installation.troubleshooting.port_conflicts.ensure_ports" data-i18n-html>Ensure ports 6443 (API) and 7443 (frontend) are available</li>
-                                <li data-i18n="server_installation.troubleshooting.port_conflicts.check_services" data-i18n-html>Check for existing services: <code>netstat -tlnp | grep :6443</code></li>
-                                <li data-i18n="server_installation.troubleshooting.port_conflicts.modify_ports" data-i18n-html>Modify ports in configuration if needed</li>
+                                <li data-i18n="server_installation.troubleshooting.port_conflicts.ensure_ports" data-i18n-html>In production, ensure 443 is free (and 80, which only redirects to it). The backend listens on 127.0.0.1:8080 behind nginx and is not exposed.</li>
+                                <li data-i18n="server_installation.troubleshooting.port_conflicts.check_services" data-i18n-html>Check for an existing listener: <code>ss -tlnp | grep -E ':(80|443|8080)'</code></li>
+                                <li data-i18n="server_installation.troubleshooting.port_conflicts.modify_ports" data-i18n-html>In dev mode the API is on 8080 and the web interface on 3000; change them under <code>api</code> and <code>webui</code> in <code>/etc/sysmanage.yaml</code> if they clash.</li>
                             </ul>
                         </div>
 

@@ -731,7 +731,7 @@
       "description": "各エージェントがプラットフォーム上で実際に何ができるか、サーバーがそれをどのように表面化し強制するか。",
       "gating": "リモートで失敗する代わりにコマンドを拒否します",
       "limited": "完全、制限あり、不明のホスト",
-      "link": "Capabilities Guide →",
+      "link": "機能ガイド →",
       "reporting": "各エージェントが広告するものとその決定方法",
       "title": "機能"
     }
@@ -2704,25 +2704,25 @@
         },
         "config": {
           "title": "role: 設定",
-          "summary": "Add one key to /etc/sysmanage.yaml on each server:",
-          "validation": "The startup config loader validates the value at boot; an unknown role aborts startup with a clear error. The role is also exposed via the unauthenticated GET /api/v1/server-info endpoint, which the web UI uses to render a chip in the header bar so operators can see at a glance which half of an air-gap pair they're looking at.",
+          "summary": "ウェブUIから役割を設定します — 設定ファイルの編集は必要ありません。<strong>設定&rarr; サーバー役割に進んでください",
+          "validation": "役割はまた、認証なしで暴露される<code>GET /api/v1/server-info",
           "degraded_chip": "If role: is set to collector or repository but the corresponding Pro+ engine isn't loaded (typically a license problem), the chip turns red and a tooltip explains what's missing. Server keeps running in degraded mode so you can fix the license without losing access to the rest of the UI.",
-          "opt_standard": "<strong>標準 (オフラインなし)</strong>",
-          "opt_collector": "<strong>オフライン側収集ツール (オンラインサイド)</strong>",
-          "opt_repository": "<strong>オフラインリポジトリ (オフラインサイド)</strong>",
+          "opt_standard": "<strong>標準（エアギャップなし）",
+          "opt_collector": "<strong>エアギャップコレクター（オンライン側）",
+          "opt_repository": "<strong>オフラインリポジトリ（分離側）",
           "persistence": "選択はサーバーデータベース（<code>server_configuration）に保存されます。"
         },
         "collection_cycle": {
           "title": "収集サイクル (コレクター側)",
           "summary": "Triggered by an operator (UI, API, or cron) on the public-side server. The engine emits a deployment plan that runs locally on the collector itself; it does not dispatch to managed agents.",
-          "step_request": "Request — POST /api/v1/airgap/collector/collection/runs with a body listing each distro/version/repo to capture, plus flags for CVE and compliance snapshot inclusion and target media size (one DVD, BD-R, etc.).",
-          "step_validate": "Validation — distros are checked against the supported list (13 families in v0.1.0); version strings are constrained to a tight regex so they cannot smuggle shell metacharacters into the dispatch templates; iso_label is constrained the same way.",
-          "step_mirror": "Mirror — per-distro dispatch templates run apt-mirror (Debian / Ubuntu), dnf reposync (RHEL family), zypper download (openSUSE / SLES), pkg fetch (FreeBSD), apk fetch (Alpine), or distribution-specific equivalents. Each command has a 4-hour timeout ceiling; the agent's in-flight journal (Phase 11.6) covers the multi-hour run across WebSocket reconnects.",
+          "step_request": "<strong>要求</strong> — <code>POST /api/v1/airgap/collector/runs</code> で、各ターゲットを <code>{mirror_id}</code> から <code>/api/mirror-repositories</code> のカタログエントリのリストとしてボディに含め、また <code>iso_label</code>, <code>media_size_bytes</code>, <code>include_cve</code>, <code>include_compliance</code> およびオプションの <code>burn_device</code> を含める。ディストリビューション / バージョン / リポジトリはサーバサイドで各ミラーレポジトリの <code>known_version</code> カタログエントリから派生される。",
+          "step_validate": "<strong>検証</strong> — 各選択したミラーリング先は存在し、有効で、<code>known_version_id</code>を持ち、他の選択肢と同一の<code>host_id</code>を持つ必要があります（コレクションプランは1つのエージェントにディスパッチされるため、v1ではホスト間のターゲットをサポートしていません）。バージョン文字列は厳密な正規表現で制約されているため、ディスパッチテンプレートにシェルメタキャラクターを仕込むことはできません；<code>iso_label</code>も同様です。",
+          "step_mirror": "<strong>ミラー（スナップショット元）</strong> — スナップショットがすべて準備できたら、オーケストレーターは <code>build_snapshot_collection_run_plan</code> を作成し、<code>source_snapshots</code> マップには <code>\"&lt;distro&gt;:&lt;version&gt;\"</code> → スナップショットディレクトリパスを含めます。このプランは各スナップショットツリーをターゲットごとのステージングディレクトリに rsync します。収集時にアップストリームの apt-mirror / reposync / パッケージ取得実行はありません — バンドルはスナップショットと字句どおりに同一です。各 rsync には 4 時間のタイムアウト上限があり、エージェントのインフライトジャーナル（フェーズ 11.6）が WebSocket 再接続を跨いで長時間実行をカバーします。",
           "step_cve": "CVE/コンプライアンス スナップショット — リクエストがある場合、NVDおよびベンダー アドバイザリーフィードが同じ瞬間にキャプチャされるため、結果のメディアセットには公開脆弱性データの一定時点での一貫したビューがあります。",
-          "step_iso": "ISO build — xorriso -as mkisofs bundles the staging tree into one ISO with the manifest embedded at /manifest.json. The post-build step computes the ISO's SHA-256 for the transfer log.",
+          "step_iso": "<strong>ISO build</strong> — <code>xorriso -as mkisofs</code> がステージングツリーを 1 つの ISO にバンドルし、<code>/var/lib/sysmanage/airgap-iso/&lt;run_id&gt;.iso</code> に出力します。マニフェストは <code>/manifest.json</code> に埋め込まれます。ビルド後の手順では、ISO の SHA-256 ハッシュが転送ログに計算されます。",
           "step_sign": "署名 — マニフェストはキーをソートし、スペースを削除して正規化され、オペレーターのed25519秘密鍵で署名されます。エンベロープには署名、公開鍵のSHA-256ハッシュ（指紋）、アルゴリズム識別子、およびマニフェストフォーマットバージョンが含まれます。",
-          "step_burn": "Burn — optional. POST /api/v1/airgap/collector/iso/burn wraps growisofs against the configured optical-drive device. The burn-step timeout ceiling is 4 hours so slow drives don't trip a watchdog mid-write.",
-          "multidisc_note": "Note on multi-disc spanning. v0.1.0 ships the single-disc happy path — if the staging tree exceeds the configured media size, the burn step fails at runtime. Multi-disc bin-packing is tracked as a Phase 11.1 follow-up. The schema already supports it (the manifest table carries disc_index + disc_count) so it lands additively.",
+          "step_burn": "<strong>焼却（オプション）</strong> — <code>burn_device</code> が走行行に設定されている場合、オーケストレーターは ISO_BUILT → BURNING のステータスへ進展させます。この際、指定されたデバイスパス（通常は <code>/dev/sr0</code>）で <code>build_burn_plan</code> を実行します。焼却手順のタイムアウト上限は 4 時間であり、遅いドライブが書き込み中にウォッチドッグをトリガーするのを防ぎます。<code>burn_device</code> が NULL の場合、走行は ISO_BUILT → COMPLETE に直接進展します — ダウンロード可能な ISO を作成して終了するフローで、光学メディアには触れません。",
+          "multidisc_note": "<strong>マルチディスク展開（フェーズ12）。</strong> 当てはる <code>sum(target.source_snapshot.size_bytes) &gt; run.media_size_bytes</code> の場合、オーケストレーターは <code>build_snapshot_multidisc_collection_plan</code> にルーティングし、ターゲットツリー全体をディスクに最初から順にパックします。各ディスクには独自のステージングディレクトリと rsync と xorriso と sha256 のインラインプランが作成され、出力は <code>&lt;run_id&gt;-disc-&lt;N&gt;.iso</code> となります。オーケストレーターは、任意の単一ターゲットツリーがディスクサイズを超える場合に明確なエラーを表示します — ファイルレベルでの分割（一つのミラーツリーをディスク間で分割）は保留されます；操作者はより大きなメディア（BD-25 → BD-50）を選択するか、別々の実行に分割します。",
           "step_snapshot": "<strong>自動スナップショット</strong> — ラン作成時に、各ターゲットミラーごとに1つのスナップショットが配信されます。各 <code>AirgapCollectionTarget</code> 行は、<code>source_snapshot_id</code> をプレースホルダースナップショット行にピン留めし、オーケストレーターがどのスナップショットをバンドルするかを知らせます。スナップショットは並列で実行され、ターゲットのすべての <code>last_snapshot_message_id</code> がクリアされるまでランは <code>QUEUED</code> 状態になります。",
           "step_download": "<strong>ダウンロード</strong> — <code>GET /api/v1/airgap/collector/runs/{id}/iso</code> ISOファイルをストリーミングします。マルチディスクランの場合、<code>GET /runs/{id}/discs</code> でディスクファイルの一覧を取得し、<code>/iso?disc=N</code> で特定のディスクを選択できます。Air-Gap Collections UIは自動的にマルチディスクランを検出し、ダウンロードボタンをクリックすると選択ダイアログが表示されます。",
           "lifecycle": "<strong>ライフサイクル状態</strong> <code>airgap_run_tick</code> オーケストレータが駆動する: <code>QUEUED</code> (ターゲットスナップショットを待機) → <code>MIRRORING</code> (スナップショットツリーからステージングへrsync) → <code>STAGING_COMPLETE</code> (シングルディスクのみ；マルチディスクはスキップ) → <code>BUILDING_ISO</code> (xorriso) → <code>ISO_BUILT</code> → <code>BURNING</code> (<code>burn_device</code> が設定されている場合のみ) → <code>COMPLETE</code>. エラーが発生した場合はランは<code>FAILED</code>に移行し、エラーメッセージがUIステータス列で表示されます。"
@@ -3803,10 +3803,10 @@
           "get": "読む one ミラー",
           "intro": "<code> repository_mirroring_engine </code> がロードされていない場合、以下のすべてのルートは 402 を返します。",
           "list": "list ミラー",
-          "list_snapshots": "スナップショットの一覧",
-          "restore": "スナップショットを復元",
+          "list_snapshots": "スナップショット一覧（サイズ：<code>size_bytes</code>、ファイル数：<code>file_count</code>（rsync <code>--stats</code>の統計情報から））",
+          "restore": "スナップショットの復元 (スタンプ <code>last_restore_message_id</code>)",
           "settings": "管理者設定 (従来のシングルトン)",
-          "snapshot": "今すぐスナップショットを取る",
+          "snapshot": "現在の状態でスナップショットを取得します (進行中のトラッキングのために <code>last_snapshot_message_id</code> にスタンプを付加します)",
           "sync": "同期プランをすぐに開始する",
           "tick": "cron 駆動のドライバーフック",
           "title": "API リファレンス",
@@ -3851,7 +3851,7 @@
         },
         "snapshots": {
           "gc": "スナップショットの保持は、 <code> snapshot_count_to_keep </code> によって管理されます。ガベージ コレクション プランは、スナップショットをアルファベット順 (= 時系列) にリストし、キープ カウントより古いものをすべて削除し、読み取り専用フラグを緩和した後、残りを <code> rm -rf </code> s で削除します。",
-          "intro": "スナップショットは、ライブ ツリーの <code> rsync -aH --delete </code> を <code> {mirror_root}/{name}/.snapshots/{snapshot_id} </code> の兄弟読み取り専用ディレクトリにコピーします。スナップショット ID は並べ替え可能なタイムスタンプ ( <code> YYYYMMDDTHHMMSS </code> ) です。 rsync の後、エンジンは <code> chmod -R a-w </code> を実行するため、スナップショットをその場で変更することはできません。",
+          "intro": "スナップショットは、実行中のツリーを読み取り専用のシスターディレクトリにコピーしたものです。コマンドは以下のようになります：<code>rsync -aH --delete --stats</code> そして、スナップショットが作成されるディレクトリは<code>{mirror_root}/{name}/.snapshots/{snapshot_id}</code>です。 スナップショットIDはソート可能なタイムスタンプ（<code>YYYYMMDDTHHMMSS</code>）です。 rsyncの後、エンジンは<code>chmod -R a-w</code>を実行し、スナップショットが場所で変更されないようにします。 <code>--stats</code> の出力はサーバー側で解析され、<code>size_bytes</code> と <code>file_count</code> を<code>mirror_snapshot</code> レコードに設定します — スナップショットの重みを学ぶための追加のパススルーは必要ありません。",
           "restore": "復元はその逆で、選択したスナップショットからライブ ツリーに rsync を戻します。ほとんどのミラー サーバー (httpd、nginx) はキャッシュオンステータスであり、ワーカー プロセス全体で反転を調整するよりもインプレース rsync のほうが推論が簡単であるため、エンジンはシンボリックリンクの反転を行いません。",
           "title": "スナップショットと復元",
           "sudoers": "<strong>Sudoers要件。</strong> スナップショットとリストアプランは <code>sudo rsync</code> + <code>sudo chmod</code> を呼び出します。sysmanage-agentパッケージ内のsudoersフラグメント (<code>/etc/sudoers.d/sysmanage-agent</code> on Linux, <code>/etc/doas.d/sysmanage-agent</code> on OpenBSD) は明示的にこれらの許可を設定しています — rsyncエントリが欠けている場合、プランは「ユーザーはこのコマンドを実行する権限がない」というsudoのメッセージで素早く失敗します。ローカルにsudoersをカスタマイズしている場合は、インストーラーのパッケージファイルから許可リストを反映してください。"
@@ -3972,7 +3972,7 @@
           "windows_title": "Windows 対象",
           "windows_text": "Windows のインストールは GUI でのみ可能です。ISO をマウントしてください（Windows 10/11 で右クリック &rarr; マウント）、<code>windows\\</code> フォルダを開き、<code>sysmanage-x64.msi</code> もしくは <code>sysmanage-arm64.msi</code> をダブルクリックしてください — 対象のプロセッサアーキテクチャに一致するものを選択してください。",
           "config_title": "/etc/sysmanage.yaml の設定",
-          "config_text": "サーバーインストールが終了したら、<code>/etc/sysmanage.yaml</code> をオンライン <a href=\"../../config-builder.html\">SysManage 設定ビルダー</a>を使用して設定します。空港インストールには特に重要な 2 つの設定があります：API の到達可能性を確保するために <code>api.host: 0.0.0.0</code> を設定し（ローカルホストのみで動作する単一のホストインストール以外では、Web UI から API にアクセスできるようにします）、このサーバーがコレクタ/リポジトリペアの空港側である場合は <code>role: repository</code> を設定します。その後、データベースマイグレーションを実行しサービスを開始：<code>cd /opt/sysmanage &amp;&amp; sudo -u sysmanage .venv/bin/python -m alembic upgrade head &amp;&amp; sudo systemctl enable --now sysmanage</code>。"
+          "config_text": "サーバーインストールが完了したら、オンラインの <a href=\"../../config-builder.html\">SysManage 設定ビルダー</a> を使用して <code>/etc/sysmanage.yaml</code> の設定を行ってください。エアギャップインストールに特に重要な 2 つの設定があります：API が別のマシン上のウェブ UI から到達可能であるため、<code>api.host: 0.0.0.0</code> を設定し（単一ホストインストールでは <code>localhost</code> のみにバインドする必要がある）、このサーバーが収集器/リポジトリペアのエアギャップ側である場合は、トップレベルで <code>role: repository</code> を設定します。その後、データベースマイグレーションを実行し、サービスを開始します： <code>cd /opt/sysmanage &amp;&amp;sudo -u sysmanage .venv/bin/python -m alembic upgrade head&amp;&amp;sudo systemctl enable --now sysmanage</code>"
         },
         "contents": {
           "title": "バンドル内の内容",
@@ -4012,7 +4012,7 @@
           "intro": "設定の「Air-Gap Install Bundles」タブでは、エンクレーブ内で実行するものを選択して3つの異なるバンドルISOを作成できます。同じプロライセンスホスト上のUIタブから生成されます。",
           "server": "<strong>サーバーバンドル</strong>（約1 GB） — サポートされているすべてのプラットフォーム用の SysManage サーバー <code>.deb</code>/<code>.rpm</code>/<code>.apk</code>/<code>.pkg</code>/<code>.msi</code> とその完全な依存関係（PostgreSQL, nginx, Python ビルド依存関係）および <code>requirements.txt</code> からすべての Python ウィール。エアギャップサーバーホストに最初にインストールします。",
           "agent": "<strong>エージェントバンドル</strong>（約500 MB） — サポートされているすべてのプラットフォーム用の SysManage エージェントパッケージとその依存関係。enclave 内で管理されるべきホストにインストールします。",
-          "proplus": "<strong>Pro+ オーバーレイバンドル</strong>（約50 MB） — ビルドホストの Cython エンジン <code>.so</code> ファイル、JavaScript プラグインシム、ライセンス JWT、およびキャッシュされたライセンス公開鍵。サーバーバンドルがインストールされた後にエアギャップ <em>サーバー</em> ホストに適用します；これにより、<code>license.sysmanage.org</code> への電話ホームなしでローカルで Pro+ エンジンをアンロックできます。コミュニティティーティアの機能のみが必要な場合は必要ありません。",
+          "proplus": "<strong>Pro+ オーバレイバンドル</strong> (~50 MB) — ビルドホストの Cython エンジン <code>.so</code> ファイル、JavaScript プラグインシム、ライセンス JWT、およびキャッシュされたライセンス公開キー。 このバンドルをサーバーにインストールした後に空域の <em>サーバー</em> ホスト <strong>で</strong> 使用する場合に適用します；これにより、電話なしでローカルで Pro+ エンジンを使用できるようになります <code>license.sysmanage.org</code>。 コミュニティ版の機能のみが必要な場合は不要です。",
           "order": "エアギャップサーバー上で Pro+ 機能を使用するには、インストール順序は以下の通りです：<strong>(1) サーバーバンドルをサーバーホスト上にインストール、(2) 同じサーバーホスト上に Pro+ オーバレイをインストール、(3) 各管理ホスト上でエージェントバンドルをインストール</strong>。Pro+ オーバレイのインストーラーは、SysManage サーバーが既に存在することを前提としています — これはエンジンモジュールを <code>/var/lib/sysmanage/modules/</code> にコピーし、ライセンス公開鍵を <code>/var/lib/sysmanage/license/</code> に配置し、ライセンス JWT を <code>/etc/sysmanage.yaml</code> に書き込み、サービスの再起動を行います。"
         },
         "proplus_install": {
@@ -4026,7 +4026,7 @@
           "step4": "<code>/etc/sysmanage.yaml</code> を SysManage venv の PyYAML 経由で編集します: <code>license.key</code> (バンドルに含まれる JWT) を書き込み、<code>geo_lookup.enabled</code> + <code>geo_lookup.ipapi_fallback_enabled</code> を無効化して、IP ジオロケーションのための DNS リクエストがエンクラビュレーションから外部に出ることを防ぎます。",
           "step5": "SysManageデータベース内の<code>proplus_module_cache</code>テーブルに各エンジンの<code>.so</code>ファイル（モジュールコード、プラットフォーム、アーキテクチャ、Pythonバージョン、ファイルパス、SHA-512ハッシュ）ごとに1行ずつ追加します。モジュールローダーは起動時にこのテーブルを問い合わせてどのエンジンを読み込むか決定します — これらの行がないと<code>license.sysmanage.org</code>からダウンロードしようとし、オフライン環境では失敗します。",
           "verify": "インストーラーは<code>systemctl restart sysmanage</code>を実行し、アクティベーションを確認するためのコマンドを出力します。<code>curl -ks http://localhost:3000/api/v1/server-info | python3 -m json.tool</code>を使用して、<code>license_tier: enterprise</code>（JWTが持つもの）と<code>role_engine_loaded: true</code>を確認してください。ウェブインターフェースのナビゲーションバーの役割チップはハードリフレッシュ後に緑色になります。",
-          "grace_note": "<strong>オフライン グレース パーティーについて：</strong> Pro+ オーバーレイは <em>license.phone_home_url</em> 設定をクリアしません。ライセンス JWT には通常 30 日間の <code>offline_days</code> フィールドが含まれます；この期間中、オフライン グレース モードでバリデーターが動作します。インターネット接続のあるビルドホスト上で Pro+ オーバーレイを再構築し、エアギャップサーバーに適用するように計画してください — それ以外の場合、次のサービス開始時に Pro+ は静かにコミュニティ ティアに降格します。これは、オーバーレイ ISO を無期限で共有することを防ぐための意図的な実装です。"
+          "grace_note": "<strong>オフライン グrace periodについて:</strong> Pro+ オーバーレイは <em>無効にしない</em> ライセンスの<code>license.phone_home_url</code> 設定をクリアしません。ライセンス JWT には通常 30 日間の <code>offline_days</code> フィールドが含まれています；インストール後、その多くの日数間はバリデーターがオフライン グrace モードで実行されます。インターネット接続のあるビルド ホストで Pro+ オーバーレイを再構築し、エアギャップ サーバーに適用するように計画してください — それ以外の場合、次のサービス スタート時にプロモーションが静かにコミュニティ ティアに降格します。これは、オーバーレイ ISO を無期限で共有することを防ぐための意図的な実装メカニズムです。"
         },
         "agentmirrors": {
           "aur": "Arch Linux は意図的に欠落しています。そのパッケージはターゲットマシン上で <code>PKGBUILD</code> からビルドされるため、ミラーするアーティファクトが存在しません。URLが読み取られることはないので、チャネルは提供されません。",
@@ -4075,7 +4075,7 @@
             "federation": "連携サイト同期 + バージョン差分",
             "views": "フィルタリングされたバージョン化されたコンテンツビュー（複合含む）"
           },
-          "link": "Content Lifecycle Guide →",
+          "link": "コンテンツライフサイクルガイド →",
           "title": "📦 Content Lifecycle Management"
         },
         "composite": {
@@ -4110,7 +4110,7 @@
         },
         "meta_description": "",
         "overview": {
-          "intro": "エンタープライズモジュール<code>content_lifecycle_engine</code>は、<a href=\"repository-mirroring.html\">リポジトリミラーリング</a>のスナップショット基盤に構築されています。フラットなミラーが<strong>コンテンツビュー</strong>になります：名前付き、フィルタリングされた、バージョン化されたリポジトリ群です。コンテンツビューを公開すると、ミラーホスト上で不可変のバージョンがマテリアル化され、そのバージョンは順序付けられた環境パス上にプロモートされます。他のエンジンと同様に、OSSサーバーがAPI、スキーマ、ライセンスゲートを所有し（エンジンがロードされていない場合、すべてのエンドポイントはHTTP 402を返します）、エンジンはミラーホストエージェントが実行する<code>apply_deployment_plan</code>メッセージを発行します。エージェントコードの変更は必要ありません",
+          "intro": "<code>content_lifecycle_engine</code> Enterprise モジュールは、<a href=\"repository-mirroring.html\">リポジトリミラーリング</a>のスナップショット基盤の上に構築されています。フラットなミラーは<strong>コンテンツビュー</strong>、すなわち名前付き・フィルタ済み・バージョン管理されたリポジトリの選択集合になります。コンテンツビューを公開すると、ミラーホスト上に<strong>変更不可能なバージョン</strong>が実体化し、それを順序付けられた環境パスに沿って<strong>昇格</strong>させます。他のエンジンと同様に、API・スキーマ・ライセンスゲートは OSS サーバーが所有し（エンジンが読み込まれていない場合、すべてのエンドポイントは HTTP 402 を返します）、エンジンはミラーホストのエージェントが実行する <code>apply_deployment_plan</code> メッセージを発行します。エージェント側のコード変更は不要です。",
           "split": "コンテンツビューの定義（環境、ビュー、フィルタ、バージョン）は共有パーティション内のプラットフォーム事実です。各テナントのプロモーション状態（どのバージョンがどの環境にバインドされているか、監査履歴、およびサイトサブスクリプション）はテナントパーティション内に存在し、共有IDとクロスリファレンスされます",
           "title": "概要"
         },
@@ -4125,7 +4125,7 @@
         },
         "title": "コンテンツライフサイクル管理 - Professional+ - SysManage",
         "views": {
-          "intro": "コンテンツビューとは、リポジトリミラー（このリリースでは同一ホスト上のもの）から選択された一連のパッケージ群です。<strong>公開</strong>は非同期エージェントジョブで、各ミラーホストに対して最新スナップショットを取得し、ビューのフィルタリングを適用してネイティブリポジトリメタデータを再生成し、その結果を読み取り専用に固定します（<code>v{n}</code>）。公開バージョンは不可変であり、再度公開すると新しいバージョン番号が付与されます（<code>v{n+1}</code>）。各ビューには保持する公開バージョンの数が制限されており（デフォルト5）、環境にバインドされているバージョン以外は古いバージョンが削除される可能性があります",
+          "intro": "コンテンツビューは、リポジトリミラーセットの名前付き選択肢（このリリースでは1つのミラー・ホスト上）です。 <strong>公開処理</strong> は非同期エージェントジョブであり：各ミラーに対してエンジンが最新のスナップショットを取得し、ビューのフィルタを適用し、ネイティブリポジトリメタデータを再生成し、結果を読み取り専用に凍結してバージョン <code>v{n}</code> として固定します。 公開されたバージョンは変更不可能であり、再度公開しても <code>v{n+1}</code> の新しいバージョンが生成され、元のバージョンを上書きすることはありません。 各ビューは、一定数の公開バージョン（<code>keep_versions</code> 、デフォルト5）を保持します；ピン対応型ガーバージコレクションは、環境にバインドされていない古いバージョンを回収しながら、バインドされているバージョンには決して手をつけません。",
           "title": "コンテンツビューと公開"
         }
       },
@@ -4142,7 +4142,7 @@
         "detection": {
           "backend": "バックエンド — <strong><code>bootc</code> または <code>rpm-ostree</code></strong>;　",
           "booted": "<strong>ブートされた</strong>イメージの参照とそのダイジェスト;",
-          "display_free": "この検出は標準のホストチェックインに搭載されており、この状態の<em>表示</em>は常に可視化されます — ホストがイメージモードであるかどうか、およびブート済み/ステージング/ロールバックの状態をエンタープライズライセンスなしで確認できます。イメージ（Stage, Apply, Rollback）を変更するアクションのみが<code>image_mode_engine</code>によって制御されます。",
+          "display_free": "この検出は標準のホストチェックインに便乗しており、この状態の<em>表示</em>は常に参照できます — Enterprise ライセンスがなくても、ホストがイメージモードかどうか、および booted/staged/rollback の状態を確認できます。イメージを<em>変更</em>する操作（Stage、Apply、Rollback）のみが <code>image_mode_engine</code> による制限の対象です。",
           "intro": "各エージェントは、通常のチェックインの一環として、ホストがイメージモードであるかどうかを報告します。ホストがイメージモードの場合、そのレポートには以下も含まれます：",
           "rollback": "<strong>ロールバック</strong>デプロイが利用可能かどうか。",
           "staged": "任意の<strong>ステージング</strong>（保留中、次回起動時）デプロイ；",
@@ -4209,7 +4209,7 @@
         },
         "serve": {
           "action": "これはコンテンツビューのプロモートレーン上の<strong>イメージ再ポイント</strong>アクションです。読み込まれると、イメージは最初からローカルイメージとして扱われます — ホスト上で<code>podman run</code>を使用してすぐに実行できます。外部レジストリに依存することはありません。",
-          "intro": "消費ホストは、<strong>リポイント</strong>され、環境の提供するイメージをローカルコンテナーストレージにオフラインで読み込むために必要な作業を行います。ホストは環境から提供されるOCIツリーをプルし、その後 <code>skopeo copy oci:… containers-storage:…</code> を実行してローカルストレージに読み込みます — ライブレジストリが不要なので、完全なエアギャップ環境でも動作します。",
+          "intro": "消費ホストは <strong>再ポイントされ</strong>、環境が提供するイメージをローカルのコンテナ ストレージ <strong>オフラインで</strong>読み込むために使用されます。ホストは環境からOCIツリーをプルし、その後 <code>skopeo copy oci:… containers-storage:…</code> を実行してローカル ストレージに読み込みます — ライブレジストリが必要ないため、この操作は完全なオフライン環境で動作します。",
           "title": "ホストのサービスと再設定"
         },
         "title": "コンテナイメージコンテンツライフサイクル管理 - Professional+ - SysManage",
@@ -4226,7 +4226,7 @@
           "li1": "<strong>起動 / ステージング / ロールバックイメージ状態の検出</strong>",
           "li2": "ステージ / アプライ / ロールバック (bootc + rpm-ostree)",
           "li3": "パッケージ更新UIがイメージモードホストで無効化されています",
-          "link": "Image-Mode Hosts Guide →",
+          "link": "イメージモードホストガイド →",
           "title": "💾 イメージモードホスト"
         },
         "imgcontent": {
@@ -4234,7 +4234,7 @@
           "li1": "レジストリ / リポジトリ / タグ によるイメージの追跡",
           "li2": "ハッシュ固定された skopeo キャプチャ（デーモンなし）",
           "li3": "エアギャップ ISO + オフライン再指定",
-          "link": "Container Image Content Guide →",
+          "link": "コンテナイメージコンテンツガイド →",
           "title": "📦 Container Image Content"
         },
         "snapproxy": {
@@ -4242,7 +4242,7 @@
           "li1": "名前 + チャンネルで snap を追跡",
           "li2": "<strong>Snaps のキャプチャ + アサーション（デーモンなし）</strong>",
           "li3": "オフラインでホストを促進し再設定",
-          "link": "Snap Store Proxy Guide →",
+          "link": "スナップストアプロキシガイド →",
           "title": "📦 Snap Store Proxy"
         }
       },
@@ -4262,7 +4262,7 @@
         },
         "meta_description": "",
         "promote": {
-          "body": "キャプチャされた snaps は不変な <strong>コンテンツビューのバージョン</strong> に現れます — パッケージと同様に、単一の公開バージョンで DEB/RPM コンテンツとホストが必要とする snaps を両方を含めることができます。そこからそれらは通常の順序通り <a href=\"content-lifecycle.html\">ライフサイクル環境</a> へプロモートされ、エアギャップ導入 ISO に無料で搭載されます — 追加の手順なしです。",
+          "body": "キャプチャされた snaps は、パッケージとともに <strong>不変のコンテンツビューバージョン</strong>としてマテリアル化されるため、単一の公開バージョンが DEB/RPM コンテンツとホストが必要とする snaps の両方を含めることができます。そこから、それらは <a href=\"content-lifecycle.html\">ライフサイクル環境</a> を通じて通常の順序付きパスで進行し — <strong>ライブラリ → ディベロップメント → テスト → プロダクション</strong> — そして <strong>エアギャップ エクスポート ISO</strong> を無料で利用できます。",
           "title": "コンテンツビューを通じて促進"
         },
         "requirements": {
@@ -4272,10 +4272,10 @@
           "title": "要件"
         },
         "serve": {
-          "body": "消費ホストが環境の提供する snaps を完全にオフラインでインストールするために再指定されます：snap バンドルをプルし、キャプチャされたアサーションに対して <code>snap ack</code> を実行し、ローカルコンテンツからインストールします — アップストリームストアとの通信は必要ありませんので、エアギャップネットワークでも動作します。これはコンテンツビューのプロモートレーンにある <strong>Snaps の再指定</strong> アクションです。パッケージの再指定と同様に機能します。",
+          "body": "A consuming host is <strong>再ポイント設定されます</strong> to install an environment's served snaps entirely offline: it pulls the snap bundle, runs <code>snap ack</code> on the captured assertions, and installs from the local content — no upstream store contact required, so it works on air-gapped networks. This is the <strong>Repoint snaps</strong> action on the content view's promotion lane, mirroring how package repoint works for DEB/RPM content.",
           "title": "ホストのサービスと再設定"
         },
-        "title": "Snap Store Proxy - Professional+ - SysManage",
+        "title": "スナップストアプロキシ - プロフェッショナル+ - SysManage",
         "track": {
           "body": "ミラー（<strong>設定 → リポジトリミラーリング</strong>）では、たとえば<code>firefox</code>の<code>latest/stable</code>チャンネルのように、カレットしたいスナップを<strong>名前 + カンバッター</strong>で追跡します。各追跡されたスナップには、<strong>キャプチャステータス</strong>があり、そのステータスはパイプラインを通じて進行します：<code>TRACKED → DISPATCHED → CAPTURED</code>、またはキャプチャが完了できなかった場合は<code>FAILED</code>です。",
           "title": "スナップを追跡"
@@ -5191,7 +5191,7 @@
           "270": "メンテナンスウィンドウガイド →",
           "271": "PostgreSQL High Availability",
           "272": "高可用性 PostgreSQL クラスターに対してサーバーを実行し、プライマリ障害時に手動介入なしで生存します：接続エンドポイント戦略、自動事前ping/リトライ/健康状態の動作、およびサーバーがクラスターマネージャに残すもの。",
-          "273": "PostgreSQL High Availability Guide →"
+          "273": "PostgreSQL 高可用性ガイド →"
         },
         "maintenance": {
           "001": "ドキュメンテーション",
@@ -5371,7 +5371,7 @@
           "013": "スマートなしきい値と異常検出アラートを活用した知能型アラーティング",
           "014": "カスタムダッシュボード：異なるチームや使用例向けに設定可能なビュー",
           "015": "履歴分析：長期的なトレンド分析とキャパシティプランニング",
-          "016": "マルチチャンネル通知：メール、Slack、ウェブ훅など",
+          "016": "メール、Slack、Webhook、その他のチャネルを使用したマルチチャネル通知",
           "017": "エスカレーション管理: 严重度と応答時間に基づく自動エスカレーション",
           "018": "OpenTelemetry & Prometheus スタック",
           "019": "SysManage には業界標準の可視化ツールに対するビルトインサポートがあり、包括的なアプリケーションおよびインフラストラクチャ監視が提供されます。",
@@ -5396,9 +5396,9 @@
           "038": "4. テレメトリの確認",
           "039": "サービスが実行されていることを確認:",
           "040": "ウェブインターフェースへのアクセス：",
-          "041": "Prometheus UI: http://localhost:9091",
-          "042": "OpenTelemetry Collector zPages: http://localhost:55679/debug/tracez",
-          "043": "SysManage Metrics Endpoint: http://localhost:9090/metrics",
+          "041": "プロメテスUI: http://localhost:9091",
+          "042": "OpenBAOのOpenTelemetryコレクター zPages: http://localhost:55679/debug/tracez",
+          "043": "SysManage メトリクスエンドポイント: http://localhost:9090/metrics",
           "044": "設定",
           "045": "環境変数",
           "046": "変数",
@@ -5462,7 +5462,7 @@
           "104": "詳細なトレーシング用にカスタムスパンの追加:",
           "105": "トレースの表示",
           "106": "トレースデータへのアクセス：",
-          "107": "OpenTelemetry Collector zPages: http://localhost:55679/debug/tracez",
+          "107": "OpenBAOのOpenTelemetryコレクター zPages: http://localhost:55679/debug/tracez",
           "108": "Jaegerへのエクスポート: OTLPエクスポーターを設定してJaegerに送信する",
           "109": "Zipkinへのエクスポート: OTLPエクスポーターを設定してZipkinに送信する",
           "110": "Grafana Tempo: Tempo を使用して Grafana での分散トレースを実行する",
@@ -7137,8 +7137,8 @@
           "030": "モニタリングとアラート →",
           "031": "設定 → ロギングページ：サーバーおよび各OSエージェントのデフォルト用ネイティブシンク構成、プロフェッショナル版でオプションのリモート Syslog フォワーディングフィールド（Professional）。",
           "032": "リモート Syslog フォワーディング",
-          "033": "上記のローカルシンク — 回転ファイルログ、journald、ローカル syslog デーモン、および Windows イベントログ — は <strong>無料でオープンソース版に含まれており</strong> 無料のままです。また、SysManage は独自のサーバーとエージェントのログを <em>中央 syslog サーバー</em> に転送できるため、インフラストラクチャ全体のログと一緒に保存することができます。",
-          "034": "リモート Syslog ターゲットを選択すると、宛先 <strong>ホスト</strong>, <strong>ポート</strong>, <strong>ファシリティ</strong>, および <strong>プロトコル</strong> (UDP または TCP) のフィールドが追加されます。これはサーバーのログと各 OS ファミリーのエージェントデフォルトの両方に適用され、他のすべてのロギング変更と同じように接続されたエージェントにライブでプッシュされ、再接続時に再適用されます。",
+          "033": "上記のローカルシンク — 回転ファイルログ、journald、ローカルsyslogデーモン、およびWindowsイベントログ — は <strong>無料でオープンソース版の一部</strong>であり、引き続き無料です。また、SysManageは、その <em>独自の</em>サーバーとエージェントのログを <strong>中央syslogサーバー</strong>にフォワードするため、インフラストラクチャの他のログと一緒に保存されます。",
+          "034": "<strong>リモート syslog</strong> を送信先に選ぶと、宛先の<strong>ホスト</strong>、<strong>ポート</strong>、<strong>ファシリティ</strong>、<strong>プロトコル</strong>（UDP または TCP）の入力欄が追加されます。これはサーバー自身のログと、各 OS ファミリーのエージェント既定値の両方に適用されます。また — 他のあらゆるログ設定の変更と同じく — 接続中のエージェントへ即座に配信され、再接続時に再適用されます。",
           "035": "<strong>Edition:</strong> リモート Syslog 送信は <strong>Professional</strong> カパビリティであり、<code>LOG_ROUTING</code> 機能の後で有効になります。Professional (またはそれ以上の) ライセンスがない場合、リモート先を保存すると HTTP <code>402</code> が返されます；しかし、<strong>ローカル</strong> シンクはすべてのエディションで完全に利用可能です。",
           "036": "⭐ PRO+"
         },
@@ -7364,7 +7364,7 @@
           "081": "nl - ネเธอerlandic",
           "082": "日本語 - ja",
           "083": "中文 (Simplified)",
-          "084": "ko - 한국어",
+          "084": "ko - Korean",
           "085": "ru - ロシア語",
           "086": "ログ設定",
           "087": "制御エージェントのログ出力およびフォーマットを管理する。",
@@ -8147,7 +8147,7 @@
           "166": "SSL証明書の有効期限を確認する",
           "167": "素早いナビゲーション",
           "168": "← クロスプラットフォームサポート",
-          "169": "API Reference →"
+          "169": "APIリファレンス →"
         },
         "cfg": {
           "ca": {
@@ -8386,7 +8386,7 @@
           "008": "GET /api/v1/automation/schedules / POST /api/v1/automation/schedules — cron形式のスケジューリング",
           "009": "GET /api/v1/automation/approvals / POST /api/v1/automation/approvals/{id}/approve — 承認ワークフロー",
           "010": "GET /api/v1/alerting/rules / POST /api/v1/alerting/rules — ルールのCRUD",
-          "011": "GET /api/v1/alerting/channels / POST /api/v1/alerting/channels — 通知チャネルのCRUD（メール、Slack、ウェブ훅）",
+          "011": "GET /api/v1/alerting/channels POST /api/v1/alerting/channels — 通知チャネルのCRUD（メール、Slack、Webhook）",
           "012": "GET /api/v1/alerting/history — 発生したアラート履歴とステータス（オープン/確認済み/クローズ）",
           "013": "POST /api/v1/alerting/history/{id}/ack — 承認",
           "014": "GET /api/v1/audit/log — アクション、エンティティタイプ、エンティティID、ユーザー、時間範囲を含むクエリ",
@@ -8585,7 +8585,7 @@
           "040": "リアルタイムの状態更新",
           "041": "コマンド実行と結果",
           "042": "イベントストリーミングと通知",
-          "043": "WebSocket API →",
+          "043": "WebSocket API → WebSocket API",
           "044": "監視",
           "045": "システムモニタリング、メトリクス収集、およびプログラムインターフェースを介したアラート通知。",
           "046": "システムメトリクスおよびパフォーマンスデータ",
@@ -8634,7 +8634,7 @@
           "089": "/api/v1/fleet/select — セレクターベースのホスト解決",
           "090": "/api/v1/fleet/bulk — バッチ処理キュー + 進行状況",
           "091": "/api/v1/fleet/rolling — バッチローリングデプロイメント",
-          "092": "Fleet Engine →",
+          "092": "艦隊エンジン →",
           "093": "素早いスタート",
           "094": "SysManage APIの使用を開始するためのステップバイステップガイド:",
           "095": "1. 認証",
@@ -8895,7 +8895,7 @@
           "135": "重要なシステム変更に対して承認ワークフローを使用",
           "136": "素早いナビゲーション",
           "137": "← ホスト管理",
-          "138": "WebSocket API →"
+          "138": "WebSocket API → WebSocket API"
         },
         "phase8-features": {
           "001": "ドキュメンテーション",
@@ -9634,7 +9634,7 @@
           "051": "Coordinator: サイトインゲスト（Pro+）",
           "052": "サイトがコアにロールアップ、ホストディレクトリ、コマンド結果、メタデータ、シークレットLEASE要求をプッシュするインバウンドサーフェイスです。これらのエンドポイントはサイトの長期シンクロニゼーショントークンで認証されます（オペレータJWTではなく）。",
           "053": "POST /api/v1/federation/sites/{site_id}/rollups/hosts — ホストのロールアップをサイトからインGEST",
-          "054": "POST /api/v1/federation/sites/{site_id}/rollups/compliance — コンプライアンス 롤アップをサイトからインGEST",
+          "054": "POST /api/v1/federation/sites/{site_id}/rollups/compliance — サイトからコンプライアンスロールアップをインジェストする",
           "055": "POST /api/v1/federation/sites/{site_id}/rollups/vulnerabilities — ループアップからの脆弱性ロールアップをインGEST",
           "056": "POST /api/v1/federation/sites/{site_id}/host-directory — ホストディレクトリをサイトから取り込む",
           "057": "POST /api/v1/federation/sites/{site_id}/command-results — コマンド結果をサイトから取り込む",
@@ -11752,7 +11752,7 @@
           "061": "入力検証",
           "062": "監査ログ記録",
           "063": "\\<^code\">🚀 DevOpsとテスト",
-          "064": "GitHub Actions CI/CD",
+          "064": "GitHub アクション CI/CD",
           "065": "Pytestフレームワーク",
           "066": "Coverage.py",
           "067": "Blackフォーマッター",
@@ -11906,7 +11906,7 @@
           "126": "通信とセキュリティ",
           "127": "WebSocketによるリアルタイムコミュニケーション",
           "128": "mTLS: 相互 TLS 認証",
-          "129": "JWT: JSON Web Tokens for API auth",
+          "129": "JWT: JSON Web トークンによるAPI認証",
           "130": "OpenSSL: 暗号化操作",
           "131": "Protocol Buffers: 効率的なシリアライゼーション",
           "132": "DevOps およびデプロイメント",
@@ -11918,7 +11918,7 @@
           "138": "統合ポイント",
           "139": "外部システム統合",
           "140": "認証システム",
-          "141": "LDAP/Active Directory",
+          "141": "LDAP/アクティブディレクトリ",
           "142": "SAML 2.0 プロバイダー",
           "143": "OAuth 2.0/OpenID Connect",
           "144": "マルチファクタ認証",
@@ -12003,7 +12003,7 @@
           "052": "デュアルConftestアーキテクチャ + Pytest",
           "053": "1,464のテスト、100%通過率",
           "054": "コードカバレッジ",
-          "055": "Pytest-cov + SonarQube Cloud",
+          "055": "Pytest を使用したコードカバレッジ + Sonarqube Cloud",
           "056": "100%行とブランチカバレッジ",
           "057": " セキュリティ分析 ",
           "058": "SonarQube Cloud + Bandit + Semgrep",
@@ -12532,7 +12532,7 @@
           "004": "基本管理",
           "005": "日次運用におけるSysManageの基本的な管理タスクとワークフロー。",
           "006": "管理概要",
-          "007": "このガイドでは、SysManageの基本的な操作について説明します。ホスト組織化、パッケージ管理、ユーザーアドминистレーション、および基本モニタリングが含まれます。これらのタスクをマスターすることで、インフラストラクチャを効果的に管理できます。",
+          "007": "このガイドでは、SysManageで定期的に実行する基本的な操作について説明します。ホスト組織化、パッケージ管理、ユーザー管理、基本監視などのタスクをマスターすることで、インフラストラクチャを効果的に管理できます。",
           "008": "前提条件:",
           "009": "エージェントセットアップ",
           "010": "1. ダッシュボードナビゲーション",
@@ -12711,7 +12711,7 @@
           "183": "アラート設定",
           "184": "設定 → アラートに移動",
           "185": "アラートしきい値の設定: CPU使用率が80%を超えて5分以上 メモリ使用率が90%を超えて2分以上 ディスク使用率が85%を超える ホストがオフライン状態で5分以上",
-          "186": "通知チャネル（メール、ウェブ훅）を設定する",
+          "186": "通知チャンネル（メール、Webhook）を設定する",
           "187": "緊急対応手順を設定する",
           "188": "パフォーマンスモニタリング",
           "189": "システムパフォーマンスの時間経過によるトレンドを追跡:",
@@ -13243,7 +13243,7 @@
           "125": "Windowsの変更: 承認されたメンテナンスウィンドウ中に削除を計画する",
           "126": "ドキュメンテーション: 各削除の目的と理由を文書化",
           "127": "アンインストール中に",
-          "128": "進行状況を監視: 実시간で操作ステータスを確認",
+          "128": "操作状況をリアルタイムで監視します。",
           "129": "システム負荷の確認: 削除中にシステムが過度な負荷にないことを確認する",
           "130": "常に利用可能: 発生した問題への対応を待機します",
           "131": "ログレビュー: システムログを監視して関連するエラーがないか確認",
@@ -13316,127 +13316,6 @@
           "002": "開始する",
           "003": "素早いスタート",
           "004": "素早いスタートガイド",
-          "005": "Docker Composeを使用してSysManageをすぐに起動します。評価、開発、および小規模なデプロイに最適です。",
-          "006": "概要",
-          "007": "このクイックスタートガイドを使用して、Docker ComposeでSysManageを10分以内に実行します。この方法はテスト、開発、または小規模の生産環境向けの完全な自立型SysManageインストールを提供します。",
-          "008": "前提条件",
-          "009": "システム要件",
-          "010": "4GB RAM（推奨8GB）以上のLinuxサーバーまたは仮想マシン",
-          "011": "2 CPUコア最小（4+推奨）",
-          "012": "20GB のディスク空き容量（50GB以上が推奨）",
-          "013": "ポート 80、443、および 8443 上でのネットワークアクセス",
-          "014": "ソフトウェア要件",
-          "015": "Docker Engine 20.10+ のインストールが完了しています",
-          "016": "Docker Compose 2.0+ インストール済み",
-          "017": "Git（リポジトリクローン用）",
-          "018": "管理者/サドコマンド権限",
-          "019": "ネットワーク要件",
-          "020": "Dockerイメージのダウンロード用インターネットアクセス",
-          "021": "インバウンド接続を許可するようにファイアウォールが構成されています",
-          "022": "固定IPアドレスまたはDNS名（推奨）",
-          "023": "Dockerのインストール（必要に応じて）",
-          "024": "Dockerがインストールされていない場合は、一般的なプラットフォーム用のクイックインストールコマンドがあります:",
-          "025": "Ubuntu/Debian",
-          "026": "RHEL/CentOS/Fedora",
-          "027": "インストール手順",
-          "028": "リポジトリをクローンします",
-          "029": "SysManage リポジトリをクローンして、Docker Compose構成を取得します:",
-          "030": "注意:",
-          "031": "環境を設定する",
-          "032": "環境設定をコピーしてカスタマイズ:",
-          "033": "キー設定オプション",
-          "034": "設定",
-          "035": "デフォルト",
-          "036": "説明",
-          "037": "POSTGRES_PASSWORD",
-          "038": "sysmanage",
-          "039": "データベースパスワード（生産環境用に変更）",
-          "040": "SECRET_KEY",
-          "041": "自動生成",
-          "042": "アプリケーションシークレットキー",
-          "043": "LISTEN_PORT",
-          "044": "8443",
-          "045": "Webインターフェースポート",
-          "046": "DOMAIN_NAME",
-          "047": "localhost",
-          "048": "サーバのドメイン名またはIPアドレス",
-          "049": "クイックスタート:",
-          "050": "SSL証明書生成",
-          "051": "SysManageは安全な通信のためにSSL証明書が必要です。テスト用に自己署名証明書を作成します：",
-          "052": "生産メモ:",
-          "053": "SysManageを開始する",
-          "054": "Docker Composeを使用してすべてのSysManageサービスを起動:",
-          "055": "類似の出力が表示されるはずです:",
-          "056": "管理者ユーザー作成",
-          "057": "最初の管理者アカウントを作成:",
-          "058": "セキュリティ：",
-          "059": "Webインターフェースにアクセス",
-          "060": "ウェブブラウザを開き、SysManageに移動してください:",
-          "061": "証明書警告:",
-          "062": "ステップ5で作成した管理者資格情報を使ってログインします。",
-          "063": "インストールを確認する",
-          "064": "ヘルスチェック",
-          "065": "すべてのコンポーネントが正常に動作しているか確認します:",
-          "066": "1. サービスステータス",
-          "067": "2. APIヘルスチェック",
-          "068": "3. データベース接続",
-          "069": "4. Webインターフェース",
-          "070": "ログインページが正しく読み込まれる",
-          "071": "管理者資格情報で認証できる",
-          "072": "ダッシュボードがエラーなく表示されます",
-          "073": "ナビゲーションメニューは機能しています",
-          "074": "素早いトラブルシューティング",
-          "075": "コンテナが起動しません",
-          "076": "ウェブインターフェースにアクセスできません",
-          "077": "ファイアウォール設定でポート8443が開かれていることを確認してください",
-          "078": "Dockerポートマッピングを確認する: docker compose ps",
-          "079": "HTTPで最初にアクセスを試みてください: http://localhost:8080",
-          "080": "SSL 証明書問題",
-          "081": "次のステップ",
-          "082": "インターフェースの探索",
-          "083": "SysManageウェブインターフェースとその機能に慣れ親しんでください。",
-          "084": "Webインターフェースツアー →",
-          "085": "最初のエージェントをインストール",
-          "086": "ホストにモニタリングエージェントを追加してデータ収集を開始します。",
-          "087": "エージェントインストール →",
-          "088": "基本管理",
-          "089": "必須の管理タスクとワークフローを学びます。",
-          "090": "管理の基本 →",
-          "091": "本番環境デプロイ",
-          "092": "HAとセキュリティを備えた生産環境向けのスケーリングを行います。",
-          "093": "生産セットアップ →",
-          "094": "一般的な後インストールタスク",
-          "095": "メール通知を設定する",
-          "096": "アラートと通知用のメール設定を設定:",
-          "097": "設定 → メール設定に移動",
-          "098": "SMTPサーバの詳細を入力してください",
-          "099": "メール配信をテスト",
-          "100": "アラート通知を設定する",
-          "101": "追加ユーザー作成",
-          "102": "適切な権限を持つチームメンバーを追加:",
-          "103": "管理 → ユーザーに移動",
-          "104": "\"ユーザーの作成\"をクリックしてください",
-          "105": "ユーザーネーム、メール、およびロールの設定",
-          "106": "必要な権限を設定する",
-          "107": "ホストグループの設定",
-          "108": "論理的にインフラストラクチャを整理してください：",
-          "109": "ホスト → グループに移動",
-          "110": "環境、機能、または場所ごとにグループを作成",
-          "111": "グループ固有の権限を設定する",
-          "112": "グループベースモニタリングの設定",
-          "113": "モニタリングしきい値を設定する",
-          "114": "環境向けにアラートの設定:",
-          "115": "モニタリング → アラートに移動",
-          "116": "CPU、メモリ、ディスクのアラートルールを作成する",
-          "117": "適切なしきい値を設定する",
-          "118": "アラート配信をテスト",
-          "119": "役立つコマンド",
-          "120": "Docker Compose 操作",
-          "121": "バックアップとメンテナンス",
-          "122": "ログ管理",
-          "123": "素早いナビゲーション",
-          "124": "← 始め方",
-          "125": "Webインターフェース概要 →",
           "126": "SysManage ログインページ。"
         },
         "tutorials": {
@@ -13931,14 +13810,14 @@
           "024": "ホストごとのEOLステータス（endoflife.date）",
           "025": "/do-release-upgrade / dnf / zypper / freebsd-update",
           "026": "スケジュールされたメンテナンスウィンドウ対応のアップグレード",
-          "027": "OS Lifecycle Guide →",
+          "027": "OSライフサイクルガイド →",
           "028": "🔒 FIPS準拠モード",
           "029": "ホストが FIPS 140 認証済み暗号モードで実行しているか確認し、各プラットフォームのネイティブメカニズムを使用して個々のホストで有効化または無効化します。",
           "030": "Fleet FIPSポストゥア（有効/利用可能/無効）",
           "031": "検出は無料；有効化/無効化はエンタープライズ機能",
-          "032": "Ubuntu Pro / RHEL fips-mode-setup / Windows policy",
+          "032": "Ubuntu Pro / RHEL fips-mode-setup / Windows ポリシー",
           "033": "監査済み、メンテナンスウィンドウ対応、再起動対応",
-          "034": "FIPS Compliance Guide →"
+          "034": "FIPSコンプライアンスガイド →"
         },
         "alerting": {
           "001": "アラートページでは、深刻度別にアクティブなアラートをリストし、確認および解決コントロールを提供します。",
@@ -14024,8 +13903,8 @@
           "015": "FIPS検出はオープンソースエージェントで提供 — ライセンス不要です。各チェックイン時にエージェントがポジションを報告し、サーバーがホスト上で記録しますのでダッシュボードとホストタブは常に現実に即しています。検出は各プラットフォームの公式ソースを使用：",
           "016": "Linux (カーネル): /proc/sys/crypto/fips_enabled — 現在 FIPS が有効かどうかを示す決定的なフラグ。",
           "017": "RHEL および再構築: fips-mode-setup --check .",
-          "018": "Ubuntu: the Ubuntu Pro fips service status.",
-          "019": "Windows: the FipsAlgorithmPolicy registry value.",
+          "018": "Ubuntu: Ubuntu Pro fips サービスの状態",
+          "019": "Windows: FipsAlgorithmPolicy レジストリ値",
           "020": "macOS & BSD: 適用不能として報告されます。",
           "021": "Fleetダッシュボード",
           "022": "メインナビゲーション内の FIPS コンプライアンスページは、全ホストを要約します：有効化されているホスト数、利用可能（機能ありだがオフ）、無効化、または適用不能状態のホスト数、その後に各ホストのステータス、使用中のスイッチメカニズム、最後に報告された時間を持つテーブル。これを使用して「どのホストが FIPS モードでないか？」を一目で把握します。",
@@ -15646,7 +15525,7 @@
           "056": "ビルドツール統合",
           "057": "広範なレポートフォーマット",
           "058": "セCRET検出",
-          "059": "TruffleHog",
+          "059": "トリフルホッグ",
           "060": "高エントロピー秘密鍵スキャナ",
           "061": "Git履歴スキャン",
           "062": "リアルタイムシークレット検出",
@@ -15940,8 +15819,8 @@
           "350": "開発ツール",
           "351": "GitHub/GitLab/Bitbucket",
           "352": "Jenkins/GitHub Actions/GitLab CI",
-          "353": "SonarQube Cloud /CodeClimate",
-          "354": "Docker Registry/Harbor",
+          "353": "SonarQube Cloud / CodeClimate",
+          "354": "Docker レジストリ/ハーバー",
           "355": "Artifactory/Nexus",
           "356": "イシュー追跡",
           "357": "Jira/Linear/Azure DevOps",
@@ -16158,7 +16037,7 @@
           "067": "脆弱性評価：既知の脆弱性を持つパッケージを特定する",
           "068": "ライセンス遵守：ソフトウェアライセンスの追跡と報告",
           "069": "ユーザー 管理 & セキュリティ",
-          "070": "ユーザーアドминистレーション",
+          "070": "ユーザー管理",
           "071": "ユーザー アカウント: 完全なユーザー サイクル管理",
           "072": "プロフィール管理: 接触情報と好みを含むユーザープロファイル",
           "073": "パスワードポリシー：コンフィギュurableなパスワードの複雑さと回転",
@@ -16341,7 +16220,7 @@
           "010": "複数のレポートタイプ",
           "011": "ホスト在庫、ユーザーマネージメントレポート、およびインフラ全体のシステムアナリティクス",
           "012": "国際化コンテンツ",
-          "013": " предпочитаемую言語で生成されたレポートと完全なローカライズサポート。",
+          "013": "好みの言語で生成されたレポートには完全なローカライズサポートが含まれています。",
           "014": "利用可能なレポートタイプ",
           "015": "登録ホストレポート",
           "016": "説明: 登録されたすべてのホストの一覧表示。基本情報とオペレーティングシステムの詳細を含む。",
@@ -17546,7 +17425,7 @@
       "leap_note": "安定したパッケージを使用、手動でのRustインストールが必要な場合があります",
       "package_notes": "パッケージマネージャーの注意事項",
       "python_versions": "LeapはPython 3.9+を搭載、Tumbleweedは最新の安定版を搭載",
-      "title": "openSUSE Leap/Tumbleweed",
+      "title": "オープンSUSE ジャンプ/タンブルウィード",
       "tumbleweed_note": "ローリングリリース、zypperでRustが利用可能"
     },
     "sles": {
@@ -17595,7 +17474,7 @@
           "headers": "カスタム HTTP headers",
           "integration": "Webhook 対応システムとの統合",
           "json": "完全なアラート詳細を含む JSON ペイロード",
-          "title": "ウェブ훅"
+          "title": "ウェブフック"
         }
       },
       "conditions": {
@@ -18633,7 +18512,7 @@
             "providers": "プラグ可能なコンピュートプロバイダー（リモートlibvirt、Proxmox VE）",
             "templates": "再利用可能なバージョン管理されたプロビジョニングテンプレート"
           },
-          "link": "Provisioning Engine Guide →",
+          "link": "プロビジョニングエンジンガイド →",
           "title": "🚀 Provisioning Engine"
         }
       },
@@ -20013,7 +19892,7 @@
           "title": "署名強制（HTTP対HTTPS）"
         },
         "identity": {
-          "body": "ネットワーク上で取得された証明書をピン留めすると、単独では信頼の最初の一回限りになります：攻撃者が登録を傍受して独自の証明書を提示し、ピン留めされます。登録トークンは共有シークレットであり、同じチャネルを通じて移動するため、このギャップを閉じることはできません。SysManageはしたがって各サーバーの長期的な<strong>Ed25519アイデンティティキー</strong>に登録をアンカリングします。そのプライベート部分はボックスから出ることはありません。登録前に、オペレーターは二つのサーバーのアイデンティティ<em>公開</em>鍵を外側で交換します（公開であるため、どのチャネルでも機能 &mdash; サーバーロールページには各キーとそのフィンガープリントが表示されます）。登録中に各側は提示する正確な証明書をアイデンティティプライベートキーで署名し、他方ではそのアイデンティティ公開鍵に対して署名を検証してピン留めします。中間者攻撃者が証明書を交換すると、マッチング署名を偽造することはできませんので、登録は拒否されます。この検証は<strong>厳格で必須</strong>です：アイデンティティキーが事前に登録されていないか、証拠が検証されない場合、登録は失敗します。証明は証明書のフィンガープリント上であるため、後からTLS証明書を回転させると、同じアイデンティティキーで再署名するだけでよく、二度目の外側交換はありません。",
+          "body": "ネットワーク経由で取得した証明書をピン留めすると、単独では信頼の初回使用となる可能性があります：攻撃者が登録プロセスを傍受し、自分の証明書を提示してピン留めされる可能性があります。登録トークンはこのギャップを閉じることができません。それは共有秘密であり、同じチャネルを通って移動するからです。SysManage では、各サーバーの長期生存可能な <strong>Ed25519 識別鍵</strong> を登録の基盤としています。その <em>プライベート</em> 鍵はボックス外に出ることはありません。登録前に、オペレーターは 2 台のサーバーの識別 <em>公開鍵</em> をバンドル外で交換します（公開鍵なので、どのチャネルでも機能します &mdash;）。Server Role ページでは各キーとその指紋が表示されます。登録中に、各側は提示する正確な証明書を識別プライベート鍵で署名し、他方の側はその署名を事前に共有された識別公開鍵で検証してからピン留めします。マニ・イン・ザ・ミドルが証明書を交換しても、対応する署名を偽造することはできませんので、登録は拒否されるのではなくピン留めされません。この検証は <strong>厳格で必須</strong> です：識別鍵が事前に登録されていないか、証明が検証できない場合、登録は失敗します。証明が証明書の指紋上にあるため、後で TLS 証明書を回転させると、同じ識別鍵による再署名だけで済みます &mdash; 2 回目のバンドル外交換は必要ありません。",
           "title": "外带身份验证"
         }
       }
@@ -20095,7 +19974,7 @@
           "title": "エンドポイント"
         },
         "restrict": {
-          "description": "このエンドポイントは認証されておらず、API の他の部分と同じポートを共有するため、Prometheus ホストのみが到達できるように nginx リバースプロキシで制限してください。nginx のパスレベルの <code>allow</code>／<code>deny</code> ルールを使用します &mdash; ポート自体をファイアウォールで塞がないでください。API 全体がブロックされてしまいます:",
+          "description": "このエンドポイントは認証されておらず、API の他の部分と同じポートを共有しているため、nginx リバースプロキシ側で制限し、Prometheus ホストからのみ到達できるようにしてください。nginx ではパス単位の <code>allow</code>/<code>deny</code> ルールを使用します &mdash; ポート自体をファイアウォールで塞いでは<em>いけません</em>。API 全体が遮断されてしまいます：",
           "title": "アクセスを制限する（重要）"
         },
         "scrape": {
@@ -21343,11 +21222,11 @@
       "title": "クイックナビゲーション"
     },
     "overview": {
-      "backend_api": "バックエンドAPI - 非同期サポート、JWT認証、WebSocket通信を備えたFastAPI",
+      "backend_api": "<strong>Backend API</strong> - FastAPI with async support, JWT authentication, and WebSocket communication",
       "components_title": "サーバーコンポーネント",
-      "database": "データベース - SQLAlchemy ORMとAlembicマイグレーションを備えたPostgreSQL",
+      "database": "<strong>Database</strong> - PostgreSQL with Alembic migrations and comprehensive data models",
       "description": "SysManageサーバーは、FastAPI（Python）バックエンドとReact（TypeScript）フロントエンドで構築された現代的なWebアプリケーションです。軽量なエージェントを通じて複数のシステムを管理するための集中プラットフォームを提供します。",
-      "frontend_ui": "フロントエンドUI - TypeScript、Material-UIコンポーネント、リアルタイム更新を備えたReact",
+      "frontend_ui": "<strong>フロントエンドUI</strong> - ReactとTypeScript、Material-UIコンポーネント、リアルタイム更新",
       "security_layer": "<strong> セキュリティ層 </strong> - mTLS、RBAC、および包括的なスキャンによるエンタープライズ グレードのセキュリティ",
       "title": "概要",
       "websocket_engine": "<strong> WebSocket エンジン </strong> - エージェントとのリアルタイム双方向通信"
@@ -21577,9 +21456,10 @@
       "title": "システム要件"
     },
     "ssl": {
-      "description": "HTTPS開発の場合、SSL証明書を配置：",
-      "fallback": "証明書が見つからない場合、システムは自動的にlocalhost上のHTTPにフォールバックします。",
-      "title": "SSL証明書（オプション）"
+      "description": "SysManageはHTTPSポート443からウェブインターフェースとAPIを1つのオリジンから提供します。nginxはTLSを終端し、ループバック上のバックエンドにプロキシングしますので、エージェントはこのホストへのポート443のアウトバウンド接続が必要です。サーバが生産トラフィックを提供するためには証明書が必要です。",
+      "title": "TLS証明書（生産用必須）",
+      "config_path": "nginxの証明書と秘密鍵を指定してください。設定ファイルはプラットフォームによって異なる場所に存在しますので、インストール後メッセージでシステム固有のパスとともに変更すべき2行が表示されます:",
+      "dev_mode": "ローカル開発では、<code>dev_mode: true</code> を <code>/etc/sysmanage.yaml</code> に設定することで証明書を完全にスキップできます。サーバーは API を 8080 で提供し、ウェブインターフェースを HTTP 上の 3000 で提供します。バックエンドはすべてのインターフェースにバインドされるため、LAN 上の他のエージェントが到達する必要はありません。生産ホストではデバッグモードを有効にしないでください。"
     },
     "title": "サーバーインストールガイド - SysManage",
     "troubleshooting": {
@@ -21605,9 +21485,9 @@
         "title": "権限の問題"
       },
       "port_conflicts": {
-        "check_services": "既存のサービスを確認します: <code> netstat -tlnp | grep :6443 </code>",
-        "ensure_ports": "ポート6443（API）と7443（フロントエンド）が利用可能であることを確認",
-        "modify_ports": "必要に応じて設定でポートを変更",
+        "check_services": "既存のリッスナーを確認する: <code>ss -tlnp | grep -E ':(80|443|8080)'</code>",
+        "ensure_ports": "生産環境では、443 が空いていることを確認してください（80 も必要であれば）。バックエンドは nginx の後ろの 127.0.0.1:8080 上でリッスンし、公開されていません。",
+        "modify_ports": "デバッグモードでは API が 8080 に、ウェブインターフェースが 3000 にあります；これらが衝突する場合は <code>api</code> と <code>webui</code> の下で <code>/etc/sysmanage.yaml</code> を変更します。",
         "title": "ポートの競合"
       },
       "title": "トラブルシューティング"
@@ -22135,7 +22015,7 @@
     },
     "edition": {
       "community": "無料でオープンソース、単一のサーバーとデータベース上でホストされます。Linux、Windows、macOS、FreeBSD、OpenBSD、NetBSD用の永続的なエージェント；リアルタイムWebSocket監視；ハードウェアおよびソフトウェアインベントリ；パッケージとOS更新管理；ユーザーおよびアクセス管理；タグ付け；ファイアウォールステータス；即座に実行可能なスクリプト；レポート作成；エージェントの機能報告、つまり混合デバイス群において各エージェントがプラットフォーム上で実際に何ができるかを示します；そして監査ログ。",
-      "enterprise": "Professionalに含まれるすべての機能に加えて、CVE脆弱性スキャン、メール/ウェブ훅/Slack/Teamsへのアラート通知、アンチウイルス管理、ファイアウォールオーケストレーション、大規模フリートでの自動化、KVM, bhyve, OpenBSD vmmの完全な仮想マシンライフサイクル管理、OpenTelemetry / Grafana / Graylogによる可視性、ゲーテッドプロモーションを含むコンテンツビューとライフサイクル環境、Snap Storeプロキシおよびコンテナイメージコンテンツライフサイクル、イメージモード（bootc / rpm-ostree）ホスト管理、外部ハイパーウォーラーと裸金属のPXE経由でのホストプロビジョニング — ハードウェア発見を含む、多要素認証および外部IdPシングルサインオン、完全なオフラインデプロイメント、およびマルチサイト連携。",
+      "enterprise": "プロフェッショナルには、CVE脆弱性スキャン、メール/Webhook/Slack/Teamsへのアラート、アンチウイルス管理、ファイアウォールオーケストレーション、艦隊規模の自動化、フルVMライフサイクル管理（KVM、bhyve、OpenBSD vmm）、OpenTelemetry/Grafana/Graylogによる可視化、コンテンツビューとライフサイクル環境のゲート付きプロモーション、Snap Storeプロキシとコンテナイメージコンテンツライフサイクルの管理、イメージモード（bootc/rpm-ostree）ホスト管理、外部ハイパーバイザーおよびベアマテリアル上のPXEによるプロビジョニング、ハードウェアの検出、多要素認証と外部IdPによるシングルサインオン、完全にエアギャップされたデプロイメント、マルチサイトフェデレーションが含まれます。",
       "professional": "Community Edition に含まれるすべての機能に加えて、スケジュールされた PDF レポート、拡張された監査トレース、OpenBAO をバックエンドとしたシークレット管理、LXD および WSL コンテナ管理、AI アシスタントによる健康分析、CIS / DISA STIG コンプライアンス監査。",
       "saas": "Enterprise に含まれるすべての機能に加えて、コントロール プラーンとして実行され、隔離されたテナントをホストします — 各テナントごとにデータベースが別々で、顧客所有の SSO、および各テナントごとのエディション割り当てにより、各テナントは Community、Professional、または Enterprise に個別に設定できます。"
     },
@@ -22340,6 +22220,19 @@
       "bsd": "Linux、Windows、macOSホストと同じ詳細な情報を備えたFreeBSDホスト。",
       "compliance": "オペレーティングシステムごとのコンプライアンスレポートではなく、全環境をカバーするレポート",
       "vuln": "すべてのオペレーティングシステムにおける全艦隊の脆弱性可視化"
+    },
+    "monday": {
+      "bsd": "BSDは数年前に誰かによって書かれたスクリプトで管理されます。",
+      "close": "これがSysManageが解決しようとした問題です。",
+      "compliance": "コンプライアンスレポートは別の場所にあります。",
+      "eyebrow": "月曜日, 9:04 午前",
+      "macos": "macOS is in Jamf.",
+      "punch": "コンソールを開いた回数はホストをパッチするよりも多く — それでも誰もが実際に尋ねる唯一の質問に答えることができません： <strong>暴露されていますか？</strong>",
+      "rhel": "RHEL is in Satellite.",
+      "scanning": "脆弱性スキャンは別の場所で行われます。",
+      "title": "重大な脆弱性が発見されました。どこから始めれば良いでしょうか？",
+      "ubuntu": "Ubuntu is in Landscape.",
+      "windows": "Windows is in Intune."
     }
   },
   "shot": {
@@ -22490,7 +22383,7 @@
     "cta": {
       "body": "セキュリティ要件に基づくオフラインデプロイメントを一緒に見ていきましょう。",
       "contact": "オフラインデモリクエスト",
-      "gov": "Government & Defense →",
+      "gov": "政府・防衛 →",
       "title": "インターネットに到達しないネットワークがありますか？"
     },
     "hero": {
@@ -22537,7 +22430,7 @@
   "bsd": {
     "cta": {
       "body": "FreeBSD、OpenBSD、およびNetBSDを他の艦隊と同等に管理 — AGPLv3コアで14言語に対応。",
-      "compare": "Compare Tools →",
+      "compare": "ツール比較 →",
       "start": "無料でお試しいただけます",
       "title": "ついに第一級のBSDサポート"
     },
@@ -22666,7 +22559,7 @@
     },
     "grows": {
       "body": "オープンソースコミュニティエディションとそのAGPLv3コアから無料で始めてください。ProfessionalではAI駆動の健康分析を追加します。Enterpriseでは脆弱性スキャン、コンプライアンス、シングルサインオン、高度な役割ベースのアクセス制御を追加します。または完全にマルチテナントでホストされたEnterprise SaaSを使用し、テナントごとのデータベース隔離が含まれます。ステップ毎に同じプラットフォームとワークフロー — カパビリティを追加するだけでツールを再学習したり、フリートを移行する必要はありません。",
-      "editions": "Compare Editions →",
+      "editions": "エディション比較 →",
       "title": "あなたと共に成長します"
     },
     "hero": {
@@ -22707,7 +22600,7 @@
       "title": "すべてのOSで報告可能なコンプライアンス"
     },
     "cta": {
-      "airgap": "Air-Gapped Details →",
+      "airgap": "エアギャップ詳細へ",
       "body": "セキュリティ、コンプライアンス、隔離要件に基づくデプロイメントを一緒に見ていきましょう。",
       "demo": "デモリクエスト",
       "title": "妥協できないインフラストラクチャ"
@@ -22786,7 +22679,7 @@
     },
     "cta": {
       "body": "専用データベースを持つことで顧客に何を約束できるかを見ていきましょう。",
-      "compare": "Compare Tools →",
+      "compare": "ツール比較 →",
       "contact": "デモリクエスト",
       "title": "一つのプラットフォームで実践を実行する"
     },
@@ -22813,7 +22706,7 @@
     },
     "hetero": {
       "body": "MSP クライアントは決して一様ではありません。あるアカウントでは Windows のノートパソコンが多数、次のアカウントでは Linux サーバーと FreeBSD アプライアンス、別のアカウントでは macOS、OpenBSD、および NetBSD が混在しています。SysManage はそれらすべてを同じ方法で管理し、クライアントから何が来ても一貫して管理できることが MSP ツールの目的です。コア部分は AGPLv3 であり、インターフェースは 14 の言語で提供されています。",
-      "cta": "Learn about Enterprise SaaS — the multi-tenant hosted edition →",
+      "cta": "エンタープライズSaaSについて学ぶ — マルチテナントホスティドエディションへ→",
       "title": "デフォルトで異種混在"
     },
     "iso": {
@@ -22853,7 +22746,7 @@
     "cta": {
       "body": "すべてのオペレーティングシステムで一貫した可視性がどのようにリスク評価と低減に影響を与えるかを確認します。",
       "demo": "デモリクエスト",
-      "model": "Read the Security Model →",
+      "model": "セキュリティモデルを読む →",
       "title": "ホストごとの真実の情報源"
     },
     "hero": {
@@ -22874,7 +22767,7 @@
     "meta_description": "",
     "operational": {
       "body": "インベントリ、パッチング、脆弱性管理が今やセキュリティコントロールの一部です — ITの日常業務として手渡されて忘れられるものではありません。SysManageはそれらを一つのコントロールプレーンに統合し、対応が連携して確認可能で防御可能な形となります。インベントリ、パッチ管理、監査ログはオープンソースコアに含まれ、脆弱性スキャン、CVEデータベース、コンプライアンスレポートはProfessional+およびEnterprise機能です。全体を通じてJWT、相互TLS、ロールベースのアクセス制御で保護されます。",
-      "proplus": "Explore Professional+ & Enterprise →",
+      "proplus": "プロフェッショナル+ & エンタープライズを探索する →",
       "title": "セキュリティは運用です"
     },
     "see": {
@@ -22893,12 +22786,12 @@
   "solutions": {
     "airgap": {
       "body": "インターネットがないネットワーク向けに設計された単一テナントの装置、ローカルシークレット、および物理メディアで配信されるコンテンツ。",
-      "go": "Explore air-gapped →",
+      "go": "孤立ネットワークを探索する",
       "title": "エアギャップインフラストラクチャ"
     },
     "compare": {
       "body": "Ansible、Puppet、Salt、Chef、Landscape、およびSatelliteとSysManageの機能別比較を確認してください。",
-      "go": "Compare tools →",
+      "go": "ツールを比較する →",
       "title": "他のツールから移行中ですか？"
     },
     "cta": {
@@ -22909,12 +22802,12 @@
     },
     "enterprise": {
       "body": "単一OSツールのラックを統合し、ライセンス料、複雑さ、およびキー・パーソンリスクを排除するコントロールプレーンに変換します。",
-      "go": "Explore enterprise →",
+      "go": "企業を探索する →",
       "title": "Enterprise IT"
     },
     "government": {
       "body": "完全に隔離された展開、FIPS対応のコンプライアンス、そして第一級のBSDサポート — クリティカルなインフラストラクチャで動作します。",
-      "go": "Explore government →",
+      "go": "政府を探索する",
       "title": "政府と防衛"
     },
     "hero": {
@@ -22925,12 +22818,12 @@
     "meta_description": "",
     "msp": {
       "body": "一つのプラットフォームから多くのクライアントフリートを実行する — テナントごとに専用データベースを持つ真の隔離、行レベルフィルタリングではありません。",
-      "go": "Explore MSP →",
+      "go": "MSPを探索する →",
       "title": "マネージドサービスプロバイダー"
     },
     "security": {
       "body": "各オペレーティングシステムでの一貫したインベントリ、パッチ状態、脆弱性可視化 — 6つの盲点を排除する一つの真実源",
-      "go": "Explore security →",
+      "go": "セキュリティを探索する →",
       "title": "セキュリティチーム"
     },
     "title": "業界別ソリューション - SysManage"
@@ -22938,7 +22831,7 @@
   "xplat": {
     "concrete": {
       "body": "ここでの統合インフラストラクチャ管理はスローガンではありません — すべてのプラットフォームで同一の機能が同じように動作します。リアルタイムWebSocketモニタリングにより、すべてのホストをライブで監視できます。パッケージとパッチ管理は一連の承認およびデプロイフローに従います。脆弱性スキャンとコンプライアンスレポート（ProfessionalおよびEnterpriseエディションで利用可能）は、単一のオペレーティングシステムではなく全体の資産をカバーします。コアはAGPLv3ライセンスの下でオープンソース化され、JWT、mTLS、ロールベースアクセス制御により保護され、14言語にローカライズされています。",
-      "solutions": "See solutions by industry →",
+      "solutions": "業界別のソリューションを見る →",
       "title": "具体的なクロスポータブル管理"
     },
     "control": {
@@ -22952,7 +22845,7 @@
     },
     "cta": {
       "body": "Windows、Linux、macOS、およびBSDを一つのコントロールプレーンで管理し、チームに単一の真実源を提供します。",
-      "compare": "Compare Tools →",
+      "compare": "ツール比較 →",
       "start": "無料でお試しいただけます",
       "title": "オペレーティングシステムの管理から脱却します。フリートを管理します。"
     },
@@ -23034,8 +22927,8 @@
       "title": "エージェントが何をレポートするかを決定する方法"
     },
     "nav": {
-      "next": "Troubleshooting →",
-      "prev": "← Cross-Platform Support"
+      "next": "トラブルシューティング →",
+      "prev": "← クロスプラットフォームサポート"
     },
     "section_title": "機能",
     "seeing": {
@@ -23087,6 +22980,80 @@
       "proxy_desc": "明示的なアウトバウンドプロキシ。通常は不要です — <code>HTTPS_PROXY</code>, <code>HTTP_PROXY</code> および <code>NO_PROXY</code> が環境変数から尊重されます。",
       "url_desc": "エージェントが通信を行う一つのオリジン、例えば <code>https://sysmanage.example.com</code> です。ポートを指定しない場合は443がデフォルトとなります。下記のレガシーフィールドよりも優先されます。",
       "use_https_desc": "レガシー。 <code>url</code> のスキームによって置き換えられています。"
+    }
+  },
+  "server_quickstart": {
+    "before": {
+      "body": "このガイドではあなたのプラットフォーム用にビルドされたパッケージを使用してサーバをインストールします。完全なプラットフォームマトリックス、ソースからのビルド手順、および各ディストリビューションの前提条件については <a href=\"/docs/server/installation.html\">Server Installation</a> ガイドをご覧ください。",
+      "cert": "<strong>TLS 証明書と秘密鍵</strong> が必要です。nginx はこれを欠いている場合、意図的に起動を拒否します。管理コンソールが証明書がないだけでクリアテキストで立ち上がることを防ぐためです。",
+      "ports": "<strong>443 のインバウンド接続</strong> (80 も必要であれば)。それ以外のポートは開けません：エージェントはサーバーに 443 をアウトバウンドで到達し、バックエンドは nginx の後ろでループバック上に留まります。",
+      "postgres": "<strong>PostgreSQL 12 以降のバージョンが必要です</strong> — このホストまたはリモートホスト上にインストールされています。SysManage はこれがないと起動しません。",
+      "root": "<strong>ターゲットホスト上のルート権限または sudo 权限</strong>。",
+      "tip": "パッケージはインストール後メッセージとして次の手順を表示し、プラットフォーム固有のパスを埋め込みます。失われた場合はパッケージマネージャーのログにあります。",
+      "tip_label": "ヒント:",
+      "title": "はじめに"
+    },
+    "intro": "ネイティブパッケージから SysManage サーバーをインストールし、PostgreSQL を指すように設定します。nginx に証明書を提供し、コンソールを開きます。新規ホスト上では約15分かかります。",
+    "next": {
+      "agent": "<a href=\"/docs/agent/installation.html\">エージェントインストール</a> — Windows、Linux、macOS、および BSD のパッケージ。",
+      "approval": "<a href=\"/docs/getting-started/agent-approval.html\">エージェント承認</a> — 新しいホストがフリートに参加する方法。",
+      "body": "サーバーにはホストがないと何もできません。管理したいマシンにエージェントをインストールし、承認してください:",
+      "config": "<a href=\"/docs/server/configuration.html\">サーバー設定</a> — メール、認証、保持期間、その他の設定。",
+      "security": "<a href=\"/docs/security/best-practices.html\">セキュリティのベストプラクティス</a> — 実際のフリートを前に置く前に読む価値があります。",
+      "title": "次のステップ"
+    },
+    "step1": {
+      "body": "あなたのプラットフォーム用のパッケージを <a href=\"https://github.com/bceverly/sysmanage/releases\">リリースページ</a> からダウンロードし、インストールします。インストールするバージョンを <code>X.Y.Z</code> に置き換えます。",
+      "debian": "Debian / Ubuntu",
+      "other": "他のプラットフォーム",
+      "other_body": "openSUSE、Alpine、FreeBSD、OpenBSD、NetBSD、macOSおよびWindows用のパッケージは同じリリースページで公開されます。以下の手順はすべてのプラットフォームで同一ですが、インストールコマンドとnginx設定パスのみが異なります。インストール後メッセージでは正しいパスを表示します。",
+      "rhel": "RHEL / CentOS / Fedora",
+      "title": "パッケージをインストールする"
+    },
+    "step2": {
+      "body": "ローカルのPostgreSQLインスタンスを使用するには:",
+      "remote": "リモートデータベースも同様に機能します — 次の手順でホストと資格情報を提供します。",
+      "title": "データベースを作成する"
+    },
+    "step3": {
+      "body": "サーバは <code>/etc/sysmanage.yaml</code> を読み取ります。 <a href=\"/config-builder.html\">設定ビルダー</a> はデータベース接続、ホスト名、TLS、認証およびロギングを含む完全なファイルを生成します — 手動で書くよりも速く、エラーが少なくなります。",
+      "perms": "/etc/sysmanage.yaml はデータベース資格情報を保持するため、rootのみが読み取り可能であることを確認してください。",
+      "title": "設定を書く"
+    },
+    "step4": {
+      "body": "適用すべきものを確認してから適用します。これによりコントロールプレーンスキーマがマイグレートされ、マルチテナントが有効な場合、すべてのテナントデータベースもマイグレートされます。",
+      "openbao": "マルチテナントが有効な場合、各テナントパスはOpenBAOから資格情報を取得しますので、移行時にはOpenBAOが動作している必要があります。",
+      "title": "データベースマイグレーションを実行"
+    },
+    "step5": {
+      "body": "nginxが期待する場所に証明書と秘密鍵を配置してください:",
+      "dev": "<code>dev_mode: true</code> を <code>/etc/sysmanage.yaml</code> で設定して、nginxやTLSを完全にスキップします。サーバは次いでポート3000でウェブインターフェースとAPIをHTTP経由で提供し、すべてのインターフェースにバインドされますので、LAN上のエージェントがアクセスできます。生産ホストでは決して行わないでください。",
+      "dev_label": "ローカルで評価していますか？",
+      "elsewhere": "または nginx の設定でこれらの2行を編集して別の場所にポイントすることができます — パスはプラットフォームによって異なりますので、ポストインストールメッセージにあなたのものが表示されます:",
+      "letsencrypt": "まだ証明書がない場合は、<code>certbot certonly --standalone -d your-server.example.com</code> で取得できます；その後、その名前の <code>fullchain.pem</code> と <code>privkey.pem</code> を指す行を設定します。開始前に結果を確認してください。",
+      "title": "TLS 証明書をインストールする"
+    },
+    "step6": {
+      "body": "BSD およびその他の systemd 以外のプラットフォームでは、ポストインストールメッセージに印刷されたサービスコマンドを使用します。",
+      "title": "サービスを開始する"
+    },
+    "step7": {
+      "body": "ウェブインターフェースとAPIはこの1つのオリジンから提供されます。設定ファイルの管理者アカウントでログインしてください — ユーザ名はメールアドレスです。",
+      "title": "コンソールを開く"
+    },
+    "steps": {
+      "title": "インストール"
+    },
+    "verify": {
+      "api": "2. API が応答しています",
+      "logs": "3. ログがクリアです",
+      "service": "1. サービスが実行中です",
+      "t_db": "<strong>サービスが開始してすぐに終了します:</strong> データベース接続を確認するには、<code>/etc/sysmanage.yaml</code> を参照し、マイグレーションが実行されたことを確認してください。",
+      "t_login": "<strong>ログイン時にエラーが返されます:</strong> 管理者ユーザー名はメールアドレスである必要があります（単純な名前ではありません）。",
+      "t_nginx": "<strong>nginx は起動しません:</strong> 通常、欠落または読み取り不可能な証明書のためです。 <code>sudo nginx -t</code> で読み取ることができないファイル名を表示します。",
+      "t_port": "<strong>443 でリッスンしているものがありません:</strong> nginx が実行されていることを確認し、他のサービスがポートを保持していないか確認してください。",
+      "title": "インストールを確認する",
+      "trouble": "何か問題がある場合"
     }
   }
 }

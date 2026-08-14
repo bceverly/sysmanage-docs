@@ -102,7 +102,7 @@ endif
 
 .PHONY: help install-dev install-hooks install-vm-deps install-browsers screenshot clean check-deps platform-info ensure-lint-tools \
        test test-spelling test-markdown-lint test-vale test-accessibility test-links \
-       check-test-deps website-package i18n-validate i18n-seed i18n-extract i18n-fix \
+       check-test-deps website-package i18n-validate i18n-markup i18n-markup-fix i18n-seed i18n-extract i18n-fix \
        translate translate-dry translate-check lint lint-file-length lint-python lint-security lint-js
 
 # Default target
@@ -139,6 +139,8 @@ help:
 	@echo ""
 	@echo "$(GREEN)Internationalization (docs i18n):$(RESET)"
 	@echo "  i18n-validate          - Verify every data-i18n key in the HTML exists in every locale"
+	@echo "  i18n-markup            - Verify translations keep the <code>/<strong> tags their English has"
+	@echo "  i18n-markup-fix        - Re-translate values whose markup was lost (needs SERVICE=)"
 	@echo "  i18n-seed              - Fill missing locale keys with '[TODO] <English>' placeholders"
 	@echo "  i18n-extract           - Print every data-i18n key referenced in the HTML"
 	@echo "  translate              - Fill [TODO] placeholders via the GPU service (SERVICE=http://host:8765)"
@@ -972,8 +974,19 @@ lint-js: ensure-js-lint-tools
 	@./node_modules/.bin/eslint assets/js/*.js real-screenshot.js screenshot-generator.js screenshots/capture.mjs
 	@echo "[OK] eslint passed"
 
-lint: lint-file-length lint-python lint-security lint-js i18n-validate i18n-strict translate-check
+lint: lint-file-length lint-python lint-security lint-js i18n-validate i18n-strict i18n-markup translate-check
 	@echo "[OK] docs lint (python + security + js + i18n) passed"
+
+# Structure gate. i18n-validate asks "is the key there?", translate-check asks
+# "is it non-[TODO]?", i18n-strict asks "is it English or stale?" — none of them
+# looks at the MARKUP, so a translation that dropped its <code>/<strong> tags
+# passes all three and renders wrongly only for readers of that language.
+# Ships with a baseline of the 660 pre-existing cases (2026-08-14) and fails on
+# new ones; the baseline is a ratchet that may only shrink.
+i18n-markup:
+	@echo "=== i18n markup (tags preserved from English) ==="
+	@python3 scripts/i18n_check_markup.py
+	@echo "[OK] i18n markup gate passed"
 
 # i18n: collect data-i18n="..." attributes from every .html and verify
 # every key exists in every locale .json within budget.  Run
@@ -1066,3 +1079,16 @@ i18n-fix:
 	@$(MAKE) --no-print-directory translate SERVICE=$(SERVICE)
 	@$(MAKE) --no-print-directory i18n-strict
 	@echo "[OK] i18n gate green"
+
+# Burn down the markup baseline: requeue the broken values, refill them from
+# the translation service, drop what is now clean, then re-verify.  NOT part of
+# `make lint` on purpose -- it needs the GPU service (so it cannot run in CI),
+# it REWRITES translations, and model output varies run to run.  Detection is
+# automatic; fixing is a deliberate act.
+i18n-markup-fix:
+	@echo "=== i18n markup fix: requeue -> translate -> prune -> verify ==="
+	@$(PYTHON) scripts/i18n_check_markup.py --requeue
+	@$(MAKE) --no-print-directory translate SERVICE=$(SERVICE)
+	@$(PYTHON) scripts/i18n_check_markup.py --prune
+	@$(MAKE) --no-print-directory i18n-markup
+	@echo "[OK] i18n markup gate green"

@@ -177,7 +177,7 @@
       "step1_navigate_settings": "Navegue a <strong>Configuración</strong> en la interfaz web SysManage",
       "step2_find_grafana_card": "Busque la tarjeta <strong>Integración Grafana</strong>",
       "step3_toggle_enabled": "Cambie <strong>Activado</strong> a <em>Sí</em>",
-      "step4_enter_url": "Ingrese la URL de su servidor Grafana (por ejemplo, <código>http://grafana.example.com:4317</código>)",
+      "step4_enter_url": "Introduce la URL de tu servidor Grafana (ejemplo: <code>http://grafana.example.com:4317</code>)",
       "step5_save_changes": "Haga clic en <strong>Guardar cambios</strong>",
       "sysmanage_config_description": "Habilite la integración de Grafana en SysManage para permitir la implementación de OpenTelemetry en los hosts.",
       "url_note": "La URL debe apuntar al punto final OTLP Grafana Alloy (puerto 4317), no a la interfaz web Grafana (normalmente puerto 3000).",
@@ -731,7 +731,7 @@
       "description": "Lo que cada agente puede hacer realmente en su plataforma, y cómo el servidor expone y fuerza eso.",
       "gating": "Comandos rechazados en lugar de fallar remotamente",
       "limited": "Hosts Completo, Limitado y Desconocido",
-      "link": "Capabilities Guide →",
+      "link": "Guía de capacidades →",
       "reporting": "Lo que un agente anuncia y cómo decide",
       "title": "Capacidades"
     }
@@ -2704,25 +2704,25 @@
         },
         "config": {
           "title": "La configuración role:",
-          "summary": "Add one key to /etc/sysmanage.yaml on each server:",
-          "validation": "The startup config loader validates the value at boot; an unknown role aborts startup with a clear error. The role is also exposed via the unauthenticated GET /api/v1/server-info endpoint, which the web UI uses to render a chip in the header bar so operators can see at a glance which half of an air-gap pair they're looking at.",
+          "summary": "Establece el rol desde la interfaz web — sin editar archivos de configuración. Ve a <strong>Configuración &rarr; Rol del servidor",
+          "validation": "El rol también está expuesto mediante el método <code>GET /api/v1/server-info",
           "degraded_chip": "If role: is set to collector or repository but the corresponding Pro+ engine isn't loaded (typically a license problem), the chip turns red and a tooltip explains what's missing. Server keeps running in degraded mode so you can fix the license without losing access to the rest of the UI.",
-          "opt_standard": "<strong>Estandar (sin aire acondicionado)</strong>",
-          "opt_collector": "<strong>Recolector en línea (aire acondicionado)</strong>",
-          "opt_repository": "<strong>Repositorio desconectado (lado desconectado)</strong>",
+          "opt_standard": "<strong>Estándar (sin brecha de aire)",
+          "opt_collector": "<strong>Recopilador en modo aislado (lado en línea)",
+          "opt_repository": "<strong>Repositorio en Aire (lado desconectado)",
           "persistence": "La elección se almacena en la base de datos del servidor (la <code>server_configuration"
         },
         "collection_cycle": {
           "title": "Ciclo de recolección (lado Recolector)",
           "summary": "Triggered by an operator (UI, API, or cron) on the public-side server. The engine emits a deployment plan that runs locally on the collector itself; it does not dispatch to managed agents.",
-          "step_request": "Request — POST /api/v1/airgap/collector/collection/runs with a body listing each distro/version/repo to capture, plus flags for CVE and compliance snapshot inclusion and target media size (one DVD, BD-R, etc.).",
-          "step_validate": "Validation — distros are checked against the supported list (13 families in v0.1.0); version strings are constrained to a tight regex so they cannot smuggle shell metacharacters into the dispatch templates; iso_label is constrained the same way.",
-          "step_mirror": "Mirror — per-distro dispatch templates run apt-mirror (Debian / Ubuntu), dnf reposync (RHEL family), zypper download (openSUSE / SLES), pkg fetch (FreeBSD), apk fetch (Alpine), or distribution-specific equivalents. Each command has a 4-hour timeout ceiling; the agent's in-flight journal (Phase 11.6) covers the multi-hour run across WebSocket reconnects.",
+          "step_request": "<strong>Solicitud</strong> — <code>POST /api/v1/airgap/collector/runs</code> con un cuerpo que lista cada objetivo como un <code>{mirror_id}</code> seleccionado de <code>/api/mirror-repositories</code>, más <code>iso_label</code>, <code>media_size_bytes</code>, <code>include_cve</code>, <code>include_compliance</code> y opcionalmente <code>burn_device</code>. La distribución / versión / repositorios se derivan en el servidor a partir de cada catálogo <code>known_version</code> del espejo.",
+          "step_validate": "<strong>Validación</strong> — cada espejo seleccionado debe existir, estar habilitado, tener un <code>known_version_id</code> y compartir un <code>host_id</code> con los demás (el plan de recolección despacha a un agente, por lo que no se admiten objetivos en hosts diferentes en la versión v1). Las cadenas de versiones están sujetas a una expresión regular estricta para evitar el uso de caracteres especiales del shell en las plantillas de despacho; <code>iso_label</code> está sujeta a la misma restricción.",
+          "step_mirror": "<strong>Espejo (basado en instantònea)</strong> — una vez que estén listos todos los instantòneos, el orquestador construye <code>build_snapshot_collection_run_plan</code> con un mapa de <code>source_snapshots</code> de <code>\"&lt;distro&gt;:&lt;version&gt;\"</code> → ruta del directorio del instantòneo. El plan rsynca cada arbol de instantòneos en directorios de staging por objetivo. No se ejecutan tareas upstream apt-mirror / reposync / pkg fetch al momento de la recolección — el paquete es probadamente idéntico a nivel de byte con el instantòneo. Cada rsync tiene un límite de tiempo de 4 horas; el journal en vuelo del agente (Fase 11.6) cubre la ejecución multi-hora a través de reconexiones WebSocket.",
           "step_cve": "Captura de CVE / cumplimiento — si se solicita, las fuentes NVD y de avisos del proveedor son capturadas en el mismo instante para que el conjunto resultante de medios tenga una vista coherente del momento actual de los datos públicos sobre vulnerabilidades.",
-          "step_iso": "ISO build — xorriso -as mkisofs bundles the staging tree into one ISO with the manifest embedded at /manifest.json. The post-build step computes the ISO's SHA-256 for the transfer log.",
+          "step_iso": "<strong>ISO build</strong> — <code>xorriso -as mkisofs</code> empaqueta el árbol de staging en un solo ISO en <code>/var/lib/sysmanage/airgap-iso/&lt;run_id&gt;.iso</code> con el manifiesto incrustado en <code>/manifest.json</code>. El paso post-build calcula el SHA-256 del ISO para el registro de transferencia.",
           "step_sign": "Firma — el manifiesto está canonizado (claves ordenadas, sin espacios) y firmado con la clave privada ed25519 del operador. El envoltorio lleva la firma, el SHA-256 de la clave pública como huella digital, el identificador del algoritmo y la versión del formato del manifiesto.",
-          "step_burn": "Burn — optional. POST /api/v1/airgap/collector/iso/burn wraps growisofs against the configured optical-drive device. The burn-step timeout ceiling is 4 hours so slow drives don't trip a watchdog mid-write.",
-          "multidisc_note": "Note on multi-disc spanning. v0.1.0 ships the single-disc happy path — if the staging tree exceeds the configured media size, the burn step fails at runtime. Multi-disc bin-packing is tracked as a Phase 11.1 follow-up. The schema already supports it (the manifest table carries disc_index + disc_count) so it lands additively.",
+          "step_burn": "<strong>Grabar (opcional)</strong> — si <code>burn_device</code> está configurado en la fila de ejecución, el orquestador avanza desde ISO_BUILT a BURNING al desencadenar <code>build_burn_plan</code> en esa ruta del dispositivo (generalmente <code>/dev/sr0</code>). El límite de tiempo para el paso de grabación es de 4 horas para evitar que los discos lentos activen un temporizador de vigilancia durante la escritura. Cuando <code>burn_device</code> es NULL, la ejecución avanza directamente desde ISO_BUILT a COMPLETE — el flujo \"construir un archivo ISO descargable y detenerse\" que no toca medios ópticos",
+          "multidisc_note": "<strong>Multi-disc spanning (Phase 12).</strong> Cuando <code>sum(target.source_snapshot.size_bytes) &gt; run.media_size_bytes</code> el orquestador se dirige a <code>build_snapshot_multidisc_collection_plan</code>, que empaqueta por ajuste de tamaño disminuyendo en primer lugar los arboles objetivo enteros en discos. Cada disco obtiene su propio directorio temporal + rsync + xorriso + sha256 en un plan en línea; la salida es <code>&lt;run_id&gt;-disc-&lt;N&gt;.iso</code>. El orquestador muestra un error claro si el tamaño de cualquier objetivo supera el tamaño del disco — la división a nivel de archivo (cortar un arbol espejo entre discos) se pospone; el operador selecciona medios más grandes (BD-25 → BD-50) o divide en ejecuciones separadas.",
           "step_snapshot": "<strong>Captura automática</strong> — al crear la ejecución, se envía una captura por cada espejo objetivo. Cada fila <code>AirgapCollectionTarget</code> fija su <code>source_snapshot_id</code> en la fila de captura placeholder para que el orquestador sepa cuál captura empaquetar cuando el agente reporta completado. Las capturas se ejecutan en paralelo; la ejecución permanece en <code>QUEUED</code> hasta que cada objetivo <code>last_snapshot_message_id</code> se limpia.",
           "step_download": "<strong>Descargar</strong> — <code>GET /api/v1/airgap/collector/runs/{id}/iso</code> transmite el archivo ISO. Para ejecuciones multi-discos, <code>GET /runs/{id}/discs</code> lista los archivos de disco y <code>/iso?disc=N</code> selecciona uno específico. La interfaz del recolector en aire acondicionado detecta automáticamente las ejecuciones multi-discos y muestra un cuadro de diálogo para elegir el archivo ISO cuando el operador hace clic en Descargar.",
           "lifecycle": "<strong>Etapas de ciclo de vida que el orquestador <code>airgap_run_tick</code> impulsa:</strong> <code>QUEUED</code> (esperando capturas por objetivo) → <code>MIRRORING</code> (rsync desde árboles de captura en staging) → <code>STAGING_COMPLETE</code> (solo disco único; multi-discos omiten esta etapa) → <code>BUILDING_ISO</code> (xorriso) → <code>ISO_BUILT</code> → <code>BURNING</code> (solo cuando <code>burn_device</code> está establecido) → <code>COMPLETE</code>. Cualquier fallo transiciona la ejecución a <code>FAILED</code> con el mensaje de error visible en la columna de estado de la interfaz."
@@ -2875,32 +2875,32 @@
           "title": "Actualizaciones continuas"
         },
         "repoint": {
-          "summary": "[FALTA:docs.admin.airgap_workflow.repoint.summary]",
+          "summary": "Cualquier agente gestionado por un servidor cuyo rol es <em>Air-Gap Repository</em> se reorienta automáticamente hacia el espejo local: su administrador de paquetes está configurado para usar el espejo del repositorio y sus fuentes en línea están deshabilitadas. Esto ocurre durante el ciclo normal de comunicación del agente, por lo que también captura a los agentes que ya estaban conectados cuando cambió el rol — se actualizan en su próximo registro. La directiva es auto-limitante: se reenvía solo cuando la configuración del espejo realmente cambia (un cambio de rol o una nueva ingesta), por lo que no hay un flujo repetido de <code>apt-get update</code>.",
           "title": "[FALTA:docs.admin.airgap_workflow.repoint.title]",
-          "verify": "[FALTA:docs.admin.airgap_workflow.repoint.verify]"
+          "verify": "En un host aislado de Internet puedes confirmar con <code>apt-cache policy &lt;pkg&gt;</code> (el candidato debe provenir del repositorio's <code>/airgap-repo/</code> URL) y <code>apt list --upgradable</code> (sourced entirely from the mirror)."
         },
         "roles": {
-          "collector": "[FALTA:docs.admin.airgap_workflow.roles.collector]",
-          "repository": "[FALTA:docs.admin.airgap_workflow.roles.repository]",
-          "summary": "[FALTA:docs.admin.airgap_workflow.roles.summary]",
+          "collector": "En la caja con conexión a internet, elige <em>Air-Gap Collector</em>. Seleccionar esta función genera automáticamente el par de claves ed25519 para firmar manifestos en <code>/var/lib/sysmanage/airgap/collector-ed25519.pem</code> (privada, modo 0600) junto con su hermana <code>.pub</code> — no es necesario generar las claves manualmente.",
+          "repository": "En la caja aislada, elige <em>Repositorio Air-Gap</em>.",
+          "summary": "En cada servidor, vaya a <strong>Configuración → Rol del Servidor</strong> y seleccione el rol. El rol se almacena en la base de datos y entra completamente en efecto después del próximo reinicio del servidor (se carga el motor Pro+ específico del rol al iniciar).",
           "title": "[FALTA:docs.admin.airgap_workflow.roles.title]"
         },
         "serve": {
-          "summary": "[FALTA:docs.admin.airgap_workflow.serve.summary]",
+          "summary": "En <code>COMPLETO</code>, el repositorio registra un repositorio local por distribución (visible en la página de Repositorios Aire-Aislados con el recuento de paquetes, la hora de última ingestión, frescura y la huella digital del firmante) y lo sirve a través de HTTP desde el puerto web de SysManage en <code>/airgap-repo/</code>. La URL del repositorio registrado apunta al árbol real apt/dnf dentro de los medios, por lo que no se necesita ninguna configuración manual de servidor web o enlace simbólico.",
           "title": "[FALTA:docs.admin.airgap_workflow.serve.title]"
         },
         "transport": {
-          "device": "[FALTA:docs.admin.airgap_workflow.transport.device]",
-          "import": "[FALTA:docs.admin.airgap_workflow.transport.import]",
+          "device": "En el <strong>repositorio</strong>, en Configuración → Papel del Servidor, la <em>tarjeta Importar Unidad</em> lista los dispositivos de bloque elegibles (el disco del sistema operativo nunca se ofrece). Seleccione la unidad óptica/USB — el dispositivo óptico con número más bajo es el predeterminado. Use <strong>Volver a escanear</strong> después de insertar el medio.",
+          "import": "Ve a la página de <strong>Air-Gap Repositories</strong>. El panel <em>Import from Media</em> muestra el estado en vivo del disco; el botón <strong>Import ISO</strong> se habilita cuando el disco contiene medios ISO legibles. Haz clic en él. (Usa <strong>Rescan</strong> si acabas de insertar o reparar el disco.)",
           "insert": "[FALTA:docs.admin.airgap_workflow.transport.insert]",
           "summary": "[FALTA:docs.admin.airgap_workflow.transport.summary]",
           "title": "[FALTA:docs.admin.airgap_workflow.transport.title]",
-          "verify": "[FALTA:docs.admin.airgap_workflow.transport.verify]"
+          "verify": "Importa la monta de los medios en modo solo lectura, verifica el archivo firmado <code>/manifest.json</code> contra tu almacén de claves de coleccionador confiable y rsyncs la carga útil verificada en <code>/var/lib/sysmanage/airgap-repo</code>. Observa el estado de ejecución: <code>VERIFYING_SIG</code> (comprobación de firma), <code>COPYING</code> (rsync en curso), <code>COMPLETE</code>. Un disco desde un coleccionador no confiable simplemente fallará durante la verificación."
         },
         "trust": {
-          "copy": "[FALTA:docs.admin.airgap_workflow.trust.copy]",
-          "import": "[FALTA:docs.admin.airgap_workflow.trust.import]",
-          "summary": "[FALTA:docs.admin.airgap_workflow.trust.summary]",
+          "copy": "En el <strong>collector</strong>, en Configuración → Papel del Servidor, la tarjeta de <em>Clave Pública del Recolector</em> muestra la clave pública y su huella digital. Haga clic en <strong>Copiar Clave Pública</strong> para poner el PEM en su portapapeles (y anote la huella digital — coincide con la <code>signer_fingerprint</code> estampada en cada manifiesto).",
+          "import": "En el <strong>repositorio</strong>, en Configuración → Papel del Servidor, use la pestaña <em>Claves de Recolección Confiables</em>: asigne un nombre al recolector, pegue el PEM y haga clic en <strong>Importar Clave</strong>. La clave importada se escribe en <code>/var/lib/sysmanage/airgap/trusted-collectors/&lt;nombre&gt;.pub</code> y la pestaña la lista con su huella digital. El almacén de claves puede contener varias claves, por lo que puede confiar en varios recolectores y rotar las claves sin tiempo muerto.",
+          "summary": "El repositorio solo ingestionará medios firmados por un recolector en el que confíe. La confianza se establece copiando la clave pública <em>pública</em> del recolector al repositorio — la clave privada de firma nunca abandona el recolector.",
           "title": "[FALTA:docs.admin.airgap_workflow.trust.title]",
           "transfer": "[FALTA:docs.admin.airgap_workflow.trust.transfer]"
         }
@@ -2968,8 +2968,8 @@
         "meta_description": "Referencia de punto final REST para cada motor Professional+: automatización, alertas, auditoría, AV, cumplimiento, contenedores, flota, firewall, salud, observabilidad, secretos, virtualización, vulnerabilidades.",
         "observability": {
           "title": "Motor de observabilidad",
-          "builders": "[FALTA:docs.api.engines.observability.builders]",
-          "shim": "[FALTA:docs.api.engines.observability.shim]"
+          "builders": "Planificadores-expositores del motor incluyen: <code>build_otel_multiplatform_deploy_plan</code>, <code>build_otel_multiplatform_remove_plan</code>, <code>build_otel_service_control_plan</code> (iniciar/parar/reiniciar), <code>build_otel_grafana_connection_plan</code> (conectar/desconectar), <code>build_otel_status_plan</code>, <code>build_graylog_linux_autodetect_plan</code>, <code>build_graylog_bsd_syslog_append_plan</code>, <code>build_graylog_sidecar_plan</code> (variante api_token), <code>build_graylog_sidecar_no_token_plan</code> (variante de carga Windows OSS), <code>build_graylog_status_plan</code>, <code>build_grafana_provision_plan</code>.",
+          "shim": "Puntos de observabilidad OSS (<code>POST /hosts/{id}/deploy-opentelemetry</code>, <code>/remove-opentelemetry</code>, <code>/opentelemetry/{start,stop,restart,connect,disconnect}</code>, <code>/host/{id}/attach_to_graylog</code>) todos pasan por <code>backend/services/observability_shim.py</code> primero; cuando se carga el motor, envían <code>APPLY_DEPLOYMENT_PLAN</code> a través del ejecutor genérico del agente. Retrocede al comando genérico legacy <code>generic_command</code> WS cuando el motor no está cargado. El camino elegido para cada solicitud se registra en <code>details.dispatch_path</code> en el registro de auditoría."
         },
         "page_title": "Referencia API de motores Pro+ - SysManage",
         "secrets": {
@@ -2994,7 +2994,7 @@
           "intro": "Perfiles POSIX-cron que describen actualizaciones recurrentes de la flota con opciones de solo seguridad e implementación escalonada.",
           "phase10_6": "<strong>Fase 10.6:</strong> el analizador cron y el envío por host se trasladaron al módulo <code>automation_engine</code> Pro+. Cada ruta <code>/api/v1/upgrade-profiles/*</code> devuelve <code>402 Pago requerido</code> cuando el motor no está cargado.",
           "list": "Enumere los perfiles con sus marcas de tiempo de próxima ejecución.",
-          "create": "Crear. Cuerpo: <código>{nombre, descripción?, cron, ¿habilitado?, ¿solo seguridad?, administradores de paquetes?, ventana_escalonada_min?, id_etiqueta?}</código>. <code>cron</code> es validado por <code>automation_engine.validate_cron_expression</code> (listas, rangos, intervalos de pasos, nombres de día/mes, dom/dow OR-semántica). <code>staggered_window_min</code> está limitado a <code>[0, 720]</code> minutos.",
+          "create": "Crear. Cuerpo: <code>{name, description?, cron, enabled?, security_only?, package_managers?, staggered_window_min?, tag_id?}</code>. <code>cron</code> se valida por <code>automation_engine.validate_cron_expression</code> (listas, rangos, intervalos de paso, nombres de día/mes, semántica OR para dom/dow). <code>staggered_window_min</code> se ajusta a <code>[0, 720]</code> minutos.",
           "get": "Lee uno.",
           "update": "Actualizar. Los cambios cron recalculan <code>next_run</code> automáticamente.",
           "delete": "Eliminar.",
@@ -3803,10 +3803,10 @@
           "get": "leer un espejo",
           "intro": "Cada ruta a continuación devuelve 402 sin <code>repository_mirroring_engine</code> cargado.",
           "list": "lista de espejos",
-          "list_snapshots": "listar instantáneas",
-          "restore": "restaurar una instantánea",
+          "list_snapshots": "lista instantáneas (incluye <code>tamaño_en_bytes</code> + <code>cantidad_de_archivos</code> de rsync <code>--stats</code>)",
+          "restore": "restaurar un instantòneo (sellos <code>last_restore_message_id</code>)",
           "settings": "configuración de administrador (singleton heredado)",
-          "snapshot": "toma una foto ahora",
+          "snapshot": "hacer una instantánea ahora (marca con <code>last_snapshot_message_id</code> para seguimiento en tránsito)",
           "sync": "active el plan de sincronización inmediatamente",
           "tick": "gancho controlador impulsado por cron",
           "title": "Referencia de la API",
@@ -3851,7 +3851,7 @@
         },
         "snapshots": {
           "gc": "La retención de instantáneas se rige por <code>snapshot_count_to_keep</code>. El plan de recolección de basura enumera las instantáneas en orden alfabético (= cronológico), descarta todo lo anterior al conteo de conservación y <code>rm -rf</code>s el resto después de relajar el indicador de solo lectura.",
-          "intro": "Una instantánea es un <code>rsync -aH --delete</code> del árbol activo en un directorio hermano de solo lectura en <code>{mirror_root}/{name}/.snapshots/{snapshot_id}</code>. Los ID de instantáneas son marcas de tiempo ordenables (<code>AAAAMMDDTHHMMSS</code>). Después de rsync, el motor ejecuta <code>chmod -R a-w</code> para que la instantánea no se pueda modificar en su lugar.",
+          "intro": "Un instantáneo es un <code>rsync -aH --delete --stats</code> del árbol en vivo hacia un directorio hermano de solo lectura en <code>{mirror_root}/{name}/.snapshots/{snapshot_id}</code>. Las IDs de instantáneo son marcas temporales ordenables (<code>YYYYMMDDTHHMMSS</code>). Después del rsync, el motor ejecuta <code>chmod -R a-w</code> para asegurar que el instantáneo no pueda modificarse in situ. La salida de <code>--stats</code> se analiza en el servidor para poblar <code>size_bytes</code> y <code>file_count</code> en la fila <code>mirror_snapshot</code> — no es necesario un segundo paso para conocer el peso del instantáneo.",
           "restore": "Restaurar es lo contrario: una rsync de la instantánea elegida al árbol en vivo. El motor no realiza un cambio de enlace simbólico, porque la mayoría de los servidores espejo (httpd, nginx) tienen caché en estadística y el rsync in situ es más sencillo de razonar que coordinar un cambio entre los procesos de trabajo.",
           "title": "Instantáneas y restauración",
           "sudoers": "<strong>Solicitud sudoers.</strong> Tanto los planes de captura como los de restauración invocan <code>sudo rsync</code> + <code>sudo chmod</code>. El fragmento sudoers del sysmanage-agent (ubicado en <code>/etc/sudoers.d/sysmanage-agent</code> en Linux, o <code>/etc/doas.d/sysmanage-agent</code> en OpenBSD) permite explícitamente estas operaciones — una entrada de rsync ausente se presentaría como un plan que falla rápidamente con el mensaje de sudo \"usuario no permitido para ejecutar\" en los resultados del comando del agente. Si configura su propio sudoers localmente, refleje la lista de permisos desde el archivo empaquetado por el instalador."
@@ -4012,7 +4012,7 @@
           "intro": "La pestaña Air-Gap Install Bundles en Ajustes puede producir tres ISOs distintas. Elija las que coincidan con lo que planea ejecutar dentro del enclave; todas se generan desde la misma pestaña en el mismo host Pro+-licenciado.",
           "server": "<strong>Bundel del servidor</strong> (~1 GB) — el paquete SysManage server <code>.deb</code>/<code>.rpm</code>/<code>.apk</code>/<code>.pkg</code>/<code>.msi</code> para cada plataforma soportada, más su cierre transitivo completo de dependencias nativas (PostgreSQL, nginx, Python build deps) y cada wheel Python desde <code>requirements.txt</code>. Instale esto primero en el host servidor aislado.",
           "agent": "<strong>Paquete de agente</strong> (~500 MB) — el paquete SysManage agent para cada plataforma soportada, con su cierre transitivo de paquetes nativos y wheels. Instale esto en cada host dentro del enclave que debe ser gestionado.",
-          "proplus": "<strong>Bundel Pro+ overlay</strong> (~50 MB) — archivos <code>.so</code> del motor Cython, enganches de plugin JavaScript, JWT de licencia y clave pública de licencia cachada. Aplicar esto en el host servidor aislado <em>después</em> de instalar el bundle del servidor; desbloquea motores Pro+ localmente sin ninguna llamada a casa a <code>license.sysmanage.org</code>. No es necesario si solo necesita características de la tier Comunidad en el servidor aislado.",
+          "proplus": "<strong>Paquete de superposición Pro+</strong> (~50 MB) — los archivos <code>.so</code> del motor Cython del host de compilación, encajes de plugin JavaScript, JWT de licencia y clave pública de licencia cachada. Aplica esto en el host <em>servidor</em> aislado <strong>después</strong> de instalar el paquete del servidor; desbloqueará motores Pro+ localmente sin ninguna comunicación con <code>license.sysmanage.org</code>. No es necesario si solo necesitas características de la tier Comunidad en el servidor aislado.",
           "order": "Si desea la funcionalidad Pro+ en el servidor aislado, el orden de instalación es: <strong>(1) paquete del servidor en el host del servidor, (2) superposición Pro+ en el mismo host del servidor, (3) paquete del agente en cada host administrado</strong>. El instalador de la superposición Pro+ espera que ya esté presente el servidor SysManage — copia módulos del motor en <code>/var/lib/sysmanage/modules/</code>, coloca la clave pública del licenciamiento en <code>/var/lib/sysmanage/license/</code>, escribe el JWT del licenciamiento en <code>/etc/sysmanage.yaml</code> y reinicia el servicio."
         },
         "proplus_install": {
@@ -4075,7 +4075,7 @@
             "federation": "Sincronización federada de sitios + diferencias de versiones",
             "views": "Vistas de contenido filtradas e inmutables (incluyendo composites)"
           },
-          "link": "Content Lifecycle Guide →",
+          "link": "Guía de Ciclo de Vida del Contenido →",
           "title": "📦 Content Lifecycle Management"
         },
         "composite": {
@@ -4110,7 +4110,7 @@
         },
         "meta_description": "",
         "overview": {
-          "intro": "El módulo Enterprise <code>content_lifecycle_engine</code> se construye sobre la base de <a href=\"repository-mirroring.html\">espejo de repositorio</a>. Espejos planos se convierten en <strong>vistas de contenido</strong>: selecciones nombradas, filtradas y versionadas de repositorios. Publicar una vista de contenido materializa una versión inmutable en el host del espejo, que luego promueves a lo largo de un camino ordenado de entornos. Al igual que con los otros motores, el servidor OSS posee la API, el esquema y la puerta de licencia (cada punto final devuelve HTTP 402 sin cargar el motor); el motor emite los mensajes <code>apply_deployment_plan</code> que el agente del host del espejo ejecuta. No se requieren cambios en el código del agente.",
+          "intro": "El módulo Enterprise de <code>content_lifecycle_engine</code> se basa en la suscripción a <a href=\"repository-mirroring.html\">espejos de repositorio</a>. Los espejos planos se convierten en <strong>vistas de contenido</strong>: selecciones nombradas, filtradas y versionadas de repositorios. Publicar una vista de contenido materializa una <strong>versión inmutable</strong> en el host del espejo, que luego puedes <strong>promover</strong> a lo largo de un camino de entornos ordenados. Al igual que con los demás motores, el servidor OSS posee la API, el esquema y la puerta de licencia (cada punto final devuelve HTTP 402 sin cargar el motor); el motor emite los mensajes <code>apply_deployment_plan</code> que ejecuta el agente del host del espejo. No se requieren cambios en el código del agente.",
           "split": "Las definiciones de vistas de contenido (entornos, vistas, filtros, versiones) son la verdad en la partición compartida; el estado de promoción por inquilino (qué versión está vinculada a qué entorno, el registro de auditoría y las suscripciones del sitio) vive en la partición del inquilino, haciendo referencia cruzada a los IDs compartidos.",
           "title": "Visión general"
         },
@@ -4181,7 +4181,7 @@
         "breadcrumb": "Contenido de Imágenes en Contenedor",
         "capture": {
           "intro": "La acción <strong>Capturar imágenes</strong> usa <a href=\"https://github.com/containers/skopeo\"><code>skopeo</code></a> para copiar cada imagen rastreada en una configuración autónoma, congelada por digest <strong>OCI layout</strong> bajo el espejo. Porque skopeo es <strong>senseless</strong>, no se requiere un daemon de <code>dockerd</code> o <code>podman</code> en la máquina del espejo — la captura es una copia simple, amigable para estar fuera línea de los manifiestos y capas de la imagen.",
-          "pin": "El digest del <strong>manifiesto de la imagen</strong> se registra como el pin inmutable. Esto hace que cada imagen capturada sea evidente ante manipulaciones y verificable en línea: el digest identifica el contenido exacto, por lo que una imagen capturada puede ser validada en cualquier momento posterior sin contactar al registro de origen.",
+          "pin": "El <strong>digest del manifesto de la imagen</strong> se registra como el pin inmutable. Esto hace que cada imagen capturada sea <strong>evidente de alteraciones</strong> y <strong>verificable fuera de línea</strong>: el digest identifica el contenido exacto, por lo que una imagen capturada puede ser validada en cualquier momento posterior sin contactar al registro de origen.",
           "title": "Capturar"
         },
         "header": {
@@ -4192,7 +4192,7 @@
         "meta_description": "",
         "overview": {
           "gate": "Al igual que con otros motores, la función está restringida al nivel empresarial — el servidor OSS posee la API, el esquema y la puerta de licencia, mientras que el motor compilado realiza la captura y trabajo del contenido. Con él cargado, las imágenes en contenedor se convierten en <strong>contenido curado, versionado y offline</strong>: captenlas una vez, firmenlas por digest, snapshotenlas en una versión de vista de contenido inmutable, promocionenlas a través de sus entornos de ciclo de vida y sirvanlas a los hospederos sin un registro vivo requerido.",
-          "intro": "El Ciclo de Vida del Contenido de Imágenes en Contenedor es una <strong>función empresarial</strong>, entregada por el motor compilado <code>oci_proxy_engine</code>. Llega a la paridad con un entorno de vistas de contenido estilo Satellite: tus imágenes OCI / Docker fluyen a través del mismo canal de captura → versión → promoción → servicio que los paquetes <a href=\"repository-mirroring.html\">espeleados</a> y los snaps <a href=\"snap-proxy.html\">servidos</a>.",
+          "intro": "Container Image Content Lifecycle es una <strong>característica de Enterprise</strong>, proporcionada por el compilado <code>oci_proxy_engine</code>. Alcanza la paridad con una vista de contenido de imagen-container estilo Satellite: sus imágenes OCI / Docker <strong>de contenedor</strong> fluyen a través del mismo pipeline de captura → versión → promover → servir que <a href=\"repository-mirroring.html\">paquetes espejo</a> y <a href=\"snap-proxy.html\">snaps</a>.",
           "title": "Resumen"
         },
         "promote": {
@@ -4216,7 +4216,7 @@
         "track": {
           "figcaption": "Un espejo expandido muestra las imágenes de contenedor que rastrea — cada una con su registro / repositorio, etiqueta, estado de captura y, una vez capturada, el digest firmado — la identidad inmutable del manifiesto exacto que se obtuvo.",
           "intro": "En un espejo (Configuración → Espejeo de Repositorio) rastreas las imágenes de contenedor que deseas por <strong>registro / repositorio / etiqueta</strong> — por ejemplo <code>docker.io</code> / <code>library/nginx</code> / <code>1.27</code>. Cada imagen rastreada es una fila que se mantiene en el espejo al que pertenece, por lo que las imágenes son curadas exactamente en el lugar donde ya gestionas el contenido upstream.",
-          "status": "Una imagen rastreada muestra un <strong>estado de captura</strong> a medida que avanza por la línea de producción — <code>RASTREADO → ENVIADO → CAPTURADO</code> (o <code>FALLIDO</code>). Una vez capturada, la fila también lleva el digest firmado — la identidad inmutable del manifiesto exacto que se obtuvo.",
+          "status": "Una imagen rastreada muestra un <strong>estado de captura</strong> a medida que avanza por el pipeline — <code>TRACKED → DISPATCHED → CAPTURED</code> (o <code>FAILED</code>). Una vez capturada, la fila también lleva el <strong>digest</strong> fijado — la identidad del manifiesto inmutable de exactamente cuáles bytes fueron obtenidos.",
           "title": "Rastrear Imágenes"
         }
       },
@@ -4226,7 +4226,7 @@
           "li1": "Detectar estado de imagen arrancada / estacionada / de retroceso",
           "li2": "Etapa / aplica / deshace (bootc + rpm-ostree)",
           "li3": "Interfaz de usuario para la actualización de paquetes desactivada para hosts en modo imagen",
-          "link": "Image-Mode Hosts Guide →",
+          "link": "Guía de anfitriones en modo imagen →",
           "title": "🇦 Image-Mode Hosts"
         },
         "imgcontent": {
@@ -4234,7 +4234,7 @@
           "li1": "Rastrear imágenes por registro / repositorio / etiqueta",
           "li2": "Captura digest-pinned con skopeo (sin daemon)",
           "li3": "ISO aislada + repoint offline",
-          "link": "Container Image Content Guide →",
+          "link": "Guía de contenido de la imagen del contenedor →",
           "title": "📦 Container Image Content"
         },
         "snapproxy": {
@@ -4242,7 +4242,7 @@
           "li1": "Rastrear snaps por nombre + canal",
           "li2": "Capturar snaps + afirmaciones (sin daemon)",
           "li3": "Promover y reorientar hosts fuera de línea",
-          "link": "Snap Store Proxy Guide →",
+          "link": "Guía del proxy de Snap Store →",
           "title": "📦 Snap Store Proxy"
         }
       },
@@ -4272,12 +4272,12 @@
           "title": "Requisitos"
         },
         "serve": {
-          "body": "Un hospedero consumidor es <strong>repointado</strong> para instalar el entorno de snaps servidos completamente offline: obtiene el paquete snap, ejecuta <code>snap ack</code> sobre las afirmaciones capturadas y luego lo instala desde el contenido local — no se requiere contacto con la tienda upstream, por lo que funciona en redes aisladas.",
+          "body": "Un host consumidor es <strong>redirigido</strong> para instalar completamente en línea los snaps servidos por un entorno: extrae el paquete de snaps, ejecuta <code>snap ack</code> sobre las afirmaciones capturadas y luego los instala desde el contenido local — no se requiere contacto con la tienda upstream, por lo que funciona en redes aisladas. Esta es la acción <strong>Repoint snaps</strong> en la línea de promoción de la vista de contenido, reflejando cómo funciona la reanudación para los contenidos DEB/RPM.",
           "title": "Servir y Reorientar Hosts"
         },
-        "title": "Snap Store Proxy - Professional+ - SysManage",
+        "title": "Tienda de Snap Proxy - Profesional+ - SysManage",
         "track": {
-          "body": "En un espejo (<strong>Ajustes → Espejeo del Repositorio</strong>) rastreas los snaps que deseas curar por <strong>nombre + canal</strong> — por ejemplo <code>firefox</code> en <code>latest/stable</code>. Cada snap rastreado lleva un estado de captura que lo guía a través del pipeline: <code>RASTREADO → ENVIADO → CAPTURADO</code>, o <code>FALLIDO</code> si una captura no pudo completarse.",
+          "body": "En un espejo (<strong>Configuración → Espejos de repositorio</strong>) rastreas las snaps que deseas curar por <strong>nombre + canal</strong> — por ejemplo <code>firefox</code> en <code>latest/stable</code>. Cada snap rastreada lleva un <strong>estado de captura</strong> que la guía a través del pipeline: <code>TRACKED → DISPATCHED → CAPTURED</code>, o <code>FAILED</code> si una captura no pudo completarse.",
           "title": "Rastrear Snaps"
         }
       }
@@ -4417,10 +4417,10 @@
           "107": "Métricas del sistema",
           "108": "Copiar YAML",
           "109": "📥 Descargar Archivo de Configuración",
-          "emailMoved": "[FALTA:docs.auto.home.config-builder.emailMoved]",
-          "secrets-body": "[FALTA:docs.auto.home.config-builder.secrets-body]",
-          "secrets-li1": "[FALTA:docs.auto.home.config-builder.secrets-li1]",
-          "secrets-li2": "[FALTA:docs.auto.home.config-builder.secrets-li2]",
+          "emailMoved": "El correo electrónico ya no está configurado en <code>sysmanage.yaml</code> (v3.0+). Configura el servidor SMTP, las credenciales y los modelos en la aplicación bajo <strong>Configuración → Configuración</strong> (por tenant); la contraseña SMTP se almacena en OpenBAO, no en YAML.",
+          "secrets-body": "A partir de la versión v3.0, <code>sysmanage.yaml</code> es un <strong>puntero mínimo de arranque</strong>: solo necesita cómo llegar a la base de datos/registro y OpenBAO, más configuraciones de escucha/TLS. Generalmente no <strong>pones</strong> secretos o configuraciones operativas aquí:",
+          "secrets-li1": "<strong>Secretos</strong> (JWT secret, password salt, admin password, DB password, SMTP password) son <strong>generados durante la instalación segura en OpenBAO</strong> — manténlos fuera del YAML.",
+          "secrets-li2": "<strong>Configuración de ajustes operativos</strong> (tiempos de espera de inicio de sesión y mensajes, afinado de la cola de mensajes, monitoreo) y <strong>correo electrónico</strong> (servidor, credenciales, plantillas) se configuran en <strong>Configuración</strong> después del primer inicio de sesión — el correo electrónico es por inquilino",
           "secrets-li3": "[FALTA:docs.auto.home.config-builder.secrets-li3]",
           "secrets-title": "[FALTA:docs.auto.home.config-builder.secrets-title]",
           "110": "Opciones de la base de datos (opcional)"
@@ -4711,13 +4711,13 @@
           "010": "Ciclo de Vida del Agente: Gestión de la instalación, actualización y descomisionamiento del agente",
           "011": "Organización Lógica de Grupos de Hosts para la Gestión y Monitoreo",
           "012": "Etiquetas y Metadatos: Sistema de etiquetado para categorizar y filtrar hosts",
-          "013": "Gestión de Inventario: Seguimiento de detalles de硬件架构细节不足，但我可以根据给定的规则提供一个符合要求的JSON对象示例。由于前文提到的内容与所需翻译无关，我将忽略并直接给出结果：",
+          "013": "Gestión de inventario: Seguimiento de detalles de hardware, software y configuración",
           "014": "Registro y Aprobación de Hosts",
           "015": "Proceso de Registro",
           "016": "Cuando un nuevo agente es instalado y configurado, sigue este proceso de registro:",
           "017": "Conexión inicial: El agente establece una conexión segura con el servidor",
           "018": "Verificación de Identidad: El servidor valida el certificado y las credenciales del agente",
-          "019": "Descubrimiento del sistema: El agente informa sobre el inventario de硬件和软件库存",
+          "019": "Descubrimiento del sistema: El agente informa el inventario de hardware y software",
           "020": "Cola de Aprobación: El host aparece en la interfaz administrativa para su aprobación",
           "021": "Revisión del Administrador: El administrador revisa los detalles del host y aprueba/rechaza",
           "022": "Monitoreo Activo: Hosts aprobados comienzan la recolección regular de datos",
@@ -5191,7 +5191,7 @@
           "270": "Guía de Ventanas de Mantenimiento →",
           "271": "PostgreSQL High Availability",
           "272": "Ejecuta el servidor contra un clúster de PostgreSQL con alta disponibilidad y sobrevive a la caída del principal sin intervención manual: estrategia de punto final de conexión, comportamiento automático de pre-ping/reintento/salud y lo que deja al administrador del clúster.",
-          "273": "PostgreSQL High Availability Guide →"
+          "273": "Guía de Alta Disponibilidad de PostgreSQL →"
         },
         "maintenance": {
           "001": "Documentación",
@@ -5522,7 +5522,7 @@
           "164": "Seleccione “Prometheus”",
           "165": "Configurar la fuente de datos: Nombre: URL SysManage Prometheus http://your-sysmanage-host:9091 (utilice el nombre real del host, no “localhost”) Acceso: Servidor (predeterminado) Intervalo de raspado: 15s Método HTTP: POST",
           "166": "Haga clic en “Guardar y Probar”",
-          "167": "Paneles de仪表盘推荐",
+          "167": "Paneles de tablero recomendados",
           "168": "Tablero de Instrumentación de Rendimiento de la Aplicación",
           "169": "Tasa de solicitudes: rate(http_server_requests_total[5m])",
           "170": "Tiempo de respuesta (P95): histogram_quantile(0.95, http_server_duration_bucket)",
@@ -8388,7 +8388,7 @@
           "010": "GET /api/v1/alerting/rules / POST /api/v1/alerting/rules — CRUD para reglas",
           "011": "GET /api/v1/alerting/channels / POST /api/v1/alerting/channels — CRUD para canales de notificación (correo electrónico, Slack, webhook)",
           "012": "GET /api/v1/alerting/history — historial de alertas activadas con estado (abierto / confirmado / cerrado)",
-          "013": "POST /api/v1/alerting/history/{id}/ack —承认",
+          "013": "POST /api/v1/alerting/history/{id}/ack — reconocer",
           "014": "GET /api/v1/audit/log — consulta (acción, tipo_de_entidad, id_de_entidad, usuario, rango_de_tiempo)",
           "015": "GET /api/v1/audit/log/export — exportación CSV / JSON de registros filtrados",
           "016": "GET /api/v1/audit/retention / PUT /api/v1/audit/retention — política de retención",
@@ -8585,7 +8585,7 @@
           "040": "Actualizaciones de estado en tiempo real",
           "041": "Ejecución del comando y resultados",
           "042": "Transmisión y notificaciones de eventos",
-          "043": "WebSocket API →",
+          "043": "API WebSocket →",
           "044": "\n\brief Monitoreo",
           "045": "Monitoreo del sistema, recopilación de métricas y alertas a través de interfaces programáticas.",
           "046": "Métricas del sistema y datos de rendimiento",
@@ -8658,7 +8658,7 @@
           "113": "API de Federación →",
           "114": "Plano de control",
           "115": "Puntos finales del plano de control multitenant — inquilinos, colocación e implementación, tokens de registro y concesiones (multitenancia Professional+).",
-          "116": "Control Plane API →"
+          "116": "API de Control de Plano →"
         },
         "monitoring": {
           "001": "Documentación",
@@ -8895,7 +8895,7 @@
           "135": "Use flujos de trabajo de aprobación para modificaciones críticas del sistema",
           "136": "Navegación Rápida",
           "137": "← Administración del Host",
-          "138": "WebSocket API →"
+          "138": "API WebSocket →"
         },
         "phase8-features": {
           "001": "Documentación",
@@ -9627,7 +9627,7 @@
           "044": "GET /api/v1/federation/audit — listar entradas de auditoría de federación",
           "045": "GET /api/v1/federation/audit/{entry_id} — detalles de entrada de auditoría",
           "046": "GET /api/v1/federation/alerts — listar alertas consolidadas",
-          "047": "POST /api/v1/federation/alerts/{alert_id}/acknowledge —承认一个警报",
+          "047": "POST /api/v1/federación/alertas/{alert_id}/confirmar — confirmar una alerta",
           "048": "GET /api/v1/federation/alert-config / PUT — leer o actualizar la configuración de alertas",
           "049": "GET /api/v1/federation/secret-leases — listar alquileres secretos conscientes de la federación",
           "050": "POST /api/v1/federacion/secret-leases/{lease_id}/revocar — revocar una concesión de secreto",
@@ -9644,7 +9644,7 @@
           "061": "La superficie del lado del sitio: inscribirse con un coordinador, recibir empujes de política/comando/contrato desde él y exponer el estado de sincronización local y la cola entrante al operador del sitio.",
           "062": "POST /api/v1/federacion/sitio/inscribirse — iniciar la inscripción con un coordinador",
           "063": "GET /api/v1/federation/site/enrollment-status — estado de inscripción del sitio",
-          "064": "POST /api/v1/federation/site/politicas — recibir una推送剩余部分的翻译内容，确保它是技术性的西班牙语，保持URL和代码不变。推送的内容应该是自然和技术化的西班牙语表达，而不是逐字翻译。",
+          "064": "ENVIAR UNA POLÍTICA DE IMPULSIÓN DESDE EL COORDINADOR A TRAVÉS DE POST /api/v1/federation/site/policies",
           "065": "POST /api/v1/federation/site/commands — recibir un despacho de comando del coordinador",
           "066": "POST /api/v1/federacion/sitio/arrendamientos-secretos — recibir un arrendamiento secreto del coordinador",
           "067": "GET /api/v1/federacion/sitio/estado-sincronizacion — estado de sincronización con el coordinador",
@@ -11752,7 +11752,7 @@
           "061": "Validación de entrada",
           "062": "Registros de auditoría",
           "063": "DevOps y Pruebas",
-          "064": "GitHub Actions CI/CD",
+          "064": "Acciones de GitHub CI/CD",
           "065": "Marco pytest",
           "066": "Coverage.py",
           "067": "Formatter de Black",
@@ -11918,7 +11918,7 @@
           "138": "Puntos de Integración",
           "139": "Integración con sistemas externos",
           "140": "Sistemas de Autenticación",
-          "141": "LDAP/Active Directory",
+          "141": "LDAP/Directorio Activo",
           "142": "Proveedores SAML 2.0",
           "143": "OAuth 2.0/OpenID Connect",
           "144": "Autenticación Mútiple en Factores",
@@ -13222,7 +13222,7 @@
           "104": "Recargar la página si es necesario para ver el inventario actualizado",
           "105": "\n\brief Verificación Post-desinstalación",
           "106": "Para sistemas críticos, verifique también:",
-          "107": "Los servicios dependientes仍在原文的中文部分，这部分应当被忽略，请只翻译给定的英文字符串。继续完成正确的西班牙语翻译。",
+          "107": "Los servicios dependientes aún funcionan",
           "108": "Los registros del sistema no muestran errores relacionados",
           "109": "El rendimiento global del sistema es normal",
           "110": "La funcionalidad requerida sigue disponible",
@@ -13316,127 +13316,6 @@
           "002": "Comenzar",
           "003": "Inicio Rápido",
           "004": "Guía de Inicio Rápido",
-          "005": "Consiga SysManage en funcionamiento en minutos con Docker Compose. Perfecto para evaluaciones, desarrollo y despliegues a pequeña escala.",
-          "006": "Resumen",
-          "007": "Esta guía rápida le permitirá ejecutar SysManage en menos de 10 minutos usando Docker Compose. Este método proporciona una instalación completa y autónoma de SysManage perfecta para pruebas, desarrollo o entornos pequeños de producción.",
-          "008": "Requisitos previos",
-          "009": "Requisitos del sistema",
-          "010": "Servidor Linux o VM con al menos 4GB de RAM (8GB recomendado)",
-          "011": "2 núcleos de CPU mínimo (4+ recomendados)",
-          "012": "20 GB de espacio en disco disponible (se recomienda 50 GB o más)",
-          "013": "Acceso a la red en los puertos 80, 443 y 8443",
-          "014": "Requisitos de Software",
-          "015": "Docker Engine 20.10+ instalado",
-          "016": "Docker Compose 2.0+ instalado",
-          "017": "Git (para clonar el repositorio)",
-          "018": "Acceso administrativo/sudo",
-          "019": "Requisitos de red",
-          "020": "Acceso a Internet para descargar imágenes de Docker",
-          "021": "El firewall está configurado para permitir conexiones entrantes",
-          "022": "IP estática o nombre DNS (recomendado)",
-          "023": "Instalando Docker (si es necesario)",
-          "024": "Si no tienes instalado Docker, aquí tienes comandos de instalación rápidos para plataformas comunes:",
-          "025": "Ubuntu/Debian",
-          "026": "RHEL/CentOS/Fedora",
-          "027": "Pasos de Instalación",
-          "028": "Clonar el Repositorio",
-          "029": "Clone el repositorio SysManage para obtener la configuración Docker Compose:",
-          "030": "Nota:",
-          "031": "Configurar entorno",
-          "032": "Copie y personalice la configuración del entorno:",
-          "033": "Opciones de Configuración Clave",
-          "034": "Ajuste",
-          "035": "Predeterminado",
-          "036": "Descripción",
-          "037": "POSTGRES_PASSWORD",
-          "038": "SysManage",
-          "039": "Contraseña de la base de datos (cambiar para producción)",
-          "040": "CLAVE_SECRETA",
-          "041": "auto-generado",
-          "042": "Clave secreta de la aplicación",
-          "043": "PUERTO_ESCUCHA",
-          "044": "8443",
-          "045": "Puerto de la interfaz web",
-          "046": "DOMAIN_NAME",
-          "047": "localhost",
-          "048": "Nombre de dominio o IP del servidor",
-          "049": "Para Inicio Rápido:",
-          "050": "Generar certificados SSL",
-          "051": "SysManage requiere certificados SSL para comunicación segura. Generar certificados autofirmados para pruebas:",
-          "052": "Nota de producción:",
-          "053": "Iniciar SysManage",
-          "054": "Use Docker Compose para iniciar todos los servicios de SysManage:",
-          "055": "Deberías ver una salida similar a:",
-          "056": "Crear Usuario Administrador",
-          "057": "Crear su primera cuenta de administrador:",
-          "058": "Seguridad:",
-          "059": "Acceder a la interfaz web",
-          "060": "Abra su navegador web e ingrese en SysManage:",
-          "061": "Advertencia de certificado:",
-          "062": "Inicie sesión con las credenciales de administrador que creó en el paso 5.",
-          "063": "Verificar instalación",
-          "064": "Verificaciones de Salud",
-          "065": "Verificar que todos los componentes funcionan correctamente:",
-          "066": "1. Estado del Servicio",
-          "067": "2. Comprobación de Salud de la API",
-          "068": "3. Conexión a la base de datos",
-          "069": "4. Interfaz web",
-          "070": "La página de inicio de sesión carga correctamente",
-          "071": "Puede autenticarse con credenciales de administrador",
-          "072": "El tablero se muestra sin errores",
-          "073": "El menú de navegación funciona correctamente",
-          "074": "Solución Rápida de Problemas",
-          "075": "El contenedor no se inicia",
-          "076": "No se puede acceder a la interfaz web",
-          "077": "Verifique que la configuración del firewall permita el puerto 8443",
-          "078": "Verificar el mapeo de puertos Docker: docker compose ps",
-          "079": "Intente acceder mediante HTTP primero: http://localhost:8080",
-          "080": "Problemas con el certificado SSL",
-          "081": "Pasos siguientes",
-          "082": "Explora la Interfaz",
-          "083": "Familiarícese con la interfaz web de SysManage y sus características.",
-          "084": "Recorrido por la Interfaz Web →",
-          "085": "Instala Tu Primer Agente",
-          "086": "Agregar agentes de supervisión a sus hosts para comenzar a recopilar datos.",
-          "087": "Instalación del Agente →",
-          "088": "Gestión Básica",
-          "089": "Aprende tareas y flujos de trabajo esenciales para la administración.",
-          "090": "Conceptos básicos de administración →",
-          "091": "Implementación en Producción",
-          "092": "Escalable hasta una implementación lista para producción con alta disponibilidad y seguridad.",
-          "093": "Configuración de producción →",
-          "094": "Tareas Post-Instalación Comunes",
-          "095": "Configurar notificaciones por correo electrónico",
-          "096": "Configurar la configuración de correo electrónico para alertas y notificaciones:",
-          "097": "Navegar a Ajustes → Configuración de correo electrónico",
-          "098": "Introduce los detalles del servidor SMTP",
-          "099": "Prueba de entrega de correo electrónico",
-          "100": "Configurar notificaciones de alerta",
-          "101": "Crear Usuarios Adicionales",
-          "102": "Agregar miembros del equipo con permisos adecuados:",
-          "103": "Ve a Administración → Usuarios",
-          "104": "Haga clic en “Crear Usuario”",
-          "105": "Establecer nombre de usuario, correo electrónico y rol",
-          "106": "Configurar permisos según sea necesario",
-          "107": "Configurar grupos de hosts",
-          "108": "Organiza tu infraestructura de manera lógica:",
-          "109": "Navegar a Hosts → Grupos",
-          "110": "Crear grupos por entorno, función o ubicación",
-          "111": "Establecer permisos específicos para grupos",
-          "112": "Configurar monitoreo basado en grupos",
-          "113": "Configurar umbrales de monitoreo",
-          "114": "Configurar alertas para su entorno:",
-          "115": "Ve a Monitoreo → Alertas",
-          "116": "Crear reglas de alerta para CPU, memoria, disco",
-          "117": "Establecer umbrales adecuados",
-          "118": "Probar la entrega de alertas",
-          "119": "Comandos útiles",
-          "120": "Operaciones de Docker Compose",
-          "121": "Copia de Seguridad y Mantenimiento",
-          "122": "Administración de Registros",
-          "123": "Navegación Rápida",
-          "124": "← Inicio Rápido",
-          "125": "Visión general de la Interfaz Web →",
           "126": "La página de inicio de sesión SysManage."
         },
         "tutorials": {
@@ -13931,14 +13810,14 @@
           "024": "Estado EOL del host desde endoflife.date",
           "025": "do-release-upgrade / dnf / zypper / freebsd-update",
           "026": "Actualizaciones programadas y conscientes de las ventanas de mantenimiento",
-          "027": "OS Lifecycle Guide →",
+          "027": "Guía de Ciclo de Vida del Sistema Operativo →",
           "028": "🔒 Modo de cumplimiento FIPS",
           "029": "Ver qué hosts ejecutan en modo criptográfico validado FIPS 140, y habilitar o deshabilitarlo por host usando el mecanismo nativo de cada plataforma.",
           "030": "Postura FIPS de la flota (habilitado / disponible / deshabilitado)",
           "031": "La detección es gratuita; habilitar/deshabilitar es Enterprise",
-          "032": "Ubuntu Pro / RHEL fips-mode-setup / Windows policy",
+          "032": "Ubuntu Pro / RHEL configuración de modo fips-mode / política de Windows",
           "033": "Auditoría, consciente de ventanas de mantenimiento y reinicio",
-          "034": "FIPS Compliance Guide →"
+          "034": "Guía de Cumplimiento FIPS →"
         },
         "alerting": {
           "001": "La página de Alertas enumera las alertas activas por severidad con controles para marcarlas como vistas o resolverlas.",
@@ -14024,8 +13903,8 @@
           "015": "La detección de FIPS se envía en el agente open-source — no requiere licencia. En cada comprobación, cada agente informa su postura y el servidor la registra en el host para que el tablero y la pestaña per-host siempre reflejen la realidad. La detección usa la fuente autoritativa de cada plataforma:",
           "016": "Linux (kernel): /proc/sys/crypto/fips_enabled — la bandera definitiva \"¿está habilitado FIPS en este momento?\".",
           "017": "RHEL y rebuilds: fips-mode-setup --check .",
-          "018": "Ubuntu: the Ubuntu Pro fips service status.",
-          "019": "Windows: the FipsAlgorithmPolicy registry value.",
+          "018": "Estado del servicio Ubuntu: el Ubuntu Pro fips",
+          "019": "Valor del registro Windows: FipsAlgorithmPolicy.",
           "020": "macOS & BSD: reportado como no aplicable .",
           "021": "Panel de la flota",
           "022": "La página de Conformidad FIPS en la navegación principal resume la flota: cuántos hosts están habilitados, disponibles, deshabilitados o no aplicables, seguido por una tabla de todos los hosts con su estado, el mecanismo de interruptor en uso y cuando reportaron por última vez. Usa esto para responder \"¿cuáles hosts no están en modo FIPS?\" a simple vista antes de un auditoría.",
@@ -14298,7 +14177,7 @@
           "203": "Implementación de Escaneo Complejo de Seguridad",
           "204": "Navegación",
           "205": "← Centro de Seguridad",
-          "206": "Mutual TLS →"
+          "206": "TLS mutuo →"
         },
         "best-practices": {
           "001": "Documentación",
@@ -14596,7 +14475,7 @@
           "293": "Escaneo Automatizado de Seguridad : Implementar escaneos automatizados de seguridad",
           "294": "Navegación",
           "295": "← Autenticación",
-          "296": "Mutual TLS →"
+          "296": "TLS mutuo →"
         },
         "index": {
           "001": "Resumen de Seguridad",
@@ -15646,7 +15525,7 @@
           "056": "Integración con herramientas de construcción",
           "057": "Formatos de informes extensos",
           "058": "Detección de Secretos",
-          "059": "TruffleHog",
+          "059": "Trufflehog",
           "060": "Analizador de secretos de alta entropía",
           "061": "Escaneo de historia Git",
           "062": "Detección de secretos en tiempo real",
@@ -15765,7 +15644,7 @@
           "175": "Escaneo de seguridad automatizado",
           "176": "La escaneo de seguridad está integrado en el pipeline CI/CD para garantizar una evaluación continua de la seguridad a lo largo del ciclo de vida de desarrollo.",
           "177": "Puertas de seguridad en la línea de producción",
-          "178": "1. 📝 Pre-commit",
+          "178": "1. 📝 Preparación previa al compromiso",
           "179": "Detección de secretos (TruffleHog)",
           "180": "Formateo y limpieza de código",
           "181": "Verificación básica de patrones de seguridad",
@@ -15940,7 +15819,7 @@
           "350": "Herramientas de Desarrollo",
           "351": "GitHub/GitLab/Bitbucket",
           "352": "Jenkins/GitHub Actions/GitLab CI",
-          "353": "SonarQube Cloud /CodeClimate",
+          "353": "SonarQube Cloud / CodeClimate",
           "354": "Registro de Docker/Harbor",
           "355": "Artifactory/Nexus",
           "356": "Seguimiento de Problemas",
@@ -16067,7 +15946,7 @@
           "063": "Arquitectura →",
           "064": "SaaS Empresarial",
           "065": "La edición alojada y multi-inquilino — lo que incluye y para quién es.",
-          "066": "Enterprise SaaS →",
+          "066": "Software como servicio empresarial →",
           "067": "Implementar Multitenencia",
           "068": "Registros y bases de datos de inquilinos, OpenBAO, migraciones e implementación de inquilinos.",
           "069": "Implementación →"
@@ -16218,7 +16097,7 @@
           "127": "Rendimiento: Carga optimizada y interacciones de usuario fluidas",
           "128": "Personalización",
           "129": "Preferencias del Usuario: Diseños personalizados del panel de control y configuraciones",
-          "130": "Configuración del Widget: Widgets y métricas personalizables en el panel de仪表盘小部件和指标的可定制配置，Widgets and metrics that can be customized in the dashboard",
+          "130": "Configuración del widget: Widgets personalizables del tablero y métricas",
           "131": "Temas: Varios temas de colores y opciones de personalización visual",
           "132": "Opciones de Diseño: Configuraciones flexibles de diseño y administración del espacio de trabajo",
           "133": "Internacionalización y Localización",
@@ -16312,7 +16191,7 @@
           "011": "Use gmake en lugar de make para todos los comandos make",
           "012": "Crear manualmente el usuario PostgreSQL si no está presente",
           "013": "Aumentar el tamaño de /tmp si es necesario: mount -t tmpfs -o -s=4g tmpfs /tmp",
-          "014": "Ver la pestaña NetBSD en Requisitos previos上方以获取完整的设置说明。",
+          "014": "Consulte la pestaña NetBSD en los requisitos previos anteriores para obtener instrucciones de configuración completas.",
           "015": "Problemas específicos de NetBSD",
           "016": "Usuario PostgreSQL faltante: NetBSD puede no crear el usuario postgres/pgsql automáticamente. Crea el usuario con: sudo useradd -m -d /var/db/postgresql -s /bin/sh postgres",
           "017": "PostgreSQL no arranca: Asegúrese de que pgsql=YES esté en /etc/rc.conf, luego ejecute sudo /etc/rc.d/pgsql start",
@@ -18633,7 +18512,7 @@
             "providers": "Proveedores computacionales plug-and-play (libvirt remoto, Proxmox VE)",
             "templates": "Plantillas de aprovisionamiento reutilizables y versionadas"
           },
-          "link": "Provisioning Engine Guide →",
+          "link": "Guía del Motor de Provisión →",
           "title": "🚀 Provisioning Engine"
         }
       },
@@ -18925,22 +18804,22 @@
           "title": "[FALTA:pro_plus.observabilidad_motor.endpoints.grafana.title]"
         },
         "graylog": {
-          "bsd_syslog": "[FALTA:pro_plus.observabilidad_motor.endpoints.graylog.bsd_syslog]",
-          "rsyslog": "[FALTANTE:pro_plus.observabilidad_motor.puntos_de_entrada.graylog.rsyslog]",
-          "sidecar_install": "[FALTANTE:pro_plus.observabilidad_motor.puntos_de_entrada.graylog.instalador_lateral]",
-          "syslog_ng": "[FALTANTE:pro_plus.observabilidad_motor.puntos_de_entrada.graylog.syslog_ng]",
+          "bsd_syslog": "<code>POST /api/v1/observabilidad/graylog/{host_id}/bsd-syslog-deploy</code> — configura el syslogd de stock BSD. El cuerpo agrega <code>{bsd_variant, existing_config}</code>: el llamador recupera la configuración actual del host en <code>/etc/syslog.conf</code> y la pasa como <code>existing_config</code>; el motor realiza una fusión idempotente que preserva las reglas de reenvío no relacionadas. <code>bsd_variant</code> selecciona el comando de reinicio (<code>service syslogd restart</code> en FreeBSD, <code>rcctl restart syslogd</code> en OpenBSD/NetBSD). GELF es rechazado por el validador (el syslogd de stock BSD no puede hablarlo).",
+          "rsyslog": "<code>POST /api/v1/observabilidad/graylog/{host_id}/rsyslog-deploy</code> — configura rsyslog para enviar a Graylog. Cuerpo: <code>{graylog_server, port, mechanism}</code> donde <code>mechanism</code> es <code>syslog_tcp</code>, <code>syslog_udp</code> o <code>gelf_tcp</code>. Escribe <code>/etc/rsyslog.d/60-graylog.conf</code> y reinicia el demonio.",
+          "sidecar_install": "<code>POST /api/v1/observabilidad/graylog/{host_id}/instalador-sidecar-install</code> — Solo para Windows. Descarga el instalador upstream <code>graylog-sidecar-installer-{amd64|386}.exe</code> de las releases de GitHub de Graylog y lo ejecuta en modo silencioso (<code>/S</code>). Combinar con el endpoint de despliegue anterior para dejar caer <code>sidecar.yml</code> una vez que esté presente el binario.",
+          "syslog_ng": "<code>POST /api/v1/observabilidad/graylog/{host_id}/syslog-ng-deploy</code> — configure syslog-ng con los mismos tres mecanismos de forwarder. Escribe <code>/etc/syslog-ng/conf.d/60-graylog.conf</code>.",
           "title": "[FALTANTE:pro_plus.observabilidad_motor.puntos_de_entrada.graylog.titulo]",
-          "bsd_append": "[FALTA:pro_plus.observabilidad_motor.endpoints.graylog.bsd_append]",
-          "linux_autodetect": "[FALTA:pro_plus.observabilidad_motor.endpoints.graylog.linux_autodetect]",
-          "windows_no_token": "[FALTANTE:pro_plus.observabilidad_motor.puntos_de_entrada.graylog.windows_sin_token]"
+          "bsd_append": "<strong>BSD ejecución de fusión</strong> — <code>build_graylog_bsd_syslog_append_plan</code> realiza la combinación en el archivo <code>/etc/syslog.conf</code> en tiempo de ejecución del agente mediante shell (<code>sed -i.bak</code> para quitar + <code>printf</code> para agregar + variante específica de reinicio). Evita la necesidad de una operación de recuperación de archivo en el lado OSS: el extremo BSD se despliega solo basado en <code>host.platform</code>, sin requerir un <code>existing_config</code>.",
+          "linux_autodetect": "<strong>Linux autodetect</strong> — <code>build_graylog_linux_autodetect_plan</code> configura tanto rsyslog como syslog-ng en <code>/tmp/sysmanage-graylog-{rsyslog,syslog-ng}.conf</code> y emite ramas condicionales de shell por daemon basadas en <code>systemctl is-active --quiet &lt;daemon&gt;</code>. El demonio activo tiene su configuración copiada e iniciada; la otra rama es una operación sin efecto. Elimina la necesidad para el servidor OSS de saber qué forwarder ejecuta el host.",
+          "windows_no_token": "<strong>Instalación sin token de sidecar en Windows</strong> — <code>build_graylog_sidecar_no_token_plan</code> maneja la ruta <code>POST /host/{id}/attach_to_graylog</code> en Windows para OSS. El payload de OSS solo lleva <code>{mechanism, graylog_server, port}</code> — sin <code>api_token</code>/<code>node_id</code> — por lo que el plan escribe <code>sidecar.yml</code> con un <code>server_api_token</code> vacío (el operador lo completa a través de la interfaz de administración del Sidecar después). Impulsado por PowerShell: detecta hosts ARM64 y se niega (la upstream no tiene una compilación para ARM64), verifica una instalación existente mediante <code>Test-Path</code>, descarga el instalador AMD64 desde GitHub si falta, ejecuta <code>/S</code>, luego registra y arranca el servicio de Windows."
         },
-        "intro": "[FALTANTE:pro_plus.observabilidad_motor.puntos_de_entrada.introduccion]",
+        "intro": "Todos los endpoints viven bajo el prefijo <code>/api/v1/observabilidad</code>. Auth: bearer JWT. Cada endpoint impulsado por un motor también requiere que la bandera de función Pro+ correspondiente esté presente en la licencia activa; sin ella, la ruta devuelve HTTP 402.",
         "otel": {
-          "multiplatform_deploy": "[FALTANTE:pro_plus.observabilidad_motor.puntos_de_entrada.otel.despliegue_multiplataforma]",
-          "multiplatform_remove": "[FALTANTE:pro_plus.observabilidad_motor.puntos_de_entrada.otel.eliminacion_multiplataforma]",
+          "multiplatform_deploy": "<code>POST /api/v1/observabilidad/otel/{host_id}/multiplatform-deploy</code> — instalación completa + configuración + inicio para cualquiera de siete plataformas (<code>linux_apt</code>, <code>linux_dnf</code>, <code>freebsd</code>, <code>openbsd</code>, <code>netbsd</code>, <code>macos</code>, <code>windows</code>). Cuerpo: <code>{platform, grafana_url}</code>. En FreeBSD se instala Grafana Alloy (configuración River-DSL) en lugar de otelcol-contrib; todas las demás plataformas instalan el upstream <code>otelcol-contrib</code> a través de su gestor de paquetes nativo.",
+          "multiplatform_remove": "<code>POST /api/v1/observabilidad/otel/{host_id}/{platform}/multiplatform-remove</code> — simétrico: detener servicio, desinstalar paquete, eliminar directorio de configuración (Windows omite la limpieza explícita del directorio de configuración porque Chocolatey lo posee).",
           "title": "[FALTANTE:pro_plus.observabilidad_motor.puntos_de_entrada.otel.titulo]",
-          "grafana_connection": "[FALTANTE:pro_plus.observabilidad_motor.puntos_de_entrada.otel.conexion_grafana]",
-          "service_control": "[FALTANTE:pro_plus.observabilidad_motor.puntos_de_entrada.otel.control_servicio]"
+          "grafana_connection": "<strong>Conectar / desconectar con Grafana</strong> — <code>POST /hosts/{host_id}/opentelemetry/{connect,disconnect}</code>. Ruta del motor a través de <code>build_otel_grafana_connection_plan(plataforma, accion, grafana_url)</code> que emite un plan de reinicio solo (la configuración OTEL estaba fijada en el objetivo Grafana al momento de despliegue; conectar / desconectar solo activa un reinicio del servicio para que cualquier edición fuera de banda tenga efecto y el registro de auditoría documente la intención del operador).",
+          "service_control": "<strong>Control de servicio</strong> — <code>POST /hosts/{host_id}/opentelemetry/{start,stop,restart}</code> son los endpoints OSS. Se enrutan a través de <code>try_engine_otel_service_control</code> en <code>backend/services/observabilidad_shim.py</code> primero; cuando se carga el motor Pro+, cada uno emite una secuencia <code>build_otel_service_control_plan(plataforma, acción)</code> (systemctl / service / rcctl / /etc/rc.d / brew services / sc.exe dependiendo de la plataforma). El plan del motor pasa por el camino <code>apply_deployment_plan</code> del agente. Retrocede al legado <code>generic_command</code> WS dispatch cuando no se carga el motor."
         }
       },
       "header": {
@@ -18997,13 +18876,13 @@
         "title": "Usando la interfaz de usuario"
       },
       "dispatch": {
-        "intro": "[FALTA:pro_plus.observability_engine.dispatch.intro]",
-        "linux_default": "[FALTA:pro_plus.observability_engine.dispatch.linux_default]",
-        "step1": "[FALTA:pro_plus.observabilidad_motor.dispatch.step1]",
+        "intro": "Puntos de conexión de observabilidad OSS (implementar, eliminar, iniciar/detener/reiniciar, conectar/desconectar con Grafana, adjuntar a Graylog) siguen un contrato consistente de motor primero / retroceso legado implementado en <code>backend/services/observability_shim.py</code>:",
+        "linux_default": "En Linux, la función de detección de plataforma consulta dos señales antes de recurrir al valor predeterminado: (1) el inventario de paquetes instalados del host (más autoritativo — una entrada apt/dnf/yum decide); (2) la cadena <code>platform_release</code> dentro de la colección OS_INFO, que se actualiza en aproximadamente 1 segundo después del primer inicio de sesión (cierra la carrera del host nuevo para las distribuciones típicas — Ubuntu, Debian, RHEL, Rocky, Fedora, etc. todas coinciden mediante una palabra clave substring). Cuando ninguna de estas señales está disponible, la función establece el valor predeterminado en <code>linux_apt</code> con un mensaje de registro de ADVERTENCIA; un host dnf-family que llega al valor predeterminado verá un claro error <code>apt-get: command not found</code> en lugar de una silenciosa caída hacia atrás a código del agente pronto por eliminar.",
+        "step1": "El punto final llama al <code>try_engine_*</code> auxiliar.",
         "step2": "[FALTA:pro_plus.observabilidad_motor.dispatch.step2]",
-        "step3": "[FALTA:pro_plus.observabilidad_motor.dispatch.step3]",
-        "step4": "[FALTA:pro_plus.observabilidad_motor.dispatch.step4]",
-        "step5": "[FALTA:pro_plus.observabilidad_motor.dispatch.step5]",
+        "step3": "El helper resuelve el token de plataforma a través de <code>_detect_otel_platform</code> (para rutas OTEL) o directamente desde <code>host.platform</code> (para Graylog).",
+        "step4": "En cualquier fallo (motor no cargado, constructor ausente, plataforma indetectable, excepción durante la construcción del plan o encolado) el ayudante devuelve <code>None</code>; el punto final encola el legado <code>generic_command</code> mensaje WS exactamente como antes.",
+        "step5": "Cada endpoint registra la ruta elegida (<code>engine_plan</code> vs <code>legacy_ws_command</code>) en su entrada de <code>AuditService.log</code> bajo <code>details.dispatch_path</code>, por lo que los operadores pueden auditar el tráfico de producción.",
         "title": "[FALTA:pro_plus.observabilidad_motor.dispatch.title]"
       }
     },
@@ -19914,7 +19793,7 @@
       "enrollment": {
         "title": "Inscripción de un Sitio",
         "step2": "Copia el token de inscripción mostrado una vez — no es recuperable después.",
-        "step4": "Después de la握手成功后，站点在协调器上切换到已注册状态，令牌哈希被清除，并且会标注已注册时间戳。",
+        "step4": "Después de un apretón de manos exitoso, el sitio cambia al estado registrado en el coordinador, se elimina el hash del token y se marca el sello de tiempo enrolled_at.",
         "regenerate": "Si el token se filtra o expira antes de que la página complete la inscripción, usa Regenerar token en la página Detalles del sitio para invalidar el antiguo y emitir un valor nuevo.",
         "step1": "En la página Sites del coordinador, haz clic en <strong>Registrar Sitio</strong> e ingresa nombre, URL, una etiqueta de ubicación opcional y la <strong>clave pública de identidad del sitio</strong> &mdash; copiada fuera de banda desde la página <strong>Ajustes &rarr; Rol del Servidor</strong> del sitio. La clave de identidad es requerida: es lo que el coordinador usa para autenticar al sitio durante el registro. El TTL predeterminado del token es de 24 horas.",
         "step3": "En el nuevo servidor del sitio, abre <strong>Ajustes &rarr; Rol del Servidor</strong>, establece el rol federativo en <strong>Sitio</strong> y usa la acción <strong>Registrar con coordinador</strong>: pega la URL del coordinador, el token y la <strong>clave pública de identidad del coordinador</strong> (copiada fuera de banda desde la página Rol del Servidor del coordinador), luego haz clic en Registrar. Los certificados TLS aún se presentan automáticamente y se obtienen &mdash; nunca mintes ni pegas un certificado &mdash; pero cada lado debe demostrar su clave de identidad fuera de banda firmada el certificado que está siendo fijado, lo cual es lo que derrota a un hombre en medio durante la fase de registro."
@@ -19943,7 +19822,7 @@
           "title": "desconectado"
         },
         "online": {
-          "body": " — la última sincronización上游内容不需要翻译，只需要保持格式和结构一致。根据规则，这里的内容已经是西班牙语了，所以直接返回即可。以下是JSON对象形式的答案：",
+          "body": " — la última sincronización con el origen tuvo éxito.",
           "title": "en línea"
         },
         "reconnect": "Mientras estás desconectado, el sitio no bombardea a un coordinador caído cada intervalo — retrocede con una estrategia de reintentos exponenciales y se recupera automáticamente una vez que el coordinador responde. Al reconectar, la deduplicación en la reproducción garantiza que los deltas encolados no creen duplicados upstream.",
@@ -20013,7 +19892,7 @@
           "title": "Enfoque de firma (HTTP vs HTTPS)"
         },
         "identity": {
-          "body": "Fijar el certificado que se obtiene a través de la red, por sí solo, sería confiar en el primer uso: un atacante que intercepte la inscripción podría presentar su propio certificado y ser fijado. El token de inscripción no puede cerrar esta brecha porque es un secreto compartido que viaja por el mismo canal. SysManage ancla, por lo tanto, la inscripción en cada servidor's clave de identidad a largo plazo <strong>Ed25519</strong>, cuya mitad <em>privada</em> nunca sale del equipo. Antes de inscribirse, el operador intercambia las claves públicas de identidad de los dos servidores fuera de banda (son públicas, por lo que cualquier canal funciona &mdash; la página del rol del servidor muestra cada clave y su huella digital). Durante la inscripción, cada lado firma exactamente el certificado que está presentando con su clave privada de identidad, y el otro lado verifica esa firma contra la clave pública de identidad pre compartida antes de fijar. Un hombre en medio que intercambia un certificado no puede falsificar la firma correspondiente, por lo que se rechaza la inscripción en lugar de fijarse. Esta verificación es <strong>estricta y obligatoria</strong>: la inscripción fallará si una clave de identidad no fue pre registrada o la prueba no verifica. Porque la prueba está sobre el huella digital del certificado, rotar un certificado TLS más tarde es solo una re-firma por la misma clave de identidad &mdash; sin segundo intercambio fuera de banda.",
+          "body": "Fijar el certificado que se obtiene a través de la red por sí mismo sería confianza-en-la-primer-uso: un atacante que intercepta la inscripción podría presentar su propio certificado y ser fijado. El token de inscripción no puede cerrar esta brecha porque es un secreto compartido que viaja por el mismo canal. SysManage, por lo tanto, ancla la inscripción en cada servidor's clave <strong>Ed25519 de identidad</strong>, cuya <em>privada</em> mitad nunca sale del dispositivo. Antes de inscribirse, el operador intercambia las claves de identidad <em>públicas</em> de los dos servidores fuera de banda (son públicas, por lo que cualquier canal funciona &mdash; la página del Rol del Servidor muestra cada clave y su huella digital). Durante la inscripción, cada lado firma el certificado exacto que está presentando con su clave privada de identidad, y el otro lado verifica esa firma contra la clave pública de identidad pre compartida antes de fijar. Un hombre-en-el-medio que intercambia un certificado no puede falsificar la firma correspondiente, por lo que se rechaza la inscripción en lugar de fijarse. Esta verificación es <strong>estricta y obligatoria</strong>: la inscripción falla si una clave de identidad no fue pre-registrada o la prueba no verifica. Porque la prueba está sobre el huella digital del certificado, rotar un certificado TLS más tarde es solo una re-firma por la misma clave de identidad &mdash; sin un segundo intercambio fuera de banda.",
           "title": "Verificación fuera de banda"
         }
       }
@@ -20298,9 +20177,9 @@
         "report": {
           "caption": "[FALTA:pro_plus.provisioning_engine.baremetal.report.caption]",
           "description": "[FALTA:pro_plus.provisioning_engine.baremetal.report.description]",
-          "disarm": "[FALTA:pro_plus.provisioning_engine.baremetal.report.disarm]",
-          "log": "[FALTA:pro_plus.provisioning_engine.baremetal.report.log]",
-          "states": "[FALTA:pro_plus.provisioning_engine.baremetal.report.states]",
+          "disarm": "Ambos <code>instalado</code> y <code>agent_missing</code> <strong>desarmado</strong> netboot; solo <code>fallido</code> permanece armado para otro intento. Esa asimetría es deliberada: una instalación que no se completó debe ser reintentada, pero una máquina cuyo OS está bien y cuyo agente está roto nunca debe ser reinstalada — eso borraría un sistema funcional para arreglar un paquete.",
+          "log": "El informe contiene una razón de una línea y la cola del registro de arranque, por lo que una fila se lee <em>agente instalación fallida: No se puede localizar el paquete sysmanage-agent</em> en lugar de simplemente <code>instalado</code>. La generación de informes es un intento de buena fe y nunca bloquea el desarme: una máquina que no puede alcanzar el servidor en absoluto aún deja de netbootear, porque una máquina atascada reinstalándose es un resultado peor que uno con un agente ausente.",
+          "states": "Dos resultados se registran por lo tanto de manera separada, y la diferencia no es cosmética. <code>instalado</code> significa que el agente está en funcionamiento. <code>agente_faltante</code> significa que el sistema operativo fue instalado pero el agente no — la máquina es utilizable pero nunca se inscribirá hasta que alguien lo revise. Un tercer estado, <code>fallido</code>, significa que la instalación misma no se completó.",
           "title": "[FALTA:pro_plus.provisioning_engine.baremetal.report.title]"
         }
       }
@@ -20780,7 +20659,7 @@
       "database_solution1": "Verifique que PostgreSQL se esté ejecutando: <code>systemctl status postgresql</code>",
       "database_solution2": "Verifique las credenciales de la base de datos en el archivo de configuración",
       "database_solution3": "Asegúrese de que el usuario de la base de datos tenga privilegios CREATE",
-      "database_solution4": "Pruebe la conexión manualmente: <código>psql -h host -U usuario -d base de datos</código>",
+      "database_solution4": "Prueba la conexión manualmente: <code>psql -h host -U user -d database</code>",
       "database_solution_title": "Solución:",
       "database_title": "Problemas de conexión a la base de datos",
       "openbao_problem": "<strong>Problema:</strong> No se encontró el binario OpenBAO o la inicialización falla",
@@ -20833,8 +20712,8 @@
       "default_roles": "Roles Predeterminados",
       "diagnostic_commands": "Comandos de Diagnóstico",
       "email_otp": {
-        "endpoint": "[FALTANTE:seguridad.autenticacion.email_otp.punto_de_entrada]",
-        "enumeration": "[FALTANTE:seguridad.autenticacion.email_otp.enumeracion]",
+        "endpoint": "<code>POST /api/auth/mfa/email/request</code> emite un código (reutiliza la misma token de MFA-pendiente que acepta el endpoint <code>/api/auth/mfa/verify</code>); <code>/api/auth/mfa/verify</code> acepta el código enviado por correo electrónico en el mismo campo que toma TOTP y códigos de respaldo",
+        "enumeration": "<code>email/request</code> devuelve una envoltura genérica \"si tu cuenta tiene MFA configurado, se ha enviado un código\" independientemente de si el usuario está inscrito o si el envío del correo electrónico fue exitoso — previene la enumeración de usuarios a través del punto final",
         "rate_limit": "[FALTANTE:seguridad.autenticacion.email_otp.limite_por_tiempo]"
       },
       "external_auth_integration": "Integración de Autenticación Externa",
@@ -21241,7 +21120,7 @@
         }
       },
       "title": "Resumen del Despliegue",
-      "multitenancy": "Todas las configuraciones anteriores son implementaciones <strong>single-tenant</strong> y cubren la mayoría de los casos de instalación. SysManage también puede ejecutarse como un control plane SaaS multiinquilino optativo que hospeda inquilinos aislados en bases de datos separadas — una modalidad avanzada desactivada por defecto y que no afecta las implementaciones single-tenant, on-prem o federadas. Consulte la guía para Implementar Multi-Inquilinato."
+      "multitenancy": "Todas las configuraciones anteriores son <strong>implementaciones de un solo inquilino</strong> y cubren la gran mayoría de las instalaciones. SysManage también puede ejecutarse como un control plane SaaS multiinquilino <strong>a opción</strong> que hospeda inquilinos aislados en bases de datos separadas — un modo avanzado que está deshabilitado por defecto y no afecta a las implementaciones de un solo inquilino, on-premises o federadas. Consulte la guía de Implementación de Multiinquilinato."
     },
     "performance": {
       "application": {
@@ -21577,9 +21456,10 @@
       "title": "Requisitos del Sistema"
     },
     "ssl": {
-      "description": "Para desarrollo HTTPS, coloque sus certificados SSL en:",
-      "fallback": "Si no se encuentran certificados, el sistema automáticamente vuelve a HTTP en localhost.",
-      "title": "Certificados SSL (Opcional)"
+      "description": "SysManage sirve la interfaz web y la API desde un solo origen a través de HTTPS en el puerto 443. nginx termina TLS y proxyea al backend en loopback, por lo que los agentes necesitan salida en el puerto 443 hacia este host y nada más. Un certificado debe estar en su lugar antes de que el servidor sirva tráfico de producción.",
+      "title": "Certificados TLS (Requeridos para Producción)",
+      "config_path": "Punta nginx a tu certificado y clave. El archivo de configuración vive en un lugar diferente en cada plataforma, por lo que el mensaje post-instalación imprime la ruta exacta para tu sistema junto con las dos líneas que debes cambiar:",
+      "dev_mode": "Para desarrollo local puedes omitir los certificados por completo estableciendo <code>dev_mode: true</code> en <code>/etc/sysmanage.yaml</code>. El servidor luego sirve la API en 8080 y la interfaz web en 3000 a través de HTTP sin cifrado, y se vincula con cada interfaz para que los agentes en tu LAN puedan alcanzarlo sin configuración adicional. Nunca habilites el modo dev en un host de producción."
     },
     "title": "Guía de Instalación del Servidor - SysManage",
     "troubleshooting": {
@@ -21605,9 +21485,9 @@
         "title": "Problemas de Permisos"
       },
       "port_conflicts": {
-        "check_services": "Verifique los servicios existentes: <code> netstat -tlnp | grep: 6443 </code>",
-        "ensure_ports": "Asegurar que los puertos 6443 (API) y 7443 (frontend) estén disponibles",
-        "modify_ports": "Modificar puertos en configuración si es necesario",
+        "check_services": "Comprueba un escuchador existente: <code>ss -tlnp | grep -E ':(80|443|8080)'</code>",
+        "ensure_ports": "En producción, asegúrate de que 443 esté libre (y 80, que solo redirige a él). El backend escucha en 127.0.0.1:8080 detrás de nginx y no está expuesto.",
+        "modify_ports": "En modo dev la API está en 8080 y la interfaz web en 3000; cámbialos bajo <code>api</code> y <code>webui</code> en <code>/etc/sysmanage.yaml</code> si chocan.",
         "title": "Conflictos de Puertos"
       },
       "title": "Solución de Problemas"
@@ -22340,6 +22220,19 @@
       "bsd": "Un host FreeBSD con el mismo nivel de detalle que cualquier Linux, Windows o macOS.",
       "compliance": "Informes de cumplimiento que abarcan todo el entorno, no solo un sistema operativo.",
       "vuln": "Visibilidad de vulnerabilidades a nivel de flota en cada sistema operativo."
+    },
+    "monday": {
+      "bsd": "Los BSDs se administran con scripts que alguien escribió hace años.",
+      "close": "Ese es el problema para el cual SysManage fue construido.",
+      "compliance": "La generación de informes de cumplimiento vive en otro lugar.",
+      "eyebrow": "Lunes, 9:04 a.m.",
+      "macos": "macOS is in Jamf.",
+      "punch": "Has abierto seis consolas antes de parchear un solo host — y aún no puedes responder la única pregunta a la que realmente le importa: <strong>¿estamos expuestos?</strong>",
+      "rhel": "RHEL is in Satellite.",
+      "scanning": "La exploración de vulnerabilidades vive en otro lugar.",
+      "title": "Una vulnerabilidad crítica aparece. ¿Dónde incluso comenzar?",
+      "ubuntu": "Ubuntu is in Landscape.",
+      "windows": "Windows is in Intune."
     }
   },
   "shot": {
@@ -22490,7 +22383,7 @@
     "cta": {
       "body": "Vamos a recorrer un despliegue aislado contra tus requisitos de seguridad.",
       "contact": "Solicitar una demostración sin conexión",
-      "gov": "Government & Defense →",
+      "gov": "Gobierno y Defensa →",
       "title": "¿Tienes una red que no puede alcanzar Internet?"
     },
     "hero": {
@@ -22537,13 +22430,13 @@
   "bsd": {
     "cta": {
       "body": "Administra FreeBSD, OpenBSD y NetBSD como iguales al resto de tu flota — con el core AGPLv3, en 14 idiomas.",
-      "compare": "Compare Tools →",
+      "compare": "Comparar Herramientas →",
       "start": "Empieza gratis",
       "title": "Por fin, soporte de primera clase para las BSD"
     },
     "detail": {
       "body": "Abra un host FreeBSD en SysManage y obtendrá la vista completa del detalle del host — hardware, red, paquetes, parches, usuarios y historial — idéntica en profundidad a un host Windows o Linux. No hay una versión reducida de \"la pestaña BSD\" ni una experiencia de segunda clase. Es un miembro de primera categoría de la flota.",
-      "li1": "Detalles completos del host —硬件、网络、存储和用户",
+      "li1": "Detalle completo del host — hardware, red, almacenamiento y usuarios",
       "li2": "Gestión de paquetes y parches a través del nativo <code>pkg</code>",
       "li3": "Inventario completo de software y configuración",
       "li4": "No es una vista de segunda clase — es el mismo consola para cada plataforma",
@@ -22666,7 +22559,7 @@
     },
     "grows": {
       "body": "Comienza gratis con la edición open-source Community y su núcleo AGPLv3. Añade el análisis de salud impulsado por IA con Professional. Agrega escaneo de vulnerabilidades, cumplimiento, inicio de sesión único y control de acceso basado en roles avanzado con Enterprise. O ejecútalo completamente multiinquilino y hospedado con Enterprise SaaS, incluyendo aislamiento de base de datos por inquilino. Es la misma plataforma y el mismo flujo de trabajo en cada paso — agregas capacidades sin volver a aprender la herramienta o migrar tu flota.",
-      "editions": "Compare Editions →",
+      "editions": "Comparar Ediciones →",
       "title": "Crecer contigo"
     },
     "hero": {
@@ -22707,7 +22600,7 @@
       "title": "Cumplimiento que puedes informar, en cada sistema operativo"
     },
     "cta": {
-      "airgap": "Air-Gapped Details →",
+      "airgap": "Detalles de Air-Gapped →",
       "body": "Vamos a recorrer una despliegue contra tus requisitos de seguridad, cumplimiento e isologamiento.",
       "demo": "Solicite una demostración",
       "title": "Infraestructura que no puede comprometerse"
@@ -22786,7 +22679,7 @@
     },
     "cta": {
       "body": "Vamos a recorrer cómo una base de datos dedicada por inquilino cambia lo que puedes prometer a tus clientes.",
-      "compare": "Compare Tools →",
+      "compare": "Comparar Herramientas →",
       "contact": "Solicite una demostración",
       "title": "Ejecuta tu práctica en una plataforma"
     },
@@ -22813,7 +22706,7 @@
     },
     "hetero": {
       "body": "Los clientes de MSP nunca son uniformes. Un cliente puede ser predominantemente Windows con una flota de laptops; el siguiente puede tener servidores Linux y appliances FreeBSD; otro mezcla macOS, OpenBSD y NetBSD. SysManage los gestiona todos de la misma manera — y gestionar cualquier cosa que un cliente te lance de forma consistente es el punto entero de una herramienta MSP. El núcleo está bajo AGPLv3, y la interfaz se envía en 14 idiomas.",
-      "cta": "Learn about Enterprise SaaS — the multi-tenant hosted edition →",
+      "cta": "Conoce la SaaS Empresarial — la edición alojada multiinquilino →",
       "title": "Heterogéneo por defecto"
     },
     "iso": {
@@ -22853,7 +22746,7 @@
     "cta": {
       "body": "Ver cómo la visibilidad consistente a través de cada sistema operativo cambia la forma en que tu equipo mide y reduce el riesgo.",
       "demo": "Solicite una demostración",
-      "model": "Read the Security Model →",
+      "model": "Lea el Modelo de Seguridad →",
       "title": "Una fuente única de verdad para cada host"
     },
     "hero": {
@@ -22869,12 +22762,12 @@
       "li2": "Certificados instalados y su validez en un vistazo",
       "li3": "Estado del firewall — confirma que el perímetro del host está en su lugar",
       "li4": "Estado del antivirus — verificar que la protección del punto final está presente y activa",
-      "title": "Postura de seguridad por主机为：host，请提供正确的翻译。看起来之前的回答出现了误解，这里直接给出正确的西班牙语翻译："
+      "title": "Postura de seguridad por host"
     },
     "meta_description": "",
     "operational": {
       "body": "El inventario, la aplicación de parches y la gestión de vulnerabilidades son controles de seguridad ahora — no tareas de mantenimiento IT para ser entregadas y olvidadas. SysManage los integra en un solo plano de control para que la remediación sea coordinada, verificable y defensible. El inventario, la gestión de parches y el registro de auditoría vienen en el core open-source; la exploración de vulnerabilidades, la base de datos CVE y los informes de cumplimiento son capacidades Professional+ y Enterprise. Todo se protege con JWT, mTLS y RBAC.",
-      "proplus": "Explore Professional+ & Enterprise →",
+      "proplus": "Explorar Profesional+ & Empresarial →",
       "title": "La seguridad ES operacional"
     },
     "see": {
@@ -22893,12 +22786,12 @@
   "solutions": {
     "airgap": {
       "body": "Diseñado para redes sin internet: aparato único, secretos locales y contenido que viaja en medios físicos.",
-      "go": "Explore air-gapped →",
+      "go": "Explorar desconectado de la red",
       "title": "Infraestructura aislada"
     },
     "compare": {
       "body": "Ver cómo SysManage se compara con Ansible, Puppet, Salt, Chef, Landscape y Satellite — función por función.",
-      "go": "Compare tools →",
+      "go": "Comparar herramientas →",
       "title": "¿Cambiar de otra herramienta?"
     },
     "cta": {
@@ -22909,12 +22802,12 @@
     },
     "enterprise": {
       "body": "Consolide una pila de herramientas de un solo sistema operativo en un único plano de control y reduzca la licenciatura, la complejidad y el riesgo de personal clave en una flota heterogénea.",
-      "go": "Explore enterprise →",
+      "go": "Explorar empresarial →",
       "title": "Enterprise IT"
     },
     "government": {
       "body": "Implementación completamente aislada, cumplimiento consciente de FIPS y soporte de primera clase para las plataformas críticas que realmente ejecutan la infraestructura.",
-      "go": "Explore government →",
+      "go": "Explorar gobierno →",
       "title": "Gobierno y defensa"
     },
     "hero": {
@@ -22925,12 +22818,12 @@
     "meta_description": "",
     "msp": {
       "body": "Ejecuta muchas flotas de clientes desde una plataforma con una base de datos dedicada por inquilino — aislamiento verdadero, no filtrado por nivel de fila.",
-      "go": "Explore MSP →",
+      "go": "Explorar MSP →",
       "title": "Proveedores de Servicios Gerenciados"
     },
     "security": {
       "body": "Inventario consistente, estado de parches y visibilidad de vulnerabilidades en cada sistema operativo — una única fuente de verdad en lugar de seis puntos ciegos.",
-      "go": "Explore security →",
+      "go": "Explorar seguridad →",
       "title": "Equipos de Seguridad"
     },
     "title": "Soluciones por industria - SysManage"
@@ -22938,7 +22831,7 @@
   "xplat": {
     "concrete": {
       "body": "La gestión de infraestructura unificada no es un lema aquí — son las mismas capacidades funcionando idénticamente en cada plataforma. El monitoreo en tiempo real a través de WebSocket mantiene todos los hosts visibles. La gestión de paquetes y parches sigue un flujo aprueba-y-despliega. La exploración de vulnerabilidades y el informe de cumplimiento — disponible en las ediciones Profesional y Empresarial — abarcan todo el patrimonio, no solo un sistema operativo. El núcleo es software libre bajo la AGPLv3, seguro con JWT, mTLS y control de acceso basado en roles, y localizado en 14 idiomas.",
-      "solutions": "See solutions by industry →",
+      "solutions": "Ver soluciones por industria →",
       "title": "Gestión cruz-plataforma unificada, concretamente"
     },
     "control": {
@@ -22952,7 +22845,7 @@
     },
     "cta": {
       "body": "Trae Windows, Linux, macOS y las BSD bajo un solo plano de control e infunde a tu equipo con una única fuente de verdad.",
-      "compare": "Compare Tools →",
+      "compare": "Comparar Herramientas →",
       "start": "Empieza gratis",
       "title": "Deje de administrar sistemas operativos. Administre su flota."
     },
@@ -23034,8 +22927,8 @@
       "title": "Cómo un agente decide qué reportar"
     },
     "nav": {
-      "next": "Troubleshooting →",
-      "prev": "← Cross-Platform Support"
+      "next": "Solución de problemas →",
+      "prev": "← Soporte Multi-Plataforma"
     },
     "section_title": "Capacidades",
     "seeing": {
@@ -23087,6 +22980,80 @@
       "proxy_desc": "Proxy saliente explícito. Normalmente innecesario — <code>HTTPS_PROXY</code>, <code>HTTP_PROXY</code> y <code>NO_PROXY</code> son respetados del entorno.",
       "url_desc": "El único origen con el que el agente habla, por ejemplo <code>https://sysmanage.example.com</code>. Omítelo para significar 443. Preferido sobre los campos heredados a continuación.",
       "use_https_desc": "Herencia. Sustituido por el esquema en <code>url</code>."
+    }
+  },
+  "server_quickstart": {
+    "before": {
+      "body": "Esta guía instala el servidor del paquete construido para tu plataforma. Para la matriz completa de plataformas, instrucciones de construcción desde fuente y requisitos por distribución, consulta la <a href=\"/docs/server/installation.html\">Guía de Instalación del Servidor</a>.",
+      "cert": "<strong>Un certificado TLS y una clave privada</strong> para el nombre del host del servidor. nginx se niega a iniciar sin uno — deliberadamente, porque un panel de administración no debe iniciarse en texto claro solo porque falta un certificado.",
+      "ports": "<strong>443 entrante</strong> (más 80 si deseas la redirección). Nada más necesita abrirse: los agentes alcanzan el servidor a través del tráfico saliente 443 y el backend permanece en loopback detrás de nginx.",
+      "postgres": "<strong>PostgreSQL 12 o posterior</strong>, en este host u uno remoto. SysManage no iniciará sin él.",
+      "root": "<strong>Root o sudo</strong> en el host objetivo.",
+      "tip": "El paquete imprime cada paso a continuación como mensaje post-instalación, con las rutas ya llenadas para tu plataforma. Si lo pierdes, está en el registro del administrador de paquetes.",
+      "tip_label": "Consejo:",
+      "title": "Antes de Empezar"
+    },
+    "intro": "Instala el servidor SysManage desde un paquete nativo, apunta a PostgreSQL, da a nginx un certificado y abre la consola. Alrededor de quince minutos en un host nuevo.",
+    "next": {
+      "agent": "<a href=\"/docs/agent/installation.html\">Instalación del Agente</a> — paquetes para Windows, Linux, macOS y los BSDs.",
+      "approval": "<a href=\"/docs/getting-started/agent-approval.html\">Aprobación del Agente</a> — cómo un nuevo host se une a la flota.",
+      "body": "Un servidor sin hosts no hace mucho. Instala el agente en las máquinas que deseas administrar, luego apruébalos:",
+      "config": "<a href=\"/docs/server/configuration.html\">Configuración del Servidor</a> — correo electrónico, autenticación, retención y el resto.",
+      "security": "<a href=\"/docs/security/best-practices.html\">Prácticas de Seguridad Mejoradas</a> — vale la pena leer antes de poner esto frente a una flota real.",
+      "title": "Pasos Siguientes"
+    },
+    "step1": {
+      "body": "Descarga el paquete para tu plataforma desde la <a href=\"https://github.com/bceverly/sysmanage/releases\">página de lanzamientos</a> e instálalo. Reemplaza <code>X.Y.Z</code> con la versión que estás instalando.",
+      "debian": "Debian / Ubuntu",
+      "other": "Otros sistemas operativos",
+      "other_body": "openSUSE, Alpine, FreeBSD, OpenBSD, NetBSD, macOS y paquetes Windows se publican en la misma página de lanzamientos. Los pasos que siguen son idénticos en cada plataforma; solo el comando de instalación y la ruta del archivo de configuración de nginx difieren, y el mensaje post-instalación imprime la ruta correcta para ti.",
+      "rhel": "RHEL / CentOS / Fedora",
+      "title": "Instalar el Paquete"
+    },
+    "step2": {
+      "body": "Para usar una instancia local de PostgreSQL:",
+      "remote": "Una base de datos remota funciona igualmente bien — proporcionarás su host y credenciales en el siguiente paso.",
+      "title": "Crear la Base de Datos"
+    },
+    "step3": {
+      "body": "El servidor lee <code>/etc/sysmanage.yaml</code>. El <a href=\"/config-builder.html\">constructor de configuraciones</a> genera un archivo completo — conexión a la base de datos, nombre del host, TLS, autenticación y registro — lo cual es más rápido y menos propenso a errores que escribirlo a mano.",
+      "perms": "El archivo contiene credenciales de la base de datos, por lo que mantén su lectura solo para root.",
+      "title": "Escribir la Configuración"
+    },
+    "step4": {
+      "body": "Revisa lo que está pendiente, luego aplícalo. Esto migra el esquema del control de plano y, si la multitenencia está habilitada, cada base de datos de los tenantes también.",
+      "openbao": "Con multiinquilinato habilitado el alquiler de credenciales por inquilino obtiene las credenciales desde OpenBAO, por lo que OpenBAO debe estar en ejecución cuando migres.",
+      "title": "Ejecutar las migraciones de la base de datos"
+    },
+    "step5": {
+      "body": "Coloca tu certificado y clave donde nginx los espera:",
+      "dev": "Establece <code>dev_mode: true</code> en <code>/etc/sysmanage.yaml</code> para omitir nginx y TLS por completo. El servidor luego sirve la interfaz web en el puerto 3000 y la API en 8080 a través de HTTP sin cifrado, vinculando cada interfaz para que los agentes en otros lugares en tu LAN puedan alcanzarlo. Nunca hagas esto en un host de producción.",
+      "dev_label": "Evaluación local?",
+      "elsewhere": "O apunta nginx a otro lugar editando estas dos líneas en su configuración — la ruta varía por plataforma, y la post-instalación imprime la tuya:",
+      "letsencrypt": "Si aún no tienes un certificado, <code>certbot certonly --standalone -d your-server.example.com</code> obtendrá uno; luego apunta las dos líneas al archivo <code>fullchain.pem</code> y <code>privkey.pem</code> de ese nombre. Revisa el resultado antes de iniciar:",
+      "title": "Instalar el Certificado TLS"
+    },
+    "step6": {
+      "body": "En los BSDs y otras plataformas sin systemd, usa el comando service que la post-instalación imprimió.",
+      "title": "Iniciar el Servicio"
+    },
+    "step7": {
+      "body": "La interfaz web y la API comparten este único origen. Inicia sesión con la cuenta de administrador desde tu archivo de configuración — el nombre de usuario es una dirección de correo electrónico.",
+      "title": "Abrir la Consola"
+    },
+    "steps": {
+      "title": "Instalación"
+    },
+    "verify": {
+      "api": "2. La API responde",
+      "logs": "3. Los registros están limpios",
+      "service": "1. El servicio está en ejecución",
+      "t_db": "<strong>El servicio se inicia y luego sale:</strong> comprueba la conexión a la base de datos en <code>/etc/sysmanage.yaml</code> y confirma que las migraciones se ejecutaron correctamente.",
+      "t_login": "<strong>El inicio de sesión devuelve un error:</strong> el nombre de usuario administrador debe ser una dirección de correo electrónico completa, no un nombre simple.",
+      "t_nginx": "<strong>nginx no puede iniciar:</strong> casi siempre es un certificado faltante o inaccesible. <code>sudo nginx -t</code> nombra el archivo que no pudo leer.",
+      "t_port": "<strong>Nada escucha en 443:</strong> confirma que nginx está en ejecución y que ningún otro servicio ya ocupa el puerto.",
+      "title": "Verificar la instalación",
+      "trouble": "Si algo está mal"
     }
   }
 }

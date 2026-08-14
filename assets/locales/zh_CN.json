@@ -731,7 +731,7 @@
       "description": "每个代理在其平台上实际可以做什么，以及服务器如何呈现和强制执行这些操作。",
       "gating": "远程拒绝命令而不是失败",
       "limited": "完整、有限和未知主机",
-      "link": "Capabilities Guide →",
+      "link": "功能指南 →",
       "reporting": "代理声明的内容及其决策方式",
       "title": "功能"
     }
@@ -2704,25 +2704,25 @@
         },
         "config": {
           "title": "role: 配置项",
-          "summary": "Add one key to /etc/sysmanage.yaml on each server:",
-          "validation": "The startup config loader validates the value at boot; an unknown role aborts startup with a clear error. The role is also exposed via the unauthenticated GET /api/v1/server-info endpoint, which the web UI uses to render a chip in the header bar so operators can see at a glance which half of an air-gap pair they're looking at.",
+          "summary": "从网页界面设置角色 — 无需编辑配置文件。前往 <strong>设置 &rarr;服务器角色",
+          "validation": "该角色也通过未认证的<code>GET /api/v1/server-info暴露",
           "degraded_chip": "If role: is set to collector or repository but the corresponding Pro+ engine isn't loaded (typically a license problem), the chip turns red and a tooltip explains what's missing. Server keeps running in degraded mode so you can fix the license without losing access to the rest of the UI.",
-          "opt_standard": "<strong>标准（无空气隔绝）</strong>",
-          "opt_collector": "<strong>在线端离线采集器</strong>",
-          "opt_repository": "<strong>断开连接端离线仓库</strong>",
+          "opt_standard": "<strong>标准 (无空气间隙)",
+          "opt_collector": "<strong>离线收集器 (在线侧)",
+          "opt_repository": "<strong>脱机仓库 (断开连接侧)",
           "persistence": "选择存储在服务器数据库中（<code>server_configuration"
         },
         "collection_cycle": {
           "title": "采集周期（采集器端）",
           "summary": "Triggered by an operator (UI, API, or cron) on the public-side server. The engine emits a deployment plan that runs locally on the collector itself; it does not dispatch to managed agents.",
-          "step_request": "Request — POST /api/v1/airgap/collector/collection/runs with a body listing each distro/version/repo to capture, plus flags for CVE and compliance snapshot inclusion and target media size (one DVD, BD-R, etc.).",
-          "step_validate": "Validation — distros are checked against the supported list (13 families in v0.1.0); version strings are constrained to a tight regex so they cannot smuggle shell metacharacters into the dispatch templates; iso_label is constrained the same way.",
-          "step_mirror": "Mirror — per-distro dispatch templates run apt-mirror (Debian / Ubuntu), dnf reposync (RHEL family), zypper download (openSUSE / SLES), pkg fetch (FreeBSD), apk fetch (Alpine), or distribution-specific equivalents. Each command has a 4-hour timeout ceiling; the agent's in-flight journal (Phase 11.6) covers the multi-hour run across WebSocket reconnects.",
+          "step_request": "<strong>请求</strong> — <code>POST /api/v1/airgap/collector/runs</code> 体列出每个目标作为从 <code>/api/mirror-repositories</code> 中选择的 <code>{mirror_id}</code>，加上 <code>iso_label</code>, <code>media_size_bytes</code>, <code>include_cve</code>, <code>include_compliance</code> 和可选的 <code>burn_device</code>。发行版 / 版本 / 仓库由服务器端从每个镜像的 <code>known_version</code> 目录条目派生。",
+          "step_validate": "<strong>验证</strong> — 每个选择的镜像必须存在，启用，并具有一个 <code>known_version_id</code> 并与其它选择共享相同的 <code>host_id</code>（集合计划调度到单个代理，因此不支持跨主机目标）。版本字符串受制于严格的正则表达式以防止将 shell 元字符注入调度模板；同样约束 <code>iso_label</code>。",
+          "step_mirror": "<strong>镜像 (快照源)</strong> — 所有快照准备好后，调度器构建 <code>build_snapshot_collection_run_plan</code> 并使用 <code>source_snapshots</code> 映射的 <code>\"&lt;distro&gt;:&lt;version&gt;\"</code> → 快照目录路径。计划将每个快照树 rsync 到目标阶段目录中。在收集时间没有上游 apt-mirror / reposync / 包获取运行 — 镜像包与快照字节完全相同。每个 rsync 有 4 小时超时上限；代理的飞行日志（第 11.6 阶段）覆盖跨 WebSocket 重新连接的多小时运行。",
           "step_cve": "CVE / 合规快照 — 如果请求，NVD和供应商通告源在同一个时间点捕获，因此生成的媒体集具有连贯的时间视图。",
-          "step_iso": "ISO build — xorriso -as mkisofs bundles the staging tree into one ISO with the manifest embedded at /manifest.json. The post-build step computes the ISO's SHA-256 for the transfer log.",
+          "step_iso": "<strong>ISO 构建</strong> — <code>xorriso -as mkisofs</code> 将阶段树捆绑为一个 ISO 在 <code>/var/lib/sysmanage/airgap-iso/&lt;run_id&gt;.iso</code>，并将清单嵌入到 <code>/manifest.json</code>。构建后步骤计算 ISO 的 SHA-256 以供传输日志使用。",
           "step_sign": "签名 — 清单被规范化（按字母排序的键，无空格）并使用操作员的ed25519私钥进行签名。封套携带签名、公钥的SHA-256指纹、算法标识符和清单格式版本号。",
-          "step_burn": "Burn — optional. POST /api/v1/airgap/collector/iso/burn wraps growisofs against the configured optical-drive device. The burn-step timeout ceiling is 4 hours so slow drives don't trip a watchdog mid-write.",
-          "multidisc_note": "Note on multi-disc spanning. v0.1.0 ships the single-disc happy path — if the staging tree exceeds the configured media size, the burn step fails at runtime. Multi-disc bin-packing is tracked as a Phase 11.1 follow-up. The schema already supports it (the manifest table carries disc_index + disc_count) so it lands additively.",
+          "step_burn": "<strong>刻录 (可选)</strong> — 如果运行行中设置了 <code>burn_device</code>，则调度器通过路径（通常是 <code>/dev/sr0</code>）在 ISO_BUILT → BURNING 之间推进并调度 <code>build_burn_plan</code>。刻录步骤超时上限为 4 小时以防止慢速驱动器中途触发看门狗。当 <code>burn_device</code> 为空时，运行直接从 ISO_BUILT → COMPLETE 进行 — 不接触光学介质的“构建可下载 ISO 并停止”流程。",
+          "multidisc_note": "<strong>多盘分卷 (Phase 12)</strong> — 当 <code>sum(target.source_snapshot.size_bytes) &gt; run.media_size_bytes</code>，调度器路由到 <code>build_snapshot_multidisc_collection_plan</code>，该计划首先将整个目标树打包到磁盘上。每个磁盘都有自己的阶段目录 + rsync + xorriso + sha256 在一个内联计划中；输出为 <code>&lt;run_id&gt;-disc-&lt;N&gt;.iso</code>。调度器在任何单个目标树超过磁盘大小时显示清晰错误 — 文件级拆分（将一个镜像树跨多个磁盘）被推迟；操作员选择更大的介质 (BD-25 → BD-50) 或拆分为单独的运行。",
           "step_snapshot": "<strong>自动快照</strong> — 在运行创建时，每个目标镜像会生成一个快照。每个 <code>AirgapCollectionTarget</code> 行将其 <code>source_snapshot_id</code> 固定到占位符快照行上，以便编排器知道要捆绑哪个快照。快照并行运行；运行状态保持在 <code>QUEUED</code> 直到每个目标的 <code>last_snapshot_message_id</code> 清除。",
           "step_download": "<strong>下载</strong> — <code>GET /api/v1/airgap/collector/runs/{id}/iso</code> 流式传输 ISO 文件。对于多张光盘运行，<code>GET /runs/{id}/discs</code> 列出光盘文件，并且 <code>/iso?disc=N</code> 选择特定的光盘。Air-Gap Collections UI 自动检测多张光盘运行并在操作员点击下载时弹出选择对话框。",
           "lifecycle": "<strong>生命周期状态由 <code>airgap_run_tick</code> 编排器驱动：</strong> <code>QUEUED</code>（等待每个目标快照）→ <code>MIRRORING</code>（从快照树 rsync 到暂存区）→ <code>STAGING_COMPLETE</code>（单张光盘；多张光盘跳过此步骤）→ <code>BUILDING_ISO</code>（xorriso）→ <code>ISO_BUILT</code> → <code>BURNING</code>（仅当 <code>burn_device</code> 设置时）→ <code>COMPLETE</code>。任何失败都会将运行转换为 <code>FAILED</code>，并在 UI 状态列中显示错误消息。"
@@ -2877,30 +2877,30 @@
         "repoint": {
           "summary": "任何由角色为 <em>离线仓库</em> 的服务器管理的代理都会被自动重新指向到本地镜像：其软件包管理器配置为使用仓库的镜像并禁用在线源。这发生在代理正常通信周期中，因此它也会捕获在您更改角色时已经连接的代理——它们会在下次检查时更新。该指令是自我节流的：只有当镜像配置实际改变（角色切换或新鲜导入）时才会重新调度，所以不会有重复的 <code>apt-get update</code> 操作。",
           "title": "步骤6 — 代理会自动重新指向",
-          "verify": "[缺失：docs.admin.airgap_workflow.repoint.verify]"
+          "verify": "在隔离网络的主机上，您可以使用 <code>apt-cache policy &lt;pkg&gt;</code>（候选版本应来自 <code>/airgap-repo/</code> URL）和 <code>apt list --upgradable</code>（完全从镜像源获取）。"
         },
         "roles": {
-          "collector": "[缺失：docs.admin.airgap_workflow.roles.collector]",
-          "repository": "[缺失：docs.admin.airgap_workflow.roles.repository]",
-          "summary": "[缺失：docs.admin.airgap_workflow.roles.summary]",
+          "collector": "在联网的设备上，选择 <em>Air-Gap Collector</em>。选择此角色会自动在 <code>/var/lib/sysmanage/airgap/collector-ed25519.pem</code> 生成 ed25519 安装清单签名密钥对（私有，模式为 0600）及其 <code>.pub</code> 哥弟文件 — 不需要手动创建密钥。",
+          "repository": "在隔离的环境中，选择 <em>空气隔绝仓库</em>。",
+          "summary": "在每个服务器上，进入<strong>设置 → 服务器角色</strong>并选择角色。该角色将存储在数据库中，并在下次服务器重启后完全生效（启动时加载特定于角色的Pro+引擎）。",
           "title": "[缺失：docs.admin.airgap_workflow.roles.title]"
         },
         "serve": {
-          "summary": "[缺失：docs.admin.airgap_workflow.serve.summary]",
+          "summary": "在 <code>COMPLETE</code> 状态下，仓库注册一个特定发行版的本地仓库（在脱机仓库页面上可见，带有包计数、最后摄入时间、新鲜度和签名指纹），并通过 SysManage web 端口从 <code>/airgap-repo/</code> 提供。注册的仓库 URL 指向实际 apt/dnf 树中的媒体内部，因此无需手动 web 服务器或符号链接设置。",
           "title": "[缺失：docs.admin.airgap_workflow.serve.title]"
         },
         "transport": {
-          "device": "[缺失：docs.admin.airgap_workflow.transport.device]",
-          "import": "[缺失：docs.admin.airgap_workflow.transport.import]",
+          "device": "在 <strong>repository</strong> 中，进入设置 → 服务器角色，在 <em>导入驱动器</em> 卡中列出符合条件的块设备（操作系统磁盘永远不会被提供）。选择光驱或 USB 驱动器 — 默认情况下会选择编号最低的光驱。插入介质后使用 <strong>重新扫描</strong>。",
+          "import": "前往 <strong>离线存储库</strong> 页面。在 <em>从介质导入</em> 面板中，会显示驱动器的实时状态；当驱动器上存在可读取的 ISO 文件时， <strong>导入 ISO</strong> 按钮将启用，请点击它。（如果刚刚插入或修复了光盘，请使用 <strong>重新扫描</strong>。）",
           "insert": "[缺失：docs.admin.airgap_workflow.transport.insert]",
           "summary": "[缺失：docs.admin.airgap_workflow.transport.summary]",
           "title": "[缺失：docs.admin.airgap_workflow.transport.title]",
-          "verify": "[缺失：docs.admin.airgap_workflow.transport.verify]"
+          "verify": "导入将媒体挂载为只读，验证嵌入的签名 <code>/manifest.json</code> 并将其同步到 <code>/var/lib/sysmanage/airgap-repo</code>。查看运行状态：<code>VERIFYING_SIG</code>（签名检查），<code>COPYING</code>（rsync 进行中），<code>COMPLETE</code>。来自不受信任的收集器的光盘在验证时会失败。"
         },
         "trust": {
-          "copy": "[缺失：docs.admin.airgap_workflow.trust.copy]",
-          "import": "[缺失：docs.admin.airgap_workflow.trust.import]",
-          "summary": "[缺失：docs.admin.airgap_workflow.trust.summary]",
+          "copy": "在 <strong>collector</strong> 上，在设置 → 服务器角色中，<em>收集器公钥</em> 卡片显示公钥及其指纹。点击 <strong>复制公钥</strong> 将 PEM 放到剪贴板上（并记录指纹 — 它与每个清单中的 <code>signer_fingerprint</code> 相匹配）",
+          "import": "在 <strong>repository</strong> 中，进入设置 → 服务器角色，在 <em>受信任的收集器密钥</em> 卡片中：给收集器命名，粘贴 PEM 文件，然后点击 <strong>导入密钥</strong>。导入的密钥将写入 <code>/var/lib/sysmanage/airgap/trusted-collectors/&lt;name&gt;.pub</code>，并且卡片上会列出该密钥及其指纹。密钥环可以保存多个密钥，因此您可以信任多个收集器并进行无中断的密钥轮换。",
+          "summary": "存储库只会摄取由其信任的收集器签名的媒体。信任是通过将收集器的<em>公钥</em>复制到存储库中来建立的——私钥永远不会离开收集器。",
           "title": "[缺失：docs.admin.airgap_workflow.trust.title]",
           "transfer": "[缺失：docs.admin.airgap_workflow.trust.transfer]"
         }
@@ -2968,8 +2968,8 @@
         "meta_description": "REST 端点 参考 用于 每个 专业版+ 引擎: automation, 警报, 审计, av, 合规, 容器, fleet, 防火墙, health, 可观测性, 机密, virtualization, vulns.",
         "observability": {
           "title": "可观测性引擎",
-          "builders": "[缺失：docs.api.engines.observability.builders]",
-          "shim": "[缺失：docs.api.engines.observability.shim]"
+          "builders": "计划构建器由引擎公开，包括：<code>build_otel_multiplatform_deploy_plan</code>、<code>build_otel_multiplatform_remove_plan</code>、<code>build_otel_service_control_plan</code>（启动/停止/重启）、<code>build_otel_grafana_connection_plan</code>（连接/断开）、<code>build_otel_status_plan</code>、<code>build_graylog_linux_autodetect_plan</code>、<code>build_graylog_bsd_syslog_append_plan</code>、<code>build_graylog_sidecar_plan</code>（api_token变体）、<code>build_graylog_sidecar_no_token_plan</code>（Windows OSS负载变体）、<code>build_graylog_status_plan</code>、<code>build_grafana_provision_plan</code>。",
+          "shim": "OSS 可观察性端点（<code>POST /hosts/{id}/deploy-opentelemetry</code>, <code>/remove-opentelemetry</code>, <code>/opentelemetry/{start,stop,restart,connect,disconnect}</code>, <code>/host/{id}/attach_to_graylog</code>）都通过 <code>backend/services/observability_shim.py</code> 路由；当引擎加载时，它们调度 <code>APPLY_DEPLOYMENT_PLAN</code> 通过代理的通用执行器。如果没有加载引擎，则回退到旧版 <code>generic_command</code> WS 调度。每个请求所选路径记录在审计日志中的 <code>details.dispatch_path</code> 下。"
         },
         "page_title": "Pro+ 引擎 API 参考 - SysManage",
         "secrets": {
@@ -3803,10 +3803,10 @@
           "get": "read one 镜像",
           "intro": "下面的每个路由都会在未加载 <code> repository_mirroring_engine </code> 的情况下返回 402。",
           "list": "list 镜像",
-          "list_snapshots": "list 快照",
-          "restore": "恢复 a 快照",
+          "list_snapshots": "列出快照（包括 <code>大小</code> + <code>文件数量</code> 从 rsync <code>--stats</code>）",
+          "restore": "恢复一个快照 (时间戳 <code>last_restore_message_id</code>)",
           "settings": "管理设置（旧版单例）",
-          "snapshot": "take a 快照 now",
+          "snapshot": "现在创建快照（为飞行跟踪标记 <code>last_snapshot_message_id</code>）",
           "sync": "立即启动同步计划",
           "tick": "cron-驱动 驱动程序 钩子",
           "title": "API 参考",
@@ -3851,7 +3851,7 @@
         },
         "snapshots": {
           "gc": "快照保留由 <code> snapshot_count_to_keep </code> 控制。垃圾收集计划按字母顺序（=时间顺序）列出快照，删除所有早于保留计数的内容，并在放宽只读标志后 <code> rm -rf </code> s 其余部分。",
-          "intro": "快照是 <code> rsync -aH --delete </code> 的活动树到位于 <code> {mirror_root}/{name}/.snapshots/{snapshot_id} </code> 的同级只读目录中。快照 ID 是可排序的时间戳 ( <code> YYYYMMDDTHHMMSS </code> )。 rsync 后，引擎运行 <code> chmod -R a-w </code>，因此无法就地修改快照。",
+          "intro": "一个快照是通过执行\\n\\t\\t\\t<code>rsync -aH --delete --stats</code>命令将活动树同步到相邻的只读目录下，该目录位于<code>{mirror_root}/{name}/.snapshots/{snapshot_id}</code>。 快照ID是可排序的时间戳（<code>YYYYMMDDTHHMMSS</code>）。 rsync执行后，引擎会运行\\n\\t\\t\\t<code>chmod -R a-w</code>命令以防止对快照进行就地修改。 服务器端解析<code>--stats</code>输出，并填充<code>size_bytes</code>和<code>file_count</code>字段，这些信息存储在<code>mirror_snapshot</code>行中——无需第二次遍历来计算快照的权重。",
           "restore": "恢复则相反——从所选快照重新同步到活动树中。该引擎不进行符号链接翻转，因为大多数镜像服务器（httpd、nginx）都在 stat 上进行缓存，并且就地 rsync 比协调工作进程之间的翻转更容易推理。",
           "title": "快照 & 恢复",
           "sudoers": "<strong>Sudoers 需求。</strong> 快照和恢复计划都会调用 <code>sudo rsync</code> + <code>sudo chmod</code>。sysmanage-agent 包含的 sudoers 片段（Linux 上为 <code>/etc/sudoers.d/sysmanage-agent</code>，OpenBSD 上为 <code>/etc/doas.d/sysmanage-agent</code>）明确允许这些操作 — 如果缺少 rsync 条目，则计划会快速失败，并在代理命令结果中显示 sudo 的“用户不允许运行”消息。如果您本地烘焙自己的 sudoers 文件，请从安装程序的打包文件中镜像允许列表。"
@@ -4010,9 +4010,9 @@
         "bundles": {
           "title": "三种捆绑类型",
           "intro": "设置中的Air-Gap安装捆绑包选项卡可以生成三种不同的ISO捆绑包。选择与您打算在隔离区内部署相匹配的那些；这三种捆绑包都是在同一Pro+许可主机上的同一UI选项卡中生成的。",
-          "server": "<strong>服务器包</strong>（约 1 GB）— SysManage 服务器 <code>.deb</code>/<code>.rpm</code>/<code>.apk</code>/<code>.pkg</code>/<code>.msi</code>，适用于每个支持平台及其完整的依赖项和 Python 轮子文件。首先安装此包在隔离的服务器主机上。",
+          "server": "<strong>服务器包</strong> (~1 GB) — SysManage 服务器 <code>.deb</code>/<code>.rpm</code>/<code>.apk</code>/<code>.pkg</code>/<code>.msi</code>，加上其完整的转递本地包依赖项（PostgreSQL, nginx, Python 构建依赖）和来自 <code>requirements.txt</code> 的每个 Python 轮子。首先在脱机服务器主机上安装此包。",
           "agent": "<strong>代理包</strong>（约 500 MB）— SysManage 代理软件包，适用于每个支持平台及其依赖项和 Python 轮子文件。安装此包在隔离网络中的每台主机上，以进行管理。",
-          "proplus": "<strong>Pro+ 层包</strong>（约 50 MB）— 构建主机的 Cython 引擎 <code>.so</code> 文件、JavaScript 插件适配器、许可证 JWT 和缓存的许可证公钥。在安装服务器包之后，将其应用到隔离的 <em>服务器</em> 主机上；它可以在本地解锁 Pro+ 引擎而无需与 <code>license.sysmanage.org</code> 进行任何电话回家操作。如果您只需要社区版功能，则不需要此层包。",
+          "proplus": "<strong>Pro+ 高级功能包</strong> (~50 MB) — 包含构建主机的 Cython 引擎 <code>.so</code> 文件、JavaScript 插件适配器、许可 JWT 和缓存的许可公钥。在服务器端安装基础包后，将其应用于离线环境中的 <em>server</em> 主机 <strong>之后</strong>；这将允许本地解锁 Pro+ 引擎而无需连接到 <code>license.sysmanage.org</code>。如果您只需要社区版功能，则不需要此包。",
           "order": "如果要在隔离网络中的服务器上启用 Pro+ 功能，则安装顺序为：<strong>(1) 在服务器主机上安装服务器包，(2) 在同一服务器主机上安装 Pro+ 覆盖层，(3) 在每个托管主机上安装代理包</strong>。Pro+ 覆盖层的安装程序期望 SysManage 服务器已经存在 — 它会将引擎模块复制到 <code>/var/lib/sysmanage/modules/</code>，将许可证公钥放入 <code>/var/lib/sysmanage/license/</code>，并将许可证 JWT 写入 <code>/etc/sysmanage.yaml</code>，然后重启服务。"
         },
         "proplus_install": {
@@ -4075,7 +4075,7 @@
             "federation": "联邦站点同步 + 版本差异",
             "views": "过滤、不可变的版本化内容视图（包括复合视图）"
           },
-          "link": "Content Lifecycle Guide →",
+          "link": "内容生命周期指南 →",
           "title": "📦 Content Lifecycle Management"
         },
         "composite": {
@@ -4110,7 +4110,7 @@
         },
         "meta_description": "",
         "overview": {
-          "intro": "Enterprise 模块 <code>content_lifecycle_engine</code> 建立在 <a href=\"repository-mirroring.html\">仓库镜像快照</a> 的基础上。平面镜像变为<strong>内容视图</strong>：命名、过滤且版本化的仓库选择集。发布一个内容视图会在镜像主机上生成一个不可变的版本，然后您可以在有序环境路径中对其进行推广。与其他引擎一样，OSS 服务器拥有 API、模式和许可证门控（每个端点在未加载引擎时返回 HTTP 402 状态码）；该引擎会发出 <code>apply_deployment_plan</code> 消息供镜像主机代理运行。无需更改代理代码。",
+          "intro": "The <code>content_lifecycle_engine</code> Enterprise 模块建立在 <a href=\"repository-mirroring.html\">repository mirroring</a> 快照基础之上。扁平的镜像变成了 <strong>content views</strong>：命名、过滤和版本化的仓库选择。发布一个内容视图会在镜像主机上生成一个 <strong>immutable version</strong>，然后你可以将其 <strong>promote</strong> 到有序环境路径中。与其他引擎一样，OSS 服务器拥有 API、模式以及许可门控（每个端点在未加载引擎时返回 HTTP 402）；该引擎发出镜像主机代理运行的 <code>apply_deployment_plan</code> 消息。无需更改任何代理代码。",
           "split": "内容视图定义（环境、视图、过滤器、版本）是共享分区中的平台事实；租户分区中存储每个租户的推广状态（哪个版本绑定到哪个环境，审核记录以及站点订阅），并引用共享 ID。",
           "title": "概述"
         },
@@ -4125,13 +4125,13 @@
         },
         "title": "内容生命周期管理 - 专业版+ - SysManage",
         "views": {
-          "intro": "内容视图是镜像主机上选定的一组仓库（在当前发行版中，所有仓库都在一个镜像主机上）。<strong>发布</strong>是一个异步代理任务：对于每个镜像，引擎会获取最新快照，应用视图的过滤器，重新生成本地仓库元数据，并将结果冻结为只读版本 <code>v{n}</code>。发布的版本是不可变的 — 再次发布会产生新的版本号（<code>v{n+1}</code>），而不是修改现有版本。每个视图保留一定数量的已发布版本（默认 5 个）；垃圾回收会释放未绑定到环境的旧版本，但不会影响当前环境所绑定的版本。",
+          "intro": "一个内容视图是对仓库镜像（在当前发行版中位于同一镜像主机上）的命名选择。 <strong>发布操作</strong>是一个异步代理任务：对于每个镜像，引擎会获取最新的快照，应用视图的过滤器，重新生成本地仓库元数据，并将结果冻结为只读版本 <code>v{n}</code>。发布的版本是不可变的 — 重新发布会产生 <code>v{n+1}</code>，而不是对现有版本进行修改。每个视图保留一定数量的已发布版本（<code>keep_versions</code>，默认为5）；感知绑定的垃圾回收会释放更早的未绑定版本，但绝不会影响任何环境所绑定的版本。",
           "title": "内容视图和发布"
         }
       },
       "imagemode": {
         "actions": {
-          "apply": "<strong>应用</strong> — 引导到已准备好的镜像（<code>bootc upgrade --apply</code> 或者 <code>rpm-ostree upgrade</code> 后重启）。",
+          "apply": "<strong>应用</strong> — 启动到已准备好的镜像（<code>bootc upgrade --apply</code>，或阶段 + 重启 rpm-ostree）。",
           "intro": "这是企业版的<code>image_mode_engine</code>添加的操作。每个操作都针对整个操作系统镜像，并映射到主机后端的原生命令：",
           "reboot_note": "Apply 和 Rollback 需要重新启动主机，因此 UI 在继续之前会确认。这些操作与包更新不同 — 它们针对整个操作系统镜像进行操作，而不是单独的已安装包。",
           "rollback": "<strong>回滚</strong> — 返回到上一个部署并重新启动（<code>bootc rollback</code> / <code>rpm-ostree rollback</code>）。",
@@ -4142,7 +4142,7 @@
         "detection": {
           "backend": "后端 <strong>——</strong> <code>bootc</code> 或 <code>rpm-ostree</code>;",
           "booted": "<strong>启动</strong>的镜像引用及其摘要；",
-          "display_free": "此检测基于标准主机检查，且该状态的<em>显示</em>始终可见 — 您可以查看主机是否处于镜像模式及其启动/阶段/回滚状态，而无需企业版许可证。只有更改镜像的操作（阶段、应用和回滚）才依赖于<code>image_mode_engine</code>。",
+          "display_free": "该检测依托于标准的主机签入流程，此状态的<em>显示</em>始终可见 — 即使没有 Enterprise 许可证，您也可以查看主机是否处于镜像模式，以及它的 booted/staged/rollback 状态。只有<em>更改</em>镜像的操作（Stage、Apply、Rollback）才受 <code>image_mode_engine</code> 限制。",
           "intro": "每个代理都会报告其主机是否处于镜像模式作为常规检查的一部分。当主机处于镜像模式时，该报告还包括：",
           "rollback": "是否可用<strong>回滚</strong>部署。",
           "staged": "任何处于<strong>准备就绪</strong>（待处理，下次启动）的部署；",
@@ -4153,7 +4153,7 @@
           "title": "软件更新UI已关闭"
         },
         "header": {
-          "subtitle": "管理从原子操作系统镜像启动的主机 — Fedora/RHEL <strong>bootc</strong> 或 <strong>rpm-ostree</strong>/OSTree系统（如Fedora CoreOS），而不是可变软件包集。检测是自动化的且始终可见；企业版<code>image_mode_engine</code>添加了第一类的<em>阶段、应用和回滚</em>操作，针对整个镜像。这是卫星系统的镜像模式功能对等项。",
+          "subtitle": "管理从原子 OS 镜像引导的主机 — Fedora/RHEL <strong>bootc</strong>，或 <strong>rpm-ostree</strong> / OSTree 系统如 Fedora CoreOS — 而不是可变包集。检测是自动且始终可见；Enterprise <code>image_mode_engine</code> 添加了对整个镜像的第一类 <strong>Stage</strong>, <strong>Apply</strong> 和 <strong>Rollback</strong> 操作。这是 Satellite 镜像模式的对等功能。",
           "title": "镜像模式主机管理"
         },
         "meta_description": "",
@@ -4169,7 +4169,7 @@
         },
         "screenshot": {
           "host_detail": "主机详情页面，其中包含镜像模式标签页与其他每个主机的标签页一起显示。该标签页仅在镜像模式主机上显示。",
-          "image_mode": "主机详情页面上的<strong>镜像模式</strong>标签页：启动的镜像引用及摘要、任何阶段（下次启动）部署、是否可用回滚部署以及<em>阶段/应用/回滚</em>操作按钮。"
+          "image_mode": "在主机的详细信息页面上的\\n\\n<strong>镜像模式</strong>标签页：已启动的镜像引用和摘要，任何预置（下次引导）部署，是否可用回滚部署，以及阶段化 / 应用 / 回滚操作按钮。"
         },
         "tab": {
           "intro": "<strong>镜像模式</strong>标签出现在主机详情页面上 — 但仅适用于实际处于镜像模式的主机。它显示在检查点报告的已引导、准备和回滚镜像状态，并提供三个主要操作来推进或还原操作系统镜像。",
@@ -4192,7 +4192,7 @@
         "meta_description": "",
         "overview": {
           "gate": "与其他引擎一样，该功能由企业控制 — 开源服务器拥有 API、模式和许可证门控，而编译后的引擎执行捕获和内容工作。加载后，容器镜像成为<strong>经过管理、版本化且离线可用的内容</strong>：一次捕获它们，通过摘要固定它们，并将它们快照到不可变的内容视图版本中，在生命周期环境中进行推广，并在没有实时注册表的情况下提供给主机。",
-          "intro": "容器镜像内容生命周期是一个<strong>企业级</strong>功能，由编译的 <code>oci_proxy_engine</code> 提供。它与 Satellite 风格的容器镜像内容视图达到一致：您的 OCI / Docker 容器镜像通过相同的捕获 → 版本 → 推广 → 服务管道流动 — 与<a href=\"repository-mirroring.html\">镜像包</a>和<a href=\"snap-proxy.html\">snaps</a>一样。",
+          "intro": "容器镜像内容生命周期是 <strong>Enterprise</strong> 功能，由编译的 <code>oci_proxy_engine</code> 提供。它与 Satellite 式容器镜像内容视图达到功能对等：您的 OCI / Docker <strong>container images</strong> 通过捕获 → 版本 → 推进 → 提供管道流经，如同 <a href=\"repository-mirroring.html\">mirrored packages</a> 和 <a href=\"snap-proxy.html\">snaps</a>。",
           "title": "概览"
         },
         "promote": {
@@ -4209,14 +4209,14 @@
         },
         "serve": {
           "action": "这是内容视图推广通道上的<strong>重新指向镜像</strong>操作。加载后，该镜像成为本地第一类镜像 — 可以立即在主机上通过<code>podman run</code>运行，无需依赖外部注册表。",
-          "intro": "消费主机被<strong>重新指向</strong>以完全离线加载环境提供的镜像到本地容器存储：它从环境中拉取服务的 OCI 树，并运行 <code>skopeo copy oci:… containers-storage:…</code> 将其加载到本地存储中 — 不需要实时注册表，因此在空气隔绝网络上也可以完全工作。",
+          "intro": "一个消费主机被 <strong>repointed</strong> 为加载环境提供的镜像到其本地容器存储中 <strong>offline</strong>。该主机从环境中拉取 OCI 树，然后运行 <code>skopeo copy oci:… containers-storage:…</code> 将其加载到本地存储 — 不需要实时注册表，因此完全脱机工作。",
           "title": "提供并重新指向主机"
         },
         "title": "容器映像内容生命周期 - 专业版+ - SysManage",
         "track": {
           "figcaption": "一个镜像扩展以显示其跟踪的容器镜像 — 每个都有其注册表 / 仓库、标签、捕获状态，并且一旦被捕获，还携带固定的摘要（不可变的清单身份）。",
           "intro": "在一个镜像（设置 → 仓库镜像）上，您通过 <strong>注册表/存储库/标签</strong> 跟踪容器镜像 —— 例如 <code>docker.io</code> / <code>library/nginx</code> / <code>1.27</code>。每个跟踪的镜像是属于其所属镜像的一行，因此镜像在您管理上游内容的地方进行维护。",
-          "status": "一个被跟踪的镜像在通过管道移动时会显示<strong>捕获状态</strong> — <code>TRACKED → DISPATCHED → CAPTURED</code>（或<code>FAILED</code>）。一旦被捕获，行还会携带固定的摘要 — 不可变的清单身份，表示确切获取到的字节。",
+          "status": "受追踪的镜像在流经流水线时会显示<strong>捕获状态</strong> — <code>TRACKED → DISPATCHED → CAPTURED</code>（或 <code>FAILED</code>）。一旦完成捕获，该行还会带上固定的<strong>摘要</strong> — 即精确标识所获取字节的不可变清单标识。",
           "title": "追踪镜像"
         }
       },
@@ -4226,7 +4226,7 @@
           "li1": "检测已引导 / 准备 / 回滚镜像状态",
           "li2": "阶段/应用/回滚（bootc + rpm-ostree）",
           "li3": "镜像模式主机的软件更新UI已关闭",
-          "link": "Image-Mode Hosts Guide →",
+          "link": "图像模式主机指南 →",
           "title": "💾 图像模式主机"
         },
         "imgcontent": {
@@ -4234,7 +4234,7 @@
           "li1": "按仓库/标签追踪镜像",
           "li2": "摘要固定的 skopeo 捕获（无守护进程）",
           "li3": "空气隔绝 ISO + 离线重新指向",
-          "link": "Container Image Content Guide →",
+          "link": "容器镜像内容指南 →",
           "title": "📦 Container Image Content"
         },
         "snapproxy": {
@@ -4242,14 +4242,14 @@
           "li1": "按名称+渠道追踪snap包",
           "li2": "捕获 snaps + 断言（无守护进程）",
           "li3": "离线推广和重新指向主机",
-          "link": "Snap Store Proxy Guide →",
+          "link": "Snap 存储代理指南 →",
           "title": "📦 Snap Store Proxy"
         }
       },
       "snapproxy": {
         "breadcrumb": "Snap Store Proxy",
         "capture": {
-          "body": "捕获snap包的操作会下载每个被追踪的snap包及其<strong>断言</strong> — 这是<code>snap ack</code>需要的信任和安装离线snap包的签名元数据。捕获过程是无守护进程的：它不需要运行中的Snap Store代理服务。捕获的snap包是基于摘要和修订号固定的，因此一个管理版本可以精确重现且不会无声地漂移。",
+          "body": "<strong>捕获 snap</strong> 操作会将每个受追踪的 snap 连同其<strong>断言</strong>（即 <code>snap ack</code> 离线信任并安装该 snap 所需的签名元数据）一起下载到镜像树中。捕获过程<strong>无需守护进程</strong>：不需要运行 Snap Store Proxy 服务。捕获的 snap 会<strong>锁定摘要与修订版本</strong>，因此经过策划的版本可以精确复现，绝不会悄然漂移。",
           "title": "捕获"
         },
         "header": {
@@ -4262,7 +4262,7 @@
         },
         "meta_description": "",
         "promote": {
-          "body": "捕获的 snaps 生成一个不可变的内容视图版本，与包并列，因此单个发布的版本可以携带 DEB/RPM 内容和主机需要的 snap。从那里它们通过<a href=\"content-lifecycle.html\">生命周期环境</a>沿常规路径进行推广 — <strong>库 → 开发 → 测试 → 生产</strong> — 并且它们会免费骑在<strong>空气隔绝导出 ISO</strong>上，无需额外步骤。",
+          "body": "捕获的快照在 <strong>immutable content-view version</strong> 中与包一起出现，因此单个已发布版本可以携带 DEB/RPM 内容以及主机需要的快照。从那里它们通过 <a href=\"content-lifecycle.html\">Lifecycle Environments</a> 沿常规顺序路径推进 — <strong>Library → Dev → Test → Prod</strong> — 并且它们免费随同 <strong>air-gap export ISO</strong>，无需额外步骤。",
           "title": "通过内容视图进行推广"
         },
         "requirements": {
@@ -4275,7 +4275,7 @@
           "body": "消费主机被<strong>重新指向</strong>以完全离线安装环境提供的 snap：它拉取 snap 包，运行 <code>snap ack</code> 来确认捕获的断言，并从本地内容中安装 — 不需要与上游商店联系，因此在空气隔绝网络上也可以工作。这是<strong>重新指向 snaps</strong>操作，在内容视图的推广通道中，类似于包重新指向的工作方式。",
           "title": "提供并重新指向主机"
         },
-        "title": "Snap Store Proxy - Professional+ - SysManage",
+        "title": "Snap 商店代理 - 专业版+ - SysManage",
         "track": {
           "body": "在镜像（<strong>设置 → 仓库镜像</strong>）中，您通过<strong>名称 + 渠道</strong>来跟踪想要管理的snap包 — 例如 <code>firefox</code> 在 <code>latest/stable</code>。每个被追踪的snap包携带一个<strong>捕获状态</strong>，该状态会引导其通过管道：<code>TRACKED → DISPATCHED → CAPTURED</code> 或者如果捕获失败则为 <code>FAILED</code>。",
           "title": "追踪snap包"
@@ -4417,10 +4417,10 @@
           "107": "系统指标",
           "108": "复制YAML文件",
           "109": "📥 下载配置文件",
-          "emailMoved": "[缺失：docs.auto.home.config-builder.emailMoved]",
-          "secrets-body": "[缺失：docs.auto.home.config-builder.secrets-body]",
-          "secrets-li1": "[缺失：docs.auto.home.config-builder.secrets-li1]",
-          "secrets-li2": "[缺失：docs.auto.home.config-builder.secrets-li2]",
+          "emailMoved": "从 v3.0 开始，不再在 <code>sysmanage.yaml</code> 中配置电子邮件（v3.0+）。在应用程序中配置 SMTP 服务器、凭据和模板于 <strong>Settings → Configuration</strong>（每个租户），SMTP 密码存储在 OpenBAO 中，而不是 YAML 文件。",
+          "secrets-body": "自 v3.0 起，<code>sysmanage.yaml</code> 是一个 <strong>最小的启动指针</strong>：它只需要如何连接到数据库/注册表和 OpenBAO 以及监听器/TLS 设置的信息。 你通常不会在这里放置密钥或操作设置：<strong>不</strong>",
+          "secrets-li1": "<strong>机密信息</strong>（JWT 密钥、密码盐值、管理员密码、数据库密码、SMTP 密码）由安全安装步骤<strong>生成并写入 OpenBAO</strong> — 请不要把它们放在 YAML 中。",
+          "secrets-li2": "<strong>运营设置</strong>（登录/会话超时，消息队列调优，监控）和 <strong>email</strong>（服务器、凭据、模板）在首次登录后配置于 <strong>Settings</strong> — 邮件是租户级别的。",
           "secrets-li3": "[缺失：docs.auto.home.config-builder.secrets-li3]",
           "secrets-title": "[缺失：docs.auto.home.config-builder.secrets-title]",
           "110": "数据库选项（可选）"
@@ -5191,7 +5191,7 @@
           "270": "维护窗口指南 →",
           "271": "PostgreSQL High Availability",
           "272": "运行服务器以高可用性PostgreSQL集群为目标，并在主节点故障切换时无需人工干预即可继续运行：连接端点策略，自动预检测/重试/健康检查行为，以及服务器留给集群管理器的职责。",
-          "273": "PostgreSQL High Availability Guide →"
+          "273": "PostgreSQL 高可用性指南 →"
         },
         "maintenance": {
           "001": "文档",
@@ -5397,7 +5397,7 @@
           "039": "检查服务是否正在运行:",
           "040": "访问Web接口：",
           "041": "Prometheus UI：http://localhost:9091",
-          "042": "OpenTelemetry Collector zPages: http://localhost:55679/debug/tracez",
+          "042": "OpenBAO 指标收集器 zPages: http://localhost:55679/debug/tracez",
           "043": "SysManage指标端点：http://localhost:9090/metrics",
           "044": "配置",
           "045": "环境变量",
@@ -5462,7 +5462,7 @@
           "104": "添加详细跟踪所需的自定义跨度：",
           "105": "查看跟踪信息",
           "106": "通过以下方式访问跟踪数据：",
-          "107": "OpenTelemetry Collector zPages: http://localhost:55679/debug/tracez",
+          "107": "OpenBAO 指标收集器 zPages: http://localhost:55679/debug/tracez",
           "108": "导出到Jaeger：配置OTLP导出器以发送到Jaeger",
           "109": "导出到Zipkin：配置OTLP导出器以发送到Zipkin",
           "110": "Grafana Tempo：在 Grafana 中使用 Tempo 进行分布式跟踪",
@@ -7119,7 +7119,7 @@
           "012": "<strong>Windows：</strong> Windows事件日志。",
           "013": "目标根据平台自动选择，或者您可以明确指定。如果请求的目标不可用（例如缺少可选依赖项），SysManage 会记录一条通知并继续使用文件日志 — 它永远不会因日志记录而启动失败。",
           "014": "数据库存储的日志设置",
-          "015": "设置 → 日志记录页面将日志配置存储在数据库中，<strong>优先于yaml文件</strong>。它包含两部分：",
+          "015": "在 <strong>设置 → 日志记录</strong> 页面中，日志配置存储在数据库中，并且 <strong>优先于 YAML 文件</strong>。 它包含两个部分：",
           "016": "<strong>服务器日志记录：</strong> 单张卡片用于服务器。仅提供当前操作系统有效的本地目标（例如，Windows 服务器不会提供 journald）。",
           "017": "<strong>按操作系统设置代理默认值：</strong> 每个 OS 家族（Linux、Windows、macOS、BSD）一张卡片。每张卡片为该 OS 设置默认日志记录，仅提供有意义的本地目标。",
           "018": "每个代理操作系统有一张卡片，标题为 OS。每张卡片有一个 <strong>单个开关</strong>，用于开启或关闭该操作系统的原生日志记录功能；此外还有字段用于指定目标、标识符/标签、日志级别和详细程度。关闭开关后会保存并推送到这些代理，它们将停止写入原生接收器，并继续使用其轮换文件日志；打开开关则会将日志发送到操作系统原生接收器。",
@@ -7137,9 +7137,9 @@
           "030": "监控与警报 →",
           "031": "设置 → 日志页面：服务器和每个操作系统的代理默认值的原生日志记录配置，以及可选的远程 syslog 转发字段（专业版）。",
           "032": "远程syslog转发",
-          "033": "上述本地接收器 — 旋转文件日志、journald、本地syslog守护进程以及Windows事件日志 — 是<em>免费开源版的一部分</em>并保持免费。此外，SysManage可以将其自身的服务器和代理日志转发到一个<strong>中央syslog服务器</strong>，以便它们与其他基础设施的日志一起记录。",
-          "034": "选择 <strong>远程 syslog</strong> 目标会添加目标主机、端口、设施和协议（UDP 或 TCP）字段。这适用于服务器自身的日志以及每个操作系统家族代理的默认设置，并且像所有其他日志更改一样，它实时推送到连接的代理并在重新连接时重新应用。",
-          "035": "<strong>版本：</strong> 远程 syslog 转发是 <strong>专业</strong> 功能，受 <code>LOG_ROUTING</code> 特性控制。没有专业（或更高）许可证时保存远程目标会返回 HTTP <code>402</code>; 本地 sink 在每个版本中都可用。",
+          "033": "上述本地日志sink — 旋转文件日志、journald、本地syslog守护进程和Windows事件日志 — 是<strong>免费开源版的一部分</strong>并保持免费。此外，SysManage可以将其 <em>自身的</em>服务器和代理日志转发到一个 <strong>中央syslog服务器</strong> ，以便与其他基础设施的日志一起存储。",
+          "034": "选择 <strong>remote syslog</strong> 目标会添加目的地 <strong>host</strong>, <strong>port</strong>, <strong>facility</strong> 和 <strong>protocol</strong> (UDP 或 TCP) 字段。这适用于服务器自身的日志和每个操作系统家族的代理默认设置，并且 — 与其他所有日志更改一样 — 它会实时推送到连接的代理并在重新连接时重新应用。",
+          "035": "<strong>版本：</strong> 远程 syslog 转发是一项 <strong>Professional</strong> 功能，受 <code>LOG_ROUTING</code> 特性控制。在没有 Professional（或更高级）许可证的情况下保存远程目标将被 HTTP <code>402</code> 拒绝；所有版本中 <strong>本地</strong> 沉淀物仍然完全可用。",
           "036": "⭐ PRO+"
         },
         "process-management": {
@@ -7289,7 +7289,7 @@
           "006": "概览",
           "007": "SysManage代理通过一个名为sysmanage-agent.yaml的YAML配置文件进行配置。此文件控制代理行为的所有方面，包括服务器连接性、安全设置、数据收集间隔以及脚本执行策略。",
           "008": "配置文件位置",
-          "009": "Linux/Unix: /etc/sysmanage-agent/sysmanage-agent.yaml",
+          "009": "/etc/sysmanage-agent/sysmanage-agent.yaml（Linux/Unix）",
           "010": "当前目录：./sysmanage-agent.yaml",
           "011": "用户配置：~/.config/sysmanage-agent/sysmanage-agent.yaml",
           "012": "代理按上述顺序搜索配置文件。",
@@ -8585,7 +8585,7 @@
           "040": "实时状态更新",
           "041": "命令执行和结果",
           "042": "事件流与通知",
-          "043": "WebSocket API →",
+          "043": "WebSocket API → WebSocket API",
           "044": "监控 📊",
           "045": "通过编程接口进行系统监控、指标收集和告警",
           "046": "系统指标和性能数据",
@@ -8895,7 +8895,7 @@
           "135": "对关键系统修改使用审批工作流",
           "136": "快速导航",
           "137": "← 主机管理",
-          "138": "WebSocket API →"
+          "138": "WebSocket API → WebSocket API"
         },
         "phase8-features": {
           "001": "文档",
@@ -11918,7 +11918,7 @@
           "138": "集成点",
           "139": "外部系统集成",
           "140": "身份验证系统",
-          "141": "LDAP/Active Directory",
+          "141": "LDAP/Active 目录",
           "142": "SAML 2.0 提供商",
           "143": "OAuth 2.0/OpenID Connect",
           "144": "多重身份验证",
@@ -12389,7 +12389,7 @@
           "061": "由于每个租户都有自己的数据库，SysManage 会独立跟踪每个租户的备份恢复点目标 (RPO)。SysManage 负责编排备份，但本身并不存储备份数据。您只需在服务器端的 sysmanage.yaml 中配置一次备份命令；SysManage 会按每个租户的 RPO 节奏运行该命令、记录每次运行、验证每个备份的完整性，并定期执行完整的恢复验证。控制平面的“租户”页面会显示每个租户的 RPO 合规情况（合规、有风险或已违反）、其最近的运行记录，以及“立即备份”触发按钮。",
           "062": "备份命令是服务器配置，不可按租户编辑，因此租户无法注入要在您的服务器上运行的命令。模板占位符 — {tenant_id} ， {slug} ， {host} ， {port} ， {dbname} ， {region} — 允许一个命令针对每个租户的数据库。将其指向您已经使用的备份工具（pgBackRest，wal-g或pg_dump包装器）：",
           "063": "运行高可用性的PostgreSQL — 这是一个要求，而不是一个选项。",
-          "064": "多租户控制平面将 <em>每个</em> 租户的数据集中到 PostgreSQL 中。因此，单个数据库节点是您整个客户群的单一故障点 — 如果它宕机，则整个平台会变暗，并且所有租户同时不可用。这与 SaaS 控制平面提供的功能背道而驰。运行一个高度可用的 PostgreSQL 集群（主节点加上至少一个流复制备用节点，后面有一个稳定的读写端点），并指向 <strong>SysManage 服务器和 OpenBAO 的数据库密钥引擎</strong> 端点，以便租户凭据租赁在故障转移后仍然有效。请参阅 <a href=\"../administration/postgresql-ha.html\">PostgreSQL 高可用性</a> 文档，在生产环境中部署之前进行配置。下面的单节点示例 <code>host: db-registry.internal</code> 仅用于清晰说明 — 使用您的集群稳定端点（libpq 多主机列表或 VIP/代理）。"
+          "064": "多租户控制平面把<em>每一个</em>租户的数据都集中在 PostgreSQL 之后。因此单个数据库节点就是整个客户群的单点故障 — 一旦它宕机，整个平台随之失效，所有租户同时中断。这与 SaaS 控制平面存在的意义恰恰相反。请运行高可用的 PostgreSQL 集群（一个主节点，外加至少一个位于稳定读写端点之后的流复制备用节点），并把 SysManage 服务器<strong>与</strong> OpenBAO 的数据库机密引擎<strong>同时</strong>指向该端点，这样租户凭据的租用也能在故障转移后继续正常工作。在投入生产之前，请先阅读 <a href=\"../administration/postgresql-ha.html\">PostgreSQL 高可用性</a>。下面的单节点示例 <code>host: db-registry.internal</code> 仅为清晰起见 — 请替换为您集群的稳定端点（libpq 多主机列表，或 VIP/代理）。"
         }
       },
       "getting-started": {
@@ -12427,8 +12427,8 @@
           "031": "2. 代理配置",
           "032": "配置文件位置",
           "033": "代理配置文件位于：",
-          "034": "Linux/BSD: /etc/sysmanage-agent/sysmanage-agent.yaml",
-          "035": "macOS: /usr/local/etc/sysmanage-agent/sysmanage-agent.yaml",
+          "034": "/etc/sysmanage-agent/sysmanage-agent.yaml（Linux/BSD）",
+          "035": "macOS：/usr/local/etc/sysmanage-agent/sysmanage-agent.yaml",
           "036": "Windows: C:\\系结\\SysManage Agent\\config\\sysmanage-agent.yaml",
           "037": "基本配置",
           "038": "使用您的服务器详细信息编辑配置文件:",
@@ -13316,127 +13316,6 @@
           "002": "开始使用",
           "003": "快速启动",
           "004": "快速入门指南",
-          "005": "使用 Docker Compose 在几分钟内启动 SysManage。适用于评估、开发和小型部署。",
-          "006": "概览",
-          "007": "本快速入门指南将在不到10分钟的时间内使用Docker Compose让您运行SysManage。此方法提供了一个完整的、自包含的SysManage安装，非常适合测试、开发或小型生产环境。",
-          "008": "先决条件",
-          "009": "系统要求",
-          "010": "至少配备4GB内存的Linux服务器或虚拟机（建议使用8GB）",
-          "011": "最少需要 2 个 CPU 核心（推荐使用 4+）",
-          "012": "20GB 可用磁盘空间（建议至少 50GB）",
-          "013": "在端口80、443和8443上访问网络",
-          "014": "软件需求",
-          "015": "已安装 Docker Engine 20.10+",
-          "016": "已安装 Docker Compose 2.0+",
-          "017": "Git（用于克隆仓库）",
-          "018": "管理/ sudo 访问权限",
-          "019": "网络需求",
-          "020": "访问互联网以下载Docker镜像",
-          "021": "防火墙配置为允许入站连接",
-          "022": "静态IP或DNS名称（推荐）",
-          "023": "安装 Docker（如果需要）",
-          "024": "如果没有安装Docker，请使用以下快速命令在常见平台上进行安装：",
-          "025": "Ubuntu/Debian",
-          "026": "RHEL/CentOS/Fedora",
-          "027": "安装步骤",
-          "028": "克隆仓库",
-          "029": "克隆 SysManage 仓库以获取 Docker Compose 配置：",
-          "030": "注意：",
-          "031": "配置环境",
-          "032": "复制并自定义环境配置：",
-          "033": "关键配置选项",
-          "034": "设置",
-          "035": "默认",
-          "036": "描述",
-          "037": "POSTGRES_PASSWORD",
-          "038": "SysManage",
-          "039": "数据库密码（生产环境更改）",
-          "040": "SECRET_KEY",
-          "041": "自动生成的",
-          "042": "应用密钥",
-          "043": "LISTEN_PORT",
-          "044": "8443",
-          "045": "Web 接入端口",
-          "046": "DOMAIN_NAME",
-          "047": "本地主机",
-          "048": "服务器域名或IP",
-          "049": "快速入门：",
-          "050": "生成 SSL 证书",
-          "051": "SysManage 需要 SSL 证书进行安全通信。生成自签名证书用于测试：",
-          "052": "生产注释：",
-          "053": "启动SysManage",
-          "054": "使用 Docker Compose 启动所有 SysManage 服务:",
-          "055": "您应该看到类似以下的输出：",
-          "056": "创建管理员用户",
-          "057": "创建您的第一个管理员帐户：",
-          "058": "安全性：",
-          "059": "访问Web界面",
-          "060": "打开您的网络浏览器并导航到SysManage:",
-          "061": "证书警告：",
-          "062": "使用步骤5中创建的管理员凭据进行登录。",
-          "063": "验证安装",
-          "064": "健康检查",
-          "065": "验证所有组件是否正常工作：",
-          "066": "1. 服务状态",
-          "067": "2. API 健康检查",
-          "068": "3. 数据库连接",
-          "069": "4. Web界面",
-          "070": "登录页面加载正确",
-          "071": "可以用管理员凭据进行身份验证",
-          "072": "仪表盘显示无错误",
-          "073": "导航菜单功能正常",
-          "074": "快速故障排除",
-          "075": "容器无法启动",
-          "076": "无法访问Web界面",
-          "077": "检查防火墙设置是否允许端口8443",
-          "078": "验证 Docker 端口映射：docker compose ps",
-          "079": "尝试通过HTTP访问：http://localhost:8080",
-          "080": "SSL 证书问题",
-          "081": "下一步",
-          "082": "探索界面",
-          "083": "熟悉SysManage网络界面及其功能。",
-          "084": "Web界面演示 →",
-          "085": "安装您的第一个代理",
-          "086": "在您的主机上添加监控代理以开始收集数据。",
-          "087": "代理安装 →",
-          "088": "基本管理",
-          "089": "学习必要的管理和工作流程。",
-          "090": "管理基础 →",
-          "091": "生产部署",
-          "092": "扩展到具有高可用性和安全性的生产就绪部署。",
-          "093": "生产设置 →",
-          "094": "常见安装后任务",
-          "095": "配置电子邮件通知",
-          "096": "配置电子邮件设置以接收警报和通知：",
-          "097": "导航到设置 → 电子邮件配置",
-          "098": "输入SMTP服务器详细信息",
-          "099": "测试邮件发送",
-          "100": "配置警报通知",
-          "101": "创建附加用户",
-          "102": "添加具有适当权限的团队成员：",
-          "103": "转到管理 → 用户",
-          "104": "点击“创建用户”",
-          "105": "设置用户名、电子邮件地址和角色",
-          "106": "根据需要配置权限",
-          "107": "配置主机组",
-          "108": "从逻辑上组织您的基础设施：",
-          "109": "导航到主机 → 组",
-          "110": "按环境、功能或位置创建组",
-          "111": "设置特定于组的权限",
-          "112": "配置基于组的监控",
-          "113": "配置监控阈值",
-          "114": "为您的环境设置警报：",
-          "115": "转到监控 → 警报",
-          "116": "为CPU、内存、磁盘创建警报规则",
-          "117": "设置适当的阈值",
-          "118": "测试警报发送",
-          "119": "有用的命令",
-          "120": "Docker Compose 操作",
-          "121": "备份和维护",
-          "122": "日志管理",
-          "123": "快速导航",
-          "124": "← 快速入门",
-          "125": "Web界面概览 →",
           "126": "SysManage登录页面。"
         },
         "tutorials": {
@@ -13931,14 +13810,14 @@
           "024": "每台主机的 EOL 状态来自 endoflife.date",
           "025": "do-release-upgrade / dnf / zypper / freebsd-update",
           "026": "计划的，维护窗口感知的升级",
-          "027": "OS Lifecycle Guide →",
+          "027": "操作系统生命周期指南 →",
           "028": "🔒 FIPS合规模式",
           "029": "查看哪些主机运行在经过FIPS 140验证的加密模式下，并通过每个平台的原生机制启用或禁用该模式。",
           "030": "车队FIPS状态（启用/可用/禁用）",
           "031": "检测免费；启用/禁用是企业版功能",
-          "032": "Ubuntu Pro / RHEL fips-mode-setup / Windows policy",
+          "032": "Ubuntu 专业版 / RHEL 安全模式设置 / Windows 策略",
           "033": "审计，维护窗口感知，重启感知",
-          "034": "FIPS Compliance Guide →"
+          "034": "符合FIPS指南 →"
         },
         "alerting": {
           "001": "警报页面按严重性列出活动警报，并提供确认和解决控件。",
@@ -14024,8 +13903,8 @@
           "015": "FIPS 检测包含在开源代理中 — 不需要许可证。每次检查时每个代理都会报告其状态，服务器记录该信息以便仪表板和主机标签页始终反映实际情况。检测使用各平台的权威来源：",
           "016": "Linux（内核）: /proc/sys/crypto/fips_enabled — 确定当前是否启用 FIPS 的标志。",
           "017": "RHEL 及重建：fips-mode-setup --check .",
-          "018": "Ubuntu: the Ubuntu Pro fips service status.",
-          "019": "Windows: the FipsAlgorithmPolicy registry value.",
+          "018": "Ubuntu：Ubuntu专业版FIPS服务状态。",
+          "019": "Windows：Fips算法策略注册表值。",
           "020": "macOS & BSD: 报告为不适用。",
           "021": "车队仪表板",
           "022": "FIPS 合规页面位于主导航中，总结了整个车队：启用、可用、禁用或不适用的主机数量，然后是每个主机的状态、使用的开关机制以及上次报告的时间表。使用它可以在审计前一目了然地回答“哪些主机不在 FIPS 模式下？”的问题。",
@@ -15646,7 +15525,7 @@
           "056": "构建工具集成",
           "057": "详细的报告格式",
           "058": "机密检测",
-          "059": "TruffleHog",
+          "059": " trufflehog",
           "060": "高熵密钥扫描器",
           "061": "Git历史扫描",
           "062": "实时密钥检测",
@@ -15944,10 +15823,10 @@
           "354": "Docker 注册表/ Harbor",
           "355": "Artifactory/Nexus",
           "356": "缺陷跟踪",
-          "357": "Jira/Linear/Azure DevOps",
+          "357": "Jira/线性/Azure 开发平台",
           "358": "ServiceNow/Remedy",
           "359": "PagerDuty/Opsgenie",
-          "360": "Slack/Microsoft Teams",
+          "360": "Slack/微软团队",
           "361": "电子邮件/短信通知",
           "362": "安全工具",
           "363": "SIEM 系统（Splunk、ELK）",
@@ -17546,7 +17425,7 @@
       "leap_note": "使用稳定包，可能需要手动安装 Rust",
       "package_notes": "包管理器说明",
       "python_versions": "Leap 搭载 Python 3.9+，Tumbleweed 搭载最新稳定版",
-      "title": "openSUSE Leap/Tumbleweed",
+      "title": "开源SUSE 跳跃/摇摆",
       "tumbleweed_note": "滚动发布，可通过 zypper 获得 Rust"
     },
     "sles": {
@@ -18596,7 +18475,7 @@
           "title": "🔌 离线部署",
           "description": "构建包含SysManage服务器（或代理）及其所有传递的原生包和Python轮子依赖项的多操作系统ISO，然后在无互联网访问的情况下使用一条命令进行安装。",
           "features": {
-            "platforms": "Ubuntu / Debian / Fedora / RHEL / openSUSE / Alpine / BSD / macOS / Windows",
+            "platforms": "Ubuntu / Debian / Fedora / 红色帽 / openSUSE / Alpine / BSD / 苹果 / Windows",
             "deps": "传递依赖的 Transitive OS 依赖项 + Python wheels 打包",
             "dispatcher": "自动操作系统检测调度脚本在ISO根目录",
             "ui": "基于 UI 的构建、下载和生命周期管理"
@@ -18633,7 +18512,7 @@
             "providers": "可插拔计算提供者（远程libvirt、Proxmox VE）",
             "templates": "可重复使用的版本化配置模板"
           },
-          "link": "Provisioning Engine Guide →",
+          "link": "配置引擎指南 →",
           "title": "🚀 Provisioning Engine"
         }
       },
@@ -18925,13 +18804,13 @@
           "title": "[缺失：pro_plus.observability_engine.endpoints.grafana.title]"
         },
         "graylog": {
-          "bsd_syslog": "[缺失：pro_plus.observability_engine.endpoints.graylog.bsd_syslog]",
-          "rsyslog": "[缺失：pro_plus.observability_engine.endpoints.graylog.rsyslog]",
-          "sidecar_install": "[缺失：pro_plus.observability_engine.endpoints.graylog.sidecar_install]",
+          "bsd_syslog": "<code>POST /api/v1/observability/graylog/{host_id}/bsd-syslog-deploy</code> — 配置 BSD 系统日志。请求体添加 <code>{bsd_variant, existing_config}</code>：调用者获取主机的当前 <code>/etc/syslog.conf</code> 并将其作为 <code>existing_config</code> 传递；引擎执行幂等合并，保留无关的日志转发规则。参数 <code>bsd_variant</code> 选择重启命令（FreeBSD 上为 <code>service syslogd restart</code>，OpenBSD/NetBSD 上为 <code>rcctl restart syslogd</code>）。GELF 在验证器中被拒绝（标准 BSD 系统日志无法使用 GELF 协议）。",
+          "rsyslog": "<code>POST /api/v1/observability/graylog/{host_id}/rsyslog-deploy</code> — 配置 rsyslog 以转发到 Graylog。请求体：<code>{graylog_server, port, mechanism}</code> 其中 <code>mechanism</code> 是 <code>syslog_tcp</code>，<code>syslog_udp</code> 或 <code>gelf_tcp</code>。写入 <code>/etc/rsyslog.d/60-graylog.conf</code> 并重启守护进程。",
+          "sidecar_install": "<code>POST /api/v1/observability/graylog/{host_id}/sidecar-install</code> — Windows 专用。从 Graylog 的 GitHub 发行版下载上游 <code>graylog-sidecar-installer-{amd64|386}.exe</code> 并静默运行（<code>/S</code>）。与上面的部署端点配对，一旦二进制文件存在就放置 <code>sidecar.yml</code>。",
           "syslog_ng": "<code>POST /api/v1/observability/graylog/{host_id}/syslog-ng-deploy</code> — 使用相同的三种转发器机制配置 syslog-ng。写入 <code>/etc/syslog-ng/conf.d/60-graylog.conf</code>。",
           "title": "Graylog 部署",
-          "bsd_append": "[缺失：pro_plus.observability_engine.endpoints.graylog.bsd_append]",
-          "linux_autodetect": "[缺失：pro_plus.observability_engine.endpoints.graylog.linux_autodetect]",
+          "bsd_append": "<strong>BSD 执行时合并</strong> — <code>build_graylog_bsd_syslog_append_plan</code> 在代理执行时间通过 shell 进行 <code>/etc/syslog.conf</code> 合并（<code>sed -i.bak</code> 删除 + <code>printf</code> 添加 + 特定变体重启）。绕过了 OSS 侧文件获取原语的需求：BSD 端点仅根据 <code>host.platform</code> 调度，无需 <code>existing_config</code>。",
+          "linux_autodetect": "<strong>Linux 自动检测</strong> — <code>build_graylog_linux_autodetect_plan</code> 将 rsyslog 和 syslog-ng 配置阶段到 <code>/tmp/sysmanage-graylog-{rsyslog,syslog-ng}.conf</code> 并发出基于 <code>systemctl is-active --quiet &lt;daemon&gt;</code> 的守护进程条件分支。活动的守护程序将其配置复制到位并重启；其他分支为无操作。消除了 OSS 服务器需要知道主机运行哪个转发器的需求。",
           "windows_no_token": "<strong>Windows sidecar 无令牌安装</strong> — <code>build_graylog_sidecar_no_token_plan</code> 在 Windows 上处理 OSS 的 <code>POST /host/{id}/attach_to_graylog</code> 路径。OSS 载荷仅包含 <code>{mechanism, graylog_server, port}</code>——没有 <code>api_token</code>/<code>node_id</code>——因此该计划写入的 <code>sidecar.yml</code> 中 <code>server_api_token</code> 为空（之后由操作员通过 Sidecar 管理界面填入）。由 PowerShell 驱动：检测 ARM64 主机并拒绝安装（上游没有 ARM64 构建），通过 <code>Test-Path</code> 检查是否已存在安装，若缺失则从 GitHub 下载 AMD64 安装程序，运行 <code>/S</code>，然后注册并启动 Windows 服务。"
         },
         "intro": "所有端点都位于 <code>/api/v1/observability</code> 前缀下。认证：bearer JWT。每个引擎驱动的端点还需要在活动许可证中存在相应的 Pro+ 功能标志；否则该路由返回 HTTP 402。",
@@ -18997,13 +18876,13 @@
         "title": "使用 the UI"
       },
       "dispatch": {
-        "intro": "[缺失：pro_plus.observability_engine.dispatch.intro]",
-        "linux_default": "[缺失：pro_plus.observability_engine.dispatch.linux_default]",
-        "step1": "[缺失：pro_plus.observability_engine.dispatch.step1]",
+        "intro": "OSS 可观察性端点（部署、移除、启动/停止/重启，Grafana 连接/断开连接，Graylog 附加）遵循由 <code>backend/services/observability_shim.py</code> 实现的引擎优先 / 回退合同。",
+        "linux_default": "在 Linux 上，平台检测功能会在回退到默认值之前咨询两个信号：(1) 主机的已安装包清单（最权威 — 一个 apt/dnf/yum 条目决定它）；(2) OS_INFO 收集的 <code>platform_release</code> 字符串，在首次连接后约 1 秒内生成（为典型发行版关闭新主机竞赛 — Ubuntu、Debian、RHEL、Rocky、Fedora 等都通过子字符串关键字匹配）。当两个信号均不可用时，功能将默认使用 <code>linux_apt</code> 并记录一条警告日志；dnf 家族主机遇到此默认值会看到明确的 <code>apt-get: command not found</code> 错误，而不是静默回退到即将删除的代理代码。",
+        "step1": "端点调用一个 <code>try_engine_*</code> 辅助函数。",
         "step2": "[缺失：pro_plus.observability_engine.dispatch.step2]",
-        "step3": "[缺失：pro_plus.observability_engine.dispatch.step3]",
-        "step4": "[缺失：pro_plus.observability_engine.dispatch.step4]",
-        "step5": "[缺失：pro_plus.observability_engine.dispatch.step5]",
+        "step3": "辅助函数通过 <code>_detect_otel_platform</code>（对于 OTEL 路径）或直接从 <code>host.platform</code>（对于 Graylog）解析平台令牌。",
+        "step4": "在任何失败情况下（引擎未加载、缺少构建器、无法检测的平台、计划构建或入队过程中出现异常），助手返回<code>None</code>；端点像以前一样排队发送legacy <code>generic_command</code> WS消息。",
+        "step5": "每个端点在其 <code>AuditService.log</code> 条目中的 <code>details.dispatch_path</code> 下记录所选路径（<code>engine_plan</code> 或 <code>legacy_ws_command</code>），因此操作员可以审计生产流量。",
         "title": "[缺失：pro_plus.observability_engine.dispatch.title]"
       }
     },
@@ -21343,11 +21222,11 @@
       "title": "Quick 导航"
     },
     "overview": {
-      "backend_api": "后端API - 具有异步支持、JWT认证和WebSocket通信的FastAPI",
+      "backend_api": "<strong>Backend API</strong> - FastAPI with async support, JWT authentication, and WebSocket communication",
       "components_title": "服务器组件",
-      "database": "数据库 - 具有SQLAlchemy ORM和Alembic迁移的PostgreSQL",
+      "database": "<strong>Database</strong> - PostgreSQL with Alembic migrations and comprehensive data models",
       "description": "SysManage服务器是一个现代的Web应用程序，使用FastAPI（Python）后端和React（TypeScript）前端构建。它通过轻量级代理提供管理多个系统的集中平台。",
-      "frontend_ui": "前端UI - 具有TypeScript、Material-UI组件和实时更新的React",
+      "frontend_ui": "<strong>前端 UI</strong> - React 与 TypeScript，Material-UI 组件和实时更新",
       "security_layer": "<strong> 安全层 </strong> - 具有 mTLS、RBAC 和全面扫描的企业级安全性",
       "title": "概述",
       "websocket_engine": "<strong> WebSocket 引擎 </strong> - 与代理实时双向通信"
@@ -21577,9 +21456,10 @@
       "title": "系统要求"
     },
     "ssl": {
-      "description": "对于HTTPS开发，请将您的SSL证书放置在：",
-      "fallback": "如果找不到证书，系统会自动回退到localhost上的HTTP。",
-      "title": "SSL证书（可选）"
+      "description": "SysManage从一个源点通过HTTPS在443端口为Web界面和API提供服务。nginx终止TLS并代理到回环后端，这就是为什么代理需要出站443到此主机而不需要其他任何东西的原因。必须有一个证书才能处理生产流量。",
+      "title": "TLS 证书（生产所需）",
+      "config_path": "将nginx指向您的证书和密钥。配置文件在每个平台上都位于不同的位置，因此安装后的消息会打印出您系统的精确路径以及需要更改的两行：",
+      "dev_mode": "对于本地开发，您可以通过在<code>/etc/sysmanage.yaml</code>中设置<code>dev_mode: true</code>来完全跳过证书。然后服务器将在8080端口上提供API，并通过普通的HTTP在3000端口上提供Web界面，并绑定每个接口以便LAN上的其他代理可以无需进一步配置即可访问它。绝不在生产主机上启用开发模式。"
     },
     "title": "服务器安装指南 - SysManage",
     "troubleshooting": {
@@ -21605,9 +21485,9 @@
         "title": "权限问题"
       },
       "port_conflicts": {
-        "check_services": "检查现有服务：<code> netstat -tlnp |查询：6443 </code>",
-        "ensure_ports": "确保端口6443（API）和7443（前端）可用",
-        "modify_ports": "如需要，修改配置中的端口",
+        "check_services": "检查现有的监听器：<code>ss -tlnp | grep -E ':\\(80\\|443\\|8080\\)'</code>",
+        "ensure_ports": "在生产环境中，确保端口443是空闲的（以及端口80，它只是重定向到443）。后端监听在nginx后面的127.0.0.1:8080，并且不对外暴露。",
+        "modify_ports": "在开发模式下，API 运行在 8080 端口，Web 接口运行在 3000 端口；如果端口冲突，请在 <code>api</code> 和 <code>webui</code> 中更改它们，在 <code>/etc/sysmanage.yaml</code> 文件中进行配置。",
         "title": "端口冲突"
       },
       "title": "故障排除"
@@ -22340,6 +22220,19 @@
       "bsd": "一个 FreeBSD 主机拥有与其他 Linux、Windows 或 macOS 主机相同的完整详细信息。",
       "compliance": "跨越整个环境的合规性报告，而不仅仅是单一的操作系统。",
       "vuln": "全网漏洞可见性，涵盖每个操作系统。"
+    },
+    "monday": {
+      "bsd": "BSDs使用几年前编写的一些脚本来管理。",
+      "close": "这是SysManage要解决的问题。",
+      "compliance": "合规报告又生活在其他地方。",
+      "eyebrow": "星期一, 上午9:04",
+      "macos": "macOS is in Jamf.",
+      "punch": "您已经打开了六个控制台，但还没有修补任何主机——而且您仍然无法回答唯一实际的问题：<strong>我们是否暴露？</strong>",
+      "rhel": "RHEL is in Satellite.",
+      "scanning": "漏洞扫描程序位于其他地方。",
+      "title": "一个关键漏洞出现了。你甚至不知道从哪里开始。",
+      "ubuntu": "Ubuntu is in Landscape.",
+      "windows": "Windows is in Intune."
     }
   },
   "shot": {
@@ -22490,7 +22383,7 @@
     "cta": {
       "body": "让我们演示如何在没有互联网连接的网络上运行 SysManage 的完整功能。",
       "contact": "请求离线环境演示",
-      "gov": "Government & Defense →",
+      "gov": "政府与国防 →",
       "title": "有一个网络无法连接互联网吗？"
     },
     "hero": {
@@ -22537,7 +22430,7 @@
   "bsd": {
     "cta": {
       "body": "管理 FreeBSD、OpenBSD 和 NetBSD 与您的其他车队同等对待——使用 AGPLv3 核心，在 14 种语言中提供。",
-      "compare": "Compare Tools →",
+      "compare": "比较工具 →",
       "start": "免费开始",
       "title": "最后，全面支持一流的BSD系统"
     },
@@ -22666,7 +22559,7 @@
     },
     "grows": {
       "body": "从开源社区版及其 AGPLv3 核心开始免费使用，并添加 AI 驱动的健康分析（专业版）。叠加漏洞扫描、合规性、单点登录以及高级基于角色的访问控制（企业版）。或者以完全多租户托管的方式运行，每个租户都有数据库隔离。在每一步中都是相同的平台和相同的工作流——您只需添加功能而无需重新学习工具或迁移您的舰队。",
-      "editions": "Compare Editions →",
+      "editions": "比较版本 →",
       "title": "与您共同成长"
     },
     "hero": {
@@ -22707,7 +22600,7 @@
       "title": "跨每个操作系统可报告的合规性"
     },
     "cta": {
-      "airgap": "Air-Gapped Details →",
+      "airgap": "断网细节 →",
       "body": "让我们根据您的安全、合规性和隔离要求进行部署演练。",
       "demo": "请求演示",
       "title": "无法妥协的基础架构"
@@ -22786,7 +22679,7 @@
     },
     "cta": {
       "body": "让我们演示如何为每个租户提供专用数据库，从而改变您对客户的承诺。",
-      "compare": "Compare Tools →",
+      "compare": "比较工具 →",
       "contact": "请求演示",
       "title": "在单一平台上运行您的实践"
     },
@@ -22813,7 +22706,7 @@
     },
     "hetero": {
       "body": "MSP 客户端从来都不统一。一个账户可能是 Windows 为主的笔记本电脑；另一个则是 Linux 服务器和 FreeBSD 设备；还有混合 macOS、OpenBSD 和 NetBSD 的情况。SysManage 对它们进行同样的管理 —— 而且能够一致地处理客户提出的任何需求，这是 MSP 工具的核心价值所在。核心是 AGPLv3 许可证，并提供 14 种语言的界面。",
-      "cta": "Learn about Enterprise SaaS — the multi-tenant hosted edition →",
+      "cta": "了解企业SaaS——多租户托管版 →",
       "title": "默认异构"
     },
     "iso": {
@@ -22853,7 +22746,7 @@
     "cta": {
       "body": "查看跨所有操作系统的一致可见性如何改变团队衡量和降低风险的方式。",
       "demo": "请求演示",
-      "model": "Read the Security Model →",
+      "model": "阅读安全模型 →",
       "title": "每个主机的真实信息来源"
     },
     "hero": {
@@ -22874,7 +22767,7 @@
     "meta_description": "",
     "operational": {
       "body": "资产管理和漏洞管理现在是核心的安全控制措施——不再是 IT 日常维护任务并被遗忘。SysManage 将它们整合到一个控制平面中，以便补救工作可以协调、可验证且具有防御性。资产管理和审计日志记录包含在开源核心中；漏洞扫描、CVE 数据库和合规报告则是 Professional+ 和 Enterprise 功能。整个访问过程由 JWT、mTLS 和基于角色的访问控制保护。",
-      "proplus": "Explore Professional+ & Enterprise →",
+      "proplus": "探索专业+和企业版 →",
       "title": "安全即操作"
     },
     "see": {
@@ -22893,12 +22786,12 @@
   "solutions": {
     "airgap": {
       "body": "专为没有互联网的网络设计：单租户设备，本地密钥，并通过物理介质传输内容。",
-      "go": "Explore air-gapped →",
+      "go": "探索断网环境 →",
       "title": "断网基础设施"
     },
     "compare": {
       "body": "查看 SysManage 如何与 Ansible、Puppet、Salt、Chef、Landscape 和 Satellite 在功能上进行比较。",
-      "go": "Compare tools →",
+      "go": "比较工具 →",
       "title": "从其他工具切换过来？"
     },
     "cta": {
@@ -22909,12 +22802,12 @@
     },
     "enterprise": {
       "body": "将单个操作系统工具整合到一个控制平面，并减少异构舰队中的许可费用、复杂性和关键人员风险。",
-      "go": "Explore enterprise →",
+      "go": "探索企业 →",
       "title": "Enterprise IT"
     },
     "government": {
       "body": "完全隔离的部署，FIPS 合规性支持以及一流的 BSD 平台支持，适用于实际运行的关键基础设施。",
-      "go": "Explore government →",
+      "go": "探索政府",
       "title": "政府与国防"
     },
     "hero": {
@@ -22925,12 +22818,12 @@
     "meta_description": "",
     "msp": {
       "body": "从一个平台管理多个客户端舰队，为每个租户提供专用数据库——真正的隔离，而不是行级过滤。",
-      "go": "Explore MSP →",
+      "go": "探索MSP →",
       "title": "托管服务提供商"
     },
     "security": {
       "body": "每种操作系统上的统一库存、补丁状态及漏洞可见性 — 一个真相来源，而非六个盲点。",
-      "go": "Explore security →",
+      "go": "探索安全性 →",
       "title": "安全团队"
     },
     "title": "行业解决方案 - SysManage"
@@ -22938,7 +22831,7 @@
   "xplat": {
     "concrete": {
       "body": "这里“统一基础架构管理”不仅仅是一个口号——它是所有平台上相同的、一致的能力。实时WebSocket监控使每个主机都处于可见状态。软件包和补丁管理遵循单一的批准和部署流程。漏洞扫描和合规报告（在专业版和企业版中可用）覆盖整个资产，而不仅仅是单个操作系统。核心是根据AGPLv3开源，并通过JWT、mTLS以及基于角色的访问控制进行保护，本地化为14种语言。",
-      "solutions": "See solutions by industry →",
+      "solutions": "查看按行业的解决方案 →",
       "title": "具体而言的跨平台统一管理"
     },
     "control": {
@@ -22952,7 +22845,7 @@
     },
     "cta": {
       "body": "将 Windows、Linux、macOS 和 BSDs 纳入一个控制平面，并为团队提供单一的真实来源。",
-      "compare": "Compare Tools →",
+      "compare": "比较工具 →",
       "start": "免费开始",
       "title": "停止管理操作系统。管理您的舰队。"
     },
@@ -23034,8 +22927,8 @@
       "title": "代理如何决定上报什么"
     },
     "nav": {
-      "next": "Troubleshooting →",
-      "prev": "← Cross-Platform Support"
+      "next": "故障排除 →",
+      "prev": "← 跨平台支持"
     },
     "section_title": "功能",
     "seeing": {
@@ -23087,6 +22980,80 @@
       "proxy_desc": "明确的出站代理。通常不需要 — <code>HTTPS_PROXY</code>, <code>HTTP_PROXY</code> 和 <code>NO_PROXY</code> 从环境继承。",
       "url_desc": "代理通信的一个来源，例如 <code>https://sysmanage.example.com</code>。省略端口表示443。优先于下面的遗留字段。",
       "use_https_desc": "遗留字段。被 <code>url</code> 中的方案所取代。"
+    }
+  },
+  "server_quickstart": {
+    "before": {
+      "body": "本指南从为您的平台构建的包中安装服务器。有关完整的平台矩阵、从源代码构建说明以及每个发行版的先决条件，请参阅 <a href=\"/docs/server/installation.html\">Server Installation</a> 指南。",
+      "cert": "<strong>一个用于服务器主机名的TLS证书和私钥。nginx在没有这些文件的情况下拒绝启动——故意如此，因为管理控制台不能仅仅因为缺少证书而以明文方式启动。</strong>",
+      "ports": "<strong>入站 443</strong>（如果需要重定向，则再加上 80）。无需打开其他端口：代理通过出站 443 连接到服务器，而后端保持在 nginx 后面的环回接口上。",
+      "postgres": "<strong>PostgreSQL 12 或更高版本</strong>，在本机或远程主机上。没有它，SysManage 将无法启动。",
+      "root": "<strong>根用户或sudo</strong>在目标主机上。",
+      "tip": "包在安装后的消息中打印下面的每一步，并根据您的平台填充路径。如果您丢失了它，请查看包管理器的日志。",
+      "tip_label": "提示：",
+      "title": "开始之前"
+    },
+    "intro": "从原生包安装SysManage服务器，指向PostgreSQL，给nginx一个证书，并打开控制台。在一个全新的主机上大约需要十五分钟。",
+    "next": {
+      "agent": "<a href=\"/docs/agent/installation.html\">代理安装</a> — 适用于 Windows、Linux、macOS 和 BSD 的软件包。",
+      "approval": "<a href=\"/docs/getting-started/agent-approval.html\">代理批准</a> — 新主机如何加入舰队。",
+      "body": "没有主机的服务器作用不大。在您想要管理的机器上安装代理，然后批准它们：",
+      "config": "<a href=\"/docs/server/configuration.html\">服务器配置</a> — 电子邮件、身份验证、保留和其他设置。",
+      "security": "<a href=\"/docs/security/best-practices.html\">安全最佳实践</a> — 在将此部署到实际环境中之前值得一读。",
+      "title": "下一步"
+    },
+    "step1": {
+      "body": "从 <a href=\"https://github.com/bceverly/sysmanage/releases\">发布页面</a> 下载适用于您平台的包并进行安装。将 <code>X.Y.Z</code> 替换为您要安装的版本号。",
+      "debian": "Debian / Ubuntu",
+      "other": "其他平台",
+      "other_body": "openSUSE, Alpine, FreeBSD, OpenBSD, NetBSD, macOS 和 Windows 包发布在同一版本页面上。以下步骤在每个平台上都是相同的；只有安装命令和nginx配置路径不同，且安装后的消息会为您打印正确的路径。",
+      "rhel": "RHEL / CentOS / Fedora",
+      "title": "安装包"
+    },
+    "step2": {
+      "body": "要使用本地PostgreSQL实例：",
+      "remote": "一个远程数据库同样有效 — 您将在下一步中提供其主机和凭据。",
+      "title": "创建数据库"
+    },
+    "step3": {
+      "body": "服务器读取<code>/etc/sysmanage.yaml</code>。 <a href=\"/config-builder.html\">配置生成器</a> 会创建一个完整的文件——数据库连接、主机名、TLS、身份验证和日志记录，这比手动编写更快且更不易出错。",
+      "perms": "该文件包含数据库凭据，因此只能由root读取。",
+      "title": "编写配置"
+    },
+    "step4": {
+      "body": "检查待处理的事项，然后应用它。这将迁移控制平面模式，并且如果启用了多租户，则每个租户数据库也会被迁移。",
+      "openbao": "启用多租户后，每个租户的凭据将从OpenBAO中租赁，因此在迁移时必须运行OpenBAO。",
+      "title": "运行数据库迁移"
+    },
+    "step5": {
+      "body": "将您的证书和密钥放置到nginx期望的位置：",
+      "dev": "在<code>/etc/sysmanage.yaml</code>中设置 <code>dev_mode: true</code> 以跳过nginx和TLS。服务器然后通过普通HTTP在端口3000上提供Web界面，在8080上提供API，并绑定所有接口，以便LAN上的其他代理可以访问它。永远不要在生产主机上这样做。",
+      "dev_label": "本地评估吗？",
+      "elsewhere": "或者通过编辑其配置中的这两行将nginx指向其他位置——路径因平台而异，安装完成后会打印您的路径：",
+      "letsencrypt": "如果您还没有证书，请运行 <code>certbot certonly --standalone -d your-server.example.com</code> 来获取一个；然后将这两行指向该名称的 <code>fullchain.pem</code> 和 <code>privkey.pem</code>。在开始之前检查结果：",
+      "title": "安装 TLS 证书"
+    },
+    "step6": {
+      "body": "在BSD和其他非systemd平台上，使用服务命令执行安装后消息中打印的操作。",
+      "title": "启动服务"
+    },
+    "step7": {
+      "body": "Web界面和API共享此单一源点。使用您的配置文件中的管理员帐户登录——用户名是电子邮件地址。",
+      "title": "打开控制台"
+    },
+    "steps": {
+      "title": "安装"
+    },
+    "verify": {
+      "api": "2. API 返回",
+      "logs": "3. 日志是干净的",
+      "service": "1. 服务正在运行",
+      "t_db": "<strong>服务启动后退出：</strong>检查数据库连接在<code>/etc/sysmanage.yaml</code>并确认迁移已运行。",
+      "t_login": "<strong>登录时出现错误：</strong>管理员用户名必须是完整的电子邮件地址，而不能只是名字。",
+      "t_nginx": "<strong>nginx 将无法启动：</strong> 通常是因为缺少或无法读取的证书。 <code>sudo nginx -t</code> 指定了它无法读取的文件。",
+      "t_port": "<strong>没有服务在443端口上监听：</strong>确认nginx正在运行，并且没有其他服务已经占用了该端口。",
+      "title": "验证安装",
+      "trouble": "如果有问题"
     }
   }
 }

@@ -731,7 +731,7 @@
       "description": "每一個代理在其平台上實際能做什麼，以及伺服器如何呈現和強制執行它們。",
       "gating": "拒絕遠端失敗的命令",
       "limited": "完整、有限和未知主機",
-      "link": "Capabilities Guide →",
+      "link": "功能指南 →",
       "reporting": "代理宣稱什麼以及如何決定",
       "title": "能力"
     }
@@ -2704,8 +2704,8 @@
         },
         "config": {
           "title": "role: 設定項",
-          "summary": "Add one key to /etc/sysmanage.yaml on each server:",
-          "validation": "The startup config loader validates the value at boot; an unknown role aborts startup with a clear error. The role is also exposed via the unauthenticated GET /api/v1/server-info endpoint, which the web UI uses to render a chip in the header bar so operators can see at a glance which half of an air-gap pair they're looking at.",
+          "summary": "從 web UI 設置角色 — 不需要配置文件編輯。前往 <strong>Settings &rarr; Server Role",
+          "validation": "角色也通過未經身份驗證的 <code>GET /api/v1/server-info 可用。",
           "degraded_chip": "If role: is set to collector or repository but the corresponding Pro+ engine isn't loaded (typically a license problem), the chip turns red and a tooltip explains what's missing. Server keeps running in degraded mode so you can fix the license without losing access to the rest of the UI.",
           "opt_standard": "<strong>標準（無隔離）",
           "opt_collector": "<strong>離線收集器（線上側）",
@@ -2715,14 +2715,14 @@
         "collection_cycle": {
           "title": "採集週期（採集器端）",
           "summary": "Triggered by an operator (UI, API, or cron) on the public-side server. The engine emits a deployment plan that runs locally on the collector itself; it does not dispatch to managed agents.",
-          "step_request": "Request — POST /api/v1/airgap/collector/collection/runs with a body listing each distro/version/repo to capture, plus flags for CVE and compliance snapshot inclusion and target media size (one DVD, BD-R, etc.).",
-          "step_validate": "Validation — distros are checked against the supported list (13 families in v0.1.0); version strings are constrained to a tight regex so they cannot smuggle shell metacharacters into the dispatch templates; iso_label is constrained the same way.",
-          "step_mirror": "Mirror — per-distro dispatch templates run apt-mirror (Debian / Ubuntu), dnf reposync (RHEL family), zypper download (openSUSE / SLES), pkg fetch (FreeBSD), apk fetch (Alpine), or distribution-specific equivalents. Each command has a 4-hour timeout ceiling; the agent's in-flight journal (Phase 11.6) covers the multi-hour run across WebSocket reconnects.",
+          "step_request": "<strong>請求</strong> — <code>POST /api/v1/airgap/collector/runs</code> 附帶一個列表，每個目標都是一個 <code>{mirror_id}</code> 挑選自 <code>/api/mirror-repositories</code>，加上 <code>iso_label</code>, <code>media_size_bytes</code>, <code>include_cve</code>, <code>include_compliance</code> 和可選的 <code>burn_device</code>。分發 / 版本 / 倉庫由服務器端從每個鏡像的 <code>known_version</code> 目錄條目派生。",
+          "step_validate": "<strong>驗證</strong> — 每個選中的鏡像必須存在、啟用，並具有一個<code>known_version_id</code>，且與其他選項共享同一個<code>host_id</code>（在第一版中，集合計劃會派遣到一台代理機器上，因此不支援跨主機目標）。版本字符串受緊密的正則表達式約束，以防止將 shell 元字符走私到派遣模板中；<code>iso_label</code>也受到同樣的約束。",
+          "step_mirror": "<strong>鏡像（快照來源）</strong> — 所有快照準備就緒後，調度器構建 <code>build_snapshot_collection_run_plan</code>，帶有一個 <code>source_snapshots</code> 地圖，其中包含 <code>\"&lt;distro&gt;:&lt;version&gt;\"</code> → 快照目錄路徑。計劃將每個快照樹 rsync 到目標的階段目錄中。在收集時間沒有上游 apt-mirror / reposync / pkg fetch 運行 — 報表證明字節對字節相同於快照。每個 rsync 的超時上限為 4 小時；代理的在線日誌（Phase 11.6）涵蓋多小時運行，跨越 WebSocket 重新連接。",
           "step_cve": "CVE / 合規快照 — 如果請求，NVD 和供應商通告 feed 將在同一瞬間被捕獲，因此生成的媒體集具有連貫的時間點公共漏洞數據視圖。",
-          "step_iso": "ISO build — xorriso -as mkisofs bundles the staging tree into one ISO with the manifest embedded at /manifest.json. The post-build step computes the ISO's SHA-256 for the transfer log.",
+          "step_iso": "<strong>ISO 建構</strong> — <code>xorriso -as mkisofs</code> 將佈署樹捆綁成一個 ISO，存儲在 <code>/var/lib/sysmanage/airgap-iso/&lt;run_id&gt;.iso</code> 中，並將manifest 嵌入到 <code>/manifest.json</code>。建構後步驟計算 ISO 的 SHA-256 以供轉移日誌使用。",
           "step_sign": "簽名 — 清單被標準化（按鍵排序，無空白），然後使用操作員的 ed25519 私鑰進行簽名。封裝中包含簽名、公鑰的 SHA-256 指紋、算法標識符和清單格式版本。",
-          "step_burn": "Burn — optional. POST /api/v1/airgap/collector/iso/burn wraps growisofs against the configured optical-drive device. The burn-step timeout ceiling is 4 hours so slow drives don't trip a watchdog mid-write.",
-          "multidisc_note": "Note on multi-disc spanning. v0.1.0 ships the single-disc happy path — if the staging tree exceeds the configured media size, the burn step fails at runtime. Multi-disc bin-packing is tracked as a Phase 11.1 follow-up. The schema already supports it (the manifest table carries disc_index + disc_count) so it lands additively.",
+          "step_burn": "<strong>燒錄（可選）</strong> — 如果運行行中設置了 <code>burn_device</code>，則調度器通過在該設備路徑上分派 <code>build_burn_plan</code> 來將 ISO_BUILT → BURNING 狀態轉換（通常為 <code>/dev/sr0</code>）。燒錄步驟的超時上限為 4 小時，以防止緩慢的硬盤在寫入過程中觸發看門狗。當 <code>burn_device</code> 為 NULL 時，運行直接轉換為 ISO_BUILT → COMPLETE — 不接觸光學介質的“構建可下載 ISO 並停止”流程。",
+          "multidisc_note": "<strong>多盤分區（Phase 12）。</strong> 當 <code>sum(target.source_snapshot.size_bytes) &gt; run.media_size_bytes</code> 時，調度器路由到 <code>build_snapshot_multidisc_collection_plan</code>，該計劃首先將整個目標樹打包到盤上。每個盤都獲得自己的階段目錄 + rsync + xorriso + sha256 在一個內聯計劃中；輸出為 <code>&lt;run_id&gt;-disc-&lt;N&gt;.iso</code>。調度器在任何單個目標樹超過盤大小時顯示明確錯誤 — 文件級別拆分（將一個鏡像樹跨盤切片）被推遲；操作員選擇更大的介質（BD-25 → BD-50）或拆分成不同的運行。",
           "step_snapshot": "<strong>自動快照</strong> — 在運行創建時，每個目標鏡像會派生一個快照。每個 <code>AirgapCollectionTarget</code> 行將其 <code>source_snapshot_id</code> 固定到佔位符快照行，以便協調器知道要打包哪個快照。快照並行運行；運行狀態保持在 <code>QUEUED</code> 直到每個目標的 <code>last_snapshot_message_id</code> 清除。",
           "step_download": "<strong>下載</strong> — <code>GET /api/v1/airgap/collector/runs/{id}/iso</code> 流式傳輸 ISO 文件。對於多張光碟運行，<code>GET /runs/{id}/discs</code> 列出光碟文件，而 <code>/iso?disc=N</code> 選擇特定的一個。Air-Gap 收集器 UI 自動檢測多張光碟運行並在操作員點擊下載時彈出選擇對話框。",
           "lifecycle": "<strong>生命週期狀態由 <code>airgap_run_tick</code> 協調器驅動：</strong> <code>QUEUED</code>（等待每個目標快照）→ <code>MIRRORING</code>（從快照樹 rsync 到臨時）→ <code>STAGING_COMPLETE</code>（單張光碟僅；多張光碟跳過此步）→ <code>BUILDING_ISO</code>（xorriso）→ <code>ISO_BUILT</code> → <code>BURNING</code>（只有當 <code>burn_device</code> 設定時）→ <code>COMPLETE</code>。任何失敗將運行轉換為 <code>FAILED</code>，並在 UI 狀態列中顯示錯誤消息。"
@@ -2969,7 +2969,7 @@
         "observability": {
           "title": "可觀測性引擎",
           "builders": "引擎公開的計劃生成器包括：<code>build_otel_multiplatform_deploy_plan</code>, <code>build_otel_multiplatform_remove_plan</code>, <code>build_otel_service_control_plan</code>（啟動/停止/重新啟動），<code>build_otel_grafana_connection_plan</code>（連接/斷開連接），<code>build_otel_status_plan</code>, <code>build_graylog_linux_autodetect_plan</code>, <code>build_graylog_bsd_syslog_append_plan</code>, <code>build_graylog_sidecar_plan</code>（api_token 可變體），<code>build_graylog_sidecar_no_token_plan</code>（Windows OSS 載荷可變體），<code>build_graylog_status_plan</code>, <code>build_grafana_provision_plan</code>。",
-          "shim": "[缺少：docs.api.engines.observability.shim]"
+          "shim": "OSS 可觀察性端點（<code>POST /hosts/{id}/deploy-opentelemetry</code>，<code>/remove-opentelemetry</code>，<code>/opentelemetry/{start,stop,restart,connect,disconnect}</code>，<code>/host/{id}/attach_to_graylog</code>）均通過 <code>backend/services/observability_shim.py</code> 進行路由；當引擎加載時，它們會通過代理的通用執行器發送 <code>APPLY_DEPLOYMENT_PLAN</code>。如果引擎未加載，則退回到 legacy <code>generic_command</code> WS 路由。每個請求選擇的路徑都會記錄在審計日誌中的 <code>details.dispatch_path</code> 下。"
         },
         "page_title": "Pro+ 引擎 API 參考 - SysManage",
         "secrets": {
@@ -2998,7 +2998,7 @@
           "get": "讀一讀。",
           "update": "更新。 Cron 變更會自動重新計算 <code> next_run </code>。",
           "delete": "刪除。",
-          "trigger": "立即解僱個人資料。解析目標主機集，將每個主機的 <code> apply_updates </code> 指令排入佇列（使用設定檔的標誌 + 交錯視窗延遲），更新 <code> last_run </code> / <code> next_runZQX05_runZQX05_runZ 排程的主機清單並傳回。",
+          "trigger": "立即觸發配置文件。解析目標主機集，為每個主機排隊一個 <code>apply_updates</code> 命令（帶有配置文件的標誌 + 分散窗口延遲），更新 <code>last_run</code> / <code>next_run</code>，並返回已派發的主機列表。",
           "tick": "外部調度程式的驅動程式掛鉤。選擇每個啟用的配置文件，其中 <code> next_run &lt; = now </code> ，觸發它，並返回觸發的清單。滴答內冪等。"
         }
       }
@@ -3803,10 +3803,10 @@
           "get": "read one 鏡像",
           "intro": "下面的每個路由都會在未載入 <code> repository_mirroring_engine </code> 的情況下傳回 402。",
           "list": "list 鏡像",
-          "list_snapshots": "list 快照",
-          "restore": "還原 a 快照",
+          "list_snapshots": "列出快照（包括 <code>size_bytes</code> + <code>file_count</code> 從 rsync <code>--stats</code>）",
+          "restore": "還原快照 (標記 <code>last_restore_message_id</code>)",
           "settings": "管理設定（舊版單例）",
-          "snapshot": "take a 快照 now",
+          "snapshot": "現在建立快照 (標記 <code>last_snapshot_message_id</code> 以追蹤中斷的傳輸)",
           "sync": "立即啟動同步計劃",
           "tick": "cron-驅動 驅動程式 掛勾",
           "title": "API 參考",
@@ -3826,7 +3826,7 @@
           "host": "<code> host_id </code> — 執行同步計畫的代理程式。磁碟樹位於該主機上的 <code> {mirror_root_path}/{name} </code>。",
           "intro": "每個鏡像都是 <code> mirror_repository </code> 表中由管理員管理的行。常見欄位：",
           "name": "<code> 名稱 </code> — 短段，用作磁碟上子目錄名稱。路徑遍歷字符被拒絕。",
-          "pm_specific": "每個套件管理器欄位：APT 使用 <code> 套件 </code> + <code> 元件 </code> + 選購的 <code>signing_key_url </code> ； DNFNF使用 ZQX06ZQZQpX005ZQX ； gpgkey_url </code> ；zypper 使用 <code> repo_alias </code> ； pkg 使用可選的 <code> 版本 </code> （例如 <code> FreeBSD ZQ",
+          "pm_specific": "按包管理器字段：APT 使用 <code>suite</code> + <code>components</code> + 可選的 <code>signing_key_url</code>；DNF 使用 <code>repoid</code> + 可選的 <code>gpgkey_url</code>；zypper 使用 <code>repo_alias</code>；pkg 使用可選的 <code>release</code>（例如 <code>FreeBSD:14:amd64</code>）。",
           "tier": "<code> network_tier </code> — 自由格式標籤（例如 <em> us-east </em> 、 <em> edge </em> ），讓客戶端選擇最近的鏡像。",
           "title": "Per-鏡像 組態",
           "upstream": "<code> upload_url </code> — 您同步的公共鏡像。"
@@ -3851,17 +3851,17 @@
         },
         "snapshots": {
           "gc": "快照保留由 <code> snapshot_count_to_keep </code> 控制。垃圾收集計劃按字母順序（=時間順序）列出快照，刪除所有早於保留計數的內容，並在放寬只讀標誌後 <code> rm -rf </code> s 其餘部分。",
-          "intro": "快照是 <code> rsync -aH --delete </code> 的活動樹到位於 <code> {mirror_root}/{name}/.snapshots/{snapshot_id} </code> 的同級唯讀目錄中。快照 ID 是可排序的時間戳記 ( <code> YYYYMMDDTHHMMSS </code> )。 rsync 後，引擎運行 <code> chmod -R a-w </code>，因此無法就地修改快照。",
+          "intro": "快照是使用 <code>rsync -aH --delete --stats</code> 將活躍樹同步到一個同級只讀目錄中的操作，位置為 <code>{mirror_root}/{name}/.snapshots/{snapshot_id}</code>。快照 ID 是可排序的時間戳（<code>YYYYMMDDTHHMMSS</code>）。rsync 之後，引擎運行 <code>chmod -R a-w</code> 以防止快照在原地修改。解析器伺服器端分析 <code>--stats</code> 輸出以填充 <code>size_bytes</code> 和 <code>file_count</code> 在 <code>mirror_snapshot</code> 行 — 不需要第二遍來獲取快照的重量。",
           "restore": "復原則相反－從所選快照重新同步到活動樹中。該引擎不進行符號連結翻轉，因為大多數鏡像伺服器（httpd、nginx）都在 stat 上進行緩存，並且就地 rsync 比協調工作進程之間的翻轉更容易推理。",
           "title": "快照 & 還原",
           "sudoers": "<strong>Sudoers 權限。</strong> 快照和恢復計劃都會調用 <code>sudo rsync</code> + <code>sudo chmod</code>。sysmanage-agent 包含的 sudoers 片段（Linux 上為 <code>/etc/sudoers.d/sysmanage-agent</code>，OpenBSD 上為 <code>/etc/doas.d/sysmanage-agent</code>）明確允許這些操作 — 如果缺少 rsync 進入條目，計劃將快速失敗並在代理的命令結果中顯示 sudo 的 \"用戶無權執行\" 消息。如果您本地編譯自己的 sudoers，請從安裝程序包含的文件中複製允許列表。"
         },
         "supported": {
           "apt": "<strong> APT </strong> ( Debian / Ubuntu ) — 使用 <code> apt-mirror </code> 和選購的 GPG 簽章金鑰取得。",
-          "dnf": "<strong> DNF / YUM </strong> ( RHEL / Oracle Linux / Fedora / Rocky / Alma ) — 使用 <code> dnf reynD --ete ZQ302ZQX0002ZQX00 <code> createrepo_c --更新 </code> 。",
+          "dnf": "<strong>DNF / YUM</strong>（RHEL / Oracle Linux / Fedora / Rocky / Alma）— 使用 <code>dnf reposync --newest-only --delete</code> + <code>createrepo_c --update</code>。",
           "pkg": "<strong> pkg </strong> (FreeBSD) — 使用 <code> pkg fetch -Loy -a </code> + <code> pkg repo </code> 。",
           "title": "支援的套件管理器",
-          "zypper": "<strong> zypper </strong> (openSUSE / SLES) — 使用便攜式 <code> zypper 下載 '*' </code> 包裝器 + <code> createrepo_Qpaterepo_50505。"
+          "zypper": "<strong>zypper</strong>（openSUSE / SLES）— 使用便攜式 <code>zypper download '*'</code> 包裝器 + <code>createrepo_c</code>。"
         },
         "title": "儲存庫鏡像 - Professional+ - SysManage",
         "platforms": {
@@ -3877,7 +3877,7 @@
         "versions": {
           "title": "版本下拉選單 + 已知版本目錄（階段 10.4.4）",
           "intro": "「新增鏡像」對話方塊的版本欄位源自預先填入的 <code> mirror_known_version </code> 目錄，而不是自由文字。選擇一行會自動填入上游 URL 和每個 PM 識別碼（apt 的 suite、dnf 的 repoid、zypper 的 repo_alias、pkg 的release），因此操作員無法對 <code> 貴族 </code> 進行惡意操作並默默地產生損壞的鏡像。該目錄附帶規範的 Ubuntu /Debian/RHEL-family/openSUSE/FreeBSD 版本；未來的版本透過專門的遷移而不是自動發現來實現，從而使支援的集在程式碼中保持可審查性。",
-          "crossfamily": "一台實體主機可以鏡像共享一個套件管理器的多個作業系統系列。 RHEL /Rocky/Alma/Fedora 都使用 <code> dnf </code> 和不同的上游 URL，因此它們在同一 RHEL / Fedora 選項卡下顯示為單獨的 <code> mirQi nory <code> known_version_id </code> 引用不同的目錄條目。預設包鏡像卡對於每個主機都有獨立的行，因此管理員可以為 RHEL 9 主機和 Rocky 9 主機分配不同的預設值，即使兩者都從同一實體鏡像伺服器拉取也是如此。"
+          "crossfamily": "一個物理主機可以鏡像多個共享包管理器的 OS 家族。RHEL/Rocky/Alma/Fedora 都使用 <code>dnf</code>，但具有不同的上游 URL，因此它們在相同的 RHEL/Fedora 卡片下顯示為不同的 <code>mirror_repository</code> 行 — 每行攜帶其自己的 <code>known_version_id</code> 引用不同的目錄條目。默認包鏡像卡有獨立的行，因此管理員可以將不同的默認值分配給 RHEL 9 主機和 Rocky 9 主機，即使它們都從同一物理鏡像服務器拉取。"
         },
         "defaults": {
           "title": "預設套件鏡像（階段 10.4.4）",
@@ -3886,8 +3886,8 @@
           "hardblock": "API 硬塊 (HTTP 409) 任何分配尚未成功同步的鏡像的嘗試。這可以防止將即時客戶端指向空的或部分建置的鏡像樹，而 <code> apt update </code> 將失敗。一旦鏡像的 <code> last_sync_status </code> 達到 <code> SUCCESS </code> ，請重新嘗試。",
           "applymech": "應用機制只是附加的。每個 PM 都會獲得一個覆蓋文件，代理將其放入包管理器與操作員編輯的配置一起掃描的目錄中：",
           "apt": "<strong> apt: </strong> <code> /etc/apt/sources.list.d/zzz-sysmanage-mirror.list </code> + <code> apt-get 更新 </code>",
-          "dnf": "<strong> dnf: </strong> <code> /etc/yum.repos.d/zzz-sysmanage- &lt; reoid &gt; .repo </code> 與上游標頭標頭具有相同的 <code> [section] </code> 與上游標頭標頭具有相同的 <code> [section] ZQQ44X 2 月。順序讀取文件，最後一個定義獲勝，所以我們的 <code> zzz- </code> 前綴會覆蓋所有已發貨的內容 + <code> dnf 清理所有 </code>",
-          "zypper": "<strong> zypper：</strong> <code> /etc/zypp/repos.d/zzz-sysmanage- &lt; 別名 &gt; .repo </code> + <code> pper 刷新 ZQzy07ZQX",
+          "dnf": "<strong>dnf:</strong> <code>/etc/yum.repos.d/zzz-sysmanage-&lt;repoid&gt;.repo</code> 並具有相同的 <code>[section]</code> 頭部 — dnf 按文件順序讀取，最後定義勝出，因此我們的 <code>zzz-</code> 前綴覆蓋了任何已發佈的內容 + <code>dnf clean all</code>",
+          "zypper": "<strong>zypper:</strong> <code>/etc/zypp/repos.d/zzz-sysmanage-&lt;別名&gt;.repo</code> + <code>zypper refresh</code>",
           "pkg": "<strong> pkg：</strong> <code> /usr/local/etc/pkg/repos/sysmanage-mirror.conf </code> 覆蓋 FreeBSD 儲存庫 + <code> pkg update -f </code>",
           "revert": "恢復是對稱的：每個計劃都會刪除覆蓋檔案並刷新套件管理器的元資料快取。操作员编辑的配置（原始 <code> 源.list </code> 、供应商提供的 <code> .repo </code> 文件）从未被修改，因此保留了应用和恢复之间的手动编辑。",
           "api": "API 表面：<code> GET /api/mirror-known-versions </code> 用於目錄下拉列表，<code> GET /api/host-defaults/mirrors </code> 用於分配表，<code> PUTZ {platform}/{version_key}/{os_family} </code> 與 <code> {mirror_id} </code> 主體進行分配或 <code> {mirror_id: null} </code> 恢復到雲。"
@@ -4075,7 +4075,7 @@
             "federation": "聯邦網站同步 + 版本差異",
             "views": "過濾、不可變、版本化的內容視圖（包括複合）"
           },
-          "link": "Content Lifecycle Guide →",
+          "link": "內容生命週期指南 →",
           "title": "📦 Content Lifecycle Management"
         },
         "composite": {
@@ -4142,7 +4142,7 @@
         "detection": {
           "backend": "the <strong>後端</strong> — <code>bootc</code> 或 <code>rpm-ostree</code>;",
           "booted": "<strong>啟動</strong>的影像引用及其摘要；",
-          "display_free": "此檢測基於標準主機檢查，且該狀態的 <em>顯示</em> 始終可見 — 您可以查看主機是否處於圖像模式及其啟動/階段/回滾狀態，而無需企業版許可證。只有更改映像（Stage、Apply、Rollback）的操作才受 <code>image_mode_engine</code> 控制。",
+          "display_free": "此偵測依附於標準的主機簽入流程，此狀態的<em>顯示</em>永遠可見 — 即使沒有 Enterprise 授權，您也可以查看主機是否處於映像模式，以及其 booted/staged/rollback 狀態。只有<em>變更</em>映像的操作（Stage、Apply、Rollback）才受 <code>image_mode_engine</code> 管制。",
           "intro": "每一個代理程式都會報告其主機是否處於圖像模式，作為正常檢查的一部分。當主機處於圖像模式時，該報告還包括：",
           "rollback": "是否可用 <strong>回滾</strong> 部署。",
           "staged": "任何 <strong>階段</strong>（待定，下次啟動）部署；",
@@ -4216,7 +4216,7 @@
         "track": {
           "figcaption": "擴展鏡像以顯示其追蹤的容器映像 — 每個都有其 registry / 存儲庫、標籤、捕獲狀態，以及一旦被捕獲後的固定摘要（manifest digest）。",
           "intro": "在鏡像（設定 → 庫鏡像）中，您通過 <strong>registry / repository / tag</strong> 跟蹤容器圖像 — 例如 <code>docker.io</code> / <code>library/nginx</code> / <code>1.27</code>。每個跟蹤的圖像是鏡像屬於的一行，因此圖像在您已經管理上游內容的地方進行策展。",
-          "status": "追蹤映像在通過管道時會顯示<strong>捕獲狀態</strong> — <code>TRACKED → DISPATCHED → CAPTURED</code>（或<code>FAILED</code>）。一旦被捕獲，行還會攜帶固定的摘要 — 確切的字節集合的不可變身份。",
+          "status": "一個追蹤的影像顯示其 <strong>捕獲狀態</strong> 在管道中移動的情況 — <code>TRACKED → DISPATCHED → CAPTURED</code> （或 <code>FAILED</code>）。一旦被捕獲，該行還會攜帶固定的 <strong>摘要</strong> — 確切捕獲的字節的不可變身份標識。",
           "title": "跟蹤映像"
         }
       },
@@ -4226,7 +4226,7 @@
           "li1": "檢測已引導 / 已準備 / 回滾映像狀態",
           "li2": "階段 / 應用 / 回滾（bootc + rpm-ostree）",
           "li3": "包更新 UI 對圖像模式主機被關閉",
-          "link": "Image-Mode Hosts Guide →",
+          "link": "圖像模式主機指南 →",
           "title": "💾 图像模式主机"
         },
         "imgcontent": {
@@ -4234,7 +4234,7 @@
           "li1": "通過 registry / repository / tag 跟踪映像",
           "li2": "摘要固定的 skopeo 捕獲（无守护进程）",
           "li3": "隔離 ISO + 線下重定向",
-          "link": "Container Image Content Guide →",
+          "link": "容器影像內容指南 →",
           "title": "📦 Container Image Content"
         },
         "snapproxy": {
@@ -4242,14 +4242,14 @@
           "li1": "通過 name + channel 跟踪 snaps",
           "li2": "捕獲 snaps + 断言（无守护进程）",
           "li3": "離線推廣和重新指向主機",
-          "link": "Snap Store Proxy Guide →",
+          "link": "Snap 商店代理指南 →",
           "title": "📦 Snap Store Proxy"
         }
       },
       "snapproxy": {
         "breadcrumb": "Snap Store Proxy",
         "capture": {
-          "body": "捕獲 snaps 的操作會下載每個跟蹤的 snap 以及其 <strong>認證</strong> — 這是由 <code>snap ack</code> 需要的信任和安裝 snap 所需的簽名元數據。捕獲是 <strong>無代理程序</strong>：它不需要運行中的 Snap Store Proxy 服務。被捕獲的 snaps 是 <strong>摘要和版本固定</strong> 的，因此策展版可以精確重現且不會悄無聲息地漂移。",
+          "body": "The <strong>Capture</strong> 捕捉操作會下載每個追蹤的 snap 以及其 <code>assertions</code> — 簽署的元數據，<strong>snap ack</strong> 需要這些元數據才能在離線環境中信任和安裝 snap。Capture 是 <strong>daemonless</strong>：不需要運行 Snap Store Proxy 服務。被捕獲的 snaps 是 <strong>digest- 和 revision-pinned</strong>，因此一個精選版本可以完全重現且不會悄悄地漂移。",
           "title": "捕獲"
         },
         "header": {
@@ -4275,7 +4275,7 @@
           "body": "消費主機被<strong>重新指向</strong>以完全離線安裝環境提供的 snap：它拉取 snap 套件，運行 <code>snap ack</code> 來確認捕獲的斷言，然後從本地內容進行安裝 — 不需要與上游商店聯繫，因此在隔離網絡中也能正常工作。這是<strong>重新指向 snaps</strong>操作，在內容視圖的推廣路徑上，類似於包重定向的工作方式。",
           "title": "服務並重新指向主機"
         },
-        "title": "Snap Store Proxy - Professional+ - SysManage",
+        "title": "Snap 商店代理 - 專業+ - SysManage",
         "track": {
           "body": "在鏡像（<strong>設定 → 存儲庫鏡像</strong>）中，您通過 <strong>名稱 + 渠道</strong> 跟蹤要策展的 snaps — 例如 <code>firefox</code> 在 <code>latest/stable</code>。每個跟蹤的 snap 都帶有一個 <strong>捕獲狀態</strong>，該狀態會將其通過管道：<code>TRACKED → DISPATCHED → CAPTURED</code>，或在捕獲失敗時為 <code>FAILED</code>。",
           "title": "跟蹤 snaps"
@@ -4417,10 +4417,10 @@
           "107": "系統指標",
           "108": "複製 YAML",
           "109": "📥 下載配置文件",
-          "emailMoved": "[缺少：docs.auto.home.config-builder.emailMoved]",
-          "secrets-body": "[缺少：docs.auto.home.config-builder.secrets-body]",
-          "secrets-li1": "[缺少：docs.auto.home.config-builder.secrets-li1]",
-          "secrets-li2": "[缺少：docs.auto.home.config-builder.secrets-li2]",
+          "emailMoved": "電子郵件不再在 <code>sysmanage.yaml</code> 中配置（v3.0+）。在應用程式中配置 SMTP 服務器、憑證和模板在 <strong>Settings → Configuration</strong>（按租戶）；SMTP 密碼存儲在 OpenBAO 中，不在 YAML 中。",
+          "secrets-body": "自 v3.0 起，<code>sysmanage.yaml</code> 是一份<strong>最精簡的啟動指標檔</strong>：它只需要知道如何連線到資料庫/登錄檔與 OpenBAO，再加上接聽埠與 TLS 設定。一般而言，您<strong>不應</strong>把機密資訊或維運設定放在這裡：",
+          "secrets-li1": "<strong>機密資訊</strong>（JWT 金鑰、密碼鹽值、管理員密碼、資料庫密碼、SMTP 密碼）由安全安裝步驟<strong>產生並寫入 OpenBAO</strong> — 請勿將它們放在 YAML 中。",
+          "secrets-li2": "<strong>操作設置</strong>（登錄/會話超時，消息隊列調優，監控）和 <strong>email</strong>（服務器，憑證，模板）在首次登錄後在 <strong>Settings</strong> 中配置 — 電子郵件是按租戶設置的。",
           "secrets-li3": "[缺少：docs.auto.home.config-builder.secrets-li3]",
           "secrets-title": "[缺少：docs.auto.home.config-builder.secrets-title]",
           "110": "資料庫選項（可選）"
@@ -4595,7 +4595,7 @@
           "062": "驗證備援模式下的數據同步",
           "063": "將備用角色提升為主角色",
           "064": "更新 DNS 記錄或負載平衡器配置",
-          "065": "新しいプライマリでアプリケーションサービスを起動する",
+          "065": "啟動新主機上的應用程式服務",
           "066": "驗證系統功能",
           "067": "文件故障轉換過程及問題",
           "068": "規劃原始主伺服器的恢復",
@@ -5187,11 +5187,11 @@
           "266": "推送到代理並立即應用的更改",
           "267": "日誌配置指南 →",
           "268": "維護窗口",
-          "269": "許可とブラックアウトウィンドウを定義して、更新やリモートコマンドが承認された時間にのみ実行されるようにする。ホストまたはタグごとのスコープで設定し、緊急時のオーバーライドも監査可能にする。",
-          "270": "Maintenance Windows Guide →",
+          "269": "定義允許和封鎖時間段，使更新和遠端命令僅在經批准的時間內執行，範圍涵蓋主機或標籤，並具有審計緊急超時權限。",
+          "270": "維護窗口指南 →",
           "271": "PostgreSQL High Availability",
           "272": "對高度可用的 PostgreSQL 群集進行運行並在主機故障轉移時無需手動干預：連接端點策略、自動預飛/重試/健康行為，以及伺服器留給群集管理員的部分。",
-          "273": "PostgreSQL High Availability Guide →"
+          "273": "PostgreSQL 高可用性指南 →"
         },
         "maintenance": {
           "001": "文檔",
@@ -5397,7 +5397,7 @@
           "039": "檢查服務是否正在運行：",
           "040": "存取Web介面：",
           "041": "Prometheus UI：http://localhost:9091",
-          "042": "OpenTelemetry Collector zPages: http://localhost:55679/debug/tracez",
+          "042": "OpenBAO 傳輸器 zPages: http://localhost:55679/debug/tracez",
           "043": "SysManage 指標端點：http://localhost:9090/metrics",
           "044": "配置",
           "045": "環境變數",
@@ -5462,7 +5462,7 @@
           "104": "添加詳細跟蹤所需的自定義跨度：",
           "105": "檢視追蹤記錄",
           "106": "通過以下方式存取追蹤數據：",
-          "107": "OpenTelemetry Collector zPages: http://localhost:55679/debug/tracez",
+          "107": "OpenBAO 傳輸器 zPages: http://localhost:55679/debug/tracez",
           "108": "匯出到Jaeger：配置OTLP匯出器以發送到Jaeger",
           "109": "匯出到Zipkin：配置OTLP匯出器以發送到Zipkin",
           "110": "Grafana Tempo：在 Grafana 中使用 Tempo 進行分布式跟蹤",
@@ -5693,7 +5693,7 @@
           "335": "小部件類型",
           "336": "時間序列圖表：顯示指標隨時間變化的折線圖",
           "337": "儀錶板小部件：當前值顯示，帶有閾值",
-          "338": "ステータスインジケーター：健康状態と可用性の表示",
+          "338": "狀態指示器：健康狀況和可用性顯示",
           "339": "热门列表：按排名列出主机或指标",
           "340": "熱圖：度量分布的視覺化表示",
           "341": "警報摘要：當前和近期的警報狀態",
@@ -5745,7 +5745,7 @@
           "387": "關鍵指標：30秒間隔",
           "388": "標準指標：1 分鐘間隔",
           "389": "資源密集型：5分鐘間隔",
-          "390": "静的データ：毎時間または毎日の収集",
+          "390": "靜態資料：每小時或每日收集",
           "391": "代理效能",
           "392": "批量收集：高效收集多個指標",
           "393": "Compression: 在傳輸前壓縮數據",
@@ -5854,7 +5854,7 @@
           "076": "包信息：名稱、版本和已移除的依賴項",
           "077": "審計跟蹤：完整記錄誰在何時移除了什麼",
           "078": "命令輸出：完整包管理器輸出以進行故障排除",
-          "079": "ステータストラッキング：除去中のリアルタイムステータス更新",
+          "079": "狀態追蹤：在移除過程中提供即時狀態更新",
           "080": "操作監控和跟蹤",
           "081": "軟體變更標籤",
           "082": "「軟體變更」選項卡（先前稱為「軟體安裝」）提供了所有套件操作的全面檢視：",
@@ -5866,7 +5866,7 @@
           "088": "請求人：啟動操作的用戶",
           "089": "時間戳：操作被請求和完成的時間",
           "090": "結果：成功/失敗狀態及適用的錯誤細節",
-          "091": "ステータス値",
+          "091": "狀態值",
           "092": "pending: 已排入隊列但尚未開始的操作",
           "093": "進行中: 代理目前正在處理操作",
           "094": "完成: 操作成功結束",
@@ -5874,7 +5874,7 @@
           "096": "cancelled: 操作在完成之前被取消",
           "097": "實時狀態更新",
           "098": "SysManage 通過 WebSocket 連接提供實時更新：",
-          "099": "ステータス変更はすぐにウェブインターフェースに反映される",
+          "099": "狀態變化會立即在網頁介面反映",
           "100": "成功或失敗通知以 snack bar 消息的形式顯示",
           "101": "進度指示器顯示操作的進展情況",
           "102": "錯誤消息為失敗的操作提供即時反饋",
@@ -5988,7 +5988,7 @@
           "021": "常見的卸載問題",
           "022": "\\<^code\">🚫 問題：卸載操作失敗",
           "023": "症狀",
-          "024": "ソフトウェア変更タブでステータスが\"失敗\"として表示されます",
+          "024": "狀態顯示為「失敗」在軟體變更標籤中",
           "025": "錯誤消息出現在操作日誌中",
           "026": "在操作後套件仍保留安裝狀態",
           "027": "代理在installation_log字段報告安裝錯誤",
@@ -7189,38 +7189,38 @@
           "002": "管理",
           "003": "維護窗口",
           "004": "維護窗口",
-          "005": "メンテナンスウィンドウを使用して、SysManageがホストに対して変更を実行できる時間を制御します。更新インストールとリモートコマンドはサーバーのアウトバウンドキューに保持され、許可されたウィンドウが開いている間のみリリースされます — パッチ適用やコマンド実行はあなたが選んだ時間に行われます。",
+          "005": "維護窗口讓您控制 SysManage 可以對主機進行變更的時間。更新安裝和遠端命令會在服務器的出站隊列中等待，只有在允許的窗口內才會釋放，因此補丁和命令執行會在您選擇的時間發生，而不是某人點擊按鈕的那一刻。",
           "006": "維護窗口頁面，列出每個窗口及其類型、計劃、範圍和啟用狀態。",
           "007": "概覽",
           "008": "維護窗口頁面從頂部導航中可達。它顯示您定義的所有窗口，並提供一個排程維護按鈕以創建新的窗口。每個窗口都是兩種類型之一：",
           "009": "允許窗口 — 在此期間可以執行變更。當主機有一個或多個允許窗口時，變更將被保留直到其中一個窗口打開。",
           "010": "停電 — 在此期間變更不得執行。停電總是勝出：當停電開放時，即使允許窗口也打開，變更仍被保留。",
           "011": "Windows 是每台主機選擇加入的。沒有窗口適用於的主機是不受限制的 — 其更改立即運行，就像您定義任何窗口之前一樣。這意味著啟用功能從未悄悄凍結您的群組；只有在將窗口範圍限定到它時，主機才被限制。",
-          "012": "ゲーティングの仕組み",
+          "012": "如何運作門檻機制",
           "013": "當伺服器對主機有更新安裝或遠端命令排隊時，它在發佈時間評估該主機的窗口：",
-          "014": "ホストに緊急オーバーライドがアクティブな場合、変更はすぐにリリースされます。",
+          "014": "如果主機有緊急超取權限啟用，則變更會立即釋放。",
           "015": "否則，如果主機目前有黑出現窗口打開，更改將被暫存。",
           "016": "否則，如果主機允許窗口存在，更改僅在其中一個窗口開放時釋出；其他時間則會被暫存。",
           "017": "否則（無適用的窗口），更改將立即釋出。",
-          "018": "保持された変更は次のウィンドウが開くまでキューに保たれ、自動的にリリースされます — 何も失われたりキャンセルされたりしません。変更アクション（更新インストールとリモートコマンド）のみが制御されます；設定プッシュなどの通常のコントロールプレーントラフィックは遅延しません。",
+          "018": "已儲存的變更會排隊等待，在下一個視窗打開時自動釋放——不會有任何遺失或取消。只有變更動作（更新安裝和遠端命令）受到限制；常規控制平面流量，如配置推送，永遠不會延遲。",
           "019": "創建窗口",
           "020": "點擊安排維護以打開編輯器。",
-          "021": "再発生許可ウィンドウの定義：名前、種類、再発生パターン、タイムゾーン、開始時間、持続時間、および範囲",
+          "021": "定義重複許可窗口：名稱、類型、重複性、時區、開始時間、持續時間和範圍",
           "022": "編輯字段是：",
-          "023": "名前と説明 ウィンドウを識別するための自由なテキスト",
-          "024": "種類 許可またはブラックアウト のいずれか（上記参照）。",
+          "023": "窗口名稱與描述：可輸入識別窗口的任意文字。",
+          "024": "如上所述，允許或完全封鎖",
           "025": "重複：一次性 帶有一個絕對 UTC 開始和結束時間的一次窗口。每日 每天在同一本地開始時間重複，持續一段固定時長。每周 在選擇的每一天重複。",
           "026": "時區 IANA 時區，用於解析重複開始時間（例如 America/New_York）。重複評估在此時區進行，因此窗口遵循當地時間，包括夏令時變更。",
           "027": "開始時間和持續時間（分鐘）。窗口可以跨午夜。",
-          "028": "週間ウィンドウのための曜日",
+          "028": "每週的日期範圍。",
           "029": "適用範圍 — 所有主機、一個或多個特定主機或按標籤選擇的主機（帶有所選標籤的所有主機）。窗口可以結合多個主機或標籤。",
-          "030": "有効 — 無効なウィンドウは評価時に無視されるが保持されます。",
+          "030": "啟用時，一個已禁用的視窗會被保留但忽略於評估過程中。",
           "031": "主機維護卡",
-          "032": "各ホストの詳細ページには、メンテナンスウィンドウカードがあり、現在の状態（制限なし、ウィンドウ内、ブロック、オーバーライドアクティブ）を報告します。現在または次のウィンドウ、または有効なブラックアウトを示します。ホストがブロックされている場合やウィンドウ内にある場合は、カードから緊急オーバーライドアクションを選択できます。",
-          "033": "緊急オーバーライド",
+          "032": "每個主機的詳細頁面顯示一個維護窗口卡，報告主機當前的狀態——不受限制、在窗口內、被封鎖或超時活躍——以及當前或下一個窗口，或適用的主動黑名單。當主機被封鎖或處於窗口內時，該卡提供緊急超時操作。",
+          "033": "緊急超時']} */*/ */ */*  (Note: Since ",
           "034": "緊急覆蓋允許變更在特定窗口期間到達單個主機 — 例如，在停電期間發送緊急安全修復。您提供原因和持續時間；覆蓋到期時自動失效。每一個覆蓋都會記錄在審計日誌中，包括原因、操作用戶和過期時間，因此繞過變更控制的決定始終可追溯。請查看審計日誌查看器以審查覆蓋。",
-          "035": "エディション要件",
-          "036": "メンテナンスウィンドウ（許可とブラックアウトウィンドウ、ホスト/タグごとのスコープ、監査可能な緊急オーバーライド）はSysManageのすべてのエディションで利用可能であり、コミュニティ版も含みます。"
+          "035": "版本需求",
+          "036": "維護窗口 — 包括允許和封鎖窗口、每主機/標籤範圍，以及審計緊急超時 — 在所有版本的 SysManage 中都可用，包括社區版。"
         },
         "postgresql-ha": {
           "001": "文件",
@@ -7230,7 +7230,7 @@
           "005": "將 SysManage 伺服器運行於高度可用的 PostgreSQL 群集中，並在主機故障轉移時無需手動干預。",
           "006": "概覽",
           "007": "SysManage 將所有狀態存儲在 PostgreSQL 中。在高可用性部署中，PostgreSQL 作為集群運行（主節點加上一個或多個流式複製備用節點），由集群管理器管理，而 SysManage 伺服器通過穩定端點連接到它，該端點始終解析為當前的主節點。",
-          "008": "設計原則：フェイルオーバーを生き延びるためのものであり、それを実行するわけではない",
+          "008": "設計原則：在故障轉移後能存活，而非引導故障轉移",
           "009": "SysManage 伺服器有意範圍內生存故障轉移，而不是驅動故障轉移。領袖選舉、備用升級和腦裂保護留在群集管理員及其連接路由器中。伺服器從不嘗試自行發現主機——在應用程序內部重新實現主機發現是一種已知的反模式，與群集管理員作對並導致腦裂寫入。",
           "010": "伺服器不會執行以下操作：選舉領袖、提升備援節點、隔離故障節點，或決定哪個節點可寫入。這些是群集管理員的職責。",
           "011": "伺服器會：檢測池連接死亡，丟棄並重新建立它，在提升間隔期間短暫重試無狀態工作，並將其數據庫連接報告給上游負載平衡器以繞過它。",
@@ -7242,7 +7242,7 @@
           "017": "這反映了聯邦協調器現有的指導方針（“通過標準複製和負載平衡器實現高可用性”）；單伺服器情況現在與其一致。",
           "018": "連接端點策略",
           "019": "將 SysManage 服務器的數據庫配置指向穩定的端點，而不是單個節點的固定地址。有兩個支持的選項；選擇一個。",
-          "020": "オプションA（推奨）：libpq多ホストDSN",
+          "020": "A 選項 (建議)：libpq 多主機 DSN",
           "021": "psycopg (psycopg3, SysManage 使用的驅動程式) 支援 libpq 的多主機連接字符串。列出每個集群節點，讓 libpq 自行找到可寫入的主要節點 — 不需要代理，並且在故障轉移後透過重新解析主要節點透明地重連，無需任何代碼更改。",
           "022": "在 /etc/sysmanage.yaml 中，將資料庫主機設置為逗號分隔的節點列表並請求讀寫端點：",
           "023": "故障轉移後 libpq 會跳過降級（現在只讀或無法連接）節點，並在下一次連接嘗試時連接到新提升的主節點。",
@@ -7254,10 +7254,10 @@
           "029": "連接預檢查（ pool_pre_ping ）— 故障轉移後，池中的連接是死套接字。預檢查在從池中取出連接時發出低成本的活躍性檢查，並透明地丟棄和重新建立到新主節點的死連接，而不是將過期套接字傳遞給下一個請求。",
           "030": "連接回收（ pool_recycle ，30 分鐘）— 將連接壽命限制在典型代理/伺服器空閒超時之下，以防止長期存在的連接累積。",
           "031": "在提升間隙期間進行有界重試 — 在幾秒鐘內當備用節點正在提升時，沒有可寫入的主節點，因此即使新連接也有可能失敗。幂等的工作單位以有界的指數退避重試直到新的主節點接受連接。只有幂等/未提交的工作才會被重試 — 一個部分應用的事務從不盲目地重新播放。",
-          "032": "ヘルスレポート — GET /api/health/db (readiness) プローブはデータベース接続を確認し、データベースが利用できない場合にHTTP 503を返します（それ以外の場合は200）。これにより外部ロードバランサーまたはオーケストレーターがサーバーからルーティングできます。DB認識のヘルスチェックはこのエンドポイントを指すように設定してください。GET /api/health (liveness) は依存関係なしで実行され、高頻度のエージェント/ロードバランサーからのポーリングに安価であり、データベースには触れないよう設計されています。",
+          "032": "健康報告 — GET /api/health/db (就緒性探針) 檢查資料庫連線並返回 HTTP 503 如果無法到達資料庫（200 表示正常），讓外部負載均衡器或調度程序可以繞過失去資料庫的伺服器。將對資料庫有感知的就緒性檢查指向這個端點。GET /api/health (生命力) 故意不依賴任何依賴項 — 它保持低成本，適合高頻率代理/負載均衡器的查詢，且不會觸及資料庫。",
           "033": "OpenBAO dynamic database credentials",
           "034": "此部分僅適用於多租戶（專業級以上）部署。單一租戶伺服器從 sysmanage.yaml 中讀取靜態數據庫密碼，完全由池和 DSN 行為覆蓋 — 它不租賃憑證。",
-          "035": "マルチテナント展開では、各テナントごとのデータベース資格情報がOpenBAOのデータベースシークレットエンジンからレンタルされます：OpenBAOはPostgreSQLに管理者として接続し、短時間有効なロールを作成してサーバーに渡し、そのロールを期限切れになると取り消します。これにより、PostgreSQLへの2つの接続が存在し、どちらもフェイルオーバー時に生き延びる必要があります：",
+          "035": "在多租戶部署中，每個租戶的資料庫憑證會從 OpenBAO 的資料庫機密引擎中租用：OpenBAO 作為管理員連接到 PostgreSQL，建立一個具有 TTL 的短期角色，並將它傳給伺服器，並在租用期滿時撤銷它。這意味著有兩個連接到 PostgreSQL，兩者都必須在故障轉移中存活。",
           "036": "伺服器 → PostgreSQL（使用租賃憑證）——由預飛、回收、重試和上述多主機 DSN 覆蓋。",
           "037": "OpenBAO → PostgreSQL — 資料庫秘密引擎的管理連接，用於創建和撤銷角色以發放租賃。這獨立於伺服器進行配置。",
           "038": "將 OpenBAO 的連接指向集群端點",
@@ -7289,7 +7289,7 @@
           "006": "概覽",
           "007": "SysManage代理通過名為sysmanage-agent.yaml的YAML配置文件進行配置。此文件控制代理的所有行為方面，包括伺服器連接性、安全設置、數據收集間隔和腳本執行策略。",
           "008": "配置文件位置",
-          "009": "Linux/Unix: /etc/sysmanage-agent/sysmanage-agent.yaml",
+          "009": "Linux/Unix: `/etc/sysmanage-agent/sysmanage-agent.yaml`",
           "010": "當前目錄：./sysmanage-agent.yaml",
           "011": "用戶配置：~/.config/sysmanage-agent/sysmanage-agent.yaml",
           "012": "代理按上述順序搜索配置文件。",
@@ -7994,7 +7994,7 @@
           "013": "實施目標修復：根據根本原因實施針對性修復",
           "014": "驗證解決方案：確認問題已解決",
           "015": "快速診斷",
-          "016": "これらのクイックチェックから始めて一般的な問題を特定します。",
+          "016": "以這些快速檢查來識別常見問題。",
           "017": "基本健康檢查",
           "018": "代理狀態指示器",
           "019": "狀態",
@@ -8011,7 +8011,7 @@
           "030": "檢查配置和網絡",
           "031": "⚫ 停止",
           "032": "代理服務未運行",
-          "033": "エージェントサービスを開始する",
+          "033": "啟動代理服務",
           "034": "🟠 錯誤",
           "035": "代理運行但遇到錯誤",
           "036": "檢查日誌中的特定錯誤",
@@ -8585,7 +8585,7 @@
           "040": "實時狀態更新",
           "041": "命令執行和結果",
           "042": "事件流和通知",
-          "043": "WebSocket API →",
+          "043": "WebSocket API → 網路傳輸層程式設計接口",
           "044": "監控",
           "045": "系統監控、指標收集及通過程式化接口的警報通知。",
           "046": "系統指標和效能數據",
@@ -8754,7 +8754,7 @@
           "091": "警報閾值可以通過配置進行自定義",
           "092": "電子郵件配置是警報通知所必需的",
           "093": "快速導航",
-          "094": "← WebSocket API",
+          "094": "← 網路套接字 API",
           "095": "報告API →"
         },
         "packages": {
@@ -8895,7 +8895,7 @@
           "135": "為關鍵系統修改使用批准工作流程",
           "136": "快速導航",
           "137": "← 主机管理",
-          "138": "WebSocket API →"
+          "138": "WebSocket API → 網路傳輸層程式設計接口"
         },
         "phase8-features": {
           "001": "文檔",
@@ -9701,7 +9701,7 @@
           "044": "備份",
           "045": "無",
           "046": "布林值",
-          "047": "預設為 false 。當設置為 true 時，現有的目標在 <path> 被複製到 <path>.sysmanage.bak 之前寫入新內容。成功時備份會留在原地（管理員可以清理）；如果後續哈希不匹配則恢復備份。",
+          "047": "默認為 false 。當為 true 時，現有的目標在新內容寫入之前被複製到 <path>.sysmanage.bak 。成功時保留備份（管理員可以清理）；如果後續哈希不匹配，則恢復備份。",
           "048": "回應",
           "049": "success 為 true 表示至少有一個檔案被部署。每個檔案的結果在 deployed_files 中，並帶有自己的 success 和 errors 。",
           "050": "執行命令序列",
@@ -9729,7 +9729,7 @@
           "072": "回應",
           "073": "如果步骤失败，则序列停止；completed_steps反映成功步骤的数量，errors包含失败消息。剩余的步骤将不会尝试执行。",
           "074": "service_control",
-          "075": "開始、停止、再起動、有効化、または無効化を行うサービスの一つか複数かを選択します。エージェントはホストプラットフォームに基づいて適切なサービスマネージャーを選択します — 大部分の現代的なLinuxディストリビューションではsystemctl、Alpine/Gentoo（OpenRC）ではrc-service + rc-update、macOSではlaunchctl、Windowsではsc.exe。同じメッセージがすべてのディストリビューションで動作し、コールラーはホストを実行するマネージャーを知る必要はありません。",
+          "075": "開始、停止、重新啟動、啟用或禁用一個或多個服務。代理會根據主機平台自動選擇適當的服務管理器 — 系統ctl（在多數現代 Linux 發行版上）、rc-service + rc-update（在 Alpine/Gentoo（OpenRC）上）、launchctl（在 macOS 上），或 sc.exe（在 Windows 上）。同一則訊息可以在不同發行版中使用，而呼叫者無需知道主機上運行的管理器。",
           "076": "請求",
           "077": "操作值",
           "078": "操作",
@@ -10347,7 +10347,7 @@
           "209": "連接池和資源管理",
           "210": "可擴展性",
           "211": "水平擴展:",
-          "212": "無状態アプリケーション設計",
+          "212": "無狀態應用設計",
           "213": "資料庫讀取副本",
           "214": "消息隊列集群",
           "215": "負載均衡器分佈",
@@ -10381,7 +10381,7 @@
           "243": "可維護性",
           "244": "代碼質量：",
           "245": "全面的測試覆蓋範圍",
-          "246": "静的コード分析",
+          "246": "靜態程式分析",
           "247": "一致的編碼標準",
           "248": "文檔和註釋",
           "249": "運營支持：",
@@ -10529,7 +10529,7 @@
           "006": "負載均衡概述",
           "007": "SysManage 通過負載均衡支持水平擴展。架構允許多個伺服器實例共享負載，同時保持會話連續性和數據一致性。",
           "008": "核心原則",
-          "009": "無状態設計：アプリケーションサーバーはセッションステートを維持しない",
+          "009": "無狀態設計：應用伺服器不維護會話狀態",
           "010": "數據庫集中化：共享PostgreSQL集群以確保一致性",
           "011": "WebSocket 親和力：實時連接的粘性會話",
           "012": "基於健康的路由：自動故障檢測和恢復",
@@ -10696,7 +10696,7 @@
           "071": "一個獨立的後台服務每 60 秒運行一次，檢查沒有在設定的超時週期內發送心跳信號的主機（預設：5 分鐘）。超過此閾值的主機將自動標記為「離線」。",
           "072": "檢查間隔：60 秒",
           "073": "超時閾值：可配置（默認：5分鐘）",
-          "074": "状態遷移：タイムアウトを超えた場合にup → downへ",
+          "074": "狀態轉移：超時過後從上線轉為下線",
           "075": "還原：在下次成功心跳時自動將狀態更新為「上線」",
           "076": "可靠性功能",
           "077": "重試邏輯",
@@ -10846,12 +10846,12 @@
           "039": "最佳化的索引以實現高效的查詢和報告：",
           "040": "索引使用模式",
           "041": "基於主機的查詢：快速查找特定主機的操作",
-          "042": "ステータスフィルタリング：操作ステータスとタイプによる効率的なフィルタリング",
+          "042": "狀態過濾：根據操作狀態和類型進行高效過濾",
           "043": "基於時間的報告：操作的按時間順序分析",
           "044": "套件搜尋：跨操作快速查找套件名稱",
           "045": "操作生命周期管理",
           "046": "狀態流程圖",
-          "047": "ステータス定義",
+          "047": "狀態定義",
           "048": "pending: 已創建但尚未排入執行隊列的操作",
           "049": "queued: 操作已排隊等待代理處理",
           "050": "進行中: 代理正在積極執行操作",
@@ -10971,7 +10971,7 @@
           "164": "批量操作：使用批处理插入以应对高流量操作",
           "165": "查詢優化：定期審查和優化查詢計劃",
           "166": "索引維護：監控和保持索引的有效性",
-          "167": "統計更新：最適なクエリ計画のために定期的なデータベース統計更新",
+          "167": "統計更新：定期更新資料庫統計資料以優化查詢規劃",
           "168": "運營程序",
           "169": "備份和恢復",
           "170": "定期備份：每日全量備份，加上交易日誌備份",
@@ -10980,7 +10980,7 @@
           "173": "災難恢復：記錄數據庫恢復的文檔化程序",
           "174": "維護任務",
           "175": "索引重組：定期進行索引維護以實現最佳性能",
-          "176": "統計更新：クエリ最適化のための自動統計更新",
+          "176": "統計更新：自動統計更新以優化查詢",
           "177": "日誌清理：根據保留策略自動清除舊的操作日誌",
           "178": "性能監控：持續監控數據庫性能指標",
           "179": "未來改進",
@@ -11138,7 +11138,7 @@
           "136": "異常檢測",
           "137": "基於機器學習的異常模式檢測",
           "138": "異常檢測方法：",
-          "139": "統計的異常検出：Zスコアに基づく検出",
+          "139": "統計異常：Z 值基於的檢測",
           "140": "季節性模式：時間序列分解",
           "141": "相關性分析：多指標模式檢測",
           "142": "預測模型：基於預測的異常檢測",
@@ -11612,7 +11612,7 @@
           "006": "縮放策略概述",
           "007": "SysManage 從頭開始設計，以水平和垂直擴展來滿足不斷增長的基礎設施管理需求。本文件概述了整個系統組件中的全面擴展策略。",
           "008": "核心擴展原則",
-          "009": "無状態設計：アプリケーションサーバーはローカルステートを維持しない",
+          "009": "無狀態設計：應用伺服器不保留任何本地狀態",
           "010": "無共享架構：組件的獨立擴展",
           "011": "優先考慮水平擴展而非垂直擴展",
           "012": "預測擴展：基於指標和趨勢的主動擴展",
@@ -11640,8 +11640,8 @@
           "034": "分離讀取和寫入操作",
           "035": "專門用於特定任務的實例",
           "036": "應用層擴展",
-          "037": "無状態アプリケーション設計",
-          "038": "無状態FastAPIアプリケーション",
+          "037": "無狀態應用設計",
+          "038": "無狀態的 FastAPI 應用程式",
           "039": "自動擴展配置",
           "040": "Kubernetes 橫向 Pod 自動調整器",
           "041": "應用層自動擴展",
@@ -11659,7 +11659,7 @@
           "053": "容量規劃系統",
           "054": "擴展最佳實踐",
           "055": "設計原則",
-          "056": "無状態アーキテクチャ：アプリケーションを無状態で設計して水平スケーリングを容易にする",
+          "056": "無狀態架構：設計應用程式為無狀態，以便輕鬆水平擴展",
           "057": "資料庫分離：將讀取和寫入工作負載分開以實現獨立擴展",
           "058": "緩存策略：通過實施多層緩存來減少數據庫負載",
           "059": "微服務：將單體應用拆分成獨立可擴展組件",
@@ -11752,7 +11752,7 @@
           "061": "輸入驗證",
           "062": "稽核日誌",
           "063": "\\<^code\">🚀 DevOps 及測試",
-          "064": "GitHub Actions CI/CD",
+          "064": "GitHub 行動持續整合/交付",
           "065": "Pytest框架",
           "066": "Coverage.py",
           "067": "Black格式化器",
@@ -11846,7 +11846,7 @@
           "066": "水平擴展",
           "067": "SysManage 設計用於在多個維度上進行水平擴展：",
           "068": "伺服器擴展",
-          "069": "無状態設計：サーバーがセッションステートを維持せず、水平スケーリングを容易にする",
+          "069": "無狀態設計：伺服器不儲存會話狀態，可輕鬆水平擴充",
           "070": "負載均衡：支持標準負載平衡器，具有 WebSocket 連接的會話親和性",
           "071": "資料庫群集：PostgreSQL 群集支援以實現高可用性",
           "072": "共享存儲：憑證和配置存儲可以在實例之間共享",
@@ -11918,7 +11918,7 @@
           "138": "整合點",
           "139": "外部系統集成",
           "140": "身份驗證系統",
-          "141": "LDAP/Active Directory",
+          "141": "LDAP/Active 目录",
           "142": "SAML 2.0 提供者",
           "143": "OAuth 2.0/OpenID Connect",
           "144": "多重身份驗證",
@@ -12003,7 +12003,7 @@
           "052": "雙重Conftest架構 + Pytest",
           "053": "1,464 個測試，通過率 100%",
           "054": "代碼覆蓋率",
-          "055": "Pytest-cov + SonarQube Cloud",
+          "055": "Pytest 覆蓋率 + SonarQube 雲端",
           "056": "100% 行 + 分支覆蓋率",
           "057": "安全分析",
           "058": "SonarQube Cloud + Bandit + Semgrep",
@@ -12248,7 +12248,7 @@
           "070": "多租戶、託管版本：它包含哪些功能，適用對象為誰，以及與社區版、專業版和企業版相比有何不同。",
           "071": "企業 SaaS 版本 →",
           "072": "部署",
-          "073": "マルチテナント展開を立ち上げる：レジストリとテナントデータベース、OpenBAO、3つの移行チェーン、およびプロビジョニング。",
+          "073": "建立多租戶部署：註冊表和租戶資料庫、OpenBAO、三個遷移鏈和配置",
           "074": "部署多租戶 →",
           "075": "\\<^code\">🗄️ 數據庫設計",
           "076": "這些分區構建所基於的基本模式、實體關係和持久性模式。",
@@ -12330,7 +12330,7 @@
           "002": "部署",
           "003": "多租戶",
           "004": "部署多租戶",
-          "005": "マルチテナントのSysManage展開を立ち上げる — データベース、OpenBAO、移行チェーン、およびテナントのプロビジョニング — 開発と生産用に。",
+          "005": "建立多租戶的 SysManage 部署 — 資料庫、OpenBAO、遷移鏈和租戶配置，用於開發和生產環境。",
           "006": "開始之前",
           "007": "多租戶是企業SaaS部署模型：控制平面加上每個租戶一個隔離的數據庫。它是選擇性啟用和許可的——關閉時，SysManage安裝方式與單租戶指南描述的一樣（伺服器安裝）。首先閱讀架構以理解以下內容。",
           "008": "你將設置的內容",
@@ -12354,7 +12354,7 @@
           "026": "在 sysmanage-dev.yaml 中啟用多租戶。將 bootstrap/registry 區塊指向您的 registry 資料庫，開啟此功能並配置本地 OpenBAO（開發配置已經包含 vault: 區塊）：registry:\nhost: localhost\nport: 5432\nname: sysmanage_registry\nuser: sysmanage\npassword: DEV_Change_Me_ABC123!\nmultitenancy:\nenabled: true\nself_service_provisioning: true\nvault:\n# OpenBAO 為每個租戶提供資料庫憑證\nurl: http://localhost:8200\nbootstrap:\nconfig_file: ./openbao.hcl\ndata_path: ./data/openbao",
           "027": "執行遷移。make migrate 驅動 scripts/sysmanage_migrate.py — 操作員在生產中使用的同一工具。啟用多租戶時，它會自動啟動 OpenBAO 以進行每個租戶的扇出，應用註冊、共享和租戶鏈，然後再次停止 OpenBAO：make migrate",
           "028": "配置啟動供應者身分 — 一個範圍化的 Postgres 角色加上 OpenBAO 政策，使伺服器可以在不持有超級用戶的情況下創建租戶：make provision-bootstrap ARGS='--bao-token $BAO_TOKEN'",
-          "029": "スタックを起動してテナントを作成します。make start を実行し、次にコントロールプレーンUI（設定 → テナント）からテナントを作成します。self_service_provisioning がオンの場合、サーバーはテナントのデータベースとOpenBAO資格情報を自動的にプロビジョニングします。",
+          "029": "啟動堆疊並建立租戶。先執行 `make start`，然後從控制平面介面（設定 → 租戶）建立租戶。如果啟用自服務配置，伺服器會為您建立租戶的資料庫和 OpenBAO 憑證。",
           "030": "將租戶鏈路擴展到新創建的租戶數據庫：執行 migrate-tenants 命令",
           "031": "想要完整的分布式拓撲嗎？",
           "032": "生產設置",
@@ -12427,8 +12427,8 @@
           "031": "2. 代理配置",
           "032": "配置文件位置",
           "033": "代理配置文件位於：",
-          "034": "Linux/BSD: /etc/sysmanage-agent/sysmanage-agent.yaml",
-          "035": "macOS: /usr/local/etc/sysmanage-agent/sysmanage-agent.yaml",
+          "034": "Linux/BSD: `/etc/sysmanage-agent/sysmanage-agent.yaml`",
+          "035": "macOS：/usr/local/etc/sysmanage-agent/sysmanage-agent.yaml",
           "036": "Windows: C:\\\\Program Files\\\\SysManage Agent\\\\config\\\\sysmanage-agent.yaml",
           "037": "基本配置",
           "038": "使用您的伺服器細節編輯配置文件:",
@@ -12464,7 +12464,7 @@
           "068": "驗證代理與服務器通信正常：",
           "069": "Web Interface 檢查",
           "070": "代理出現在主機列表中",
-          "071": "ステータスが\"オンライン\"または\"接続中\"と表示されます",
+          "071": "狀態會顯示為 \"在線\" 或 \"連接中\"",
           "072": "系統信息已填充",
           "073": "套件存貨可用",
           "074": "最近的聯繫時間",
@@ -12570,7 +12570,7 @@
           "042": "確認更改",
           "043": "主機篩選和搜索",
           "044": "使用篩選系統查找特定主機：",
-          "045": "ステータスフィルター：オンライン、オフライン、警告、エラー",
+          "045": "狀態過濾器：線上，離線，警告，錯誤",
           "046": "標籤過濾器：選擇一個或多個標籤",
           "047": "作業系統: Linux, Windows, macOS, BSD",
           "048": "搜索：主機名、IP 地址或描述",
@@ -13086,7 +13086,7 @@
           "070": "API 自動化",
           "071": "自定義集成",
           "072": "預估安裝時間：1-2天",
-          "073": "ここから始める",
+          "073": "開始處",
           "074": "請遵循快速入門指南以運行基本的 SysManage 實例",
           "075": "快速開始 →",
           "076": "探索介面",
@@ -13204,7 +13204,7 @@
           "086": "查找運作清單中的卸載請求",
           "087": "監控 \"狀態\" 列以獲取進度更新",
           "088": "監控「操作」欄位顯示的「卸載」狀態",
-          "089": "ステータス値",
+          "089": "狀態值",
           "090": "pending: 已排入隊列但尚未開始的操作",
           "091": "進行中: 代理正在移除套件",
           "092": "完成: 套件已成功移除",
@@ -13316,127 +13316,6 @@
           "002": "開始使用",
           "003": "快速開始",
           "004": "快速啟動指南",
-          "005": "使用 Docker Compose 在幾分鐘內快速啟動 SysManage。適合評估、開發和小規模部署。",
-          "006": "概覽",
-          "007": "這份快速啟動指南將在10分鐘內讓您使用Docker Compose運行SysManage。這種方法提供了一個完整的、自包含的SysManage安裝，適合測試、開發或小型生產環境。",
-          "008": "先決條件",
-          "009": "系統需求",
-          "010": "至少 4GB RAM（建議 8GB）的 Linux 服務器或虛擬機",
-          "011": "最少 2 個 CPU 核心（建議使用 4+）",
-          "012": "20GB 可用磁盤空間（建議 50GB+）",
-          "013": "在端口80、443和8443上的網路訪問",
-          "014": "軟體需求",
-          "015": "已安裝 Docker Engine 20.10+",
-          "016": "已安裝 Docker Compose 2.0+",
-          "017": "Git（用於克隆倉庫）",
-          "018": "管理/ sudo 訪問權限",
-          "019": "網絡需求",
-          "020": "互聯網存取以下載Docker映像",
-          "021": "防火牆已配置為允許入站連接",
-          "022": "固定IPアドレスまたはDNS名（推奨）",
-          "023": "安裝 Docker（如有需要）",
-          "024": "如果没有安装Docker，请使用以下快速命令在常见平台上进行安装：",
-          "025": "Ubuntu/Debian",
-          "026": "RHEL/CentOS/Fedora",
-          "027": "安裝步驟",
-          "028": "克隆倉庫",
-          "029": "克隆SysManage倉庫以獲取Docker Compose配置：",
-          "030": "注意：",
-          "031": "配置環境",
-          "032": "複製並自定義環境配置：",
-          "033": "關鍵配置選項",
-          "034": "設置",
-          "035": "預設值",
-          "036": "描述",
-          "037": "POSTGRES_PASSWORD",
-          "038": "SysManage",
-          "039": "資料庫密碼（生產環境更改）",
-          "040": "SECRET_KEY",
-          "041": "自動生成的",
-          "042": "應用程式機密金鑰",
-          "043": "監聽端口",
-          "044": "8443",
-          "045": "網頁介面端口",
-          "046": "DOMAIN_NAME",
-          "047": "本地主機",
-          "048": "伺服器域名或IP",
-          "049": "快速入門：",
-          "050": "生成 SSL 憑證",
-          "051": "SysManage 需要 SSL 證書進行安全通信。生成自簽證書用於測試：",
-          "052": "生產注意事項:",
-          "053": "SysManageを開始する",
-          "054": "使用 Docker Compose 啟動所有 SysManage 服務：",
-          "055": "您應該看到類似的輸出：",
-          "056": "創建管理員用戶",
-          "057": "創建您的第一個管理員帳戶：",
-          "058": "安全性：",
-          "059": "存取Web介面",
-          "060": "打開您的網絡瀏覽器並導航到SysManage：",
-          "061": "憑證警告：",
-          "062": "使用在步驟5中創建的管理憑據登錄。",
-          "063": "驗證安裝",
-          "064": "健康檢查",
-          "065": "驗證所有組件正常工作：",
-          "066": "1. 服務狀態",
-          "067": "2. API 健康檢查",
-          "068": "3. 数据库连接",
-          "069": "4. Web 界面",
-          "070": "登錄頁面加載正確",
-          "071": "可以使用管理員憑據進行身份驗證",
-          "072": "儀表板顯示無錯誤",
-          "073": "導航菜單功能正常",
-          "074": "快速故障排除",
-          "075": "容器無法啟動",
-          "076": "無法訪問Web界面",
-          "077": "檢查防火牆設定是否允許 8443 端口",
-          "078": "驗證 Docker 端口映射：docker compose ps",
-          "079": "首先通過 HTTP 訪問：http://localhost:8080",
-          "080": "SSL 憑證問題",
-          "081": "下一步",
-          "082": "探索介面",
-          "083": "熟悉SysManage web介面及其功能。",
-          "084": "Web Interface 視頻導覽 →",
-          "085": "安裝您的第一個代理",
-          "086": "在您的主機上添加監控代理以開始收集數據。",
-          "087": "代理安裝 →",
-          "088": "基本管理",
-          "089": "學習必要的管理工作任務和工作流程。",
-          "090": "管理基礎 →",
-          "091": "生產部署",
-          "092": "擴展到具有高可用性和安全性的生產就緒部署。",
-          "093": "生產設置 →",
-          "094": "常見安裝後任務",
-          "095": "配置電子郵件通知",
-          "096": "設置電子郵件設置以接收警報和通知：",
-          "097": "前往設定 → 電子郵件配置",
-          "098": "輸入 SMTP 伺服器詳細信息",
-          "099": "測試電子郵件交付",
-          "100": "配置警報通知",
-          "101": "創建額外用戶",
-          "102": "添加具有適當權限的團隊成員：",
-          "103": "前往管理 → 用戶",
-          "104": "點擊“創建用戶”",
-          "105": "設置用戶名、電子郵件地址和角色",
-          "106": "根據需要配置權限",
-          "107": "建立主機群組",
-          "108": "從邏輯上組織您的基礎設施：",
-          "109": "前往主機 → 群組",
-          "110": "根據環境、功能或位置創建群組",
-          "111": "設置特定於群組的權限",
-          "112": "配置基於群組的監控",
-          "113": "配置監控閾值",
-          "114": "為您的環境設置警報：",
-          "115": "前往監控 → 警報",
-          "116": "為CPU、內存、磁盤創建警報規則",
-          "117": "設定適當的閾值",
-          "118": "測試警報交付",
-          "119": "有用的命令",
-          "120": "Docker Compose 操作",
-          "121": "備份和維護",
-          "122": "日誌管理",
-          "123": "快速導航",
-          "124": "← 快速入门",
-          "125": "Web Interface 總覽 →",
           "126": "SysManage登錄頁面。"
         },
         "tutorials": {
@@ -13807,7 +13686,7 @@
           "008": "POST /api/host/{id}/reboot — 安全重新启动编排（停止子项，重新启动父项，重启子项）",
           "009": "啟用 KVM ，啟用 bhyve ，啟用 VMM ，啟用 LXD ，啟用 WSL — 在父主機上初始化虛擬化管理程序。",
           "010": "創建子主機 — 打開創建對話框並分派創建計劃。",
-          "011": "啟動子主機, 停止子主機, 重新啟動子主機, 刪除子主機 — 各アクションのライフサイクル制御。",
+          "011": "啟動子主機，停止子主機，重啟子主機，刪除子主機 — 按動作的生命週期控制",
           "012": "配置子主機設置（主機名、分發等）",
           "013": "重啟主機 — 觸發安全父重啟流程。",
           "014": "子主機標籤管理超級主機上運行的虛擬機和容器。"
@@ -13927,18 +13806,18 @@
           "020": "建議管理指南 →",
           "021": "📅 操作系统生命周期管理",
           "022": "追蹤整個群組的操作系統終止生命週期，並使用每個平台的本機機制安排維護窗口意識到的發行版升級。",
-          "023": "Fleet EOL統合状況（サポート中 / EOL目前 / EOL）",
+          "023": "艦隊結束使用時間（支援/即將結束支持/已結束支持）",
           "024": "每台主機的 EOL 狀態來自 endoflife.date",
           "025": "版本升級 / dnf / zypper / freebsd-update",
           "026": "排程和維護窗口意識的升級",
-          "027": "OS Lifecycle Guide →",
+          "027": "操作系統生命週期指南 →",
           "028": "🔒 FIPS 合規模式",
           "029": "查看哪些主機運行在 FIPS 140 驗證加密模式下，並使用每個平台的本機機制按主機啟用或禁用它。",
-          "030": "Fleet FIPSポストゥア（有効 / 使用可能 / 無効）",
-          "031": "検出機能は無料；有効化/無効化はエンタープライズ版",
-          "032": "Ubuntu Pro / RHEL fips-mode-setup / Windows policy",
+          "030": "艦隊FIPS狀態（啟用/可用/禁用）",
+          "031": "檢測免費；開啟/關閉為企業版",
+          "032": "Ubuntu Pro / RHEL fips-mode-setup / Windows 策略",
           "033": "審計、維護窗口意識、重新啟動意識",
-          "034": "FIPS Compliance Guide →"
+          "034": "FIPS 合規指南 →"
         },
         "alerting": {
           "001": "警報頁面按嚴重性列出活動警報並提供確認和解決控制項。",
@@ -13990,10 +13869,10 @@
           "010": "建議目錄共享",
           "011": "供應商警報數據對所有客戶都相同，因此目錄只存儲一次並在所有租戶之間共享 — 這與 SysManage 使用其 CVE 數據庫的方式相同。只有每個主機的適用性結果是租戶範圍內的。進食運行伺服器範圍內的計劃；您永遠不會為每個租戶重新下載警報。",
           "012": "每台主機的適用建議",
-          "013": "ホストの詳細ページを開き、アドバイザリタブを選択して現在該当するすべてのアドバイザリを確認します。アドバイザリごとに影響を受けたパッケージとインストール → 固定バージョンでグループ化されます。",
+          "013": "打開主機詳細頁面，選擇「警示」標籤，即可查看目前適用於該主機的各個警示，按警示分組顯示，並列出受影響的套件及其安裝 → 修正版本。",
           "014": "每個主機的建議標籤：適用的建議、嚴重性、類型、受影響的套件以及每條建議的安裝。",
           "015": "重新計算會根據當前目錄重新評估主機（例如在刷新後或包更改後）。",
-          "016": "SysManageの通常のパッケージインストールパスを使用して、アドバイザリが修正するすべてのパッケージをインストールします — これにより監査され、ホストに設定されたメンテナンスウィンドウも尊重されます。",
+          "016": "安裝所有受影響套件的排隊安裝，使用 SysManage 的正常套件安裝路徑 — 這樣可以審核並遵守主機配置的維護時間。",
           "017": "OpenBSD 錯誤（syspatch）",
           "018": "OpenBSD 發行基系統安全性和可靠性錯誤 — 使用 signify(1) 簽名並使用 syspatch(8) 應用，而不是包管理器更新。SysManage 將每個錯誤視為建議，有兩個 OpenBSD 特定的轉折：",
           "019": "適用性是權威性的。代理運行 syspatch -c ，列出主機尚未應用的所有補丁，因此適用性直接來自主機而不是已安裝與已修復版本比較。syspatch -c 仍然報告的是，根據定義，適用的。",
@@ -14002,8 +13881,8 @@
           "022": "Fleet dashboard",
           "023": "主導航中的建議頁面總結了適用於車隊的建議——總共適用、受影響的主機以及按嚴重性分解——然後是您可以根據嚴重性、類型（安全/錯誤修正/增強）和來源過濾，或通過建議 ID 或標題搜索的建議目錄。",
           "024": "建議 ↔ CVE 映射",
-          "025": "各アドバイザリは対応するCVEにリンクしており、CVE中心の脆弱性スキャンビューとアドバイザリ中心のビュー間で移動できます。アドバイザリをインストールすると、影響を受けたパッケージのすべてのCVEが一括して修正されます。",
-          "026": "エディション要件",
+          "025": "每個建議連結到它解決的 CVE，所以你可以切換至以 CVE 為中心的安全漏洞掃描視圖或以建議為中心的視圖。安裝建議一次性解決受影響套件的所有相關 CVE。",
+          "026": "版本需求",
           "027": "建議管理是專業版+ 功能，由 advisory_engine 模組提供。在社區版中，建議 API 返回 HTTP 402 / 403，且建議頁面和主機標籤被隱藏。升級到專業版或更高版本以啟用它。"
         },
         "fips-compliance": {
@@ -14011,26 +13890,26 @@
           "002": "Professional+",
           "003": "FIPS 合規模式",
           "004": "FIPS 合規模式管理",
-          "005": "どのホストがFIPS 140検証済み暗号モードで実行されているのか把握し、コンソールからオン/オフに切り替えます。各エージェントはそのFIPSポストゥアを報告（この部分は無料）します；FIPSの有効化と無効化はエンタープライズ機能であり、ホストOSから正しいスイッチメカニズムを推論し、SysManageの監査済みメンテナンスウィンドウ対応コマンドキューを通じて実行します。",
+          "005": "了解正在使用FIPS 140驗證密碼模式的主機，並透過控制台開啟或關閉它。每個代理都會報告其FIPS狀態（這個部分免費）；開啟和關閉FIPS是企業能力，會根據每台主機的作業系統推斷正確的切換機制，並透過SysManage的審計、維護時間窗口意識的命令隊列傳送。",
           "006": "FIPS 合規儀表板：車隊範圍內的主機啟用、可用（有能力但未開）、禁用或不適用的匯總，以及每個主機的機制和最後報告時間。",
           "007": "概覽",
           "008": "FIPS 140 是美國聯邦標準，用於驗證加密模塊。許多受監管環境（政府、國防、醫療保健、金融）要求主機在 FIPS 模式下運行，以確保僅使用經過驗證的加密技術。FIPS 合規模式管理為您提供一個單一位置來查看每台主機的 FIPS 姿態並根據許可證權限進行更改。",
           "009": "對於每台主機，SysManage 報告四種狀態之一：",
-          "010": "有効 — FIPSモードがアクティブ（Linuxではカーネルによって強制）です。",
+          "010": "啟用 — 安全模式已啟用（且在 Linux 上由內核強制執行）。",
           "011": "可用 — 主機可以運行 FIPS 模式（驗證模塊存在），但目前是關閉的。",
-          "012": "無効 — OSはFIPSをサポートしていますが、アクティブになっておらずモジュールもインストールされていません。",
-          "013": "適用しない — OSレベルでのFIPSモードが存在しません（macOSやBSD系）。",
-          "014": "検出機能は組み込まれています（無料）",
+          "012": "已禁用 — 作業系統支援FIPS，但並未啟用且模組未安裝。",
+          "013": "不適用 — 作業系統沒有系統級FIPS模式（macOS和BSD子系統）。",
+          "014": "偵測功能已內建（且免費）",
           "015": "FIPS 檢測包含在開源代理程序中 — 不需要許可證。每次檢查時，每個代理程序報告其姿態，服務器記錄在主機上以便儀表板和單個主機標籤始終反映現實情況。檢測使用每個平台的權威來源：",
           "016": "Linux（核心）: /proc/sys/crypto/fips_enabled — 當前是否啟用 FIPS 的確定標誌。",
           "017": "RHEL 及重建：fips-mode-setup --check 。",
-          "018": "Ubuntu: the Ubuntu Pro fips service status.",
-          "019": "Windows: the FipsAlgorithmPolicy registry value.",
+          "018": "Ubuntu：Ubuntu Pro fips 服務狀態。",
+          "019": "Windows：FipsAlgorithmPolicy 註冊表值。",
           "020": "macOS & BSD: 被報告為不適用。",
           "021": "Fleet dashboard",
           "022": "主導航中的 FIPS 合規頁面總結了車隊：多少主機已啟用、可用、禁用或不適用，然後是每台主機的狀態表——使用的開關機制及其上次報告時間。使用它來回答“哪些主機不在 FIPS 模式下？”在審計前一目了然。",
           "023": "每台主機的啟用及停用",
-          "024": "ホストの詳細ページを開き、FIPSタブを選択してそのポストゥア（ステータス、メカニズム、カーネルが強制しているか否か、検証モジュールのバージョン）を確認し、ライセンスがあれば単一クリックでFIPSを有効化または無効化します。",
+          "024": "打開主機詳細頁面，並選擇「FIPS」標籤來查看其安全性狀態——狀態、機制、內核是否強制執行以及驗證模組版本，並在授權的情況下，單擊以啟用或禁用FIPS。",
           "025": "每個主機的 FIPS 標籤：當前狀態和機制，帶有啟用/禁用控制和提醒更改在重新啟動後生效。",
           "026": "引擎從主機的操作系統推斷正確的機制並運行預飛檢查（拒絕無操作或不可能的轉換——例如，在缺乏驗證模塊的主機上啟用 FIPS）之前，才會發送任何內容：",
           "027": "Ubuntu — 啟用 FIPS / 關閉 FIPS",
@@ -14039,9 +13918,9 @@
           "030": "需要重新啟動。更改 FIPS 模式僅在主機重新啟動後才完全生效，因此控制台將標記此變更為需要重新啟動；主機下次檢查時報告已解決的姿態。",
           "031": "排程及維護窗口意識",
           "032": "啟用/禁用請求通過 SysManage 的正常存儲和轉發命令隊列進行分派，因此它會被審計並遵守任何為主機配置的維護窗口 — 變更將在主機下一次允許的窗口中執行。因為 FIPS 更改需要重新啟動，通過變更窗口驅動這些更改可以確保干擾在批准的維護時間內進行。",
-          "033": "検出はオープンソース；有効化はエンタープライズ版",
+          "033": "偵測是開源軟體；啟用是企業版",
           "034": "報告您的車隊的 FIPS 立場是免費代理的一部分，因此您始終知道自己的位置。更改 FIPS 模式——開關動作、車隊 FIPS 頁面以及每個主機控制——是由 compliance_engine 模組提供的企業功能，該模組執行從作業系統到機制的推論和預飛驗證。",
-          "035": "エディション要件",
+          "035": "版本需求",
           "036": "FIPS 檢測在每個版本中都可用 — 姿態被收集和存儲，所有主機都可以反映現實情況。FIPS 模式管理（啟用/禁用、FIPS 合規頁面以及主機標籤的控制）是企業功能，受 FIPS_MODE 功能保護。在較低版本中，FIPS 管理 API 返回 HTTP 402 / 403，且 FIPS 合規頁面被隱藏。升級到企業版以啟用它。"
         },
         "os-lifecycle": {
@@ -14049,17 +13928,17 @@
           "002": "Professional+",
           "003": "作業系統生命周期管理",
           "004": "作業系統生命周期管理",
-          "005": "どのホストが終了予定日間近または既に過ぎたOSを実行しているのか正確に把握し、ディストロのリリースアップグレードでそれを修正します。ライフサイクルエンジンは各リリースのEOL日付を追跡し、各プラットフォームのネイティブメカニズムを使用してスケジュールされたメンテナンスウィンドウ対応のアップグレードをオーケストレーションします。",
+          "005": "精確知道哪些主機正在運行接近或已過期的使用壽命的作業系統，並驅動發行版本升級來修正它。生命週期引擎追蹤每種發行版本的過期日期，並利用每個平台的原生機制協調預定的、考慮維護時間窗口的升級。",
           "006": "作業系統生命周期儀表板：車隊範圍內的支援/接近/終止支持主機匯總，以及風險主機及其推薦升級目標。",
           "007": "概覽",
-          "008": "各OSリリースにはサポートライフサイクルがあり、その日付を超えるとベンダーはセキュリティ修正を提供しなくなります。この日付を超えて実行することはコンプライアンスやセキュリティ上のリスクとなりますが、混在するデバイス群で追跡するのが難しい場合があります。OSライフサイクル管理では、EOLレジストリとホストごとのサポートステータス（サポート中、EOL目前、EOL、不明）を計算します。",
-          "009": "ライフサイクルデータはendoflife.dateから取得され、Ubuntu、Debian、RHELおよびそのリビルド（AlmaLinux、Rocky）、Fedora、SUSE / openSUSE、FreeBSDなどに対応しています。",
+          "008": "每個作業系統版本都有支援週期 — 一段時間後，供應商不再提供安全修補程式。超過該日期後，會成為合規性和安全責任問題，但混合艦隊中很難追蹤。作業系統生命週期管理會新增一個結束使用日期登記冊，並根據主機計算其作業系統版本是否為支援中、接近結束使用日期（180天內）、結束使用或未知。",
+          "009": "生命週期數據來自於endoflife.date，涵蓋Ubuntu、Debian、RHEL及其重構（AlmaLinux、Rocky）、Fedora、SUSE/openSUSE、FreeBSD等。",
           "010": "生命周期 registry 共享",
           "011": "操作系統版本的 EOL 日期對每個客戶都相同 — Ubuntu 22.04 的終止支持日期處處相同 — 因此生命周期註冊表一次存儲並跨所有租戶共享，就像 CVE 和建議目錄一樣。每台主機的 EOL 狀態是通過將該註冊表與每個租戶的主機清單進行聯接計算得出；沒有按主機存儲的 EOL 行。刷新註冊表會拉取最新的數據並在伺服器範圍內更新，而不是按租戶更新。",
           "012": "Fleet dashboard",
           "013": "主導航中的 OS 生命周期頁面總結了車隊：多少主機已支援、接近 EOL、終止支持或狀態不明，然後是風險主機——那些接近或超過 EOL 的主機——的天數剩餘（或過期）和推薦升級目標。刷新 EOL 數據重新拉取 registry 來自 endoflife.date。",
           "014": "每台主機的 EOL 及升級",
-          "015": "ホストの詳細ページを開き、OSライフサイクルタブを選択してそのサポートステータス、EOL日付、残りの日数を確認し、ホストがEOL目前または過ぎている場合、推奨される次のリリースへのアップグレードを行う単一クリックボタンがあります。",
+          "015": "打開主機詳細頁面，選擇「作業系統生命週期」標籤，即可查看其支援狀態、結束使用日期、剩餘天數，以及當主機接近或超過結束使用日期時，提供一鍵升級至建議的下一個版本。",
           "016": "每個主機的操作系統生命周期標籤：支持狀態、EOL 日期、推薦升級以及主機的升級工作。",
           "017": "引擎從主機的操作系統推斷正確的升級方法並運行一系列預飛檢查（記錄在工作單中），然後才會發送任何內容：",
           "018": "Ubuntu / Debian — 執行 do-release-upgrade",
@@ -14070,7 +13949,7 @@
           "023": "升級通過 SysManage 的正常存儲和轉發命令隊列進行分派，因此它會被審計並遵守任何為主機配置的維護窗口 — 升級將在主機下一次允許的窗口中執行。您也可以給任務指定一個明確的計劃時間，隊列將在該時間到達時交付。",
           "024": "與修補的關係",
           "025": "升級移動主機到一個全新的 OS 版本；日常的修補則由建議管理和漏洞掃描覆蓋。使用生命周期儀表板來捕捉那些視圖無法幫助的主機——其操作系統本身已過期的支持主機。",
-          "026": "エディション要件",
+          "026": "版本需求",
           "027": "作業系統生命周期管理是由 lifecycle_engine 模組提供的 Professional+ 功能。在 Community Edition 中，lifecycle API 返回 HTTP 402 / 403 狀態碼，並且 OS 生命周期頁面和主機標籤被隱藏。升級到 Professional 或更高層級以啟用它。"
         },
         "content-lifecycle": {
@@ -14213,7 +14092,7 @@
           "118": "SysManage 使用 JWT 令牌實現無狀態會話管理，並提供額外的安全功能。",
           "119": "會話功能",
           "120": "基于Token的会话",
-          "121": "無状態JWTベースのセッション",
+          "121": "無狀態的 JWT 會話",
           "122": "無伺服器端會話存儲",
           "123": "友好的水平擴展",
           "124": "跨域支持",
@@ -15004,7 +14883,7 @@
           "100": "支持站點到站點和客戶訪問",
           "101": "網路和路由表管理",
           "102": "\\<^code\">🛡️ IPsec/IKEv2",
-          "103": "基準に基づくVPNプロトコル",
+          "103": "基於標準的 VPN 協議",
           "104": "強加密和身份驗證",
           "105": "行動裝置支援",
           "106": "自動重新連接功能",
@@ -15646,7 +15525,7 @@
           "056": "建置工具整合",
           "057": "詳細報告格式",
           "058": "机密检测",
-          "059": "TruffleHog",
+          "059": "松子獵人",
           "060": "高熵密鑰掃描器",
           "061": "Git歷史掃描",
           "062": "即時機密檢測",
@@ -15771,7 +15650,7 @@
           "181": "基本安全模式檢查",
           "182": "提交消息驗證",
           "183": "2. 🔄 拉取請求",
-          "184": "静的コード分析（Bandit、Semgrep）",
+          "184": "靜態程式分析 (Bandit, Semgrep)",
           "185": "依賴漏洞掃描",
           "186": "安全政策符合性檢查",
           "187": "代碼審查集成",
@@ -15940,8 +15819,8 @@
           "350": "開發工具",
           "351": "GitHub/GitLab/Bitbucket",
           "352": "Jenkins/GitHub Actions/GitLab CI",
-          "353": "SonarQube Cloud /CodeClimate",
-          "354": "Docker Registry/Harbor",
+          "353": "SonarQube 雲 / CodeClimate",
+          "354": "Docker 註冊表/Harbor",
           "355": "Artifactory/Nexus",
           "356": "問題跟蹤",
           "357": "Jira/Linear/Azure DevOps",
@@ -16113,7 +15992,7 @@
           "022": "自動發現：網絡上代理的自動檢測",
           "023": "手動註冊：明確的主機註冊並驗證",
           "024": "主機配置文件：詳細的系統信息和規格",
-          "025": "ステータスマニフェスト：リアルタイムホストの可用性と健康状態の監視",
+          "025": "狀態監控：實時主機可用性和健康狀況",
           "026": "WebSocket 通訊",
           "027": "雙向通訊：伺服器和代理之間的雙向通信",
           "028": "即時更新：即時狀態更新和警報",
@@ -17546,7 +17425,7 @@
       "leap_note": "使用穩定套件，可能需要手動安裝 Rust",
       "package_notes": "套件管理員說明",
       "python_versions": "Leap 搭載 Python 3.9+，Tumbleweed 搭載最新穩定版",
-      "title": "openSUSE Leap/Tumbleweed",
+      "title": "開源蘇斯跳躍/搖擺",
       "tumbleweed_note": "滾動發布，可透過 zypper 取得 Rust"
     },
     "sles": {
@@ -18596,7 +18475,7 @@
           "title": "🔌 空氣隔離部署",
           "description": "構建包含SysManage伺服器（或代理）及其所有轉移的原生包和Python wheel依賴項的多操作系統ISO，然後在沒有互聯網接入的情況下使用一條命令進行安裝。",
           "features": {
-            "platforms": "Ubuntu / Debian / Fedora / RHEL / openSUSE / Alpine / BSD / macOS / Windows",
+            "platforms": "Ubuntu / Debian / Fedora / 紅帽企業 Linux (RHEL) / openSUSE / Alpine / 柏斯 (BSD) / macOS / Windows",
             "deps": "轉移式 OS 依賴項 + Python 套件",
             "dispatcher": "自動操作系統檢測分派腳本，位於ISO根目錄",
             "ui": "UI驅動的構建、下載和生命周期管理"
@@ -18633,7 +18512,7 @@
             "providers": "可插拔計算供應商（遠程 libvirt、Proxmox VE）",
             "templates": "可重用、版本化的佈置模板"
           },
-          "link": "Provisioning Engine Guide →",
+          "link": "配置引擎指南 →",
           "title": "🚀 Provisioning Engine"
         }
       },
@@ -18925,13 +18804,13 @@
           "title": "[缺少：pro_plus.observability_engine.endpoints.grafana.title]"
         },
         "graylog": {
-          "bsd_syslog": "[缺少：pro_plus.observability_engine.endpoints.graylog.bsd_syslog]",
-          "rsyslog": "[缺少：pro_plus.observability_engine.endpoints.graylog.rsyslog]",
+          "bsd_syslog": "<code>POST /api/v1/observability/graylog/{host_id}/bsd-syslog-deploy</code> — 配置 BSD 系統日誌。請求體添加 <code>{bsd_variant, existing_config}</code>：調用者傳遞當前的 <code>/etc/syslog.conf</code> 作為 <code>existing_config</code>；引擎執行無效操作，保留未相關聯的日誌轉發規則。選擇 <code>bsd_variant</code> 選擇重啟命令（FreeBSD 上為 <code>service syslogd restart</code>，OpenBSD/NetBSD 上為 <code>rcctl restart syslogd</code>）。GELF 在驗證器中被拒絕（標準 BSD 系統日誌無法使用它）。",
+          "rsyslog": "<code>POST /api/v1/observability/graylog/{host_id}/rsyslog-deploy</code> — 配置 rsyslog 以將日誌轉發到 Graylog。請求體：<code>{graylog_server, port, mechanism}</code> 其中 <code>mechanism</code> 是 <code>syslog_tcp</code>，<code>syslog_udp</code> 或 <code>gelf_tcp</code>。寫入 <code>/etc/rsyslog.d/60-graylog.conf</code> 並重啟服務器。",
           "sidecar_install": "<code>POST /api/v1/observability/graylog/{host_id}/sidecar-install</code> — 僅限 Windows。從 Graylog 的 GitHub releases 下載上游的 <code>graylog-sidecar-installer-{amd64|386}.exe</code> 並以靜默模式（<code>/S</code>）執行。與上述部署端點搭配使用，可在二進位檔就緒後放置 <code>sidecar.yml</code>。",
           "syslog_ng": "<code>POST /api/v1/observability/graylog/{host_id}/syslog-ng-deploy</code> — 以相同的三種轉發器機制設定 syslog-ng。會寫入 <code>/etc/syslog-ng/conf.d/60-graylog.conf</code>。",
           "title": "Graylog 部署",
-          "bsd_append": "[缺少：pro_plus.observability_engine.endpoints.graylog.bsd_append]",
-          "linux_autodetect": "[缺少：pro_plus.observability_engine.endpoints.graylog.linux_autodetect]",
+          "bsd_append": "<strong>BSD 執行時合併</strong> — <code>build_graylog_bsd_syslog_append_plan</code> 在代理執行時通過 shell 执行 <code>/etc/syslog.conf</code> 合併（使用 <code>sed -i.bak</code> 剪切 + <code>printf</code> 追加 + 特定變體的重啟）。避免了 OSS 服務器端文件獲取原始代碼的需求：BSD 端點僅根據 <code>host.platform</code> 分配，不需要 <code>existing_config</code>。",
+          "linux_autodetect": "<strong>Linux 自動檢測</strong> — <code>build_graylog_linux_autodetect_plan</code> 將 rsyslog 和 syslog-ng 配置文件階段到 <code>/tmp/sysmanage-graylog-{rsyslog,syslog-ng}.conf</code>，並發出根據 <code>systemctl is-active --quiet &lt;daemon&gt;</code> 的 shell 分支。活動的服務器將其配置複製到位並重啟；其他分支為無操作。避免了 OSS 服務器需要知道主機運行哪個轉發器的需求。",
           "windows_no_token": "<strong>Windows sidecar 無權杖安裝</strong> — <code>build_graylog_sidecar_no_token_plan</code> 在 Windows 上處理 OSS 的 <code>POST /host/{id}/attach_to_graylog</code> 路徑。OSS 酬載僅攜帶 <code>{mechanism, graylog_server, port}</code> — 沒有 <code>api_token</code>/<code>node_id</code> — 因此該計畫會以空的 <code>server_api_token</code> 寫入 <code>sidecar.yml</code>（操作人員之後透過 Sidecar 管理介面填入）。以 PowerShell 驅動：偵測 ARM64 主機並拒絕（上游沒有 ARM64 版本），透過 <code>Test-Path</code> 檢查是否已安裝，若缺少則從 GitHub 下載 AMD64 安裝程式，執行 <code>/S</code>，然後註冊並啟動 Windows 服務。"
         },
         "intro": "所有端點都位於 <code>/api/v1/observability</code> 前綴下。 認證： bearer JWT。 每個由引擎驅動的端點還需要在有效許可證中存在相應的 Pro+ 功能標誌；否則該路由返回 HTTP 402。",
@@ -18997,13 +18876,13 @@
         "title": "使用 the UI"
       },
       "dispatch": {
-        "intro": "[缺少：pro_plus.observability_engine.dispatch.intro]",
-        "linux_default": "[缺少：pro_plus.observability_engine.dispatch.linux_default]",
-        "step1": "[缺少：pro_plus.observability_engine.dispatch.step1]",
+        "intro": "開源監控端點（部署、移除、啟動/停止/重啟、Grafana 連接/斷開、Graylog 附加）遵循由 <code>backend/services/observability_shim.py</code> 實現的引擎優先 / 兼容舊版合約：",
+        "linux_default": "在 Linux 上，平台檢測函數在回退到默認值之前會檢查兩個信號：（1）主機的已安裝包存根（最權威 — 一個 apt/dnf/yum 入口決定它）；（2）OS_INFO 收集的 <code>platform_release</code> 字符串，該字符串在首次連接後約 1 秒內到達（關閉新主機比賽，對於常見發行版 — Ubuntu, Debian, RHEL, Rocky, Fedora 等都通過子字符串關鍵字匹配）。當沒有信號可用時，函數默認為 <code>linux_apt</code> 並記錄警告日誌；dnf 家族主機碰到此默認值會看到明確的 <code>apt-get: command not found</code> 錯誤，而不是靜默退回到即將刪除的代理代碼。",
+        "step1": "端點調用一個 <code>try_engine_*</code> 助手。",
         "step2": "[缺少：pro_plus.observability_engine.dispatch.step2]",
-        "step3": "[缺少：pro_plus.observability_engine.dispatch.step3]",
-        "step4": "[缺少：pro_plus.observability_engine.dispatch.step4]",
-        "step5": "[缺少：pro_plus.observability_engine.dispatch.step5]",
+        "step3": "助手通過 <code>_detect_otel_platform</code>（對於 OTEL 路徑）或直接從 <code>host.platform</code>（對於 Graylog）解析平台令牌。",
+        "step4": "在任何失敗情況下（引擎未加載、缺少構建器、無法檢測的平台、計劃構建或入隊期間發生異常），助手返回<code>None</code>；端點會像以前一樣將 legacy <code>generic_command</code> WS 消息排入隊列。",
+        "step5": "每個端點都會在其 <code>AuditService.log</code> 入口的 <code>details.dispatch_path</code> 下記錄選擇的路徑（<code>engine_plan</code> vs <code>legacy_ws_command</code>），因此操作員可以審核生產流量。",
         "title": "[缺少：pro_plus.observability_engine.dispatch.title]"
       }
     },
@@ -19627,7 +19506,7 @@
         "title": "必要條件"
       },
       "renewal": {
-        "description": "當您的授權即將到期時（在 Web UI 中的 <strong> 設定 → 授權 </strong> 中可見），從 Pro+ 入口網站產生新金鑰並取代 <code> /etc/sysmanage.yaml ZQX005ZQplicX005ZQkeyX 中的 ZQZ30X。重新啟動伺服器。模組載入程式會在每次重新啟動時和定期背景檢查（預設每 24 小時一次）時根據許可證伺服器的公鑰重新驗證。",
+        "description": "當您的許可證即將到期（在 web UI 的 <strong>設定 → 許可證</strong> 中可見）時，從 Pro+ 控制台生成新的密鑰並替換 <code>license_key</code> 值於 <code>/etc/sysmanage.yaml</code>。重新啟動伺服器。模組加載器在每次重新啟動和定期背景檢查（預設每 24 小時）時都會重新驗證許可證伺服器的公鑰。",
         "expired": "如果許可證在伺服器執行時過期，則所有 Pro+ 端點都會轉換回 <code> {\"licensed\": false, \"expired\": true} </code> 。開源功能保持正常工作 &mdash; 沒有任何中斷；僅 Pro+ 表面被閘控。",
         "title": "授權 續訂 &amp; 輪替"
       },
@@ -19666,7 +19545,7 @@
       },
       "troubleshooting": {
         "402": {
-          "description": "許可證有效，但特定功能不在您的等級。檢查解碼後的 JWT &mdash; 中的 <code> 功能 </code> 數組，如果功能代碼（例如 <code> av_install </code>eck、<code>t ）不存在，請聯絡銷售人員升級層。",
+          "description": "授權有效，但該項功能不在您的方案層級中。請檢查解碼後 JWT 中的 <code>features</code> 陣列 &mdash; 如果其中沒有該功能代碼（例如 <code>av_install</code>、<code>firewall_compliance_check</code>），請聯絡業務人員升級方案層級。",
           "title": "“我看到 Pro+ 功能，但每個 API 呼叫都會返回 402”"
         },
         "network": {
@@ -20091,7 +19970,7 @@
       "prometheus": {
         "description": "要將自定義指標在 Grafana 中繪製圖表，SysManage 將其暴露到現有的 Prometheus &rarr; Grafana 管道中。以下步驟會將一個 Prometheus 儀器抓取工作連接到伺服器，限制對該端點的訪問權限，並驗證數據是否已傳送到 Grafana。",
         "endpoint": {
-          "description": "SysManage 服務器會在 <code>GET /metrics/custom-metrics</code> 發布每個自定義指標的最新值，格式為 Prometheus 文本 exposition 格式。每個指標被發送作為帶有 <code>metric</code>, <code>host</code>, 和 <code>unit</code> 標籤（在多租戶模式下還會包含一個 <code>tenant</code> 標籤）的計量器。該端點未進行身份驗證，遵循常見的 Prometheus 爬取約定。",
+          "description": "SysManage 伺服器會在 <code>GET /metrics/custom-metrics</code> 使用 Prometheus 文本展示格式發布每個自定義指標的最新值。每個指標都會以帶有 <code>sysmanage_custom_metric_value</code> 標籤的計量器形式發送，這些標籤包括 <code>metric</code>、<code>host</code> 和 <code>unit</code>（在伺服器處於多租戶模式時還會包含一個 <code>tenant</code> 標籤）。此端點未進行身份驗證，遵循常見的 Prometheus 爬取慣例。",
           "title": "端點"
         },
         "restrict": {
@@ -21343,11 +21222,11 @@
       "title": "Quick 巡覽"
     },
     "overview": {
-      "backend_api": "後端API - 具有非同步支援、JWT認證和WebSocket通訊的FastAPI",
+      "backend_api": "<strong>Backend API</strong> - FastAPI with async support, JWT authentication, and WebSocket communication",
       "components_title": "伺服器組件",
-      "database": "資料庫 - 具有SQLAlchemy ORM和Alembic遷移的PostgreSQL",
+      "database": "<strong>Database</strong> - PostgreSQL with Alembic migrations and comprehensive data models",
       "description": "SysManage伺服器是一個現代的Web應用程式，使用FastAPI（Python）後端和React（TypeScript）前端構建。它透過輕量級代理提供管理多個系統的集中平台。",
-      "frontend_ui": "前端UI - 具有TypeScript、Material-UI組件和即時更新的React",
+      "frontend_ui": "<strong>前端 UI</strong> - React with TypeScript, Material-UI components, and real-time updates",
       "security_layer": "<strong> 安全層 </strong> - 具有 mTLS、RBAC 和全面掃描的企業級安全性",
       "title": "概述",
       "websocket_engine": "<strong> WebSocket 引擎 </strong> - 與代理即時雙向通信"
@@ -21577,9 +21456,10 @@
       "title": "系統需求"
     },
     "ssl": {
-      "description": "對於 HTTPS 開發，請將您的 SSL 憑證放置在：",
-      "fallback": "如果找不到憑證，系統會自動回退到 localhost 上的 HTTP。",
-      "title": "SSL 憑證（選用）"
+      "description": "SysManage 從 HTTPS 的端口 443 提供 Web 界面和 API。nginx 終止 TLS 並將請求代理到迴圈回路後端，這就是為什麼代理需要出站 443 到此主機才能訪問它。在伺服器提供生產流量之前必須有證書到位。",
+      "title": "TLS 證書（生產環境所需）",
+      "config_path": "將 nginx 指向您的證書和金鑰。配置文件在每個平台上都位於不同的位置，因此安裝後消息會為您的系統打印出確切路徑以及需要更改的兩行：",
+      "dev_mode": "對於本地開發，您可以在 <code>dev_mode: true</code> 中設置 <code>/etc/sysmanage.yaml</code> 以完全跳過憑證。然後伺服器將通過純 HTTP 在 8080 上提供 API 和在 3000 上提供 web 界面，並綁定所有接口以便 LAN 上的其他代理可以無需進一步配置即可連接到它。絕不能在生產主機上啟用開發模式。"
     },
     "title": "伺服器安裝指南 - SysManage",
     "troubleshooting": {
@@ -21605,9 +21485,9 @@
         "title": "權限問題"
       },
       "port_conflicts": {
-        "check_services": "檢查現有服務：<code> netstat -tlnp |查詢：6443 </code>",
-        "ensure_ports": "確保連接埠 6443（API）和 7443（前端）可用",
-        "modify_ports": "如需要，修改配置中的連接埠",
+        "check_services": "檢查現有的监听器：<code>ss -tlnp | grep -E ':\\(80\\|443\\|8080\\)'</code>",
+        "ensure_ports": "在生產環境中，確保端口 443 空閒（以及端口 80，它只會重定向到 443）。後端在 nginx 後面監聽於 127.0.0.1:8080，並且不會被公開。",
+        "modify_ports": "在開發模式下，API 在 8080 端口運行，而 web 界面在 3000 端口運行；如果它們衝突，請在 <code>api</code> 和 <code>webui</code> 中更改它們，位置為 <code>/etc/sysmanage.yaml</code>。",
         "title": "連接埠衝突"
       },
       "title": "疑難排解"
@@ -22340,6 +22220,19 @@
       "bsd": "一個 FreeBSD 主機，與任何 Linux、Windows 或 macOS 主機一樣詳細。",
       "compliance": "跨越整個環境的合規報告，而不僅僅是一個作業系統",
       "vuln": "跨所有作業系統的整個群組漏洞可見性。"
+    },
+    "monday": {
+      "bsd": "BSD 系統使用某人多年前編寫的腳本進行管理。",
+      "close": "這是 SysManage 建立要解決的問題。",
+      "compliance": "符合報告又住在其他地方。",
+      "eyebrow": "星期一, 上午9:04",
+      "macos": "macOS is in Jamf.",
+      "punch": "您已經打開了六個控制台才修補了一個主機 — 但仍然無法回答唯一一個實際有人問到的問題： <strong>我們是否暴露？</strong>",
+      "rhel": "RHEL is in Satellite.",
+      "scanning": "漏洞掃描位於其他地方。",
+      "title": "一個關鍵漏洞出現了。你甚至不知道從何開始。",
+      "ubuntu": "Ubuntu is in Landscape.",
+      "windows": "Windows is in Intune."
     }
   },
   "shot": {
@@ -22490,7 +22383,7 @@
     "cta": {
       "body": "讓我們根據您的安全要求走過一個隔離環境的部署。",
       "contact": "請求離線環境演示",
-      "gov": "Government & Defense →",
+      "gov": "政府與國防 →",
       "title": "有一個互聯網無法到達的網絡嗎？"
     },
     "hero": {
@@ -22537,7 +22430,7 @@
   "bsd": {
     "cta": {
       "body": "管理 FreeBSD、OpenBSD 和 NetBSD，與您的其他設備同等對待——使用 AGPLv3 核心，支持 14 種語言。",
-      "compare": "Compare Tools →",
+      "compare": "比較工具 →",
       "start": "免費開始使用",
       "title": "終於有了第一類BSD支持"
     },
@@ -22666,7 +22559,7 @@
     },
     "grows": {
       "body": "從開放源碼 Community 版本開始免費使用，並添加 AI 驅動的健康分析（Professional）。層疊漏洞掃描、符合性、單一簽入和高級基於角色的訪問控制（Enterprise）。或者以完全多租戶和託管的方式運行（Enterprise SaaS），包括每個租戶的數據庫隔離。在每一步中，平台和工作流程都是一致的——您添加功能而不需重新學習工具或遷移您的機群。",
-      "editions": "Compare Editions →",
+      "editions": "比較版本 →",
       "title": "隨著您的成長而擴展"
     },
     "hero": {
@@ -22707,7 +22600,7 @@
       "title": "跨每個操作系統的可報告合規性"
     },
     "cta": {
-      "airgap": "Air-Gapped Details →",
+      "airgap": "隔離網絡細節 →",
       "body": "讓我們根據您的安全、合規性和隔離要求來進行部署。",
       "demo": "請求演示",
       "title": "無法妥協的基礎架構"
@@ -22786,7 +22679,7 @@
     },
     "cta": {
       "body": "讓我們來看看每個租戶專用的資料庫是如何改變你可以向客戶承諾的事項。",
-      "compare": "Compare Tools →",
+      "compare": "比較工具 →",
       "contact": "請求演示",
       "title": "使用一個平台管理您的實踐"
     },
@@ -22813,7 +22706,7 @@
     },
     "hetero": {
       "body": "MSP 客戶永遠不統一。一個賬號是 Windows 主導的筆記本電腦；另一個則運行 Linux 伺服器和 FreeBSD 機器；還有一個混合了 macOS、OpenBSD 和 NetBSD。SysManage 同樣方式管理它們 — 管理客戶扔給你的任何東西，並保持一致性，這就是 MSP 工具的全部意義所在。核心是 AGPLv3，介面提供 14 種語言。",
-      "cta": "Learn about Enterprise SaaS — the multi-tenant hosted edition →",
+      "cta": "了解企業 SaaS — 多租戶託管版 →",
       "title": "預設為異質性"
     },
     "iso": {
@@ -22853,7 +22746,7 @@
     "cta": {
       "body": "查看跨所有作業系統的一致可見性如何改變您的團隊衡量和降低風險的方式。",
       "demo": "請求演示",
-      "model": "Read the Security Model →",
+      "model": "閱讀安全模型 →",
       "title": "每個主機的唯一真相來源"
     },
     "hero": {
@@ -22874,7 +22767,7 @@
     "meta_description": "",
     "operational": {
       "body": " inventory、修補和漏洞管理現在是核心安全控制措施，而不是可以轉交並遺忘的IT日常事務。SysManage將它們整合到一個控制平臺中，使修復工作協調一致、可驗證且具有防禦性。inventory、修補管理和審核日誌包含在開源核心中；漏洞掃描、CVE數據庫和合規報告是Professional+和Enterprise功能的一部分。整個過程通過JWT、相互TLS和基於角色的訪問控制進行保護。",
-      "proplus": "Explore Professional+ & Enterprise →",
+      "proplus": "探索專業+與企業版 →",
       "title": "安全即操作"
     },
     "see": {
@@ -22893,12 +22786,12 @@
   "solutions": {
     "airgap": {
       "body": "專為沒有互聯網的網絡設計：單租戶設備、本地密鑰，以及通過物理介質傳入的內容。",
-      "go": "Explore air-gapped →",
+      "go": "探索離線環境",
       "title": "隔離基礎設施"
     },
     "compare": {
       "body": "查看 SysManage 如何與 Ansible、Puppet、Salt、Chef、Landscape 和 Satellite 進行功能對比。",
-      "go": "Compare tools →",
+      "go": "比較工具 →",
       "title": "從其他工具轉移？"
     },
     "cta": {
@@ -22909,12 +22802,12 @@
     },
     "enterprise": {
       "body": "將單一作業系統工具整合到一個控制平面中，並減少異構群集中的許可證、複雜性和關鍵人員風險。",
-      "go": "Explore enterprise →",
+      "go": "探索企業",
       "title": "Enterprise IT"
     },
     "government": {
       "body": "完全隔離部署，FIPS意識到的合規性報告以及第一類BSD支持，適用於實際運行關鍵基礎設施的平台。",
-      "go": "Explore government →",
+      "go": "探索政府",
       "title": "政府與防衛"
     },
     "hero": {
@@ -22925,12 +22818,12 @@
     "meta_description": "",
     "msp": {
       "body": "從一個平台管理多個客戶機群，每個租戶都有專用數據庫——真正的隔離，而不是行級過濾。",
-      "go": "Explore MSP →",
+      "go": "探索MSP →",
       "title": "管理服務提供商"
     },
     "security": {
       "body": "每種操作系統上的統一存貨、補丁狀態和漏洞可見性 — 一個真相來源，而不是六個盲點",
-      "go": "Explore security →",
+      "go": "探索安全性 →",
       "title": "安全團隊"
     },
     "title": "行業解決方案 - SysManage"
@@ -22938,7 +22831,7 @@
   "xplat": {
     "concrete": {
       "body": "統一基礎設施管理並非只是口號，在這裡它是指所有平台上相同的能力和一致的操作。實時WebSocket監控讓每台主機都處於可視範圍內。軟件包和補丁管理遵循同一個批准和部署流程。漏洞掃描和合規報告——在專業版和企業版中可用——涵蓋整個資產範圍，而不僅僅是單一的操作系統。核心部分以AGPLv3開源授權，並通過JWT、mTLS和基於角色的訪問控制進行保護，本地化為14種語言。",
-      "solutions": "See solutions by industry →",
+      "solutions": "查看按行業劃分的解決方案 →",
       "title": "具體而言，跨平台統一管理"
     },
     "control": {
@@ -22952,7 +22845,7 @@
     },
     "cta": {
       "body": "將 Windows、Linux、macOS 和 BSDs 統一到一個控制平面，並為您的團隊提供單一真相來源。",
-      "compare": "Compare Tools →",
+      "compare": "比較工具 →",
       "start": "免費開始使用",
       "title": "停止管理作業系統。管理您的機群。"
     },
@@ -23034,8 +22927,8 @@
       "title": "代理如何決定要報告的內容"
     },
     "nav": {
-      "next": "Troubleshooting →",
-      "prev": "← Cross-Platform Support"
+      "next": "故障排除 →",
+      "prev": "← 跨平台支援"
     },
     "section_title": "能力",
     "seeing": {
@@ -23087,6 +22980,80 @@
       "proxy_desc": "明確的出站代理伺服器。通常不需要 — <code>HTTPS_PROXY</code>，<code>HTTP_PROXY</code> 和 <code>NO_PROXY</code> 環境變數被尊重。",
       "url_desc": "代理程式通信的一個源頭，例如 <code>https://sysmanage.example.com</code>。省略端口意味著443。優先於下面的遺留字段。",
       "use_https_desc": "遺留項目。被 <code>url</code> 方案取代。"
+    }
+  },
+  "server_quickstart": {
+    "before": {
+      "body": "本指南從為您的平台構建的包安裝伺服器。對於完整的平臺矩陣、從源代碼構建說明以及每個發行版的先決條件，請參閱 <a href=\"/docs/server/installation.html\">Server Installation</a> 指南。",
+      "cert": "伺服器主機名稱所需的 <strong>TLS 憑證與私密金鑰</strong>。沒有憑證時 nginx 會拒絕啟動 — 這是刻意的設計，因為管理主控台不應該只因為缺少憑證就以明文方式啟動。",
+      "ports": "<strong>對內開放 443</strong>（如需轉址請再加上 80）。其他連接埠都不需要開放：代理程式透過對外 443 連線到伺服器，後端則留在 nginx 後方的迴路位址上。",
+      "postgres": "<strong>PostgreSQL 12 或更新版本</strong>，在本機或遠端伺服器上。SysManage 在沒有它的前提下無法啟動。",
+      "root": "<strong>根或sudo</strong>在目標主機上。",
+      "tip": "包會將以下每一步作為安裝後消息打印出來，路徑已經根據您的平台填入。如果您遺失了它，可以在包管理器的日誌中找到。",
+      "tip_label": "提示：",
+      "title": "開始之前"
+    },
+    "intro": "從原生套件安裝 SysManage 伺服器，指向 PostgreSQL，給 nginx 指定一個證書，然後打開控制台。在一台新的主機上大約需要十五分鐘。",
+    "next": {
+      "agent": "<a href=\"/docs/agent/installation.html\">代理安裝</a> — 為 Windows、Linux、macOS 和各類 BSD 提供的套件。",
+      "approval": "<a href=\"/docs/getting-started/agent-approval.html\">代理批准</a> — 新主機如何加入fleet。",
+      "body": "沒有主機的伺服器作用不大。在您想要管理的機器上安裝代理程式，然後批准它們：",
+      "config": "<a href=\"/docs/server/configuration.html\">伺服器配置</a> — 電郵、身份驗證、保留期限及其他設置。",
+      "security": "<a href=\"/docs/security/best-practices.html\">安全最佳實踐</a> — 在將此部署到真實環境之前值得一讀。",
+      "title": "下一步"
+    },
+    "step1": {
+      "body": "從 <a href=\"https://github.com/bceverly/sysmanage/releases\"> releases 頁面 </a> 下載適用於您的平台的套件並安裝它。將 <code> X.Y.Z </code> 替換為您要安裝的版本。",
+      "debian": "Debian / Ubuntu",
+      "other": "其他平台",
+      "other_body": "openSUSE、Alpine、FreeBSD、OpenBSD、NetBSD、macOS 和 Windows 包在相同的發行頁面中發布。以下步驟在每個平台上都是相同的；僅安裝命令和 nginx 設置路徑不同，並且安裝後消息會為您打印正確的路徑。",
+      "rhel": "RHEL / CentOS / Fedora",
+      "title": "安裝套件"
+    },
+    "step2": {
+      "body": "要使用本地 PostgreSQL 實例：",
+      "remote": "遠端資料庫一樣有效 — 您將在下一歩提供其主機和憑證。",
+      "title": "建立資料庫"
+    },
+    "step3": {
+      "body": "伺服器讀取 <code>/etc/sysmanage.yaml</code>。 <a href=\"/config-builder.html\">配置生成器</a> 會生成一個完整的文件 — 資料庫連接、主機名、TLS、身份驗證和日誌記錄 — 這比手動編寫更快且更不易出錯。",
+      "perms": "該文件包含資料庫憑據，因此僅允許 root 讀取它。",
+      "title": "編寫配置"
+    },
+    "step4": {
+      "body": "檢查是否有待處理的項目，然後應用它。這會遷移控制平面模式，如果啟用了多租戶功能，還會遷移每個租戶的資料庫。",
+      "openbao": "啟用多租戶後，每個租戶的憑據將從 OpenBAO 中獲取，因此在遷移時必須運行 OpenBAO。",
+      "title": "執行資料庫遷移"
+    },
+    "step5": {
+      "body": "將您的證書和金鑰放置在 nginx 預期的位置：",
+      "dev": "在 <code>/etc/sysmanage.yaml</code> 中設置 <code>dev_mode: true</code> 以跳過 nginx 和 TLS。伺服器然後通過普通 HTTP 在端口 3000 上提供 Web 界面，並在端口 8080 上提供 API，綁定所有接口以便 LAN 內的代理可以訪問它。永遠不要在生產主機上這樣做。",
+      "dev_label": "本地評估嗎？",
+      "elsewhere": "或者通過編輯其配置中的這兩行將nginx指向其他地方——路徑因平台而異，安裝後的消息會打印您的路徑：",
+      "letsencrypt": "如果您還沒有證書，可以使用 <code>certbot certonly --standalone -d your-server.example.com</code> 來取得一個；然後將這兩行指向該名稱的 <code>fullchain.pem</code> 和 <code>privkey.pem</code>。開始之前請檢查結果：",
+      "title": "安裝 TLS 憑證"
+    },
+    "step6": {
+      "body": "在 BSD 和其他非 systemd 平台上，使用 post-install 消息中打印的 service 命令。",
+      "title": "啟動服務"
+    },
+    "step7": {
+      "body": "Web 界面和 API 共享此單一源頭。使用配置文件中的管理員帳戶登錄 — 帳號是一個電子郵件地址。",
+      "title": "開啟控制台"
+    },
+    "steps": {
+      "title": "安裝"
+    },
+    "verify": {
+      "api": "2. API 回應",
+      "logs": "3. 日誌乾淨",
+      "service": "1. 服務正在運行",
+      "t_db": "<strong>服務啟動後退出：</strong> 檢查資料庫連接在 <code>/etc/sysmanage.yaml</code>，並確認遷移已執行。",
+      "t_login": "登錄時發生錯誤：<strong>管理員用戶名必須是完整的電子郵件地址，而不是單獨的名字。</strong>",
+      "t_nginx": "<strong>nginx 將不會啟動：</strong> 通常是由於缺少或無法讀取的證書。 <code>sudo nginx -t</code> 指定了它無法讀取的文件名。",
+      "t_port": "<strong>沒有服務在443埠上監聽：</strong>確認nginx正在運行，且沒有其他服務已經佔用該埠。",
+      "title": "驗證安裝",
+      "trouble": "如果有問題"
     }
   }
 }
