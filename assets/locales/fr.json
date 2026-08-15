@@ -4423,8 +4423,8 @@
           "secrets-body": "À partir de la version 3.0, <code>sysmanage.yaml</code> est un <strong>pointeur minimal d’initialisation</strong> : il ne nécessite que les informations permettant d'accéder à la base de données/régistre et OpenBAO, ainsi que les paramètres d'écoute/TLS. Vous n'y mettez généralement <strong>pas</strong> vos secrets ou vos paramètres opérationnels :",
           "secrets-li1": "<strong>Secrets</strong> (JWT secret, password salt, admin password, DB password, SMTP password) sont <strong>générés par la procédure d'installation sécurisée dans OpenBAO</strong> — gardez-les hors du YAML.",
           "secrets-li2": "<strong>Paramétres opérationnels</strong> (délais de connexion/session, ajustement des files d'attente de messages, supervision) et <strong>email</strong> (serveur, identifiants, modèles) sont configurés dans <strong>Paramétres</strong> après la première connexion — l'email est par locataire.",
-          "secrets-li3": "[MANQUANT:docs.auto.home.config-builder.secrets-li3]",
-          "secrets-title": "[MANQUANT:docs.auto.home.config-builder.secrets-title]",
+          "secrets-li3": "Toute valeur secrète/opérative ci-dessous est toujours honorée depuis YAML pendant la migration, avec un avertissement de dépréciation. Consultez les documents de déploiement pour la classification complète.",
+          "secrets-title": "Secrets et paramètres (v3.0+)",
           "110": "Options de base de données (facultatives)"
         },
         "flatpak": {
@@ -18804,7 +18804,7 @@
       "endpoints": {
         "title": "Points de terminaison API",
         "grafana": {
-          "title": "[MANQUANT:pro_plus.observability_engine.endpoints.grafana.title]"
+          "title": "Grafana / routage de télémétrie"
         },
         "graylog": {
           "bsd_syslog": "<code>POST /api/v1/observability/graylog/{host_id}/bsd-syslog-deploy</code> — configure BSD stock syslogd. Body adds <code>{bsd_variant, existing_config}</code>: le client récupère la configuration actuelle du hôte à partir de <code>/etc/syslog.conf</code> et la passe sous forme de <code>existing_config</code> ; l’engin effectue un merge idempotent qui préserve les règles d’évitement non liées. L’option <code>bsd_variant</code> sélectionne le commandement de redémarrage (<code>service syslogd restart</code> sur FreeBSD, <code>rcctl restart syslogd</code> sur OpenBSD/NetBSD). GELF est rejeté par le validateur (le stock BSD syslogd ne peut pas le parler).",
@@ -18882,11 +18882,11 @@
         "intro": "Points de terminaison d'observabilité OSS (déployer, supprimer, démarrer/arrêter/redémarrer, se connecter/se déconnecter à Grafana, attacher Graylog) suivent un contrat consistant basé sur l'engin en premier / recours vers le legacy implémenté dans <code>backend/services/observability_shim.py</code> :",
         "linux_default": "Sur Linux, la fonction de détection de plateforme consulte deux signaux avant de recourir à une valeur par défaut : (1) l'inventaire des paquets installés sur le hôte (le plus autoritatif — un seul entrée apt/dnf/yum décide) ; (2) la chaîne <code>platform_release</code> du collecteur OS_INFO, qui se trouve dans les ~1s de la première connexion (ferme la course des nouveaux hôtes pour les distributions typiques — Ubuntu, Debian, RHEL, Rocky, Fedora, etc. toutes correspondent via un mot-clé sous-chaîne). Lorsque aucun signal n'est disponible, la fonction adopte <code>linux_apt</code> avec une ligne de journal d'avertissement ; un hôte dnf verra clairement l'erreur <code>apt-get: commande non trouvée</code> plutôt qu'un retour silencieux à du code-agent legacy bientôt supprimé.",
         "step1": "L'endpoint appelle un <code>try_engine_*</code>.",
-        "step2": "[MANQUANT:pro_plus.observability_engine.dispatch.step2]",
+        "step2": "Un vérificateur contrôle si le moteur chargé possède l'attribut plan-builder attendu (défensif contre les incompatibilités de version).",
         "step3": "L'aideur résout le jeton de plateforme via <code>_detect_otel_platform</code> (pour les chemins OTEL) ou directement à partir de <code>host.platform</code> (pour Graylog).",
         "step4": "En cas d'échec (moteur non chargé, constructeur manquant, plateforme indétectable, exception lors de la construction ou de l'enquéte du plan), l'helper retourne <code>None</code>; le point de terminaison file la commande legacy <code>generic_command</code> WS exactement comme avant.",
         "step5": "Chaque point de terminaison enregistre le chemin choisi (<code>engine_plan</code> contre <code>legacy_ws_command</code>) dans son entrée <code>AuditService.log</code> sous <code>details.dispatch_path</code>, permettant aux opérateurs d'auditer le trafic de production.",
-        "title": "[MANQUANT:pro_plus.observability_engine.dispatch.title]"
+        "title": "Modèle d'envoi"
       }
     },
     "reboot_orchestration": {
@@ -20178,8 +20178,8 @@
         },
         "title": "Provisionnement sur matériel physique (PXE)",
         "report": {
-          "caption": "[MANQUANT :pro_plus.provisioning_engine.baremetal.report.caption]",
-          "description": "[RAPPORT MANQUANT :pro_plus.provisioning_engine.baremetal.report.description]",
+          "caption": "Le rapport d'installation contient la raison propre de la machine ainsi que la queue de son journal de démarrage — ici, un paquet que l'installateur n'a pas pu trouver.",
+          "description": "Une machine signale son propre résultat à la fin de l'installation et ce rapport est conservé dans l'affectation. Cela est important car l'échec qui coûte le plus de temps n'est pas une machine qui échoue bruyamment — c'est une machine qui installe parfaitement et ne figure ensuite jamais dans la flotte. Avant que la machine ne signale quoi que ce soit, la raison de cela n'existait qu'dans la sortie de démarrage sur une console que personne ne surveillait.",
           "disarm": "Les états <code>installés</code> et <code>agent_missing</code> sont <strong>dédisarmés</strong> pour le netboot; seul l'état <code>échec</code> reste armé pour une nouvelle tentative. Cette asymétrie est prévue : un install qui n'a pas abouti doit être réessayé, mais une machine dont le système d'exploitation fonctionne et dont l'agent est cassé ne doit jamais être reinstallée — cela effacerait un système fonctionnel pour corriger un paquet.",
           "log": "Le rapport contient une raison en une ligne et la fin du journal de démarrage, donc une ligne affiche <em>échec de l'installation de l'agent : Impossible de localiser le paquet sysmanage-agent</em> au lieu de simplement <code>installé</code>. Le rapport est un effort d'excellence et ne bloque jamais la désarmement : une machine qui ne peut pas atteindre le serveur du tout arr\neau cesse quand même de se netbooter, car une machine bloquée en redémarrage permanent est un résultat pire qu'une machine sans agent.",
           "states": "Deux résultats sont donc enregistrés séparément, et la différence n'est pas cosmétique. <code>installé</code> signifie que l'agent est actif. <code>agent_missing</code> signifie que le système d'exploitation a été installé mais que l'agent ne l'a pas été — la machine est utilisable mais n'enregistrera jamais tant qu'une personne n'y jette un coup d'ùil. Un troisième état, <code>failed</code>, signifie que l'installation elle-même n'a pas abouti.",

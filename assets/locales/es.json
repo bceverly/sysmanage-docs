@@ -2878,33 +2878,33 @@
         },
         "repoint": {
           "summary": "Cualquier agente gestionado por un servidor cuyo rol es <em>Air-Gap Repository</em> se reorienta automáticamente hacia el espejo local: su administrador de paquetes está configurado para usar el espejo del repositorio y sus fuentes en línea están deshabilitadas. Esto ocurre durante el ciclo normal de comunicación del agente, por lo que también captura a los agentes que ya estaban conectados cuando cambió el rol — se actualizan en su próximo registro. La directiva es auto-limitante: se reenvía solo cuando la configuración del espejo realmente cambia (un cambio de rol o una nueva ingesta), por lo que no hay un flujo repetido de <code>apt-get update</code>.",
-          "title": "[FALTA:docs.admin.airgap_workflow.repoint.title]",
+          "title": "Paso 6 — Los agentes redirigen automáticamente",
           "verify": "En un host aislado de Internet puedes confirmar con <code>apt-cache policy &lt;pkg&gt;</code> (el candidato debe provenir del repositorio's <code>/airgap-repo/</code> URL) y <code>apt list --upgradable</code> (sourced entirely from the mirror)."
         },
         "roles": {
           "collector": "En la caja con conexión a internet, elige <em>Air-Gap Collector</em>. Seleccionar esta función genera automáticamente el par de claves ed25519 para firmar manifestos en <code>/var/lib/sysmanage/airgap/collector-ed25519.pem</code> (privada, modo 0600) junto con su hermana <code>.pub</code> — no es necesario generar las claves manualmente.",
           "repository": "En la caja aislada, elige <em>Repositorio Air-Gap</em>.",
           "summary": "En cada servidor, vaya a <strong>Configuración → Rol del Servidor</strong> y seleccione el rol. El rol se almacena en la base de datos y entra completamente en efecto después del próximo reinicio del servidor (se carga el motor Pro+ específico del rol al iniciar).",
-          "title": "[FALTA:docs.admin.airgap_workflow.roles.title]"
+          "title": "Paso 1 — Asignar roles de servidor"
         },
         "serve": {
           "summary": "En <code>COMPLETO</code>, el repositorio registra un repositorio local por distribución (visible en la página de Repositorios Aire-Aislados con el recuento de paquetes, la hora de última ingestión, frescura y la huella digital del firmante) y lo sirve a través de HTTP desde el puerto web de SysManage en <code>/airgap-repo/</code>. La URL del repositorio registrado apunta al árbol real apt/dnf dentro de los medios, por lo que no se necesita ninguna configuración manual de servidor web o enlace simbólico.",
-          "title": "[FALTA:docs.admin.airgap_workflow.serve.title]"
+          "title": "Paso 5 — Servir el espejo"
         },
         "transport": {
           "device": "En el <strong>repositorio</strong>, en Configuración → Papel del Servidor, la <em>tarjeta Importar Unidad</em> lista los dispositivos de bloque elegibles (el disco del sistema operativo nunca se ofrece). Seleccione la unidad óptica/USB — el dispositivo óptico con número más bajo es el predeterminado. Use <strong>Volver a escanear</strong> después de insertar el medio.",
           "import": "Ve a la página de <strong>Air-Gap Repositories</strong>. El panel <em>Import from Media</em> muestra el estado en vivo del disco; el botón <strong>Import ISO</strong> se habilita cuando el disco contiene medios ISO legibles. Haz clic en él. (Usa <strong>Rescan</strong> si acabas de insertar o reparar el disco.)",
-          "insert": "[FALTA:docs.admin.airgap_workflow.transport.insert]",
-          "summary": "[FALTA:docs.admin.airgap_workflow.transport.summary]",
-          "title": "[FALTA:docs.admin.airgap_workflow.transport.title]",
+          "insert": "Inserta el medio en ese lector.",
+          "summary": "Lleve el disco óptico o los medios USB al repositorio. El repositorio importa directamente desde el dispositivo — sin necesidad de copiar la imagen ISO al disco del servidor primero.",
+          "title": "Paso 4 — Transporte e importa en el repositorio",
           "verify": "Importa la monta de los medios en modo solo lectura, verifica el archivo firmado <code>/manifest.json</code> contra tu almacén de claves de coleccionador confiable y rsyncs la carga útil verificada en <code>/var/lib/sysmanage/airgap-repo</code>. Observa el estado de ejecución: <code>VERIFYING_SIG</code> (comprobación de firma), <code>COPYING</code> (rsync en curso), <code>COMPLETE</code>. Un disco desde un coleccionador no confiable simplemente fallará durante la verificación."
         },
         "trust": {
           "copy": "En el <strong>collector</strong>, en Configuración → Papel del Servidor, la tarjeta de <em>Clave Pública del Recolector</em> muestra la clave pública y su huella digital. Haga clic en <strong>Copiar Clave Pública</strong> para poner el PEM en su portapapeles (y anote la huella digital — coincide con la <code>signer_fingerprint</code> estampada en cada manifiesto).",
           "import": "En el <strong>repositorio</strong>, en Configuración → Papel del Servidor, use la pestaña <em>Claves de Recolección Confiables</em>: asigne un nombre al recolector, pegue el PEM y haga clic en <strong>Importar Clave</strong>. La clave importada se escribe en <code>/var/lib/sysmanage/airgap/trusted-collectors/&lt;nombre&gt;.pub</code> y la pestaña la lista con su huella digital. El almacén de claves puede contener varias claves, por lo que puede confiar en varios recolectores y rotar las claves sin tiempo muerto.",
           "summary": "El repositorio solo ingestionará medios firmados por un recolector en el que confíe. La confianza se establece copiando la clave pública <em>pública</em> del recolector al repositorio — la clave privada de firma nunca abandona el recolector.",
-          "title": "[FALTA:docs.admin.airgap_workflow.trust.title]",
-          "transfer": "[FALTA:docs.admin.airgap_workflow.trust.transfer]"
+          "title": "Paso 2 — Establecer confianza (copiar e importar la clave pública)",
+          "transfer": "Mueve el texto de la clave al repositorio a través de cualquier canal que confíes (es una clave pública — sneakernet, correo electrónico firmado o un ingest existente y confiable funciona)."
         }
       }
     },
@@ -4423,8 +4423,8 @@
           "secrets-body": "A partir de la versión v3.0, <code>sysmanage.yaml</code> es un <strong>puntero mínimo de arranque</strong>: solo necesita cómo llegar a la base de datos/registro y OpenBAO, más configuraciones de escucha/TLS. Generalmente no <strong>pones</strong> secretos o configuraciones operativas aquí:",
           "secrets-li1": "<strong>Secretos</strong> (JWT secret, password salt, admin password, DB password, SMTP password) son <strong>generados durante la instalación segura en OpenBAO</strong> — manténlos fuera del YAML.",
           "secrets-li2": "<strong>Configuración de ajustes operativos</strong> (tiempos de espera de inicio de sesión y mensajes, afinado de la cola de mensajes, monitoreo) y <strong>correo electrónico</strong> (servidor, credenciales, plantillas) se configuran en <strong>Configuración</strong> después del primer inicio de sesión — el correo electrónico es por inquilino",
-          "secrets-li3": "[FALTA:docs.auto.home.config-builder.secrets-li3]",
-          "secrets-title": "[FALTA:docs.auto.home.config-builder.secrets-title]",
+          "secrets-li3": "Cualquier valor secreto/operativo por debajo sigue siendo honrado desde YAML durante la migración, con una advertencia de depreciación. Consulte la documentación de despliegue para la clasificación completa.",
+          "secrets-title": "Secretos y configuraciones (v3.0+)",
           "110": "Opciones de la base de datos (opcional)"
         },
         "flatpak": {
@@ -18804,14 +18804,14 @@
       "endpoints": {
         "title": "Puntos finales API",
         "grafana": {
-          "title": "[FALTA:pro_plus.observabilidad_motor.endpoints.grafana.title]"
+          "title": "Grafana / enrutamiento de telemetría"
         },
         "graylog": {
           "bsd_syslog": "<code>POST /api/v1/observabilidad/graylog/{host_id}/bsd-syslog-deploy</code> — configura el syslogd de stock BSD. El cuerpo agrega <code>{bsd_variant, existing_config}</code>: el llamador recupera la configuración actual del host en <code>/etc/syslog.conf</code> y la pasa como <code>existing_config</code>; el motor realiza una fusión idempotente que preserva las reglas de reenvío no relacionadas. <code>bsd_variant</code> selecciona el comando de reinicio (<code>service syslogd restart</code> en FreeBSD, <code>rcctl restart syslogd</code> en OpenBSD/NetBSD). GELF es rechazado por el validador (el syslogd de stock BSD no puede hablarlo).",
           "rsyslog": "<code>POST /api/v1/observabilidad/graylog/{host_id}/rsyslog-deploy</code> — configura rsyslog para enviar a Graylog. Cuerpo: <code>{graylog_server, port, mechanism}</code> donde <code>mechanism</code> es <code>syslog_tcp</code>, <code>syslog_udp</code> o <code>gelf_tcp</code>. Escribe <code>/etc/rsyslog.d/60-graylog.conf</code> y reinicia el demonio.",
           "sidecar_install": "<code>POST /api/v1/observabilidad/graylog/{host_id}/instalador-sidecar-install</code> — Solo para Windows. Descarga el instalador upstream <code>graylog-sidecar-installer-{amd64|386}.exe</code> de las releases de GitHub de Graylog y lo ejecuta en modo silencioso (<code>/S</code>). Combinar con el endpoint de despliegue anterior para dejar caer <code>sidecar.yml</code> una vez que esté presente el binario.",
           "syslog_ng": "<code>POST /api/v1/observabilidad/graylog/{host_id}/syslog-ng-deploy</code> — configure syslog-ng con los mismos tres mecanismos de forwarder. Escribe <code>/etc/syslog-ng/conf.d/60-graylog.conf</code>.",
-          "title": "[FALTANTE:pro_plus.observabilidad_motor.puntos_de_entrada.graylog.titulo]",
+          "title": "Graylog deployment",
           "bsd_append": "<strong>BSD ejecución de fusión</strong> — <code>build_graylog_bsd_syslog_append_plan</code> realiza la combinación en el archivo <code>/etc/syslog.conf</code> en tiempo de ejecución del agente mediante shell (<code>sed -i.bak</code> para quitar + <code>printf</code> para agregar + variante específica de reinicio). Evita la necesidad de una operación de recuperación de archivo en el lado OSS: el extremo BSD se despliega solo basado en <code>host.platform</code>, sin requerir un <code>existing_config</code>.",
           "linux_autodetect": "<strong>Linux autodetect</strong> — <code>build_graylog_linux_autodetect_plan</code> configura tanto rsyslog como syslog-ng en <code>/tmp/sysmanage-graylog-{rsyslog,syslog-ng}.conf</code> y emite ramas condicionales de shell por daemon basadas en <code>systemctl is-active --quiet &lt;daemon&gt;</code>. El demonio activo tiene su configuración copiada e iniciada; la otra rama es una operación sin efecto. Elimina la necesidad para el servidor OSS de saber qué forwarder ejecuta el host.",
           "windows_no_token": "<strong>Instalación sin token de sidecar en Windows</strong> — <code>build_graylog_sidecar_no_token_plan</code> maneja la ruta <code>POST /host/{id}/attach_to_graylog</code> en Windows para OSS. El payload de OSS solo lleva <code>{mechanism, graylog_server, port}</code> — sin <code>api_token</code>/<code>node_id</code> — por lo que el plan escribe <code>sidecar.yml</code> con un <code>server_api_token</code> vacío (el operador lo completa a través de la interfaz de administración del Sidecar después). Impulsado por PowerShell: detecta hosts ARM64 y se niega (la upstream no tiene una compilación para ARM64), verifica una instalación existente mediante <code>Test-Path</code>, descarga el instalador AMD64 desde GitHub si falta, ejecuta <code>/S</code>, luego registra y arranca el servicio de Windows."
@@ -18820,7 +18820,7 @@
         "otel": {
           "multiplatform_deploy": "<code>POST /api/v1/observabilidad/otel/{host_id}/multiplatform-deploy</code> — instalación completa + configuración + inicio para cualquiera de siete plataformas (<code>linux_apt</code>, <code>linux_dnf</code>, <code>freebsd</code>, <code>openbsd</code>, <code>netbsd</code>, <code>macos</code>, <code>windows</code>). Cuerpo: <code>{platform, grafana_url}</code>. En FreeBSD se instala Grafana Alloy (configuración River-DSL) en lugar de otelcol-contrib; todas las demás plataformas instalan el upstream <code>otelcol-contrib</code> a través de su gestor de paquetes nativo.",
           "multiplatform_remove": "<code>POST /api/v1/observabilidad/otel/{host_id}/{platform}/multiplatform-remove</code> — simétrico: detener servicio, desinstalar paquete, eliminar directorio de configuración (Windows omite la limpieza explícita del directorio de configuración porque Chocolatey lo posee).",
-          "title": "[FALTANTE:pro_plus.observabilidad_motor.puntos_de_entrada.otel.titulo]",
+          "title": "OpenTelemetry collector",
           "grafana_connection": "<strong>Conectar / desconectar con Grafana</strong> — <code>POST /hosts/{host_id}/opentelemetry/{connect,disconnect}</code>. Ruta del motor a través de <code>build_otel_grafana_connection_plan(plataforma, accion, grafana_url)</code> que emite un plan de reinicio solo (la configuración OTEL estaba fijada en el objetivo Grafana al momento de despliegue; conectar / desconectar solo activa un reinicio del servicio para que cualquier edición fuera de banda tenga efecto y el registro de auditoría documente la intención del operador).",
           "service_control": "<strong>Control de servicio</strong> — <code>POST /hosts/{host_id}/opentelemetry/{start,stop,restart}</code> son los endpoints OSS. Se enrutan a través de <code>try_engine_otel_service_control</code> en <code>backend/services/observabilidad_shim.py</code> primero; cuando se carga el motor Pro+, cada uno emite una secuencia <code>build_otel_service_control_plan(plataforma, acción)</code> (systemctl / service / rcctl / /etc/rc.d / brew services / sc.exe dependiendo de la plataforma). El plan del motor pasa por el camino <code>apply_deployment_plan</code> del agente. Retrocede al legado <code>generic_command</code> WS dispatch cuando no se carga el motor."
         }
@@ -18882,11 +18882,11 @@
         "intro": "Puntos de conexión de observabilidad OSS (implementar, eliminar, iniciar/detener/reiniciar, conectar/desconectar con Grafana, adjuntar a Graylog) siguen un contrato consistente de motor primero / retroceso legado implementado en <code>backend/services/observability_shim.py</code>:",
         "linux_default": "En Linux, la función de detección de plataforma consulta dos señales antes de recurrir al valor predeterminado: (1) el inventario de paquetes instalados del host (más autoritativo — una entrada apt/dnf/yum decide); (2) la cadena <code>platform_release</code> dentro de la colección OS_INFO, que se actualiza en aproximadamente 1 segundo después del primer inicio de sesión (cierra la carrera del host nuevo para las distribuciones típicas — Ubuntu, Debian, RHEL, Rocky, Fedora, etc. todas coinciden mediante una palabra clave substring). Cuando ninguna de estas señales está disponible, la función establece el valor predeterminado en <code>linux_apt</code> con un mensaje de registro de ADVERTENCIA; un host dnf-family que llega al valor predeterminado verá un claro error <code>apt-get: command not found</code> en lugar de una silenciosa caída hacia atrás a código del agente pronto por eliminar.",
         "step1": "El punto final llama al <code>try_engine_*</code> auxiliar.",
-        "step2": "[FALTA:pro_plus.observabilidad_motor.dispatch.step2]",
+        "step2": "El asistente verifica que el motor cargado tenga el atributo plan-builder esperado (defensivo contra incompatibilidades de versión).",
         "step3": "El helper resuelve el token de plataforma a través de <code>_detect_otel_platform</code> (para rutas OTEL) o directamente desde <code>host.platform</code> (para Graylog).",
         "step4": "En cualquier fallo (motor no cargado, constructor ausente, plataforma indetectable, excepción durante la construcción del plan o encolado) el ayudante devuelve <code>None</code>; el punto final encola el legado <code>generic_command</code> mensaje WS exactamente como antes.",
         "step5": "Cada endpoint registra la ruta elegida (<code>engine_plan</code> vs <code>legacy_ws_command</code>) en su entrada de <code>AuditService.log</code> bajo <code>details.dispatch_path</code>, por lo que los operadores pueden auditar el tráfico de producción.",
-        "title": "[FALTA:pro_plus.observabilidad_motor.dispatch.title]"
+        "title": "Modelo de despacho"
       }
     },
     "reboot_orchestration": {
@@ -20178,12 +20178,12 @@
         },
         "title": "Provisionamiento en Metal (PXE)",
         "report": {
-          "caption": "[FALTA:pro_plus.provisioning_engine.baremetal.report.caption]",
-          "description": "[FALTA:pro_plus.provisioning_engine.baremetal.report.description]",
+          "caption": "El informe de instalación contiene la razón de la máquina y el final del registro de arranque — aquí, un paquete que el instalador no pudo encontrar.",
+          "description": "Una máquina informa su propio resultado al finalizar la instalación, y ese informe se guarda en la asignación. Esto importa porque el fallo que cuesta más tiempo no es una máquina que falla de forma ruidosa — es una que instala perfectamente y luego nunca aparece en la flota. Antes de que la máquina reportara algo, la razón por la que esto sucedía solo existía en la salida de arranque en una consola que nadie estaba observando.",
           "disarm": "Ambos <code>instalado</code> y <code>agent_missing</code> <strong>desarmado</strong> netboot; solo <code>fallido</code> permanece armado para otro intento. Esa asimetría es deliberada: una instalación que no se completó debe ser reintentada, pero una máquina cuyo OS está bien y cuyo agente está roto nunca debe ser reinstalada — eso borraría un sistema funcional para arreglar un paquete.",
           "log": "El informe contiene una razón de una línea y la cola del registro de arranque, por lo que una fila se lee <em>agente instalación fallida: No se puede localizar el paquete sysmanage-agent</em> en lugar de simplemente <code>instalado</code>. La generación de informes es un intento de buena fe y nunca bloquea el desarme: una máquina que no puede alcanzar el servidor en absoluto aún deja de netbootear, porque una máquina atascada reinstalándose es un resultado peor que uno con un agente ausente.",
           "states": "Dos resultados se registran por lo tanto de manera separada, y la diferencia no es cosmética. <code>instalado</code> significa que el agente está en funcionamiento. <code>agente_faltante</code> significa que el sistema operativo fue instalado pero el agente no — la máquina es utilizable pero nunca se inscribirá hasta que alguien lo revise. Un tercer estado, <code>fallido</code>, significa que la instalación misma no se completó.",
-          "title": "[FALTA:pro_plus.provisioning_engine.baremetal.report.title]"
+          "title": "¿Por qué terminó la instalación de esa manera?"
         }
       }
     }
@@ -20717,7 +20717,7 @@
       "email_otp": {
         "endpoint": "<code>POST /api/auth/mfa/email/request</code> emite un código (reutiliza la misma token de MFA-pendiente que acepta el endpoint <code>/api/auth/mfa/verify</code>); <code>/api/auth/mfa/verify</code> acepta el código enviado por correo electrónico en el mismo campo que toma TOTP y códigos de respaldo",
         "enumeration": "<code>email/request</code> devuelve una envoltura genérica \"si tu cuenta tiene MFA configurado, se ha enviado un código\" independientemente de si el usuario está inscrito o si el envío del correo electrónico fue exitoso — previene la enumeración de usuarios a través del punto final",
-        "rate_limit": "[FALTANTE:seguridad.autenticacion.email_otp.limite_por_tiempo]"
+        "rate_limit": "Solicitar un código fresco anula automáticamente cualquier desafío previo sin consumir para el mismo usuario, por lo que enviar solicitudes en masa al punto final no puede inundar la bandeja de entrada"
       },
       "external_auth_integration": "Integración de Autenticación Externa",
       "external_auth_providers": "Proveedores de Autenticación Externa",
