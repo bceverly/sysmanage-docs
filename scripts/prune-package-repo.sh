@@ -91,7 +91,12 @@ echo "Marked $count path(s) to remove."
 if [ "$DRY_RUN" = "0" ]; then
   xargs -r -d '\n' rm -rf < "$REMOVE"
   # apt
-  find "$REPO" -type d -path '*/pool/main' | while IFS= read -r pool; do
+  # Process substitution, NOT `find | while`.  A piped while-loop runs in a
+  # SUBSHELL, so an `exit 1` inside it exits only that subshell and the script
+  # carries on with status 0 -- which is how a signing failure still produced a
+  # green run on 2026-08-16 even after the `&&` swallow was fixed.  With `< <(...)`
+  # the loop runs in this shell and the exit is real.
+  while IFS= read -r pool; do
     debroot="$(dirname "$(dirname "$pool")")"
     # This job runs LAST after a release (repository_dispatch) and mirrors
     # back with --delete, so whatever it writes is what the world sees.  It
@@ -103,8 +108,20 @@ if [ "$DRY_RUN" = "0" ]; then
     # It also regenerated amd64 only, leaving arm64's index stale.  Delegated
     # to the shared generator, which does both arches and fails loudly rather
     # than publishing something apt will reject.
-    ( "$(dirname "$0")/build-apt-repo.sh" "$debroot" ) && echo "  regen apt: $(rel "$debroot")"
-  done
+    # NOT `( ... ) && echo`.  A command on the left of `&&` is "tested", so
+    # `set -e` does not fire and a FAILED regeneration was swallowed: on
+    # 2026-08-16 signing failed for both repos ("No secret key") and the job
+    # still reported success, publishing unsigned metadata with a green tick.
+    # Check the status explicitly and abort.
+    if "$(dirname "$0")/build-apt-repo.sh" "$debroot"; then
+      echo "  regen apt: $(rel "$debroot")"
+    else
+      echo "ERROR: apt metadata regeneration FAILED for $(rel "$debroot")" >&2
+      echo "       Refusing to continue: the mirror-back would publish a repo" >&2
+      echo "       that is unsigned or has stale indices." >&2
+      exit 1
+    fi
+  done < <(find "$REPO" -type d -path '*/pool/main')
   # rpm
   find "$REPO" -type d -name repodata | while IFS= read -r rd; do d="$(dirname "$rd")"
     if command -v createrepo_c >/dev/null; then ( cd "$d" && createrepo_c . >/dev/null ); echo "  regen rpm: $(rel "$d")"

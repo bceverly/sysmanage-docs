@@ -61,9 +61,20 @@ jobs:
             echo "::error::APT_SIGNING_KEY is not set - refusing to republish the repo unsigned"
             exit 1
           fi
-          GNUPGHOME="$(mktemp -d)"; chmod 700 "$GNUPGHOME"
+          # EXPORT it before importing.  Writing to $GITHUB_ENV only affects
+          # LATER steps, so the import previously landed in the default
+          # ~/.gnupg while the signing step looked in this empty temp dir --
+          # "gpg: skipped: No secret key", on 2026-08-16.
+          export GNUPGHOME="$(mktemp -d)"
+          chmod 700 "$GNUPGHOME"
           echo "GNUPGHOME=$GNUPGHOME" >> "$GITHUB_ENV"
           printf '%s' "$APT_SIGNING_KEY" | gpg --batch --import
+          # Prove the secret key is actually usable from THIS home before the
+          # next step relies on it.
+          gpg --batch --list-secret-keys >/dev/null 2>&1 || {
+            echo "::error::secret key not present in $GNUPGHOME after import"
+            exit 1
+          }
           echo "allow-loopback-pinentry" > "$GNUPGHOME/gpg-agent.conf"
           gpgconf --kill gpg-agent || true
           if [ -n "${APT_SIGNING_PASSPHRASE:-}" ]; then
