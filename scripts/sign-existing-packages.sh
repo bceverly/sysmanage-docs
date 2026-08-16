@@ -84,9 +84,15 @@ echo "rpm signing: $signed newly signed, $skipped already signed, $failed failed
 # Indices must be regenerated AFTER signing: the signature changes each
 # package's checksum, and metadata describing the pre-signature bytes would
 # fail verification just as surely as no signature at all.
-while IFS= read -r debroot; do
+# Derive the deb root from an actual pool/main, exactly as
+# prune-package-repo.sh does.  Matching directories merely NAMED "deb" picked
+# up a stray empty repo/deb in the bucket, and dpkg-scanpackages died with
+# "binary path pool/ not found" -- aborting the run AFTER 18 rpms had been
+# signed but BEFORE the sync-back, so the work was thrown away.
+while IFS= read -r pool; do
+    debroot="$(dirname "$(dirname "$pool")")"
     "$ROOT/scripts/build-apt-repo.sh" "$debroot"
-done < <(find "$REPO" -type d -path '*/deb')
+done < <(find "$REPO" -type d -path '*/pool/main')
 
 if command -v createrepo_c >/dev/null 2>&1; then
     while IFS= read -r rd; do
