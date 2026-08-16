@@ -43,9 +43,40 @@ jobs:
           sudo apt-get install -y apk-tools || \
             echo "::warning::apk-tools unavailable; alpine APKINDEX regen will be skipped"
 
+      - name: Import archive signing subkey
+        # THIS JOB RUNS LAST and mirrors back with --delete, so whatever it
+        # generates is what the world sees.  Without the key it regenerates the
+        # apt metadata UNSIGNED and deletes the InRelease/Release.gpg the
+        # release had just published -- un-signing the repo minutes after
+        # publication, and again every Monday on the cron even when nothing
+        # shipped.  A signed repo that silently reverts is worse than one that
+        # was never signed: consumers using signed-by break with no release to
+        # blame.
+        env:
+          APT_SIGNING_KEY: ${{ secrets.APT_SIGNING_KEY }}
+          APT_SIGNING_PASSPHRASE: ${{ secrets.APT_SIGNING_PASSPHRASE }}
+        run: |
+          set -euo pipefail
+          if [ -z "${APT_SIGNING_KEY:-}" ]; then
+            echo "::error::APT_SIGNING_KEY is not set - refusing to republish the repo unsigned"
+            exit 1
+          fi
+          GNUPGHOME="$(mktemp -d)"; chmod 700 "$GNUPGHOME"
+          echo "GNUPGHOME=$GNUPGHOME" >> "$GITHUB_ENV"
+          printf '%s' "$APT_SIGNING_KEY" | gpg --batch --import
+          echo "allow-loopback-pinentry" > "$GNUPGHOME/gpg-agent.conf"
+          gpgconf --kill gpg-agent || true
+          if [ -n "${APT_SIGNING_PASSPHRASE:-}" ]; then
+            printf '%s' "$APT_SIGNING_PASSPHRASE" > "$GNUPGHOME/pp"
+            chmod 600 "$GNUPGHOME/pp"
+            echo "APT_GPG_EXTRA=--pinentry-mode loopback --passphrase-file $GNUPGHOME/pp" >> "$GITHUB_ENV"
+          fi
+
       - name: Prune R2 to the latest 5 versions
         run: make prune-repo
         env:
+          APT_SIGNING_KEY_ID: ${{ secrets.APT_SIGNING_KEY_ID }}
+          APT_SIGN_REQUIRED: "1"
           AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
           R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}

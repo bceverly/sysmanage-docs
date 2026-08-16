@@ -132,6 +132,45 @@ grep -q "^ .* Release$" Release && {
     exit 1
 }
 
+# --- signing ----------------------------------------------------------------
+SIGN_KEY="${APT_SIGNING_KEY_ID:-}"
+SIGN_REQUIRED="${APT_SIGN_REQUIRED:-0}"
+
+if [ -n "$SIGN_KEY" ] && command -v gpg >/dev/null 2>&1; then
+    # InRelease (inline signature) is what modern apt prefers; Release.gpg is
+    # the detached form older clients still fetch.  Publish BOTH so no client
+    # silently falls back to unverified.
+    # APT_GPG_EXTRA carries --pinentry-mode loopback + --passphrase-file when
+    # the key is passphrase-protected and no terminal exists (CI).  Unquoted on
+    # purpose: it is a list of arguments, not one argument.
+    # shellcheck disable=SC2086
+    gpg --batch --yes ${APT_GPG_EXTRA:-} --local-user "$SIGN_KEY" --clearsign -o InRelease Release
+    # shellcheck disable=SC2086
+    gpg --batch --yes ${APT_GPG_EXTRA:-} --local-user "$SIGN_KEY" --detach-sign --armor -o Release.gpg Release
+
+    # Verify what we just wrote rather than trusting gpg's exit code: a repo
+    # that ships an unverifiable signature is worse than none, because the
+    # client reports a security error instead of a missing file.
+    gpg --batch --verify InRelease >/dev/null 2>&1 || {
+        echo "ERROR: InRelease failed verification immediately after signing" >&2
+        exit 1
+    }
+    gpg --batch --verify Release.gpg Release >/dev/null 2>&1 || {
+        echo "ERROR: Release.gpg failed verification immediately after signing" >&2
+        exit 1
+    }
+    echo "  signed with $SIGN_KEY (InRelease + Release.gpg, both verified)"
+elif [ "$SIGN_REQUIRED" = "1" ]; then
+    echo "ERROR: APT_SIGN_REQUIRED=1 but no signing key available." >&2
+    echo "       Refusing to publish a repository apt cannot verify." >&2
+    echo "       Set APT_SIGNING_KEY_ID (and import the key) before releasing." >&2
+    exit 1
+else
+    echo "  [WARN] NOT SIGNED - no APT_SIGNING_KEY_ID set."
+    echo "         Fine for a local build; a published repo must be signed, or"
+    echo "         every consumer has to disable verification to install."
+fi
+
 echo "  Release headers:"
 sed -n '1,7p' Release | sed 's/^/    /'
 echo "apt metadata regenerated successfully"
