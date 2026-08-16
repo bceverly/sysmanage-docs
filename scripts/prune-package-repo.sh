@@ -122,6 +122,44 @@ if [ "$DRY_RUN" = "0" ]; then
       exit 1
     fi
   done < <(find "$REPO" -type d -path '*/pool/main')
+
+  # Publish the public keyring beside each apt repo.  The documented install
+  # line points at /usr/share/keyrings/sysmanage-archive-keyring.gpg, so the
+  # file users curl has to exist somewhere stable -- and next to the repo it
+  # verifies is where people look for it.  Dearmored: apt wants a binary
+  # keyring, not ASCII armour.  Exported from the signing key we just used, so
+  # the keyring and the signature can never describe different keys.
+  if [ -n "${APT_SIGNING_KEY_ID:-}" ]; then
+    for debroot in $(find "$REPO" -type d -path '*/deb'); do
+      krdir="$(dirname "$debroot")"
+      if gpg --batch --export "${APT_SIGNING_KEY_ID%!}" \
+           > "$krdir/sysmanage-archive-keyring.gpg" 2>/dev/null \
+         && [ -s "$krdir/sysmanage-archive-keyring.gpg" ]; then
+        echo "  keyring:   $(rel "$krdir")/sysmanage-archive-keyring.gpg"
+      else
+        echo "ERROR: failed to export the public keyring for $(rel "$krdir")" >&2
+        exit 1
+      fi
+    done
+  fi
+  # Publish the RPM public key.  dnf/zypper want ASCII armour at a gpgkey=
+  # URL (unlike apt, which wants a binary keyring), so this is the same key in
+  # the other encoding.  Without it `gpgcheck=1` cannot be turned on at all --
+  # which is why the rpm repos were still consumed with gpgcheck=0 long after
+  # apt was signed.
+  if [ -n "${APT_SIGNING_KEY_ID:-}" ]; then
+    for rpmroot in $(find "$REPO" -type d -name rpm); do
+      if gpg --batch --armor --export "${APT_SIGNING_KEY_ID%!}" \
+           > "$rpmroot/RPM-GPG-KEY-sysmanage" 2>/dev/null \
+         && [ -s "$rpmroot/RPM-GPG-KEY-sysmanage" ]; then
+        echo "  rpm key:   $(rel "$rpmroot")/RPM-GPG-KEY-sysmanage"
+      else
+        echo "ERROR: failed to export the RPM public key for $(rel "$rpmroot")" >&2
+        exit 1
+      fi
+    done
+  fi
+
   # rpm
   find "$REPO" -type d -name repodata | while IFS= read -r rd; do d="$(dirname "$rd")"
     if command -v createrepo_c >/dev/null; then ( cd "$d" && createrepo_c . >/dev/null ); echo "  regen rpm: $(rel "$d")"

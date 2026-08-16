@@ -344,8 +344,13 @@ echo 'export PATH="$HOME/.cargo/bin:$PATH"' >> ~/.profile
                                     </div>
 
                                     <h4 data-i18n="agent_installation.installation.apt.quick_start" data-i18n-html>Quick Installation</h4>
-                                    <pre><code># Add the SysManage APT repository
-echo "deb [trusted=yes] https://repo.sysmanage.org/agent/deb stable main" | sudo tee /etc/apt/sources.list.d/sysmanage.list
+                                    <pre><code># Install the archive signing key
+sudo install -d -m 0755 /usr/share/keyrings
+curl -fsSL https://repo.sysmanage.org/agent/sysmanage-archive-keyring.gpg \
+  | sudo tee /usr/share/keyrings/sysmanage-archive-keyring.gpg &gt; /dev/null
+
+# Add the SysManage APT repository, verified against that key
+echo "deb [signed-by=/usr/share/keyrings/sysmanage-archive-keyring.gpg] https://repo.sysmanage.org/agent/deb stable main" | sudo tee /etc/apt/sources.list.d/sysmanage.list
 
 # Update package lists
 sudo apt update
@@ -441,7 +446,7 @@ sudo apt update</code></pre>
 
                                     <div class="security-note">
                                         <h4 data-i18n="agent_installation.installation.apt.security_note" data-i18n-html">Security Note</h4>
-                                        <p data-i18n="agent_installation.installation.apt.security_text" data-i18n-html>The repository currently uses <code>[trusted=yes]</code> because packages are not GPG-signed. For production environments, GPG signing will be added in a future release. The packages are served over HTTPS from GitHub Pages, providing transport-level security.</p>
+                                        <p data-i18n="agent_installation.installation.apt.security_text" data-i18n-html>The repository is GPG-signed and apt verifies every update against the key installed above &mdash; there is no <code>[trusted=yes]</code>. The signing key is the SysManage Package Signing key, fingerprint <code>896E ED43 9F5E 9BB1 FCA6 69A5 E033 E691 377F 0AE3</code>; you can confirm the copy you fetched matches by running <code>gpg --show-keys /usr/share/keyrings/sysmanage-archive-keyring.gpg</code>. HTTPS protects the transport, but it is the signature that proves the packages are ours.</p>
                                     </div>
                                 </div>
 
@@ -705,7 +710,8 @@ python main.py</code></pre>
 name=SysManage Agent Repository
 baseurl=https://repo.sysmanage.org/agent/rpm/el9/x86_64
 enabled=1
-gpgcheck=0
+gpgcheck=1
+gpgkey=https://repo.sysmanage.org/agent/rpm/RPM-GPG-KEY-sysmanage
 metadata_expire=1h
 EOF
 
@@ -720,7 +726,8 @@ sudo tee /etc/yum.repos.d/sysmanage.repo << EOF
 name=SysManage Agent Repository
 baseurl=https://repo.sysmanage.org/agent/rpm/el8/x86_64
 enabled=1
-gpgcheck=0
+gpgcheck=1
+gpgkey=https://repo.sysmanage.org/agent/rpm/RPM-GPG-KEY-sysmanage
 metadata_expire=1h
 EOF
 
@@ -732,7 +739,8 @@ sudo dnf install sysmanage-agent</code></pre>
 name=SysManage Agent Repository
 baseurl=https://repo.sysmanage.org/agent/rpm/fedora/39/x86_64
 enabled=1
-gpgcheck=0
+gpgcheck=1
+gpgkey=https://repo.sysmanage.org/agent/rpm/RPM-GPG-KEY-sysmanage
 metadata_expire=1h
 EOF
 
@@ -813,7 +821,7 @@ sudo dnf clean all</code></pre>
 
                                     <div class="security-note">
                                         <h4 data-i18n="agent_installation.installation.rpm.security_note" data-i18n-html">Security Note</h4>
-                                        <p data-i18n="agent_installation.installation.rpm.security_text" data-i18n-html>The repository currently uses gpgcheck=0 because packages are not GPG-signed. For production environments, GPG signing will be added in a future release. Packages are served via HTTPS from GitHub Pages, providing transport-level security.</p>
+                                        <p data-i18n="agent_installation.installation.rpm.security_text" data-i18n-html>Packages are GPG-signed and <code>gpgcheck=1</code> makes dnf verify every one against the key at <code>gpgkey=</code>. It is the same SysManage Package Signing key used for the apt repository, fingerprint <code>896E ED43 9F5E 9BB1 FCA6 69A5 E033 E691 377F 0AE3</code> &mdash; dnf will show it for confirmation the first time it imports it. HTTPS protects the transport; the signature is what proves the packages are ours.</p>
                                     </div>
                                 </div>
 
