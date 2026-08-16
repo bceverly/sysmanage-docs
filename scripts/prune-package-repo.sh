@@ -37,7 +37,11 @@ REPO="$ROOT/repo"
 [ -d "$REPO" ] || { echo "No repo/ at $REPO"; exit 1; }
 
 REMOVE="$(mktemp)"; trap 'rm -f "$REMOVE"' EXIT
-rel() { echo "$1" | sed "s#$REPO/##"; }
+# Path relative to $REPO, for log lines.  Anchored prefix-strip, not a sed
+# substitution: the sed form was unanchored (it would have cut "$REPO/" out of
+# the MIDDLE of a path) and it left "$REPO" itself untouched, which is how a
+# full /home/runner/work/... path ended up in the keyring log.
+rel() { local p="${1#"$REPO"}"; p="${p#/}"; echo "${p:-.}"; }
 # stdin: list → stdout: all but the latest KEEP (oldest first)
 to_remove() { local -a a; mapfile -t a < <(sort -V); local n=${#a[@]}
   (( n > KEEP )) && printf '%s\n' "${a[@]:0:n-KEEP}"; return 0; }
@@ -129,35 +133,62 @@ if [ "$DRY_RUN" = "0" ]; then
   # verifies is where people look for it.  Dearmored: apt wants a binary
   # keyring, not ASCII armour.  Exported from the signing key we just used, so
   # the keyring and the signature can never describe different keys.
+  #
+  # Derive the apt roots from a real pool/main, exactly as the reindex loop
+  # above does -- NOT by matching directories merely named "deb".  The bucket
+  # holds a stray empty repo/deb, and matching on the name published a keyring
+  # to the bucket ROOT, next to no repository at all.  That same stray already
+  # broke the one-time signing job ("binary path pool/ not found"), so this is
+  # the second bug it has caused; content-derived roots close both.
   if [ -n "${APT_SIGNING_KEY_ID:-}" ]; then
-    for debroot in $(find "$REPO" -type d -path '*/deb'); do
-      krdir="$(dirname "$debroot")"
+    kr_count=0
+    while IFS= read -r pool; do
+      krdir="$(dirname "$(dirname "$(dirname "$pool")")")"
       if gpg --batch --export "${APT_SIGNING_KEY_ID%!}" \
            > "$krdir/sysmanage-archive-keyring.gpg" 2>/dev/null \
          && [ -s "$krdir/sysmanage-archive-keyring.gpg" ]; then
         echo "  keyring:   $(rel "$krdir")/sysmanage-archive-keyring.gpg"
+        kr_count=$((kr_count + 1))
       else
         echo "ERROR: failed to export the public keyring for $(rel "$krdir")" >&2
         exit 1
       fi
-    done
+    done < <(find "$REPO" -type d -path '*/pool/main' | sort -u)
+    # Publishing zero keyrings must be loud.  The install line users are told to
+    # run curls this file; if a layout change stopped it being written, the
+    # signature would still verify here and every new install would break.
+    if [ "$kr_count" -eq 0 ]; then
+      echo "ERROR: no apt keyring published — found no */pool/main under $REPO" >&2
+      exit 1
+    fi
   fi
   # Publish the RPM public key.  dnf/zypper want ASCII armour at a gpgkey=
   # URL (unlike apt, which wants a binary keyring), so this is the same key in
   # the other encoding.  Without it `gpgcheck=1` cannot be turned on at all --
   # which is why the rpm repos were still consumed with gpgcheck=0 long after
   # apt was signed.
+  # Same content-derivation as the keyring above: an "rpm" directory only earns
+  # a key if it actually holds packages.  The bucket has a stray empty repo/rpm
+  # for the same reason it has a stray repo/deb.
   if [ -n "${APT_SIGNING_KEY_ID:-}" ]; then
-    for rpmroot in $(find "$REPO" -type d -name rpm); do
+    rk_count=0
+    while IFS= read -r rpmroot; do
+      [ -n "$(find "$rpmroot" -type f -name '*.rpm' -print -quit)" ] || continue
       if gpg --batch --armor --export "${APT_SIGNING_KEY_ID%!}" \
            > "$rpmroot/RPM-GPG-KEY-sysmanage" 2>/dev/null \
          && [ -s "$rpmroot/RPM-GPG-KEY-sysmanage" ]; then
         echo "  rpm key:   $(rel "$rpmroot")/RPM-GPG-KEY-sysmanage"
+        rk_count=$((rk_count + 1))
       else
         echo "ERROR: failed to export the RPM public key for $(rel "$rpmroot")" >&2
         exit 1
       fi
-    done
+    done < <(find "$REPO" -type d -name rpm | sort -u)
+    # gpgcheck=1 is unusable without this key at the documented gpgkey= URL.
+    if [ "$rk_count" -eq 0 ]; then
+      echo "ERROR: no RPM public key published — found no rpm/ holding *.rpm" >&2
+      exit 1
+    fi
   fi
 
   # NOTE: this job deliberately does NOT sign packages.  It mirrors package
