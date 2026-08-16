@@ -160,6 +160,14 @@ if [ "$DRY_RUN" = "0" ]; then
     done
   fi
 
+  # NOTE: this job deliberately does NOT sign packages.  It mirrors package
+  # files back with --size-only, and re-signing an rpm changes its bytes while
+  # often keeping the same size -- so the upload would be SKIPPED while the
+  # regenerated repodata carried the new checksums, giving dnf "package does
+  # not match intended download".  Packages are signed once, at build time, by
+  # the release workflow.  Anything published before signing existed stays
+  # unsigned and ages out through the keep-5 retention above.
+
   # rpm
   find "$REPO" -type d -name repodata | while IFS= read -r rd; do d="$(dirname "$rd")"
     if command -v createrepo_c >/dev/null; then ( cd "$d" && createrepo_c . >/dev/null ); echo "  regen rpm: $(rel "$d")"
