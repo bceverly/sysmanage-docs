@@ -100,7 +100,7 @@ else
     RESET :=
 endif
 
-.PHONY: help install-dev install-hooks install-vm-deps install-browsers screenshot clean check-deps platform-info ensure-lint-tools \
+.PHONY: release help install-dev install-hooks install-vm-deps install-browsers screenshot clean check-deps platform-info ensure-lint-tools \
        test test-spelling test-markdown-lint test-vale test-accessibility test-links \
        check-test-deps website-package i18n-validate i18n-markup i18n-markup-fix i18n-seed i18n-extract i18n-fix \
        translate translate-dry translate-check lint lint-file-length lint-python lint-security lint-js
@@ -1092,3 +1092,19 @@ i18n-markup-fix:
 	@$(PYTHON) scripts/i18n_check_markup.py --prune
 	@$(MAKE) --no-print-directory i18n-markup
 	@echo "[OK] i18n markup gate green"
+
+# One command to cut a release, in the ONLY order that works: bump any version
+# markers, COMMIT, then TAG that commit, then push.  Cutting the tag first
+# leaves it on the commit BEFORE the work, and CI faithfully rebuilds that
+# older tree -- which is exactly how three installer jobs shipped broken.
+# This repo has no version markers, so it is effectively "tag and push", but it
+# is the same command and the same guards as the other repos.
+#
+#   make release VERSION=3.5.1.26
+#   make release VERSION=3.5.1.26 MSG='...'
+#   make release VERSION=3.5.1.26 DRY_RUN=1     # run every guard, change nothing
+#
+# Lives in scripts/release.py so it behaves identically on Windows, where make
+# drives cmd.exe and test/grep/sed do not exist.
+release:
+	@$(PYTHON) scripts/release.py --version "$(VERSION)" $(if $(MSG),--message "$(MSG)") $(if $(DRY_RUN),--dry-run) $(if $(ALLOW_UNTRACKED),--allow-untracked)
