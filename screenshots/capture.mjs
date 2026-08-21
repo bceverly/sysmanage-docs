@@ -88,13 +88,93 @@ async function login(page) {
 // real MUI tab (Reports still uses tabs), so a shot's `tab` name works across
 // both patterns. The rail is rendered before page content, so .first() lands on
 // the nav item rather than a same-named button inside the panel.
-async function selectTab(page, name) {
-  const rail = page.getByRole('button', { name, exact: false });
-  if (await rail.count()) {
-    await rail.first().click({ timeout: 15000 });
-    return;
+// Click something a live-updating view may yank out from under us.
+//
+// The failure this exists for: a MUI DataGrid re-mounts its rows every time
+// data lands (initial fetch, a poll, a websocket push).  A re-mount mid-click
+// DETACHES the button, so Playwright restarts the action, meets the next
+// re-mount, and finally times out with a log that ends at "performing click
+// action" -- reading as though the click landed when it never did.  A plain
+// `click({timeout})` cannot win that race: it re-tries inside one deadline
+// against a target that keeps being replaced.
+//
+// So: wait for the resolved element to stop CHANGING IDENTITY (same node across
+// two samples) before clicking at all, and treat any transient error as one
+// cheap tick rather than a failed shot.  `factory` must yield a locator that
+// resolves to exactly one element -- call .first() yourself.
+async function clickWithRetry(page, factory, what, opts = {}) {
+  const deadlineMs = opts.deadlineMs || 30000;
+  const stableMs = opts.stableMs || 600;
+  const deadline = Date.now() + deadlineMs;
+  let lastErr;
+  while (Date.now() < deadline) {
+    let a = null;
+    let b = null;
+    try {
+      const loc = factory();
+      if (await loc.count()) {
+        a = await loc.elementHandle({ timeout: 5000 });
+        await page.waitForTimeout(stableMs);
+        b = await loc.elementHandle({ timeout: 5000 });
+        const same = a && b && (await page.evaluate(([x, y]) => x === y, [a, b]));
+        if (same) {
+          // Short per-attempt timeout on purpose: if this one loses the race
+          // anyway, the outer loop re-checks stability instead of burning the
+          // whole budget inside a single doomed action.
+          await loc.click({ timeout: 5000 });
+          return;
+        }
+      }
+    } catch (err) {
+      lastErr = err; // detached node / navigation mid-click -- try again
+    } finally {
+      await a?.dispose().catch(() => {});
+      await b?.dispose().catch(() => {});
+    }
+    await page.waitForTimeout(500);
   }
-  await page.getByRole('tab', { name, exact: false }).first().click({ timeout: 15000 });
+  throw new Error(
+    `${what}: never became stably clickable within ${Math.round(deadlineMs / 1000)}s` +
+      (lastErr ? ` (last error: ${String(lastErr.message || lastErr).slice(0, 200)})` : ''),
+  );
+}
+
+async function selectTab(page, name) {
+  const rail = () => page.getByRole('button', { name, exact: false });
+  const tab = () => page.getByRole('tab', { name, exact: false });
+  // POLL rather than wait-then-choose.  Two traps live here, both hit in real
+  // runs:
+  //   1. `count()` does not wait.  The host-detail rail is a plugin-fed subtree
+  //      that renders SECONDS after domcontentloaded, so asking once at the 4s
+  //      settle saw two buttons and fell through to the tab role this UI no
+  //      longer uses -- failing 15s later claiming it awaited a tab.
+  //   2. `waitFor` REJECTS EARLY when a late client-side redirect destroys the
+  //      execution context (see gotoWithRetry).  Racing waitFor therefore ends
+  //      the wait on a *failure* as readily as on success, which is why two
+  //      shots could fail while byte-identical neighbours passed.
+  // Polling count() is immune to both: it never waits on a context that may
+  // vanish, and a transient error just costs one 500ms tick.
+  const deadline = Date.now() + 30000;
+  let lastErr;
+  while (Date.now() < deadline) {
+    try {
+      if (await rail().count()) {
+        await clickWithRetry(page, () => rail().first(), `selectTab rail "${name}"`);
+        return;
+      }
+      if (await tab().count()) {
+        await clickWithRetry(page, () => tab().first(), `selectTab tab "${name}"`);
+        return;
+      }
+    } catch (err) {
+      lastErr = err; // detached node / navigation mid-click -- try again
+    }
+    await page.waitForTimeout(500);
+  }
+  throw new Error(
+    `selectTab: no rail button or tab named "${name}" became clickable within 30s` +
+      (lastErr ? ` (last error: ${String(lastErr.message || lastErr).slice(0, 200)})` : ''),
+  );
 }
 
 // A freshly-rendered SPA page can fire a late client-side redirect that aborts
@@ -265,20 +345,29 @@ async function captureClick(page, shot, vp) {
   // silently capture the default tab instead — a screenshot that looks fine and
   // documents the wrong thing.
   if (shot.tab) {
-    await page.getByRole('tab', { name: shot.tab, exact: false }).first().click({ timeout: 15000 });
+    // selectTab, not getByRole('tab'): pages reached this way may use the nav
+    // rail (buttons) rather than real tabs, and it already polls for a late
+    // subtree instead of asking once.
+    await selectTab(page, shot.tab);
     await page.waitForTimeout(1000);
     detail += ` » tab "${shot.tab}"`;
   }
   if (shot.clickButton) {
-    await page.getByRole('button', { name: shot.clickButton, exact: false }).first().click({ timeout: 15000 });
+    await clickWithRetry(
+      page,
+      () => page.getByRole('button', { name: shot.clickButton, exact: false }).first(),
+      `clickButton "${shot.clickButton}"`,
+    );
     detail += ` » "${shot.clickButton}"`;
   }
   if (shot.clickRowAction) {
     const idx = shot.clickRowAction; // 1-based position within the actions cell
-    const btn = page
-      .locator('.MuiDataGrid-row [data-field="actions"] button')
-      .nth(idx - 1);
-    await btn.click({ timeout: 15000 });
+    await clickWithRetry(
+      page,
+      () =>
+        page.locator('.MuiDataGrid-row [data-field="actions"] button').nth(idx - 1),
+      `clickRowAction #${idx} on ${shot.route}`,
+    );
     detail += ` » row action #${idx}`;
   }
   // Let the dialog animate in / the sub-view load its data (samples, assignments).
