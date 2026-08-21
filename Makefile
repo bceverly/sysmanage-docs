@@ -166,6 +166,25 @@ help:
 	@echo "  prune-repo-dry         - Show what prune-repo would remove (dry run)"
 	@echo ""
 	@echo "$(YELLOW)Platform detected: $(PLATFORM)$(RESET)"
+	@echo ""
+	@echo "$(YELLOW)Release & versioning:$(RESET)"
+	@echo "  make release           - Cut a release: bump version markers, lint, commit, tag, push."
+	@echo "                           Auto-increments the last component (3.5.1.26 -> 3.5.1.27)."
+	@echo "                           New series: make release VERSION=3.6.0.0  (4 parts required)"
+	@echo "                           Refuses to run on a dirty tree or with untracked source."
+	@echo "                           Flags: DRY_RUN=1 YES=1 SKIP_LINT=1 MSG=... ALLOW_DIRTY=1 ALLOW_UNTRACKED=1"
+	@echo ""
+	@echo "$(YELLOW)i18n / translation:$(RESET)"
+	@echo "  make i18n-fix          - THE fix-it command: seed, requeue, translate, re-verify."
+	@echo "                           Needs the GPU service: make i18n-fix SERVICE=http://<host>:8765"
+	@echo "  make i18n-strict       - Catch English-identical, stale and wrong-language values"
+	@echo ""
+	@echo "$(YELLOW)Other targets:$(RESET)"
+	@echo "  make install-hooks     - Point core.hooksPath at the in-repo .githooks/"
+	@echo "  make lint-file-length  - No source file over 1000 lines (the pre-push gate)"
+	@echo "  make ensure-lint-tools - Create the lint venv (pylint + bandit) if absent"
+	@echo "  make ensure-js-lint-tools - Install the local eslint devDependency if absent"
+	@echo "  make screenshots-check-vm-config - Validate the screenshot VM configuration"
 
 # Show platform information
 platform-info:
@@ -1107,4 +1126,4 @@ i18n-markup-fix:
 # Lives in scripts/release.py so it behaves identically on Windows, where make
 # drives cmd.exe and test/grep/sed do not exist.
 release:
-	@$(PYTHON) scripts/release.py --version "$(VERSION)" $(if $(MSG),--message "$(MSG)") $(if $(DRY_RUN),--dry-run) $(if $(ALLOW_UNTRACKED),--allow-untracked)
+	@$(PYTHON) scripts/release.py $(if $(VERSION),--version "$(VERSION)") $(if $(MSG),--message "$(MSG)") $(if $(DRY_RUN),--dry-run) $(if $(ALLOW_UNTRACKED),--allow-untracked) $(if $(ALLOW_DIRTY),--allow-dirty) $(if $(YES),--yes) $(if $(SKIP_LINT),--skip-lint)
