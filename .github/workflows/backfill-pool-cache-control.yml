@@ -87,6 +87,18 @@ jobs:
           # Checksum sidecars in pool/ are left alone on purpose: they are a few
           # hundred bytes, caching them saves nothing measurable, and a
           # mis-stamped Content-Type on them is a real (if small) regression.
+          #
+          # Say out loud what was NOT stamped.  On the first dry run the guard
+          # counted 25 pool objects while the .deb pass matched 9, and the
+          # difference could not be explained from outside (R2 serves no public
+          # listing).  An unstamped PACKAGE would sit uncached for ever and
+          # nothing would report it, so the residue gets printed rather than
+          # inferred.
+          echo "=== pool objects NOT stamped (expect only checksum sidecars) ==="
+          s3 ls "s3://${R2_BUCKET}/" --recursive \
+            | awk '{print $4}' | grep "/pool/" \
+            | grep -vE '\.(deb|rpm|apk)$' \
+            | sed 's/^/  /'
 
           if [ "$DRY_RUN" = "true" ]; then
             echo "DRY RUN - nothing was written. Re-run with dry_run=false to apply."
