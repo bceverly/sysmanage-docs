@@ -1,0 +1,96 @@
+name: Backfill Cache-Control on pool/** in R2
+
+# ONE-SHOT MAINTENANCE.  The release pipelines now stamp
+# "Cache-Control: public, max-age=31536000, immutable" on pool/** as they
+# upload, but that only applies to objects those runs touch.  Everything
+# already in the bucket keeps no cache header, and Cloudflare caches by file
+# EXTENSION by default -- ".deb" is not on that list -- so those objects answer
+# "cf-cache-status: DYNAMIC" for ever and every install streams from R2.
+# Measured 2026-08-24 on a repeat request, so it was not a cold cache.
+#
+# A pool object is immutable BY CONSTRUCTION: each version has its own
+# filename, and prune-r2 DELETES old versions rather than rewriting them.  So a
+# one-year immutable TTL is a statement of fact, not a gamble.
+#
+# dists/** is deliberately NOT touched.  Those files are rewritten every
+# release; caching them serves a stale Release, which is exactly the
+# 2026-08-07 outage ("File has unexpected size (700 != 701)").
+#
+# Manual trigger only -- it rewrites metadata on every existing package and
+# should be a deliberate act, not something a release fires.
+
+on:
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "List what would change without writing (recommended first)"
+        type: boolean
+        default: true
+
+concurrency:
+  group: backfill-pool-cache-control
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  backfill:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Stamp Cache-Control on every pool object
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
+          R2_BUCKET: ${{ secrets.R2_BUCKET }}
+          # aws-cli v2.23+ sends integrity checksums R2 rejects; same workaround
+          # prune-r2.yml already carries.
+          AWS_REQUEST_CHECKSUM_CALCULATION: when_required
+          AWS_RESPONSE_CHECKSUM_VALIDATION: when_required
+          DRY_RUN: ${{ inputs.dry_run }}
+        run: |
+          set -euo pipefail
+          ENDPOINT="https://${R2_ACCOUNT_ID}.r2.cloudflarestorage.com"
+          s3() { aws s3 "$@" --endpoint-url "$ENDPOINT" --region auto; }
+          CC="public, max-age=31536000, immutable"
+          DRY=""
+          [ "$DRY_RUN" = "true" ] && DRY="--dryrun"
+
+          # Refuse to run against an empty or unreachable bucket rather than
+          # report a cheerful "0 objects updated" -- the same guard prune-r2
+          # uses before its --delete.
+          COUNT=$(s3 ls "s3://${R2_BUCKET}/" --recursive | grep -c "/pool/" || true)
+          echo "pool objects in bucket: $COUNT"
+          if [ "$COUNT" -lt 1 ]; then
+            echo "::error::no pool/** objects found - refusing to run"
+            exit 1
+          fi
+
+          # Copy each object onto ITSELF with REPLACE metadata.  Done per
+          # extension because REPLACE drops everything not restated, and
+          # Content-Type is worth keeping accurate: a bare copy would reset
+          # .deb from application/vnd.debian.binary-package to a generic type.
+          stamp() {
+            echo "=== $1 ==="
+            s3 cp "s3://${R2_BUCKET}/" "s3://${R2_BUCKET}/" --recursive $DRY \
+              --exclude "*" --include "*/pool/*$1" \
+              --metadata-directive REPLACE \
+              --cache-control "$CC" --content-type "$2" \
+              --only-show-errors || true
+          }
+          stamp ".deb" "application/vnd.debian.binary-package"
+          stamp ".rpm" "application/x-rpm"
+          stamp ".apk" "application/vnd.android.package-archive"
+
+          # Checksum sidecars in pool/ are left alone on purpose: they are a few
+          # hundred bytes, caching them saves nothing measurable, and a
+          # mis-stamped Content-Type on them is a real (if small) regression.
+
+          if [ "$DRY_RUN" = "true" ]; then
+            echo "DRY RUN - nothing was written. Re-run with dry_run=false to apply."
+          else
+            echo "Done. Verify with:"
+            echo "  curl -sI https://repo.sysmanage.org/agent/deb/pool/... | grep -i 'cache-control\|cf-cache-status'"
+          fi

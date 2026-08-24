@@ -162,10 +162,21 @@ Pages, which caps artifacts at 1 GB):
 ### DEB Repository (Ubuntu/Debian)
 
 ```bash
-echo "deb [trusted=yes] https://repo.sysmanage.org/agent/deb stable main" | \
+# Install the archive signing key
+sudo install -d -m 0755 /usr/share/keyrings
+curl -fsSL https://repo.sysmanage.org/agent/sysmanage-archive-keyring.gpg \
+  | sudo tee /usr/share/keyrings/sysmanage-archive-keyring.gpg > /dev/null
+# Add the repository, verified against that key
+echo "deb [signed-by=/usr/share/keyrings/sysmanage-archive-keyring.gpg] https://repo.sysmanage.org/agent/deb stable main" | \
   sudo tee /etc/apt/sources.list.d/sysmanage.list
 sudo apt update && sudo apt install sysmanage-agent
 ```
+
+The repository is GPG-signed; apt verifies every update against that key.
+Primary key fingerprint `896E ED43 9F5E 9BB1 FCA6 69A5 E033 E691 377F 0AE3`
+(confirm with `gpg --show-keys /usr/share/keyrings/sysmanage-archive-keyring.gpg`).
+This README previously documented `[trusted=yes]`, which installs whatever the
+CDN serves without verifying it — do not reintroduce it.
 
 **Supported Platforms (x86_64/amd64 and aarch64/arm64):**
 
