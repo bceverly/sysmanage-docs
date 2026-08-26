@@ -112,6 +112,53 @@ new strings, fill them on your model rig (`make translate SERVICE=http://<host>:
 then re-run `make lint`. (Mirrors the same gate in `sysmanage`,
 `sysmanage-agent`, and `sysmanage-professional-plus`.)
 
+### Writing translatable strings
+
+The translation service enforces **placeholder integrity**: a translation must
+carry exactly the same HTML tags and entities as the English source — none
+dropped, none invented — and it re-prompts the model twice before giving up and
+keeping the English. Two authoring rules follow from that, both measured
+against the live service on 2026-08-25 rather than guessed:
+
+**1. Put NO inline markup inside a translatable string.** Not one `<code>`, not
+one `<strong>`. This is the rule that actually holds. Measured across 13
+locales on 2026-08-25: four tags failed almost everywhere; two tags still failed
+in a third of locales (13 of 14 remaining failures were two-tag strings); zero
+tags passed. Keep the markup — just put it OUTSIDE the translated span:
+
+```html
+<!-- BAD: 2 tags.  Passes in some languages, fails in others. -->
+<p data-i18n="x.bypass">SysManage passes <code>--bypass-driver</code> to rpm-ostree
+   by default.</p>
+
+<!-- GOOD: the identifier keeps its <code> styling, outside the key -->
+<p><span data-i18n="x.bypass">SysManage passes this flag to rpm-ostree by
+   default:</span> <code>--bypass-driver</code></p>
+```
+
+Decorative `<strong>`/`<em>` inside a sentence is usually not worth a failed
+locale — drop it. For an identifier mid-sentence, either lift it to the end
+behind a colon as above, or leave it as plain text.
+
+**2. Use literal typographic characters, not HTML entities.** `&mdash;`,
+`&rsquo;`, `&ldquo;` and friends are matched as placeholders that must be
+reproduced byte-exactly, so each is another way to fail — for nothing, since the
+locale JSON stores UTF-8 and the rest of the catalog already uses literal `—`
+and `’`. Keep `&lt;`, `&gt;` and `&amp;`: those are structural.
+
+**Do not put literal command output or log lines inside a translatable key.**
+They should not be translated at all (users grep for the English), and they tend
+to carry `<br>` and escaped angle brackets that break integrity. Put them in a
+`<pre><code>` block with no `data-i18n` and keep only the lead-in translatable.
+
+**Failures are deterministic per (string, locale) — re-running does not fix
+them.** A string that fails for `ko` fails for `ko` every time; the same string
+may pass for `nl`. That looks like randomness if you only compare locales, and
+it is tempting to just re-run `make translate` until it clears. It will not:
+verified by sending one string three times and getting the identical
+`fallback:placeholders` verdict. Re-running only helps for keys you have
+actually changed. If a key is in the gap list, rewrite it.
+
 ## 📸 Screenshots
 
 Automated screenshots are generated for:

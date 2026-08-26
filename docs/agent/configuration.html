@@ -46,6 +46,29 @@
                         <p data-i18n="agent_configuration.firewall.proxy" data-i18n-html>Behind a proxy? The agent honours <code>HTTPS_PROXY</code>, <code>HTTP_PROXY</code> and <code>NO_PROXY</code> from the environment, and <code>server.proxy</code> sets one explicitly where that environment does not reach it. If your proxy re-signs TLS, point <code>server.ca_bundle</code> at its root certificate &mdash; that keeps certificate verification switched on, which turning <code>verify_ssl</code> off does not.</p>
                     </div>
 
+                    <h3 data-i18n="agent_configuration.fallback.title" data-i18n-html>If your network refuses WebSockets</h3>
+                    <p data-i18n="agent_configuration.fallback.intro_channel" data-i18n-html>The agent&rsquo;s command channel is a WebSocket over that same 443 connection.</p>
+                    <p data-i18n="agent_configuration.fallback.intro_refuse" data-i18n-html>Some proxies refuse to carry one.</p>
+                    <p data-i18n="agent_configuration.fallback.intro_shapes" data-i18n-html>It shows up one of two ways:</p>
+                    <ul>
+                        <li><span data-i18n="agent_configuration.fallback.shape_connect">a CONNECT tunnel answered with</span> <code>HTTP 403</code>;</li>
+                        <li><code>Upgrade</code> &mdash; <span data-i18n="agent_configuration.fallback.shape_upgrade">answered with a plain 200 instead of a 101.</span></li>
+                    </ul>
+                    <p data-i18n="agent_configuration.fallback.intro_cost" data-i18n-html>Retrying that forever would leave the host permanently invisible &mdash; no commands, no inventory, no heartbeat &mdash; until someone changes the proxy.</p>
+                    <p><span data-i18n="agent_configuration.fallback.behaviour_poll">So the agent falls back to HTTP long-polling automatically, on the same origin and port, posting to</span> <code>/api/agent/poll</code></p>
+                    <p data-i18n="agent_configuration.fallback.behaviour_same" data-i18n-html>It drains the same message queue, so nothing downstream can tell the difference. There is nothing to configure, and no extra port or firewall rule.</p>
+                    <div class="info-box">
+                        <p data-i18n="agent_configuration.fallback.log_lead" data-i18n-html>You will see this in the agent log when it happens:</p>
+                        <pre><code>Using HTTP polling instead of a WebSocket: this network
+refused the WebSocket upgrade. Commands will arrive with up
+to a few seconds of delay. Allow WebSocket upgrades to
+&lt;your server&gt; to restore immediate delivery.</code></pre>
+                    </div>
+                    <p data-i18n="agent_configuration.fallback.cost_latency" data-i18n-html>What it costs: a server-initiated command waits up to one poll interval instead of arriving immediately.</p>
+                    <p data-i18n="agent_configuration.fallback.cost_detail" data-i18n-html>That is about five seconds normally, or fifteen while the server is erroring, and an idle agent still makes a request per interval. That is why it is a fallback rather than the default.</p>
+                    <p data-i18n="agent_configuration.fallback.recovery_distinguish">The agent tells a network that will not carry WebSockets apart from a server that merely restarted, so a refused TCP connection keeps retrying rather than downgrading the fleet.</p>
+                    <p data-i18n="agent_configuration.fallback.recovery_retest">Once it has fallen back it re-tests the WebSocket every 15 minutes, so fixing the proxy restores immediate delivery on its own, with no agent restart.</p>
+
                                         <h2 data-i18n="docs.auto.agent.configuration.013">Server Connection Settings</h2>
                     <p data-i18n="docs.auto.agent.configuration.014">Configure how the agent connects to the SysManage server.</p>
 

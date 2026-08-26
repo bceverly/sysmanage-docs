@@ -3131,7 +3131,16 @@
       "title": "Architecture",
       "view_docs": "View Architecture →",
       "message_flow_link": "Message Flow & Queuing",
-      "testing_excellence_link": "Testing Excellence"
+      "testing_excellence_link": "Testing Excellence",
+      "datasync": {
+        "packages": {
+          "title": "Package catalog synchronization",
+          "problem": "A host's installed-package catalog is the largest thing an agent reports, and for most hosts it barely changes between scans.",
+          "measured": "Sending it whole every cycle dominated agent traffic: measured on a development fleet, package batches accounted for 78,979 messages and 9.4 GB over eight days, or 83 percent of everything the agents sent.",
+          "delta": "Agents now send only what changed since the previous scan — added, removed and updated entries — with a periodic full reconcile so any drift is corrected rather than accumulating.",
+          "sizing": "Plan capacity from the delta, not the catalog. A steady-state fleet costs a small fraction of the full-catalog figure, which matters most over metered or constrained links, and the periodic reconcile is the peak to size for."
+        }
+      }
     },
     "breadcrumb": {
       "administration": "Administration",
@@ -4172,7 +4181,24 @@
           "intro": "An <strong>Image Mode</strong> tab appears on the host detail page — but only for hosts that are actually image-mode. It surfaces the booted, staged, and rollback image state reported at check-in, and provides three first-class actions for advancing or reverting the OS image.",
           "title": "The Image Mode Tab"
         },
-        "title": "Image-Mode Host Management - Professional+ - SysManage"
+        "title": "Image-Mode Host Management - Professional+ - SysManage",
+        "driver": {
+          "bypass_default": "So that Stage and Apply still work, SysManage passes this flag to rpm-ostree by default:",
+          "bypass_why": "Without it, both actions fail outright on Fedora CoreOS and SysManage cannot update the platform at all.",
+          "control_api": "To leave the host’s driver in charge, send <code>bypass_update_driver: false</code> on the Stage or Apply request.",
+          "control_honest": "On a driver-managed host that request then fails with the driver’s own refusal, which is the honest outcome rather than a silent no-op.",
+          "control_setting": "The bypass is a per-request setting, not a stored policy. The Image Mode tab does not expose it, so actions taken from the UI always use the default.",
+          "intro_fcos": "Fedora CoreOS is the common case. While Zincati is active, rpm-ostree refuses to act on anyone else’s behalf, exiting with “Updates and deployments are driven by Zincati”.",
+          "intro_what": "Some image-mode platforms ship their own update driver — a service that owns updating the OS on its own schedule.",
+          "scope_bootc": "The bypass applies only to",
+          "scope_rollback": "Rollback never uses it: <code>rpm-ostree rollback</code> rejects the flag outright. Passing it uniformly would break the one action that already worked everywhere.",
+          "title": "When the host has its own update driver (Zincati)",
+          "tradeoff_advice": "Where the platform’s own driver should stay in charge, leave the bypass off and coordinate updates through that driver instead.",
+          "tradeoff_both": "Bypassing does not stop the host’s own driver. Both SysManage and Zincati are then driving.",
+          "tradeoff_risk": "Zincati may still fetch and reboot on its own schedule, so a host can advance from under you between a Stage and an Apply.",
+          "tradeoff_title": "The trade-off is real",
+          "scope_bootc_note": "bootc hosts have no update driver, so they are unaffected."
+        }
       },
       "imgcontent": {
         "breadcrumb": "Container Image Content",
@@ -18566,7 +18592,17 @@
         },
         "title": "License Tiers"
       },
-      "title": "Professional+ - SysManage"
+      "title": "Professional+ - SysManage",
+      "integrity": {
+        "binding_identity": "The signature covers the module’s identity — code, version, platform, architecture and Python version — not just its bytes.",
+        "binding_replay": "A validly-signed bundle therefore cannot be served in place of a different engine, and an old version cannot be replayed over a patched one.",
+        "failclosed_anchor": "There is no setting to disable it, and the trust anchor is compiled into the server rather than read from a file beside the modules — whoever could replace a module could replace a key sitting next to it.",
+        "failclosed_cache": "Verification is fail-closed and gates the single point every module passes through, so the cached copy on disk is checked on every start, not just the initial download.",
+        "intro_risk": "Pro+ modules are native shared objects loaded into the server process, and the plugin bundles are JavaScript that runs in an authenticated administrator’s browser.",
+        "intro_signed": "That is the code path with the worst consequence if it is tampered with, so every module and bundle is signed with Ed25519 and verified before it is loaded.",
+        "operator": "There is nothing to configure and nothing to rotate on your side. If a module fails verification the server refuses to load it and logs the reason, so the feature is unavailable rather than silently running unverified code.",
+        "title": "How Modules Are Verified"
+      }
     },
     "firewall_orchestration_engine": {
       "architecture": {
@@ -20160,6 +20196,14 @@
           "proxy": "<strong>proxyDHCP</strong> — the existing corporate DHCP server keeps handing out addresses, untouched, and SysManage answers only the PXE part. Use this when you cannot change the incumbent DHCP server, which is the common case in a real datacenter.",
           "title": "Readiness Preflight and the Config Advisor"
         },
+        "report": {
+          "caption": "The install report carries the machine's own reason and the tail of its bootstrap log — here, a package the installer could not find.",
+          "description": "A machine reports its own outcome when the install finishes, and that report is kept on the assignment. This matters because the failure that costs the most time is not a machine that fails loudly — it is one that installs perfectly and then never appears in the fleet. Before the machine reported anything, the reason for that lived only in bootstrap output on a console nobody was watching.",
+          "disarm": "Both <code>installed</code> and <code>agent_missing</code> <strong>disarm</strong> netboot; only <code>failed</code> stays armed for another attempt. That asymmetry is deliberate: an install that did not complete should be retried, but a machine whose OS is fine and whose agent is broken must never be reinstalled — that would erase a working system to fix a package.",
+          "log": "The report holds a one-line reason and the tail of the bootstrap log, so a row reads <em>agent install failed: Unable to locate package sysmanage-agent</em> rather than simply <code>installed</code>. Reporting is best-effort and never blocks the disarm: a machine that cannot reach the server at all still stops netbooting, because a machine stuck reinstalling itself is a worse outcome than one with a missing agent.",
+          "states": "Two outcomes are therefore recorded separately, and the difference is not cosmetic. <code>installed</code> means the agent is up. <code>agent_missing</code> means the operating system installed and the agent did not — the machine is usable but will never enrol until someone looks at it. A third state, <code>failed</code>, means the install itself did not complete.",
+          "title": "Why an Install Ended That Way"
+        },
         "sources": {
           "caption": "Provisioning → Install Sources catalogs the OS trees a machine can be netbooted into.",
           "debian": "Debian → <code>preseed</code>; Ubuntu → <code>autoinstall</code> (Subiquity)",
@@ -20171,13 +20215,23 @@
           "title": "Install-Source Catalog"
         },
         "title": "Bare-Metal Provisioning (PXE)",
-        "report": {
-          "caption": "The install report carries the machine's own reason and the tail of its bootstrap log — here, a package the installer could not find.",
-          "description": "A machine reports its own outcome when the install finishes, and that report is kept on the assignment. This matters because the failure that costs the most time is not a machine that fails loudly — it is one that installs perfectly and then never appears in the fleet. Before the machine reported anything, the reason for that lived only in bootstrap output on a console nobody was watching.",
-          "disarm": "Both <code>installed</code> and <code>agent_missing</code> <strong>disarm</strong> netboot; only <code>failed</code> stays armed for another attempt. That asymmetry is deliberate: an install that did not complete should be retried, but a machine whose OS is fine and whose agent is broken must never be reinstalled — that would erase a working system to fix a package.",
-          "log": "The report holds a one-line reason and the tail of the bootstrap log, so a row reads <em>agent install failed: Unable to locate package sysmanage-agent</em> rather than simply <code>installed</code>. Reporting is best-effort and never blocks the disarm: a machine that cannot reach the server at all still stops netbooting, because a machine stuck reinstalling itself is a worse outcome than one with a missing agent.",
-          "states": "Two outcomes are therefore recorded separately, and the difference is not cosmetic. <code>installed</code> means the agent is up. <code>agent_missing</code> means the operating system installed and the agent did not — the machine is usable but will never enrol until someone looks at it. A third state, <code>failed</code>, means the install itself did not complete.",
-          "title": "Why an Install Ended That Way"
+        "firmware": {
+          "arm_unsupported": "ARM64 UEFI is not served. The embedded image is built for x86-64 only.",
+          "arm_why": "SysManage deliberately does not advertise it to ARM clients: handing a machine a binary its firmware cannot execute looks like a broken image rather than an absent one. ARM64 machines need another provisioning path.",
+          "intro_arch": "A PXE client announces its firmware type in DHCP option 93, and SysManage serves a different first-stage image for each.",
+          "intro_bios": "Legacy BIOS clients",
+          "intro_embedded": "Both carry the boot script embedded, so a machine reaches its assigned installer in one step with nothing to discover over TFTP.",
+          "intro_uefi": "UEFI x86-64 clients",
+          "mismatch": "The two binaries are not interchangeable. Handing a UEFI machine the BIOS image fails in a way that reads like a network fault, which is why the architecture match is made by the DHCP server rather than left to the client.",
+          "secureboot": {
+            "check": "Disable Secure Boot on the machines you intend to provision. It is the factory default on most modern hardware, so check it first when a UEFI client never calls home.",
+            "silent": "The rejection happens in firmware before anything of ours runs, so there is no error to see in SysManage. The machine simply does not appear.",
+            "title": "Secure Boot must be off on UEFI clients",
+            "unsigned": "The iPXE image is not signed by a firmware-trusted authority, so a UEFI machine with Secure Boot enabled will refuse to run it."
+          },
+          "staging_symptom": "If UEFI clients are ignored while BIOS clients boot normally, a config was generated without this file and serves BIOS alone:",
+          "staging_when": "The UEFI entries appear in the generated dnsmasq configuration only when the UEFI first stage has been staged in the TFTP root.",
+          "title": "BIOS and UEFI Clients"
         }
       }
     }
@@ -23007,6 +23061,22 @@
       "proxy_desc": "Explicit outbound proxy. Normally unnecessary — <code>HTTPS_PROXY</code>, <code>HTTP_PROXY</code> and <code>NO_PROXY</code> are honoured from the environment.",
       "url_desc": "The one origin the agent talks to, for example <code>https://sysmanage.example.com</code>. Omit the port to mean 443. Preferred over the legacy fields below.",
       "use_https_desc": "Legacy. Superseded by the scheme in <code>url</code>."
+    },
+    "fallback": {
+      "behaviour_poll": "So the agent falls back to HTTP long-polling automatically, on the same origin and port, posting to",
+      "behaviour_same": "It drains the same message queue, so nothing downstream can tell the difference. There is nothing to configure, and no extra port or firewall rule.",
+      "cost_detail": "That is about five seconds normally, or fifteen while the server is erroring, and an idle agent still makes a request per interval. That is why it is a fallback rather than the default.",
+      "cost_latency": "What it costs: a server-initiated command waits up to one poll interval instead of arriving immediately.",
+      "intro_channel": "The agent’s command channel is a WebSocket over that same 443 connection.",
+      "intro_cost": "Retrying that forever would leave the host permanently invisible — no commands, no inventory, no heartbeat — until someone changes the proxy.",
+      "intro_refuse": "Some proxies refuse to carry one.",
+      "intro_shapes": "It shows up one of two ways:",
+      "log_lead": "You will see this in the agent log when it happens:",
+      "recovery_distinguish": "The agent tells a network that will not carry WebSockets apart from a server that merely restarted, so a refused TCP connection keeps retrying rather than downgrading the fleet.",
+      "recovery_retest": "Once it has fallen back it re-tests the WebSocket every 15 minutes, so fixing the proxy restores immediate delivery on its own, with no agent restart.",
+      "title": "If your network refuses WebSockets",
+      "shape_connect": "a CONNECT tunnel answered with",
+      "shape_upgrade": "answered with a plain 200 instead of a 101."
     }
   },
   "server_quickstart": {

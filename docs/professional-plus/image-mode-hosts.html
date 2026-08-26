@@ -66,6 +66,31 @@
                 </section>
 
                 <section>
+                    <h2 data-i18n="docs.proplus.imagemode.driver.title">When the host has its own update driver (Zincati)</h2>
+                    <p data-i18n="docs.proplus.imagemode.driver.intro_what">Some image-mode platforms ship their own update driver — a service that owns updating the OS on its own schedule.</p>
+                    <p data-i18n="docs.proplus.imagemode.driver.intro_fcos">Fedora CoreOS is the common case. While Zincati is active, rpm-ostree refuses to act on anyone else’s behalf, exiting with “Updates and deployments are driven by Zincati”.</p>
+                    <p><span data-i18n="docs.proplus.imagemode.driver.bypass_default">So that Stage and Apply still work, SysManage passes this flag to rpm-ostree by default:</span> <code>--bypass-driver</code></p>
+                    <p data-i18n="docs.proplus.imagemode.driver.bypass_why" data-i18n-html>Without it, both actions fail outright on Fedora CoreOS and SysManage cannot update the platform at all.</p>
+                    <div class="warning-box">
+                        <h4 data-i18n="docs.proplus.imagemode.driver.tradeoff_title" data-i18n-html>The trade-off is real</h4>
+                        <p data-i18n="docs.proplus.imagemode.driver.tradeoff_both" data-i18n-html>Bypassing does not stop the host&rsquo;s own driver. Both SysManage and Zincati are then driving.</p>
+                        <p data-i18n="docs.proplus.imagemode.driver.tradeoff_risk" data-i18n-html>Zincati may still fetch and reboot on its own schedule, so a host can advance from under you between a Stage and an Apply.</p>
+                        <p data-i18n="docs.proplus.imagemode.driver.tradeoff_advice" data-i18n-html>Where the platform&rsquo;s own driver should stay in charge, leave the bypass off and coordinate updates through that driver instead.</p>
+                    </div>
+                    <p><span data-i18n="docs.proplus.imagemode.driver.scope_bootc">The bypass applies only to</span> <code>rpm-ostree</code>.</p>
+                    <p data-i18n="docs.proplus.imagemode.driver.scope_bootc_note" data-i18n-html>bootc hosts have no update driver, so they are unaffected.</p>
+                    <p data-i18n="docs.proplus.imagemode.driver.scope_rollback" data-i18n-html>Rollback never uses it: <code>rpm-ostree rollback</code> rejects the flag outright. Passing it uniformly would break the one action that already worked everywhere.</p>
+                    <p data-i18n="docs.proplus.imagemode.driver.control_setting" data-i18n-html>The bypass is a per-request setting, not a stored policy. The Image Mode tab does not expose it, so actions taken from the UI always use the default.</p>
+                    <p data-i18n="docs.proplus.imagemode.driver.control_api" data-i18n-html>To leave the host&rsquo;s driver in charge, send <code>bypass_update_driver: false</code> on the Stage or Apply request.</p>
+                    <p data-i18n="docs.proplus.imagemode.driver.control_honest" data-i18n-html>On a driver-managed host that request then fails with the driver&rsquo;s own refusal, which is the honest outcome rather than a silent no-op.</p>
+                    <pre><code>curl -X POST \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"bypass_update_driver": false}' \
+  https://sysmanage.example.com/api/v1/image-mode/host/$HOST_ID/apply</code></pre>
+                </section>
+
+                <section>
                     <h2 data-i18n="docs.proplus.imagemode.gating.title" data-i18n-html>Package-Update UI Is Gated Off</h2>
                     <p data-i18n="docs.proplus.imagemode.gating.intro" data-i18n-html>Because you don&rsquo;t apply package updates to an image-mode host, the <strong>Updates</strong> and <strong>Request Available Packages</strong> actions are hidden for these hosts. You manage the operating system through Stage&nbsp;/&nbsp;Apply&nbsp;/&nbsp;Rollback on the Image Mode tab instead &mdash; advancing or reverting the whole image rather than patching packages inside it.</p>
                 </section>

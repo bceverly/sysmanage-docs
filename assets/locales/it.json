@@ -804,6 +804,22 @@
       "proxy_desc": "Esplicito proxy in uscita. Normalmente non necessario — <code>HTTPS_PROXY</code>, <code>HTTP_PROXY</code> e <code>NO_PROXY</code> sono onorati dall'ambiente.",
       "url_desc": "L'unica origine con cui l'agente comunica, ad esempio <code>https://sysmanage.example.com</code>. Omite la porta per indicare 443. Preferito rispetto ai campi legacy qui sotto.",
       "use_https_desc": "Ereditario. Sostituito dallo schema in <code>url</code>."
+    },
+    "fallback": {
+      "behaviour_same": "Drenano la stessa coda di messaggi, quindi nulla a valle può distinguere la differenza. Non c'è nulla da configurare e nessuna regola di firewall o porta aggiuntiva.",
+      "cost_detail": "I client ARM64 necessitano di un percorso di provisioning alternativo.",
+      "cost_latency": "Cosa comporta: un comando avviato dal server attende fino a un intervallo di polling prima di arrivare immediatamente.",
+      "intro_channel": "L'agente dice alla rete che non porterà WebSocket se non per un server che ha semplicemente riavviato, quindi una connessione TCP rifiutata continua a riprovare piuttosto che degradare la flotta.",
+      "intro_cost": "Riprovando all'infinito lascerebbe la host permanentemente invisibile - nessun comandi, inventario o battito cardiaco - fino a quando qualcuno cambia il proxy.",
+      "intro_refuse": "Alcuni proxy rifiutano di portarlo.",
+      "intro_shapes": "Si manifesta in uno dei due modi:",
+      "log_lead": "Lo vedrai nel log dell'agente quando accade:",
+      "title": "Se la tua rete rifiuta WebSocket",
+      "behaviour_poll": "Quindi l'agente passa automaticamente al polling HTTP automatico, sullo stesso origine e porta, inviando a",
+      "recovery_distinguish": "L'agente comunica a una rete che non supporta i WebSocket se non con un server che si è semplicemente riavviato, quindi un tentativo di connessione TCP rifiutato continua a riprovare invece di degradare la flotta.",
+      "recovery_retest": "Una volta che ha effettuato il rollback, ritesta il WebSocket ogni 15 minuti, quindi correggere il proxy ripristina la consegna immediata da solo, senza riavvio dell'agente.",
+      "shape_connect": "un tunnel CONNECT risposto con",
+      "shape_upgrade": "risposto con un semplice 200 invece di un 101."
     }
   },
   "agent_docs": {
@@ -3552,7 +3568,16 @@
       "testing_excellence_link": "Eccellenza nei test",
       "title": "Architettura",
       "view_docs": "Visualizza Architettura →",
-      "websocket_protocol": "Protocolli Comunicazione"
+      "websocket_protocol": "Protocolli Comunicazione",
+      "datasync": {
+        "packages": {
+          "delta": "[TODO] Agents now send only what changed since the previous scan — added, removed and updated entries — with a periodic full reconcile so any drift is corrected rather than accumulating.",
+          "measured": "[TODO] Sending it whole every cycle dominated agent traffic: measured on a development fleet, package batches accounted for 78,979 messages and 9.4 GB over eight days, or 83 percent of everything the agents sent.",
+          "problem": "[TODO] A host's installed-package catalog is the largest thing an agent reports, and for most hosts it barely changes between scans.",
+          "sizing": "[TODO] Plan capacity from the delta, not the catalog. A steady-state fleet costs a small fraction of the full-catalog figure, which matters most over metered or constrained links, and the periodic reconcile is the peak to size for.",
+          "title": "[TODO] Package catalog synchronization"
+        }
+      }
     },
     "auto": {
       "administration": {
@@ -16896,7 +16921,24 @@
           "intro": "Un tab <strong>Image Mode</strong> appare sulla pagina dettaglio dell'host — ma solo per gli host effettivamente in modalità immagine. Elenca lo stato di avvio, staging e rollback dell'immagine OS segnalato al check-in, e fornisce tre azioni primarie per avanzare o retrocedere l'OS image.",
           "title": "La scheda Modalità Immagine"
         },
-        "title": "Gestione del Host in Modalità Immagine - Professional+ - SysManage"
+        "title": "Gestione del Host in Modalità Immagine - Professional+ - SysManage",
+        "driver": {
+          "bypass_why": "Senza di esso, entrambe le azioni falliscono direttamente su Fedora CoreOS e SysManage non può aggiornare la piattaforma affatto.",
+          "control_api": "Per lasciare che il driver del host gestisca la situazione, invia <code>bypass_update_driver: false</code> nella richiesta Stage o Apply.",
+          "control_honest": "Su un host gestito da driver, la richiesta fallisce quindi con il rifiuto del driver stesso, che è l'esito onesto piuttosto che una silenziosa negazione.",
+          "control_setting": "Il canale di comando dell'agente è un WebSocket sopra quella stessa connessione 443.",
+          "scope_rollback": "Rollback non lo utilizza: <code>rpm-ostree rollback</code> rifiuta la bandiera in modo definitivo. Passarlo uniformemente romperebbe l'unica azione che ha già funzionato ovunque.",
+          "tradeoff_advice": "Dove il driver della piattaforma dovrebbe rimanere in controllo, lascia il bypass disabilitato e coordina gli aggiornamenti attraverso quel driver invece.",
+          "tradeoff_both": "Bypassare non ferma il driver del sistema host. Sia SysManage che Zincati stanno quindi guidando l'avvio.",
+          "tradeoff_risk": "Zincati potrebbe ancora scaricare e riavviare secondo il proprio programma, quindi un host può avanzare da sotto di te tra una Stage e un Apply.",
+          "tradeoff_title": "La firma copre l'identità del modulo - codice, versione, piattaforma, architettura e versione Python - non solo i suoi byte.",
+          "scope_bootc_note": "I host boot non hanno un driver di aggiornamento, quindi non sono interessati.",
+          "bypass_default": "Per garantire che Stage e Apply funzionino ancora, SysManage passa questo flag a rpm-ostree per impostazione predefinita:",
+          "intro_fcos": "Fedora CoreOS rappresenta il caso comune. Mentre Zincati è attivo, rpm-ostree si rifiuta di agire per conto di altri, uscendo con “Gli aggiornamenti e le distribuzioni sono gestiti da Zincati”.",
+          "intro_what": "Alcune piattaforme in modalità immagine spediscono il proprio driver di aggiornamento — un servizio che gestisce l'aggiornamento del sistema operativo secondo la propria programmazione.",
+          "scope_bootc": "Il bypass si applica solo a",
+          "title": "Quando l'host ha il proprio driver di aggiornamento (Zincati)"
+        }
       },
       "imgcontent": {
         "breadcrumb": "Contenuto delle immagini container",
@@ -19573,7 +19615,17 @@
         },
         "title": "Livelli di licenza"
       },
-      "title": "Professionale+ - SysManage"
+      "title": "Professionale+ - SysManage",
+      "integrity": {
+        "binding_identity": "Il rifiuto avviene nel firmware prima che venga eseguito qualcosa nostro, quindi non c'è errore da vedere in SysManage. La macchina semplicemente scompare.",
+        "binding_replay": "Un pacchetto correttamente firmato non può essere servito al posto di un altro motore, e una vecchia versione non può essere riproiettata su una nuova.",
+        "failclosed_anchor": "I due binari non sono intercambiabili. Dare a una macchina UEFI l'immagine BIOS fallisce in modo che sembra un errore di rete, per questo la corrispondenza dell'architettura è fatta dal server DHCP piuttosto che lasciata al client.",
+        "failclosed_cache": "La verifica è a chiusura fallita e rappresenta un punto di controllo unico per ogni modulo, quindi la copia memorizzata su disco viene controllata ad ogni avvio, non solo durante il download iniziale.",
+        "intro_risk": "I moduli Pro+ sono oggetti condivisi nativi caricati nel processo del server, e i bundle plugin sono JavaScript che eseguono in un browser autenticato dell'amministratore.",
+        "operator": "Non è necessario configurare nulla da parte tua e non ci sono rotazioni. Se un modulo non supera la verifica, il server rifiuta di caricarlo e registra il motivo, quindi la funzionalità è disabilitata anziché eseguire silenziosamente codice non verificato.",
+        "title": "Come i Moduli Sono Verificati",
+        "intro_signed": "Questo è il percorso di codice con le conseguenze più gravi se viene manomesso, quindi ogni modulo e bundle è firmato con Ed25519 e verificato prima del caricamento."
+      }
     },
     "federation": {
       "alerts": {
@@ -20238,7 +20290,25 @@
           "rhel": "RHEL / Rocky / Alma → <code>kickstart</code>; SUSE → <code>autoyast</code>",
           "title": "Catalogo delle Sorgenti di Installazione"
         },
-        "title": "Provisioning Bare-Metal (PXE)"
+        "title": "Provisioning Bare-Metal (PXE)",
+        "firmware": {
+          "arm_why": "SysManage non lo pubblicizza intenzionalmente ai client ARM: dare a una macchina un binario che il suo firmware non può eseguire sembra un'immagine rotta piuttosto che un'assenza.",
+          "intro_arch": "Un client PXE annuncia il suo tipo di firmware nell'opzione DHCP 93, e SysManage serve un'immagine di primo stadio diversa per ogni tipo.",
+          "intro_bios": "Client BIOS legacy",
+          "intro_embedded": "Entrambi contengono lo script di avvio incorporato, quindi una macchina raggiunge il suo installatore assegnato in un solo passo senza nulla da scoprire tramite TFTP.",
+          "intro_uefi": "Client UEFI x86-64",
+          "mismatch": "C'è un vero compromesso",
+          "secureboot": {
+            "check": "Disabilita l'avvio sicuro sulle macchine che intendi provvedere. È la configurazione predefinita sulla maggior parte dell'hardware moderno, quindi controlla prima se è abilitato quando un client UEFI non chiama a casa.",
+            "silent": "L'immagine iPXE non è firmata da un'autorità fidata del firmware, quindi una macchina UEFI con avvio sicuro abilitato rifiuterà di eseguirla.",
+            "title": "L'avvio sicuro deve essere disabilitato sui client UEFI",
+            "unsigned": "Il bypass è un concetto solo rpm-ostree. host bootc non hanno un driver di aggiornamento e non ne sono interessati."
+          },
+          "title": "BIOS e UEFI Clienti",
+          "arm_unsupported": "ARM64 UEFI non è supportato. L'immagine incorporata è costruita solo per x86-64.",
+          "staging_symptom": "Se i client UEFI vengono ignorati mentre i client BIOS avviano normalmente, una configurazione è stata generata senza questo file e serve solo BIOS:",
+          "staging_when": "Le voci UEFI appaiono nella configurazione generata da dnsmasq solo quando la prima fase UEFI è stata stagiata nella radice TFTP."
+        }
       },
       "breadcrumb": "Engine di Provisioning",
       "credentials": {
