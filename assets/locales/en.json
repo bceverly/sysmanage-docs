@@ -18537,6 +18537,28 @@
           },
           "link": "Provisioning Engine Guide →",
           "title": "🚀 Provisioning Engine"
+        },
+        "config_drift": {
+          "description": "Scheduled check-mode runs turned into findings that record how long each divergence has lasted, with one-click remediation and alerting on drift that persists.",
+          "features": {
+            "alerting": "alert condition with a minimum-age threshold",
+            "dashboard": "Fleet dashboard ordered by longest-standing drift",
+            "findings": "Findings that record drift age, not just current state",
+            "remediate": "One-click remediation through the normal apply path"
+          },
+          "link": "Configuration Drift Guide →",
+          "title": "📈 Configuration Drift"
+        },
+        "config_management": {
+          "description": "Stored, versioned desired-state profiles driven by Puppet, Salt and Chef behind one abstraction, applied pull-style over the existing agent connection.",
+          "features": {
+            "assign": "Assignment to host, tag or site with cron scheduling",
+            "engines": "Puppet, Salt and Chef adapters behind one profile",
+            "profiles": "Versioned profiles with restorable history",
+            "pull": "Pull-style execution — no SSH, no new inbound port"
+          },
+          "link": "Configuration Management Guide →",
+          "title": "🔧 Configuration Management"
         }
       },
       "overview": {
@@ -20234,6 +20256,163 @@
           "title": "BIOS and UEFI Clients"
         }
       }
+    },
+    "config_drift": {
+      "alerting": {
+        "description": "The alerting engine gains a {{c1}} condition. It reads findings rather than runs, because only findings know {{c2}}:",
+        "min_findings": "how many qualifying findings before the rule fires",
+        "min_hours": "ignore drift younger than this. This is the parameter that matters: a check run moments after a deploy will legitimately report a divergence that the next run resolves by itself, and paging someone for that teaches them to ignore the channel. The UI defaults it to 24.",
+        "profile_name": "optional; scope the rule to a single profile",
+        "resolved": "Resolved findings never re-alert, so remediation does not read as a new failure. The alert names the profiles involved and how long the oldest finding has stood, because an alert saying only \"3 findings\" sends the operator hunting.",
+        "title": "Alerting on drift"
+      },
+      "architecture": {
+        "description": "Reconciliation runs inside the result handler, before the run is committed, so a run and its findings land together — a run recorded without its findings would leave drift looking resolved until the next check. Reconciliation never raises: a bookkeeping problem must not fail the queue processor and cost the run record, which is the more valuable of the two. The <code>config_drift_finding</code> table lives in the open-source schema; the rules that populate it are gated on the licensed <code>config_management_engine</code>, so an unlicensed install has a coherent schema and simply no findings.",
+        "title": "Architecture"
+      },
+      "breadcrumb": "Configuration Drift",
+      "dashboard": {
+        "fleet": "fleet view: one row per host with its open-finding count, the profiles involved, and how long it has been drifting",
+        "host": "the individual findings for one host",
+        "ordering": "Findings are ordered oldest-first, because drift that has persisted is the interesting kind: a divergence seen once may be a race with a deploy, one standing for weeks is a configuration nobody is managing.",
+        "remediate": "re-apply the profile live",
+        "title": "Dashboard and API"
+      },
+      "header": {
+        "description": "Which hosts have diverged from their assigned profiles, what diverged, and — the part a run history cannot answer — how long it has been that way.",
+        "screenshot": "The drift dashboard lists hosts with open findings, oldest-first, with the profiles involved and how long each host has been drifting.",
+        "title": "Configuration Drift"
+      },
+      "meta_description": "",
+      "overview": {
+        "description": "Drift detection reuses the machinery that already exists rather than adding a second collection path. {{c1}} A dry run of an assigned profile answers \"what would change on this host\", which is the definition of drift against that profile. So a scheduled check-mode assignment IS the comparison, and each result is reconciled into findings as it lands.",
+        "title": "Overview"
+      },
+      "page_title": "Configuration Drift - SysManage Professional+",
+      "remediate": {
+        "description": "Remediation re-applies the profile in {{c1}} mode through the same dispatch builder as a manual apply and as the scheduled tick, so a remediation cannot diverge from a normal apply. It therefore inherits agent capability gating and maintenance windows for free rather than re-checking either.",
+        "honest": "Queuing a remediation does {{c1}} mark the finding fixed. Findings resolve when the next successful check run stops reporting the task — claiming success at dispatch time would be a dashboard that lies about the fleet.",
+        "title": "One-click remediation"
+      },
+      "rules": {
+        "changed": "Only tasks reported as <strong>changed</strong> count. A failed task is an error to investigate, not a divergence to remediate.",
+        "check": "Only {{c1}} runs open findings. A live run that changed something is not drift, it is a change we just made; counting it would report the system's own remediation as a new problem.",
+        "description": "Three rules govern how a landing run changes the finding set, and each exists to prevent a specific wrong answer:",
+        "regression": "A finding that had been resolved and reappears is a {{c1}}: the resolution is cleared and the clock restarts, so \"drifting since\" always describes the current episode rather than claiming continuous drift across a period when the host was compliant.",
+        "success": "Only a {{c1}} run may resolve a finding. A check run that failed does not know the host's state, so treating its silence as \"the drift is gone\" would close findings on the strength of an error. A failed check may still open findings for whatever it did observe.",
+        "title": "The reconciliation rules"
+      },
+      "scope": {
+        "description": "Drift here is measured {{c1}}: the engine itself reports what would change, so nothing extra has to be collected. Drift measured against a {{c2}} is a bounded inventory comparison — packages, users and groups, network interfaces, storage, repositories, firewall state and certificates — over facts the agent already reports. Comparing arbitrary files and configuration state needs a general fact collector and arrives with the osquery substrate.",
+        "title": "What this does and does not cover"
+      },
+      "setup": {
+        "assign": "Assign it to a host, tag or site with a cron schedule and {{c1}} — this is the comparison",
+        "mixed": "A profile may be assigned twice to the same target — once on a frequent check-mode schedule to detect drift, and once live on a slower schedule to correct it — if you want detection and enforcement on different cadences.",
+        "profile": "Create a configuration profile describing the desired state (see the Configuration Management guide)",
+        "remediate": "Remediate from the dashboard when a divergence is real, and let the next check run close the finding",
+        "title": "Setting it up",
+        "watch": "Watch the drift dashboard, or add a {{c1}} alert rule with a {{c2}} that matches how quickly your environment self-heals"
+      },
+      "why": {
+        "description": "A check-mode run says {{c1}} would change. What it cannot say is {{c2}} — each run only knows about itself, so \"this host has been drifting for nine days\" is unanswerable from run rows without scanning the whole history on every page load. A drift finding stores exactly that lifespan and nothing else; the runs remain the record of what happened.",
+        "identity": "A finding is identified by {{c1}}. That is the only identity the generic result shape carries: the agent reports a task {{c2}}, and nothing more stable travels with it. The accepted cost is that renaming a task in a profile restarts its drift age, because the new name is a different row. That is the right trade against matching on task {{c3}}, which would silently re-attribute one task's history to another the moment somebody inserted a step — a wrong date is worse than a reset one, because a reset is visibly a reset.",
+        "title": "Why findings exist as well as runs"
+      },
+      "baseline": {
+        "buckets": "Each category returns three buckets, named from the {{c1}} host's point of view because that is the host being fixed: {{c2}} is on the reference but not the target, {{c3}} is on the target but not the reference, and {{c4}} is present on both with a compared field disagreeing. \"You don't have it\" and \"you have the wrong one\" are different fixes, so they are never merged.",
+        "cat_certificates": "matched by certificate name, compared on issuer",
+        "cat_firewall": "matched by firewall name, compared on enabled state",
+        "cat_groups": "matched by group name",
+        "cat_interfaces": "matched by interface name, compared on type",
+        "cat_packages": "matched by name, compared on version",
+        "cat_repositories": "matched by name, compared on URL and enabled state",
+        "cat_storage": "matched by mount point, compared on filesystem",
+        "cat_users": "matched by username, compared on shell and home directory",
+        "categories": "Eight categories are compared, each matched on the identity that makes two rows \"the same thing\" across hosts and compared on the fields that make them differ:",
+        "counts": "Per-item lists are capped so one call cannot return a megabyte of JSON, but the counts stay exact and a {{c1}} flag says when a list was shortened — a summary never under-reports the size of a divergence.",
+        "description": "The other kind of drift. Profile drift answers \"does this host match the profile we assigned it\". Baseline drift answers \"does this host match {{c1}} host\" — which is what an operator reaches for when there is no profile yet and staging works while production does not.",
+        "stateless": "This comparison stores nothing. It is a pure function of two hosts' current inventory, and unlike a profile finding there is no lifespan to track: a category either differs right now or it does not. {{c1}} reports the supported categories, so the UI cannot offer one the server would refuse.",
+        "title": "Golden-host baseline comparison",
+        "screenshot": "Comparing a drifting host against a known-good one. Each category reports what the target is missing, what it has that the reference does not, and what both have with a field that disagrees."
+      }
+    },
+    "config_management": {
+      "apply": {
+        "check": "Check mode runs the engine's dry-run flag ({{c1}}, {{c2}}, {{c3}}, {{c4}}) and reports what {{c5}} change",
+        "description": "An apply queues a command for the host through the normal outbound queue, so it inherits agent capability gating and maintenance windows rather than re-checking either:",
+        "detail": "per-task detail for one run",
+        "idempotency": "Runs that changed nothing are recorded too. Idempotency reporting is the point of desired-state management and it is a claim about history: \"the last three applications of this profile changed nothing\" cannot be answered from a current-state column.",
+        "runs": "run history for a host",
+        "title": "Applying a profile"
+      },
+      "architecture": {
+        "description": "The schema lives in the open-source tree because the OSS server owns the database; the behaviour — validating a profile, versioning it, resolving an assignment, deciding when a schedule is due, building an execution spec — lives in the Cython-compiled {{c1}}. That is the same split Vulnerability and ComplianceProfile use, and it means an unlicensed install keeps a coherent schema and its existing run history.",
+        "title": "Architecture"
+      },
+      "assignments": {
+        "description": "An assignment binds a profile to exactly one target — a host, a tag or a site — with an optional cron schedule and an optional check-mode flag. Three nullable target columns are used rather than a {{c1}} pair, because that pair cannot be a foreign key: it would let an assignment outlive the host it names, and the first symptom would be a scheduled run against a machine that no longer exists.",
+        "dueness": "Due-ness is anchored on {{c1}} rather than a stored {{c2}} column, so changing a schedule takes effect immediately and a missed tick cannot strand an assignment. A scheduled assignment with {{c3}} set only ever reports drift and never changes the host — see the Configuration Drift guide.",
+        "title": "Assignments and scheduling"
+      },
+      "breadcrumb": "Configuration Management",
+      "engines": {
+        "ansible": "Someone with three hosts already has <code>ansible-playbook</code>; single-host apply is the direct analogue of script execution, which is free.",
+        "description": "Five engine identities are supported. Which are free and which are licensed follows the value they add, not the effort of supporting them:",
+        "dsc": "Vendored with the Windows agent, so it is the default single-host path there. Reported as \"included with the agent\" rather than as something to install.",
+        "platform": "Only DSC is platform-bound, and only because it is what we vendor on Windows. Puppet, Salt and Chef all ship Windows agents and run there. <code>requires_license()</code> in <code>backend/services/config_mgmt_engines.py</code> is the single source of truth consulted by the apply endpoint, the install endpoint and the UI, so the rule cannot drift between the place that offers a button and the place that refuses the request.",
+        "title": "Engines"
+      },
+      "feature_codes": {
+        "description": "Profile storage, assignment, scheduling and the Puppet/Salt/Chef adapters are provided by the {{c1}} module. Without it the open-source server still stores runs and drives {{c2}} and {{c3}} on a single host; licensed engines are refused before anything is queued.",
+        "title": "Feature Codes"
+      },
+      "header": {
+        "description": "Desired-state configuration: stored, versioned profiles applied to hosts, tags or sites on a schedule or on demand. Puppet, Salt and Chef sit behind one profile abstraction; ansible-core and Windows DSC stay open source.",
+        "screenshot": "The Configuration Profiles page lists every stored profile with its engine, version and assignment count.",
+        "title": "Configuration Management"
+      },
+      "meta_description": "",
+      "overview": {
+        "description": "A configuration profile is a named, versioned body of desired state — a Puppet manifest, a Salt state, a Chef recipe, an Ansible playbook or a DSC resource set — plus the engine that interprets it. Profiles are stored server-side, assigned to hosts, tags or sites, and applied either on request or on a cron schedule. Every application is recorded as a run, including the runs that changed nothing.",
+        "title": "Overview"
+      },
+      "page_title": "Configuration Management - SysManage Professional+",
+      "prereq": {
+        "bundled": "Not required — DSC ships with the agent",
+        "description": "Before offering to run a profile, the server reports whether the host actually has the executor, and distinguishes three situations that must not be described identically:",
+        "installable": "Not installed, but installable from this host's package manager",
+        "satisfied": "Installed — with the detected version, so a profile can declare a minimum",
+        "title": "Executor readiness",
+        "unmeasured": "Not available here — either the distro is measured not to carry the package, or Windows inventory cannot report it (a detection limit, not a platform limit)"
+      },
+      "profiles": {
+        "create": "create",
+        "description": "Every change to a profile's {{c1}} or {{c2}} bumps its version and snapshots the previous body into {{c3}}. Editing only the description does not burn a version. Config-as-code without history is just config: the value of a stored profile is being able to answer \"what changed, and when\" once a run starts behaving differently.",
+        "list": "list",
+        "restore": "restore a prior body",
+        "title": "Profiles and versioning",
+        "versions": "version history"
+      },
+      "pull": {
+        "agent": "The executor is an agent-side dependency, so a host that cannot run one simply does not advertise the capability",
+        "creds": "No credential distribution: there is no control node holding keys to every host",
+        "description": "Configuration management is conventionally push-based: a control node opens SSH to each target. SysManage does the opposite. The server ships the profile {{c1}} and the agent runs it locally against {{c2}}, exactly as script execution already works.",
+        "port": "No new inbound port and no SSH reachability: the agent needs 443 outbound and nothing else",
+        "results": "Results flow back over the same connection as every other command result — no new ingress path",
+        "title": "Pull-style execution, not push"
+      },
+      "spec": {
+        "description": "The open-source agent knows how to run {{c1}} and DSC. It knows nothing about Puppet, Salt or Chef. Instead of teaching it, the licensed engine builds an {{c2}} and the agent executes it generically:",
+        "exit_code": "meaning carried in the exit bits, with the bit values supplied by the spec",
+        "json_file": "the newest matching report file in the run directory (Chef)",
+        "json_lines": "one JSON object per line (ansible-core, via our callback plugin)",
+        "json_stdout": "one document on stdout (Salt, DSC)",
+        "shapes": "The {{c1}} block names one of five generic shapes the agent can read, and supplies the rules for reading it. Which flags produced that output, and what the fields mean, is the licensed engine's business:",
+        "title": "How one abstraction drives four engines",
+        "why": "This is why adding an engine is a licensed-side change with no agent release: a new engine ships new argv and new result rules, not new agent code.",
+        "yaml_file": "the same, for a YAML report (Puppet's {{c1}}, which is Ruby-tagged and read with a tag-tolerant safe loader)"
+      }
     }
   },
   "quick_start": {
@@ -21479,8 +21658,8 @@
       "windows": {
         "tab_title": "Windows",
         "title": "Windows",
-        "nginx": "[MISSING:server_installation.prerequisites.windows.nginx]",
-        "nginx_note": "[MISSING:server_installation.prerequisites.windows.nginx_note]"
+        "nginx": "{{c1}} installed automatically by the MSI — no manual step. The installer downloads a pinned version, verifies its SHA-256 before extracting, and registers it as the {{c2}} service. On an air-gapped host, use an air-gap bundle: it ships nginx so the install needs no network.",
+        "nginx_note": "{{c1}} The SysManage backend serves the REST API and the agent WebSocket only — it has no static-file handler. nginx serves the web console, terminates TLS on 443, and proxies {{c2}} and {{c3}} to the backend on loopback 8080. Without it there is no console to reach."
       }
     },
     "requirements": {

@@ -222,11 +222,57 @@ class I18n {
         );
     }
 
+    // Re-insert inline markup that was lifted out of a translatable string.
+    //
+    // A sentence carrying <code>/<strong>/<em> MID-SENTENCE is rejected by the
+    // translation service far more often than the same prose without it: the
+    // service guards token integrity and reports `fallback:placeholders` when
+    // the model fails to reproduce the tags.  Measured on this repo: after the
+    // list-item markup was lifted out, every remaining untranslated string --
+    // 28 keys, 109 values -- still carried inline markup, and NO pure-prose
+    // string was left untranslated.  Half of those carry a single tag, so it is
+    // not only the dense ones.
+    //
+    // The tags cannot simply be split into sibling spans, because word order
+    // differs per language and the fragments would be reassembled wrongly.  So
+    // the locale value carries {{c1}}, {{c2}} … instead and the markup is put
+    // back HERE, from the element's own children.  Placeholders survive
+    // translation where tags do not -- that is exactly what the service
+    // protects.
+    //
+    // Cached on first use because applyLanguage() overwrites innerHTML: after
+    // the first language switch the original children are gone.
+    static inlineParts(element) {
+        if (!element.__i18nInlineParts) {
+            element.__i18nInlineParts = Array.from(
+                element.querySelectorAll('code, strong, em')
+            ).map(node => node.outerHTML);
+        }
+        return element.__i18nInlineParts;
+    }
+
+    // Substitute {{cN}} with the Nth inline element.  Strings without a {{cN}}
+    // token are returned untouched, so this cannot affect any existing key --
+    // note the digits are required, which is what keeps it clear of the
+    // pre-existing {{count}} interpolation.
+    static fillInlineParts(translation, element) {
+        if (typeof translation !== 'string' || !/\{\{c\d+\}\}/.test(translation)) {
+            return translation;
+        }
+        const parts = I18n.inlineParts(element);
+        return translation.replace(/\{\{c(\d+)\}\}/g, (token, n) => {
+            const part = parts[Number(n) - 1];
+            // Leave the token visible rather than silently deleting content if
+            // a translation invents an index we have no markup for.
+            return part === undefined ? token : part;
+        });
+    }
+
     applyLanguage() {
         const elements = document.querySelectorAll('[data-i18n]');
         elements.forEach(element => {
             const key = element.getAttribute('data-i18n');
-            const translation = this.t(key);
+            const translation = I18n.fillInlineParts(this.t(key), element);
 
             if (element.hasAttribute('data-i18n-attr')) {
                 const attr = element.getAttribute('data-i18n-attr');

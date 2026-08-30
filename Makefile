@@ -132,6 +132,7 @@ help:
 	@echo "  screenshots-pro-seed   - Seed Professional engine demo data (in-VM ORM)"
 	@echo "  screenshots-ent-seed   - Seed Enterprise engine demo data (in-VM ORM)"
 	@echo "  screenshots-fleet-seed - Seed fleet-engine demo data (Pro+ REST)"
+	@echo "  screenshots-cfg-seed   - Seed config profiles + drift findings (in-VM ORM)"
 	@echo "  screenshots-capture    - Capture OSS-tier shots from the shotlist"
 	@echo "  screenshots-pro-capture- Capture Professional-tier shots from the shotlist"
 	@echo "  screenshots-ent-capture- Capture Enterprise-tier shots from the shotlist"
@@ -384,7 +385,7 @@ screenshot:
 # ---- Automated documentation screenshots (screenshots/ pipeline) ------------
 # Reproducible screenshots: provision a VM, seed demo data (REST + WS), drive the
 # UI with Playwright, write PNGs into assets/images/. See screenshots/README.md.
-.PHONY: screenshots screenshots-community screenshots-enterprise screenshots-seed screenshots-capture screenshots-vm-up screenshots-vm-down screenshots-pro-build screenshots-pro-seed screenshots-pro-capture screenshots-ent-build screenshots-ent-seed screenshots-ent-capture screenshots-ent-roles screenshots-fleet-seed
+.PHONY: screenshots screenshots-community screenshots-enterprise screenshots-seed screenshots-capture screenshots-vm-up screenshots-vm-down screenshots-pro-build screenshots-pro-seed screenshots-pro-capture screenshots-ent-build screenshots-ent-seed screenshots-ent-capture screenshots-ent-roles screenshots-fleet-seed screenshots-cfg-seed
 
 SHOTS_DIR := screenshots
 # Load screenshots/config.env (targets, admin + demo creds) if present.
@@ -446,6 +447,7 @@ screenshots:
 	@$(MAKE) screenshots-seed
 	@$(MAKE) screenshots-pro-seed
 	@$(MAKE) screenshots-ent-seed
+	@$(MAKE) screenshots-cfg-seed
 	@$(MAKE) screenshots-fleet-seed
 	@$(MAKE) screenshots-ent-capture
 	@$(MAKE) screenshots-ent-roles
@@ -471,6 +473,7 @@ screenshots-enterprise:
 	@$(MAKE) screenshots-seed
 	@$(MAKE) screenshots-pro-seed
 	@$(MAKE) screenshots-ent-seed
+	@$(MAKE) screenshots-cfg-seed
 	@$(MAKE) screenshots-fleet-seed
 	@$(MAKE) screenshots-ent-capture
 	@$(MAKE) screenshots-ent-roles
@@ -656,6 +659,17 @@ screenshots-ent-seed:
 		cat seed_ent.py | vagrant ssh -c "cd /opt/sysmanage && sudo env PYTHONPATH=/opt/sysmanage /opt/sysmanage/.venv/bin/python - 2>&1" 2>/dev/null \
 			| sed 's/^/  /' || echo "$(YELLOW)ent seed failed (is the Enterprise-licensed VM up and OSS-seeded?)$(RESET)"
 
+# Configuration profiles + drift findings (Phase 20.1/20.2). Separate from
+# screenshots-ent-seed because seed_ent.py is at the 1000-line ceiling and the
+# seeders are piped over stdin, so it cannot import a sibling module.
+# Run after screenshots-seed (needs the demo hosts).
+screenshots-cfg-seed:
+	@cd $(SHOTS_DIR) && VMIP=$$(vagrant ssh -c 'hostname -I' 2>/dev/null | awk '{print $$1}' | tr -d '\r'); \
+		[ -n "$$VMIP" ] || { echo "$(RED)Screenshot VM not running. Run 'make screenshots-ent-build' first.$(RESET)"; exit 1; }; \
+		echo "$(BLUE)Seeding configuration-management + drift demo data (in-VM ORM)...$(RESET)"; \
+		cat seed_ent_config.py | vagrant ssh -c "cd /opt/sysmanage && sudo env PYTHONPATH=/opt/sysmanage /opt/sysmanage/.venv/bin/python - 2>&1" 2>/dev/null \
+			| sed 's/^/  /' || echo "$(YELLOW)config-management seed failed (is the Enterprise-licensed VM up and OSS-seeded?)$(RESET)"
+
 # Capture into assets/images/. Targets SCREENSHOT_TARGET_WEB if set, else the
 # running VM's private IP (resolved via vagrant ssh).
 screenshots-capture: install-browsers
@@ -668,6 +682,7 @@ screenshots-capture: install-browsers
 		fi; \
 		echo "  web target: $$WEB"; \
 		SCREENSHOT_TARGET="$$WEB" SCREENSHOT_USER="$(SCREENSHOT_USER)" SCREENSHOT_PW="$(SCREENSHOT_PW)" \
+		SCREENSHOT_TRACE="$(SCREENSHOT_TRACE)" \
 			$(NODE) capture.mjs
 
 # Capture the Professional-tier shots (tier=pro in shotlist.json) against the
@@ -684,6 +699,7 @@ screenshots-pro-capture: install-browsers
 		fi; \
 		echo "  web target: $$WEB"; \
 		SCREENSHOT_TIER=pro SCREENSHOT_TARGET="$$WEB" SCREENSHOT_USER="$(SCREENSHOT_USER)" SCREENSHOT_PW="$(SCREENSHOT_PW)" \
+		SCREENSHOT_TRACE="$(SCREENSHOT_TRACE)" \
 			$(NODE) capture.mjs
 
 # Capture the Enterprise-tier shots (tier=enterprise in shotlist.json) against the
@@ -699,6 +715,7 @@ screenshots-ent-capture: install-browsers
 		fi; \
 		echo "  web target: $$WEB"; \
 		SCREENSHOT_TIER=enterprise SCREENSHOT_TARGET="$$WEB" SCREENSHOT_USER="$(SCREENSHOT_USER)" SCREENSHOT_PW="$(SCREENSHOT_PW)" \
+		SCREENSHOT_TRACE="$(SCREENSHOT_TRACE)" \
 			$(NODE) capture.mjs
 
 # Re-capture the role-gated Enterprise shots (federation Sites + air-gap), which
@@ -911,7 +928,8 @@ lint-file-length:
 # test-user helper.  The screenshots/.venv (third-party) is never linted; the
 # .js seeders (real-screenshot.js etc.) are covered by eslint below, not here.
 LINT_PY := add_test_user.py scripts/ screenshots/seed.py screenshots/seed_pro.py \
-	screenshots/seed_ent.py screenshots/seed_fleet.py screenshots/set_roles.py \
+	screenshots/seed_ent.py screenshots/seed_ent_config.py \
+	screenshots/seed_fleet.py screenshots/set_roles.py \
 	screenshots/pro_keygen.py screenshots/fixture_agent.py screenshots/gen_seed_sql.py \
 	assets/locales/
 

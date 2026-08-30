@@ -22,7 +22,7 @@
 //    tune `reportName` in shotlist.json (no code change needed).
 
 import { chromium } from 'playwright';
-import { readFileSync, existsSync } from 'node:fs';
+import { readFileSync, existsSync, mkdirSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 
@@ -35,6 +35,12 @@ const OUT_DIR = join(__dir, '..', 'assets', 'images');
 // the Professional-licensed box — one shotlist, two runs, never mixed. A shot
 // with no `tier` counts as oss (back-compat with the original OSS-only list).
 const TIER = (process.env.SCREENSHOT_TIER || 'oss').toLowerCase();
+// Where a failing shot leaves its evidence.  Off the images tree so a failure
+// never lands something in assets/images/ that could be mistaken for a real
+// screenshot and committed.
+const DIAG_DIR = join(__dir, 'diagnostics');
+// SCREENSHOT_TRACE=1 turns on the Playwright trace (see below).
+const TRACE = /^(1|true|yes)$/i.test(process.env.SCREENSHOT_TRACE || '');
 // SCREENSHOT_ONLY=<name[,name...]> re-captures just those shots (handy for fixing
 // a few failed shots, or the role-gated federation/air-gap pages that need a
 // server-role flip + restart between passes). Matches by the shot's `name`,
@@ -175,6 +181,133 @@ async function selectTab(page, name) {
     `selectTab: no rail button or tab named "${name}" became clickable within 30s` +
       (lastErr ? ` (last error: ${String(lastErr.message || lastErr).slice(0, 200)})` : ''),
   );
+}
+
+
+// ---------------------------------------------------------------------------
+// Failure diagnostics.
+//
+// The error text alone cannot distinguish the two things that actually go wrong
+// here, and they need opposite fixes:
+//
+//   * the element NEVER APPEARED  -- a gating, seeding or naming problem; or
+//   * it appeared but kept MOVING -- a rendering/animation problem.
+//
+// The wording is a weak hint (a "never became stably clickable" with no
+// "(last error: ...)" suffix means the count stayed zero, so nothing was ever
+// clicked), but that is easy to misread, and misreading it cost three wrong
+// theories on 2026-08-29.  So on failure we record what was actually on the
+// page: a screenshot, the URL, and every accessible name a click could have
+// matched.  If the name we wanted is in that list, it was an instability
+// problem; if it is absent, it was never rendered.
+async function diagnose(page, shot, err) {
+  try {
+    mkdirSync(DIAG_DIR, { recursive: true });
+    const stem = join(DIAG_DIR, shot.out.replace(/\.png$/, ''));
+
+    await page.screenshot({ path: `${stem}.at-failure.png`, fullPage: true }).catch(() => {});
+
+    // Accessible names are what the click helpers match on, so this is the
+    // list the failing lookup was searching -- not a generic DOM dump.
+    const names = await page.evaluate(() => {
+      const seen = { button: [], tab: [], link: [], heading: [], option: [] };
+      const label = el =>
+        (el.getAttribute('aria-label') || el.textContent || '').replace(/\s+/g, ' ').trim();
+      for (const el of document.querySelectorAll('button,[role="button"]')) {
+        const t = label(el); if (t) seen.button.push(t);
+      }
+      for (const el of document.querySelectorAll('[role="tab"]')) {
+        const t = label(el); if (t) seen.tab.push(t);
+      }
+      for (const el of document.querySelectorAll('a')) {
+        const t = label(el); if (t) seen.link.push(t);
+      }
+      for (const el of document.querySelectorAll('h1,h2,h3,[role="heading"]')) {
+        const t = label(el); if (t) seen.heading.push(t);
+      }
+      // Dropdowns: the closed combobox and any open listbox. Without these a
+      // select step that found an EMPTY dropdown looks identical to one whose
+      // option was merely slow -- and the picker being empty is a real bug
+      // class (a host list filtered down to nothing), not a flake.
+      for (const el of document.querySelectorAll('[role="option"],[role="combobox"]')) {
+        const t = label(el); if (t) seen.option.push(t);
+      }
+      const uniq = a => [...new Set(a)].slice(0, 120);
+      return {
+        button: uniq(seen.button),
+        tab: uniq(seen.tab),
+        link: uniq(seen.link),
+        heading: uniq(seen.heading),
+        option: uniq(seen.option),
+        bodyChars: document.body ? document.body.innerText.length : 0,
+      };
+    }).catch(() => null);
+
+    // What the shot was looking for, so the report is self-contained.
+    const wanted = [
+      shot.tab,
+      shot.clickButton,
+      shot.thenClickButton,
+      shot.scrollTo,
+      // Both halves of a select step: the dropdown's label AND the option.
+      // Reporting only the button once said "Compare IS present -> instability"
+      // for a failure that was actually an EMPTY dropdown, which points the
+      // reader at the wrong half of the interaction.
+      shot.selectOption?.label,
+      shot.selectOption?.option,
+    ].filter(Boolean);
+    const present = names
+      ? wanted.filter(w =>
+          [...names.button, ...names.tab, ...names.option].some(n =>
+            n.toLowerCase().includes(String(w).toLowerCase()),
+          ),
+        )
+      : [];
+
+    const report = [
+      `shot:        ${shot.out}`,
+      `route:       ${shot.route || '(detail/report)'}`,
+      `url:         ${page.url()}`,
+      `error:       ${err.message}`,
+      `looking for: ${wanted.length ? wanted.join(', ') : '(nothing name-based)'}`,
+      wanted.length
+        ? `VERDICT:     ${
+            present.length
+              ? `name IS present (${present.join(', ')}) -> it rendered but never became clickable`
+              : 'name is ABSENT from every button/tab/option -> it never rendered (gating, seed, or renamed)'
+          }`
+        : 'VERDICT:     not a name-based lookup; see the screenshot',
+      '',
+      `body text length: ${names ? names.bodyChars : 'unknown'}`,
+      '',
+      `buttons (${names ? names.button.length : 0}):`,
+      ...(names ? names.button.map(n => `  - ${n}`) : []),
+      '',
+      `tabs (${names ? names.tab.length : 0}):`,
+      ...(names ? names.tab.map(n => `  - ${n}`) : []),
+      '',
+      `dropdown options / comboboxes (${names ? names.option.length : 0}):`,
+      ...(names ? names.option.map(n => `  - ${n}`) : []),
+      '',
+      `headings (${names ? names.heading.length : 0}):`,
+      ...(names ? names.heading.map(n => `  - ${n}`) : []),
+      '',
+      `links (${names ? names.link.length : 0}):`,
+      ...(names ? names.link.map(n => `  - ${n}`) : []),
+      '',
+    ].join('\n');
+
+    writeFileSync(`${stem}.txt`, report, 'utf8');
+    console.error(`      ↳ diagnostics: screenshots/diagnostics/${shot.out.replace(/\.png$/, '')}.{png,txt}`);
+    if (wanted.length) {
+      console.error(
+        `      ↳ ${present.length ? 'name WAS present (instability)' : 'name was ABSENT (never rendered)'}`,
+      );
+    }
+  } catch (diagErr) {
+    // Diagnostics must never turn a reported failure into a crash.
+    console.error(`      ↳ (diagnostics unavailable: ${diagErr.message})`);
+  }
 }
 
 // A freshly-rendered SPA page can fire a late client-side redirect that aborts
@@ -331,6 +464,11 @@ async function selectMuiOption(page, label, option) {
 //    (e.g. the "Graph" or "Assignments" icon → the metric graph / key
 //    assignments sub-view). DataGrid action cells have no accessible name, so we
 //    target them positionally via the standard [data-field="actions"] cell.
+//  - shot.selectOption / shot.thenClickButton: two MORE steps, run AFTER the
+//    above, for a panel whose content only exists once a question has been
+//    answered. The golden-host baseline diff is the case: it renders nothing
+//    until a reference host is picked and Compare is pressed, so a shot that
+//    stopped at the row action would document an empty form.
 // Everything else mirrors captureRoute (viewport, goto, settle).
 async function captureClick(page, shot, vp) {
   await page.setViewportSize(shot.viewport || vp);
@@ -369,6 +507,22 @@ async function captureClick(page, shot, vp) {
       `clickRowAction #${idx} on ${shot.route}`,
     );
     detail += ` » row action #${idx}`;
+  }
+  if (shot.selectOption) {
+    // The control lives inside the dialog the row action just opened, so it
+    // cannot be targeted before that click has landed.
+    await selectMuiOption(page, shot.selectOption.label, shot.selectOption.option);
+    detail += ` » ${shot.selectOption.label}="${shot.selectOption.option}"`;
+    await page.waitForTimeout(500);
+  }
+  if (shot.thenClickButton) {
+    await clickWithRetry(
+      page,
+      () =>
+        page.getByRole('button', { name: shot.thenClickButton, exact: false }).first(),
+      `thenClickButton "${shot.thenClickButton}"`,
+    );
+    detail += ` » "${shot.thenClickButton}"`;
   }
   // Let the dialog animate in / the sub-view load its data (samples, assignments).
   await page.waitForTimeout(shot.clickSettleMs || (shotlist.settleMs || 2500) + 1500);
@@ -419,6 +573,15 @@ async function main() {
     deviceScaleFactor: shotlist.viewportDefaults.deviceScaleFactor || 2,
     colorScheme: 'light',
   });
+  // Opt-in trace: SCREENSHOT_TRACE=1 records a replayable timeline (DOM
+  // snapshots per action, screencast, network) so a timeout can be watched
+  // frame by frame rather than guessed at. Off by default -- it costs time and
+  // tens of MB, which a green run should not pay.
+  if (TRACE) {
+    mkdirSync(DIAG_DIR, { recursive: true });
+    await context.tracing.start({ screenshots: true, snapshots: true, sources: false });
+  }
+
   const page = await context.newPage();
 
   console.log(`Capturing from ${TARGET} as ${USER} -> ${OUT_DIR}`);
@@ -438,6 +601,7 @@ async function main() {
       ok++;
     } catch (err) {
       console.error(`  ✗ ${shot.out}: ${err.message}`);
+      await diagnose(page, shot, err);
       fail++;
     }
   }
@@ -458,8 +622,15 @@ async function main() {
       else ok++;
     } catch (err) {
       console.error(`  ✗ ${shot.out}: ${err.message}`);
+      await diagnose(page, shot, err);
       fail++;
     }
+  }
+  if (TRACE) {
+    const tracePath = join(DIAG_DIR, `trace-${TIER}.zip`);
+    await context.tracing.stop({ path: tracePath }).catch(() => {});
+    console.log(`\nTrace written: screenshots/diagnostics/trace-${TIER}.zip`);
+    console.log(`View it with:  npx playwright show-trace ${tracePath}`);
   }
   await browser.close();
   const total = shotlist.shots.filter(s => s.out && s.type !== 'skip' && inTier(s)).length;

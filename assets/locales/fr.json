@@ -18541,6 +18541,28 @@
           },
           "link": "Guide du moteur de provisionnement →",
           "title": "🚀 Provisioning Engine"
+        },
+        "config_drift": {
+          "description": "Les exécutions planifiées en mode vérification se transforment en constatations qui enregistrent combien de temps chaque divergence a duré, avec une correction d'un clic et des alertes sur le dérive persistante.",
+          "features": {
+            "alerting": "condition d'alerte avec un seuil d'âge minimum",
+            "dashboard": "Tableau de bord de la flotte trié par durée d'inactivité la plus longue",
+            "findings": "Constats qui enregistrent l'âge du dérive, et non seulement l'état actuel",
+            "remediate": "Correction en un clic via le chemin d'application normal"
+          },
+          "link": "Guide de dérive de configuration →",
+          "title": "Drift de configuration"
+        },
+        "config_management": {
+          "description": "Profils d'état désiré stockés, versionnés et gérés par Puppet, Salt et Chef derrière une seule abstraction, appliqués de manière pull sur la connexion de l'agent existante.",
+          "features": {
+            "assign": "Affectation à un hôte, un balise ou un site avec planification Cron",
+            "engines": "Adaptateurs Puppet, Salt et Chef derrière un seul profil",
+            "profiles": "Profils versionnés avec historique restaurable",
+            "pull": "Exécution de style 'pull' - pas d'SSH, pas de nouveau port entrant"
+          },
+          "link": "Guide de gestion de la configuration →",
+          "title": "Gestion de la configuration"
         }
       },
       "overview": {
@@ -20238,6 +20260,163 @@
           "staging_when": "Les entrées UEFI apparaissent dans la configuration générée de dnsmasq uniquement lorsque la première étape UEFI a été mise en place dans le répertoire TFTP."
         }
       }
+    },
+    "config_drift": {
+      "alerting": {
+        "description": "Le moteur d'alerte gagne une condition {{c1}}. Il lit les résultats plutôt que d'exécuter, car seuls les résultats connaissent {{c2}} :",
+        "min_findings": "nombre de constatations qualifiées avant que la règle ne déclenche l'alarme",
+        "min_hours": "ignorez la dérive plus jeune que ceci. C'est le paramètre qui compte : une exécution de vérification moments après un déploiement signalera légitimement une divergence que la prochaine exécution résoudra par elle-même, et appeler quelqu'un pour ça enseigne à ignorer le canal. L'UI le fixe par défaut à 24.",
+        "profile_name": "facultatif ; restreignez la règle à un seul profil",
+        "resolved": "Les résultats résolus ne déclenchent pas de nouvelles alertes, donc la correction n'est pas perçue comme une nouvelle défaillance. L'alerte mentionne les profils concernés et la durée depuis l'apparition du plus ancien résultat, car une alerte indiquant seulement \"3 résultats\" oblige l'opérateur à faire des recherches.",
+        "title": "Alerting sur la dérive"
+      },
+      "architecture": {
+        "description": "Les opérations de réconciliation s'exécutent à l'intérieur du gestionnaire de résultats, avant que la course ne soit validée, de sorte qu'une course et ses conclusions soient associées - une course enregistrée sans ses conclusions laisserait un dérive paraître résolu jusqu'à la prochaine vérification. La réconciliation ne soulève jamais d'erreur : un problème de comptabilité ne doit pas bloquer le processeur de file d'attente et coûter l'enregistrement de la course, qui est la plus précieuse des deux. Le tableau <code>config_drift_finding</code> réside dans le schéma open-source ; les règles qui le remplissent sont contrôlées par le moteur de gestion de configuration <code>config_management_engine</code>, donc une installation non licenciée a un schéma cohérent et tout simplement aucune conclusion.",
+        "title": "[MANQUANT : titre de l'architecture de pro_plus.config_drift]"
+      },
+      "breadcrumb": "Drift de configuration",
+      "dashboard": {
+        "fleet": "vue de flotte : une ligne par hôte avec son décompte de constatations ouvertes, les profils impliqués et depuis combien de temps il dérive",
+        "host": "les constatations individuelles pour un hôte",
+        "ordering": "Les constatations sont ordonnées de la plus ancienne à la plus récente, car le dérive qui a persisté est le genre intéressant : un écart vu une seule fois peut être une course avec un déploiement, mais celui qui dure des semaines est une configuration que personne ne gère.",
+        "remediate": "re-appliquer le profil en direct",
+        "title": "Tableau de bord et API"
+      },
+      "header": {
+        "description": "Quels hôtes ont dévié de leurs profils assignés, ce qui a dévié et, partie à laquelle un historique d'exécution ne peut répondre, depuis combien de temps cela dure-t-il ?",
+        "screenshot": "Le tableau de bord des dérives liste les hôtes avec des résultats ouverts, du plus ancien au plus récent, avec les profils impliqués et depuis combien de temps chaque hôte dérive.",
+        "title": "Drift de configuration"
+      },
+      "meta_description": "",
+      "overview": {
+        "description": "La détection de dérive réutilise la machinerie qui existe déjà au lieu d'ajouter un deuxième chemin de collecte.  {{c1}} Une exécution en mode sec d'un profil assigné répond à la question « Quelles modifications interviendraient sur cet hôte », ce qui définit la dérive par rapport à ce profil. Ainsi, une affectation en mode vérification planifié EST la comparaison, et chaque résultat est réconcilié en constatations au fur et à mesure qu'il arrive.",
+        "title": "Présentation générale"
+      },
+      "page_title": "Drift de configuration - SysManage Professional+",
+      "remediate": {
+        "description": "La correction réapplique le profil en {{c1}} mode via le même constructeur d'envoi qu'une application manuelle et comme la vérification planifiée, donc une correction ne peut pas diverger d'une application normale. Elle hérite donc automatiquement des capacités de l'agent et des fenêtres de maintenance sans avoir à les vérifier à nouveau.",
+        "honest": "En mettant en file une correction, cela {{c1}} indique que la découverte est résolue. Les découvertes sont résolues lorsque l'exécution de la prochaine vérification réussie cesse de signaler la tâche - affirmer le succès au moment de la distribution serait un tableau de bord qui ment sur la flotte.",
+        "title": "Correction en un clic"
+      },
+      "rules": {
+        "changed": "Seules les tâches signalées comme <strong>modifiées</strong> comptent. Une tâche échouée est une erreur à enquêter, pas une divergence à corriger.",
+        "check": "Seul {{c1}} exécute les analyses en direct. Une exécution en direct qui modifie quelque chose n'est pas un dérive, c'est un changement que nous venons de faire ; le compter signalerait la propre remédiation du système comme un nouveau problème.",
+        "description": "Trois règles régissent la manière dont une course d'atterrissage modifie l'ensemble des résultats, et chacune existe pour empêcher une réponse erronée spécifique :",
+        "regression": "Un constat qui avait été résolu et réapparaît est un {{c1}} : la résolution est effacée et l'horloge redémarre, donc \"dérive depuis\" décrit toujours l'épisode actuel plutôt que d'affirmer une dérive continue sur une période où l'hôte était conforme.",
+        "success": "Seul un exécution {{c1}} peut résoudre une constatation. Une exécution de vérification échouée ne connaît pas l'état du hôte, donc traiter son silence comme \"le dérive est parti\" ferait fermer les constatations sur la base d'une erreur. Une vérification échouée peut toujours ouvrir des constatations pour ce qu'elle a observé.",
+        "title": "Les règles de réconciliation"
+      },
+      "scope": {
+        "description": "La dérive est mesurée ici {{c1}} : le moteur lui-même signale ce qui changerait, de sorte que rien de plus n'a besoin d'être collecté. La dérive mesurée par rapport à un {{c2}} est une comparaison d'inventaire délimitée — paquets, utilisateurs et groupes, interfaces réseau, stockage, dépôts, état du pare-feu et certificats — portant sur des faits que l'agent signale déjà. Comparer des fichiers et des états de configuration arbitraires nécessite un collecteur de faits générique et arrivera avec le substrat osquery.",
+        "title": "Qu'est-ce que cela couvre et ne couvre pas"
+      },
+      "setup": {
+        "assign": "Attribuez-le à un hôte, un tag ou un site avec un planificateur Cron et {{c1}} — c'est la comparaison",
+        "mixed": "Un profil peut être affecté deux fois au même cible — une fois sur un calendrier de vérification fréquent pour détecter la dérive, et une fois en direct sur un calendrier plus lent pour la corriger — si vous voulez la détection et l'application à des cadences différentes.",
+        "profile": "Créer un profil de configuration décrivant l'état souhaité (voir le guide de gestion de la configuration)",
+        "remediate": "Corriger depuis le tableau de bord lorsque la divergence est réelle, et laisser la vérification suivante fermer la découverte",
+        "title": "Le configurer",
+        "watch": "Surveillez le tableau de dérive ou ajoutez une règle d'alerte {{c1}} avec un {{c2}} correspondant à la rapidité avec laquelle votre environnement se répare lui-même"
+      },
+      "why": {
+        "description": "Une exécution en mode vérification indique que {{c1}} changerait. Ce qu'elle ne peut pas dire, c'est {{c2}} — chaque exécution ne connaît que d'elle-même, donc « ce hôte a dérivé pendant neuf jours » est impossible à déduire des lignes d'exécution sans balayer l'ensemble de l'historique à chaque chargement de page. Une détection de dérive stocke exactement cette durée de vie et rien d'autre ; les exécutions restent le registre de ce qui s'est passé.",
+        "identity": "Une découverte est identifiée par {{c1}}. C'est la seule identité que la forme de résultat générique conserve : l'agent signale une tâche {{c2}}, et rien d'autre ne voyage avec elle. Le coût accepté est que renommer une tâche dans un profil réinitialise son âge de dérive, car le nouveau nom est une ligne différente. C'est le bon compromis contre la correspondance sur la tâche {{c3}}, qui réattribuerait silencieusement l'historique d'une tâche à une autre dès qu'un pas serait inséré - une date erronée est pire qu'une réinitialisation, car une réinitialisation est visiblement une réinitialisation.",
+        "title": "Pourquoi les résultats existent-ils ainsi que les exécutions"
+      },
+      "baseline": {
+        "buckets": "Chaque catégorie retourne trois buckets, nommés du point de vue de l'hôte {{c1}} car c'est l'hôte fixe : {{c2}} est sur la référence mais pas sur la cible, {{c3}} est sur la cible mais pas sur la référence, et {{c4}} est présent sur les deux avec un champ comparé en désaccord. « Vous ne l'avez pas » et « vous avez le mauvais » sont des corrections différentes, donc elles ne sont jamais fusionnées.",
+        "cat_certificates": "correspondant au nom du certificat, comparé sur l'émetteur",
+        "cat_firewall": "correspondant au nom du pare-feu, comparé sur l'état activé",
+        "cat_groups": "correspondant au nom du groupe",
+        "cat_interfaces": "correspondant au nom de l'interface, comparé sur le type",
+        "cat_packages": "correspondant au nom, comparé sur la version",
+        "cat_repositories": "correspondant au nom, comparé sur l'URL et l'état activé",
+        "cat_storage": "correspondant au point de montage, comparé sur le système de fichiers",
+        "cat_users": "correspondant au nom d'utilisateur, comparé sur le shell et le répertoire home",
+        "categories": "Huit catégories sont comparées, chacune étant mise en correspondance selon l'identité qui rend deux lignes identiques sur différents hôtes, et comparée sur les champs qui les distinguent :",
+        "counts": "Les listes par élément sont limitées pour qu'une seule requête ne puisse pas retourner un mégaoctet de JSON, mais les comptes restent exacts et un drapeau {{c1}} indique lorsque une liste a été raccourcie - un résumé ne sous-rapporte jamais la taille d'une divergence.",
+        "description": "L'autre type de dérive. La dérive de profil répond à la question « Ce hôte correspond-il au profil que nous lui avons attribué ? ». La dérive de référence répond à la question « Ce hôte correspond-il à l'hôte {{c1}} — ce à quoi un opérateur se réfère lorsque aucun profil n'est encore défini et que le staging fonctionne tandis que la production ne le fait pas. »]} */ ```json  { ",
+        "stateless": "Cette comparaison ne stocke rien. C'est une fonction pure de deux inventaires hôtes actuels, et contrairement à une recherche de profil, il n'y a pas de durée de vie à suivre : une catégorie est soit différente maintenant, soit elle ne l'est pas. {{c1}} rapporte les catégories prises en charge, donc l'interface utilisateur ne peut pas offrir une option que le serveur refuserait.",
+        "title": "Comparaison de base du serveur d'or",
+        "screenshot": "Comparaison d'un hôte en dérive avec un référent connu. Chaque catégorie indique ce que la cible manque, ce qu'elle possède que la référence ne fait pas, et ce qu'elles ont toutes les deux avec un champ qui diffère."
+      }
+    },
+    "config_management": {
+      "apply": {
+        "check": "Mode de vérification : exécute le drapeau de test en secouant le moteur ({{c1}}, {{c2}}, {{c3}}, {{c4}}) et rapporte les modifications de {{c5}}",
+        "description": "Une application file une commande à travers le fichier d'attente sortant normal, donc elle hérite des capacités de gating de l'agent et des fenêtres de maintenance plutôt que de ré-vérifier soit.",
+        "detail": "détails d'une tâche pour une exécution",
+        "idempotency": "Les exécutions qui n'ont rien modifié sont également enregistrées. La déclaration d'idempotence est l'objectif de la gestion de l'état désiré et c'est une affirmation sur l'historique : \"les trois dernières applications de ce profil n'ont rien modifié\" ne peut pas être déterminée à partir d'une colonne d'état actuel.",
+        "runs": "historique d'exécution pour un hôte",
+        "title": "Application d'un profil"
+      },
+      "architecture": {
+        "description": "Le schéma se trouve dans l'arbre open source car le serveur OSS possède la base de données ; le comportement - valider un profil, le versionner, résoudre une affectation, décider quand un planning est dû, construire un spécification d'exécution - réside dans le {{c1}} compilé en Cython. C'est la même séparation que celle utilisée par Vulnérabilité et Profil de Conformité, ce qui signifie qu'une installation non licenciée conserve un schéma cohérent et son historique d'exécutions existant.",
+        "title": "Titre de l'architecture de la configuration"
+      },
+      "assignments": {
+        "description": "Une affectation associe un profil à exactement une cible — un hôte, un tag ou un site — avec un horaire cron optionnel et un drapeau de mode vérification optionnel. Trois colonnes cibles nulles sont utilisées plutôt qu'une paire {{c1}}, car cette paire ne peut pas être une clé étrangère : elle permettrait à une affectation de survivre à l'hôte qu'elle désigne, et le premier symptôme serait une exécution planifiée contre une machine qui n'existe plus.",
+        "dueness": "L'obligation est ancrée sur {{c1}} plutôt qu'une colonne stockée {{c2}}, donc modifier un horaire a un effet immédiat et un tick manqué ne peut pas bloquer une affectation. Une affectation planifiée avec {{c3}} définie ne rapporte que du dérive et ne modifie jamais l'hôte — consultez le guide sur la dérive de configuration.",
+        "title": "Assignations et planification"
+      },
+      "breadcrumb": "Gestion de la configuration",
+      "engines": {
+        "ansible": "Quelqu'un avec trois hôtes possède déjà <code>ansible-playbook</code> ; l'application sur un seul hôte est l'analogue direct de l'exécution de script, qui est gratuite.",
+        "description": "Cinq identités de moteur sont prises en charge. Celles qui sont gratuites et celles qui sont sous licence dépendent de la valeur qu'elles ajoutent, pas de l'effort nécessaire pour les prendre en charge :",
+        "dsc": "Vendu avec l'agent Windows, c'est donc le chemin par défaut sur cet hôte. Signalé comme \"inclus avec l'agent\" plutôt que quelque chose à installer.",
+        "platform": "Seul DSC est lié à la plateforme, et uniquement parce que c'est ce que nous fournissons sur Windows. Puppet, Salt et Chef livrent tous des agents Windows et s'y exécutent. La fonction <code>requires_license()</code> dans <code>backend/services/config_mgmt_engines.py</code> est la seule source de vérité consultée par le point de terminaison d'application, le point de terminaison d'installation et l'interface utilisateur, donc la règle ne peut pas dériver entre l'endroit où un bouton est offert et l'endroit où la demande est refusée.",
+        "title": "Moteurs"
+      },
+      "feature_codes": {
+        "description": "Le stockage, l'affectation, la planification et les adaptateurs Puppet/Salt/Chef sont fournis par le module {{c1}}. Sans lui, le serveur open source stocke toujours les exécutions et gère {{c2}} et {{c3}} sur un seul hôte ; les moteurs payants sont refusés avant que toute tâche ne soit mise en file d'attente.",
+        "title": "Codes de fonctionnalités"
+      },
+      "header": {
+        "description": "Configuration de l'état désiré : profils stockés et versionnés appliqués à des hôtes, des balises ou des sites selon un calendrier ou à la demande. Puppet, Salt et Chef sont regroupés derrière une abstraction de profil unique ; ansible-core et Windows DSC restent open source.",
+        "screenshot": "La page des Profils de Configuration liste tous les profils stockés avec leur moteur, leur version et le nombre d'affectations.",
+        "title": "Gestion de la configuration"
+      },
+      "meta_description": "",
+      "overview": {
+        "description": "Un profil de configuration est un corps de état désiré nommé et versionné — un manifeste Puppet, une état Salt, une recette Chef, un playbook Ansible ou un ensemble de ressources DSC — plus le moteur qui l'interprète. Les profils sont stockés côté serveur, affectés à des hôtes, des balises ou des sites, et appliqués soit sur demande, soit selon un calendrier cron. Chaque exécution est enregistrée, y compris celles qui n'ont rien changé.",
+        "title": "Présentation générale"
+      },
+      "page_title": "Gestion de la configuration - SysManage Professional+",
+      "prereq": {
+        "bundled": "Non requis — DSC est livré avec l'agent",
+        "description": "Avant d'offrir de lancer un profil, le serveur signale si l'hôte possède réellement l'exécuteur, et distingue trois situations qui ne doivent pas être décrites de manière identique :",
+        "installable": "Non installé, mais installable depuis le gestionnaire de paquets de cet hôte",
+        "satisfied": "Installé — avec la version détectée, donc un profil peut déclarer un minimum",
+        "title": "Prêt de l'exécuteur",
+        "unmeasured": "Non disponible ici — soit la distribution n'est pas censée contenir le paquet, soit l'inventaire Windows ne peut pas le signaler (une limite de détection, pas une limite de plateforme)"
+      },
+      "profiles": {
+        "create": "créer",
+        "description": "Chaque modification d'un profil à l'une des entrées {{c1}} ou {{c2}} incrémente sa version et capture instantanément le corps précédent dans {{c3}}. Modifier uniquement la description n'entraîne pas de nouvelle version. La configuration en tant que code sans historique est simplement une configuration : la valeur d'un profil enregistré réside dans la possibilité de répondre à la question « Qu'a-t-il changé et quand » lorsque l'exécution commence à se comporter différemment.",
+        "list": "liste",
+        "restore": "restaurer un corps antérieur",
+        "title": "Profils et versionnement",
+        "versions": "historique des versions"
+      },
+      "pull": {
+        "agent": "L'exécuteur est une dépendance côté agent, donc un hôte qui ne peut pas en exécuter un ne le signale tout simplement pas comme capable",
+        "creds": "Aucune distribution de crédentials : il n'y a pas de nœud de contrôle détenant les clés pour chaque hôte",
+        "description": "La gestion de la configuration est traditionnellement basée sur un modèle push : un nœud de contrôle ouvre une connexion SSH vers chaque cible. SysManage fait l'inverse. Le serveur envoie le profil {{c1}} et l'agent l'exécute localement contre {{c2}}, exactement comme l'exécution de scripts fonctionne déjà.",
+        "port": "Aucun nouveau port entrant et aucune accessibilité SSH : l'agent a besoin de 443 sortant et de rien d'autre",
+        "results": "Les résultats retournent sur la même connexion que tous les autres résultats de commande — aucun nouveau chemin d'entrée",
+        "title": "Exécution en style de traction, pas en style de poussée"
+      },
+      "spec": {
+        "description": "L'agent open-source sait exécuter {{c1}} et DSC. Il ne connaît rien à Puppet, Salt ou Chef. Au lieu de l'enseigner, le moteur licencié construit un {{c2}} et l'agent l'exécute génériquement :",
+        "exit_code": "signifiant porté dans les bits de sortie, avec les valeurs du bit fournies par le spec",
+        "json_file": "le fichier de rapport correspondant le plus récent dans le répertoire d'exécution (Chef)",
+        "json_lines": "un objet JSON par ligne (ansible-core, via notre plugin de rappel)",
+        "json_stdout": "un document sur stdout (Salt, DSC)",
+        "shapes": "Le bloc {{c1}} désigne l'un des cinq formes génériques que l'agent peut lire, et fournit les règles pour le lire. Quels sont les drapeaux qui ont produit cette sortie, et ce que signifient les champs, est la responsabilité du moteur licencié :",
+        "title": "Comment une abstraction unique fait tourner quatre moteurs",
+        "why": "C'est pourquoi l'ajout d'un moteur est une modification côté licence sans mise à jour de l'agent : un nouveau moteur expédie de nouveaux arguments de ligne de commande et de nouvelles règles de résultats, pas de nouveau code d'agent.",
+        "yaml_file": "la même chose, pour un rapport YAML (Puppet's {{c1}}, qui est étiqueté Ruby et lu avec un chargeur sûr tolérant les balises)"
+      }
     }
   },
   "quick_start": {
@@ -21483,8 +21662,8 @@
       "windows": {
         "tab_title": "Windows",
         "title": "Windows",
-        "nginx": "[PRÉREQUIS MANQUANTS: installation du serveur. Windows. Nginx]",
-        "nginx_note": "[NOTE: installation du serveur. Windows. Nginx]"
+        "nginx": "{{c1}} est installé automatiquement par le MSI — aucune étape manuelle requise. L'installateur télécharge une version verrouillée, vérifie son hachage SHA-256 avant d'extraire les fichiers, puis l'enregistre comme le service {{c2}}. Sur un hôte isolé en réseau (air-gapped), utilisez un bundle air-gap : il inclut nginx, donc l'installation ne nécessite aucune connexion réseau.",
+        "nginx_note": "{{c1}} L'arrière-plan de SysManage ne sert que l'API REST et le WebSocket de l'agent — il n'a pas de gestionnaire de fichiers statiques. nginx sert la console web, termine le TLS sur 443, et proxifie {{c2}} et {{c3}} vers l'arrière-plan sur le port 8080 en boucle. Sans lui, il n'y a aucun accès à la console."
       }
     },
     "requirements": {

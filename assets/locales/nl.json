@@ -18541,6 +18541,28 @@
           },
           "link": "Inrichtingsmotor Gids →",
           "title": "🚀 Provisioning Engine"
+        },
+        "config_drift": {
+          "description": "Geplande controle-modus uitvoeringen worden omgezet in bevindingen die de duur van elke afwijking bijhouden, met eenklikherstel en waarschuwingen voor drift die aanhoudt.",
+          "features": {
+            "alerting": "Waarschuwingsvoorwaarde met een minimumleeftijdsscherm",
+            "dashboard": "Fleet dashboard gesorteerd op langst bestaande afwijking",
+            "findings": "Bevindingen die de leeftijd van afwijking registreren, niet alleen de huidige toestand",
+            "remediate": "Eenmalig herstel via de normale toepassingsstroom"
+          },
+          "link": "Configuratieafwijking Gids →",
+          "title": "📈 Configuratie Drift"
+        },
+        "config_management": {
+          "description": "Gevestigde, versiebeheerde gewenste-statusprofielen aangedreven door Puppet, Salt en Chef achter één abstractie, toegepast in pull-stijl over de bestaande agentverbinding.",
+          "features": {
+            "assign": "Toewijzing aan host, tag of site met cronplanning",
+            "engines": "Puppet, Salt en Chef adapters achter één profiel",
+            "profiles": "Geversieerde profielen met herstelgeschiedenis",
+            "pull": "Pull-stijl uitvoering - geen SSH, geen nieuwe binnenkomende poort"
+          },
+          "link": "Configuratiebeheer Gids →",
+          "title": "🔧 Configuratiebeheer"
         }
       },
       "overview": {
@@ -20238,6 +20260,163 @@
           "staging_when": "De UEFI-entiteiten verschijnen in de gegenereerde dnsmasq-configuratie alleen wanneer de UEFI-eerstefase is gestageerd in de TFTP-root."
         }
       }
+    },
+    "config_drift": {
+      "alerting": {
+        "description": "Het waarschuwingsmechanisme krijgt een {{c1}}-voorwaarde. Het leest bevindingen in plaats van uit te voeren, omdat alleen bevindingen {{c2}} kennen:",
+        "min_findings": "hoeveel kwalificerende bevindingen voordat de regel activeert",
+        "min_hours": "negeer afwijkingen jonger dan deze waarde. Dit is het belangrijke parameter: een check-run enkele momenten na een implementatie zal legitiem een divergentie rapporteren die de volgende run zelf oplost, en iemand opbellen voor dat zou hen leren om het kanaal te negeren. De UI stelt het standaard in op 24 uur.",
+        "profile_name": "optioneel; beperk de regel tot één profiel",
+        "resolved": "Opgeloste bevindingen waarschuwen nooit opnieuw, dus herstel leest niet als nieuwe fout. De waarschuwing noemt de betrokken profielen en hoe lang het oudste bevinding al bestaat, want een waarschuwing die alleen '3 bevindingen' zegt stuurt de operator op zoek.",
+        "title": "Waarschuwingen voor afwijking"
+      },
+      "architecture": {
+        "description": "De verzoeningsruns worden uitgevoerd binnen de resultaatbehandelaar, voordat de run wordt bevestigd, zodat een run en zijn bevindingen samen landen — een geregistreerde run zonder bevindingen zou een drifttrekkend uiterlijk als opgelost laten tot de volgende controle. Verzoening veroorzaakt nooit fouten: een boekhoudprobleem mag de queue-processor niet blokkeren en kost de runregistratie, die van de twee het waardevoller is. De <code>config_drift_finding</code> tabel bevindt zich in het open-source schema; de regels die deze vullen, zijn afhankelijk van de gelicentieerde <code>config_management_engine</code>, dus een ongemarkeerde installatie heeft een coherente schema en simpelweg geen bevindingen.",
+        "title": "Architectuur"
+      },
+      "breadcrumb": "Configuratieafwijking",
+      "dashboard": {
+        "fleet": "vlootweergave: één rij per host met het aantal open bevindingen, de betrokken profielen en hoe lang het al afwijkt",
+        "host": "de individuele bevindingen voor één host",
+        "ordering": "Bevindingen zijn gesorteerd op oudst-eerst, omdat afwijking die is blijven bestaan de interessante soort is: een divergentie die slechts één keer gezien wordt kan het resultaat zijn van een race met een implementatie, maar een die wekenlang onopgemerkt blijft is een configuratie die niemand beheert.",
+        "remediate": "re-toepassen van het profiel live",
+        "title": "Dashboard en API"
+      },
+      "header": {
+        "description": "Welke hosts zijn afgeweken van hun toegewezen profielen, wat afweek en — het deel dat een uitvoeringsgeschiedenis niet kan beantwoorden — hoe lang het al zo is.",
+        "screenshot": "Het driftdashboard toont hosts met open bevindingen, oudst eerst, samen met de betrokken profielen en hoe lang elke host al afwijkt.",
+        "title": "Configuratieafwijking"
+      },
+      "meta_description": "",
+      "overview": {
+        "description": "Driftdetectie hergebruikt de machinerie die al bestaat in plaats van een tweede verzamelpad toe te voegen. {{c1}} Een testuitvoering van een toegewezen profiel beantwoordt de vraag “wat zou er op deze host veranderen”, en dat is precies de definitie van drift ten opzichte van dat profiel. Een geplande toewijzing in controlemodus IS dus de vergelijking, en elk resultaat wordt bij binnenkomst verwerkt tot bevindingen.",
+        "title": "Overzicht"
+      },
+      "page_title": "Configuratieafwijking - SysManage Professional+",
+      "remediate": {
+        "description": "Herstel past het profiel opnieuw toe in {{c1}}-modus via dezelfde afhandelaar als een handmatige toepassing en als de gepland tick, dus herstel kan zich niet onderscheiden van een normale toepassing. Het erfde daarom agentcapaciteitsbeperkingen en onderhoudstijden zonder extra inspanning, in plaats van elk van beide opnieuw te controleren.",
+        "honest": "Het in de wachtrij plaatsen van een herstelactie markeert de bevinding {{c1}} als opgelost. Bevindingen worden pas opgelost wanneer de volgende geslaagde controle-uitvoering de taak niet langer rapporteert — succes claimen op het moment van verzenden zou een dashboard opleveren dat liegt over de vloot.",
+        "title": "Een klik herstel"
+      },
+      "rules": {
+        "changed": "Alleen taken die als <strong>veranderd</strong> zijn gerapporteerd, tellen mee. Een mislukte taak is een fout om te onderzoeken, niet een afwijking om te verhelpen.",
+        "check": "Alleen {{c1}} voert open bevindingen uit. Een live-uitvoering die iets heeft gewijzigd, is geen afwijking, maar een door ons gemaakte verandering; het tellen ervan zou de systeemherstel als nieuw probleem rapporteren.",
+        "description": "Drie regels regelen hoe een landing uitvoering de bevindingsset verandert, en elk bestaat om een specifieke verkeerde antwoord te voorkomen:",
+        "regression": "Een bevinding die opgelost was en opnieuw verschijnt is een {{c1}}: de oplossing wordt ongeldig verklaard en de klok start opnieuw, dus 'sinds wanneer het afdwaalt' beschrijft altijd de huidige episode in plaats van te beweren dat er continu afdwalen plaatsvond tijdens een periode waarin de host in overeenstemming was.",
+        "success": "Alleen een {{c1}}-run kan een bevinding oplossen. Een controle-run die is mislukt, kent de toestand van de host niet, dus het zwijgen ervan als \"de afwijking is verdwenen\" te beschouwen zou bevindingen sluiten op basis van een fout. Een mislukte controle kan nog steeds bevindingen openen voor wat het ook heeft waargenomen.",
+        "title": "De herstelregels"
+      },
+      "scope": {
+        "description": "Drift wordt hier {{c1}} gemeten: de engine zelf rapporteert wat er zou veranderen, dus er hoeft niets extra te worden verzameld. Drift die wordt gemeten ten opzichte van een {{c2}} is een begrensde inventarisvergelijking — pakketten, gebruikers en groepen, netwerkinterfaces, opslag, repository's, firewallstatus en certificaten — over feiten die de agent al rapporteert. Het vergelijken van willekeurige bestanden en configuratietoestand vereist een algemene feitenverzamelaar en komt met het osquery-substraat.",
+        "title": "Wat dit wel en niet dekt"
+      },
+      "setup": {
+        "assign": "Wijs het toe aan een host, tag of locatie met een cron-schema en {{c1}} - dit is de vergelijking",
+        "mixed": "Een profiel kan twee keer aan hetzelfde doel worden toegewezen - eenmaal op een frequente controlemodus om afwijking te detecteren, en eenmaal live op een langzamere planning om het te corrigeren - als je detectie en handhaving op verschillende ritmes wilt hebben.",
+        "profile": "Maak een configuratieprofiel dat de gewenste toestand beschrijft (zie de Configuratiebeheer gids)",
+        "remediate": "Herstel vanuit het dashboard wanneer er een echte afwijking is, en laat de volgende check de bevinding sluiten",
+        "title": "Instellen",
+        "watch": "Bekijk het driftdashboard, of voeg een {{c1}} waarschuwingsregel toe met een {{c2}} die overeenkomt met hoe snel je omgeving zichzelf herstelt"
+      },
+      "why": {
+        "description": "Een controlemodus-uitvoering zegt {{c1}} zou veranderen. Wat het niet kan zeggen is {{c2}} — elke uitvoering kent alleen zichzelf, dus \"dit host is negen dagen aan het afdwalen\" is onantwoordbaar uit de uitvoeringsrijen zonder het hele geschiedenis te scannen bij elk paginaload. Een afdwalingsvinding bewaart precies die levensduur en niets anders; de uitvoeringen blijven het record van wat er gebeurd is.",
+        "identity": "Een bevinding wordt geïdentificeerd door {{c1}}. Dat is de enige identiteit die de algemene resultaatvorm meedraagt: de agent meldt een taak {{c2}}, en niets anders stabiels reist mee. Het aanvaarde kostenpost is dat het herschikken van een taak in een profiel zijn driftage opnieuw start, omdat de nieuwe naam een andere rij is. Dat is de juiste afweging tegen het matchen op taak {{c3}}, wat stil en onopgemerkt één taakgeschiedenis zou toewijzen aan een andere als iemand een stap invoerde - een verkeerde datum is erger dan een geresette, omdat een reset zichtbaar een reset is.",
+        "title": "Waarom bevindingen bestaan naast uitvoeringen"
+      },
+      "baseline": {
+        "buckets": "Elke categorie retourneert drie buckets, die vanuit het perspectief van de {{c1}} host zijn vernoemd omdat dat de vastgestelde host is: {{c2}} bevindt zich in de referentie maar niet in de doelhost, {{c3}} bevindt zich in de doelhost maar niet in de referentie, en {{c4}} bevindt zich in beide met een vergeleken veld dat niet overeenkomt. 'Je hebt het niet' en 'je hebt het verkeerde' zijn verschillende oplossingen, dus ze worden nooit samengevoegd.",
+        "cat_certificates": "gematched door certificaatnaam, vergeleken op uitgevers",
+        "cat_firewall": "gematched door firewallnaam, vergeleken op status",
+        "cat_groups": "gematched door groepsnaam",
+        "cat_interfaces": "gematched door interface-naam, vergeleken op type",
+        "cat_packages": "gematched door naam, vergeleken op versie",
+        "cat_repositories": "gematched door naam, vergeleken op URL en status",
+        "cat_storage": "gematched door mountpunt, vergeleken op bestandssysteem",
+        "cat_users": "gematched door gebruikersnaam, vergeleken op shell en thuisdirectory",
+        "categories": "Er worden acht categorieën vergeleken, elk gematched op de identiteit die twee rijen \"dezelfde dingen maakt\" over hosts en vergeleken op de velden die ze verschillen laten:",
+        "counts": "Per-item lijsten zijn beperkt in grootte, dus één oproep kan geen megabyte aan JSON teruggeven, maar de tellen blijven exact en een {{c1}} vlag geeft aan wanneer een lijst is ingekort - een samenvatting rapporteert nooit onjuist de omvang van een afwijking.",
+        "description": "De andere soort afwijking. Afwijking van profiel beantwoordt de vraag 'Valt deze host overeen met het profiel dat we hem hebben toegewezen?'. Basisafwijking beantwoordt de vraag 'Valt deze host overeen met {{c1}} host' — wat een operator doet als er nog geen profiel is en staging werkt terwijl productie niet doet.",
+        "stateless": "Deze vergelijking slaat niets op. Het is een puure functie van de huidige inventaris van twee hosts en in tegenstelling tot profieldetectie is er geen levensduur om bij te houden: een categorie is ofwel nu verschillend of niet. {{c1}} rapporteert de ondersteunde categorieën, dus de gebruikersinterface kan geen server weigeren die deze niet ondersteunt.",
+        "title": "Golden-host baseline vergelijking",
+        "screenshot": "Een afdwalende host wordt vergeleken met een bekende goede. Elke categorie rapporteert wat het doel mist, wat het heeft dat de referentie niet heeft, en wat beide hebben met een veld dat niet overeenkomt."
+      }
+    },
+    "config_management": {
+      "apply": {
+        "check": "Controlemodus voert de droge loopvlag van de motor uit ({{c1}}, {{c2}}, {{c3}}, {{c4}}) en rapporteert welke {{c5}} wijzigingen",
+        "description": "Een toepassing plaatst een opdracht voor de host via de normale uitgaande wachtrij, waardoor het de agentcapaciteiten voor toegang en onderhoudsvensters erft in plaats van beide opnieuw te controleren:",
+        "detail": "per-taak detail voor één run",
+        "idempotency": "Uitvoeringen die niets hebben gewijzigd worden ook vastgelegd. Idempotentie-rapportage is het doel van gewenste toestandsbeheer en het is een bewering over geschiedenis: 'de laatste drie toepassingen van dit profiel veranderden niets' kan niet worden beantwoord op basis van de huidige toestand.",
+        "runs": "rungeschiedenis voor een host",
+        "title": "Toepassen van een profiel"
+      },
+      "architecture": {
+        "description": "Het schema bevindt zich in de open-source boom omdat de OSS server de database bezit; het gedrag - een profiel valideren, versie ermee aanmaken, een toewijzing oplossen, bepalen wanneer een planning verschuldigd is, een uitvoerings specificatie opbouwen - zit in de met Cython gecompileerde {{c1}}. Dat is dezelfde splitsing die Vulnerability en ComplianceProfile gebruiken, wat betekent dat een onlicentieerde installatie een coherent schema en zijn bestaande run geschiedenis behoudt.",
+        "title": "Architectuur"
+      },
+      "assignments": {
+        "description": "Een toewijzing koppelt een profiel aan precies één doel — een host, een tag of een site — met optionele cron-planning en een optioneel controlemodusvlag. Er worden drie optionele doelkolommen gebruikt in plaats van een paar {{c1}}, omdat dat paar geen vreemde sleutel kan zijn: het zou een toewijzing laten bestaan na de host die het noemt, en het eerste symptoom zou een gepland uitvoeren tegen een machine zijn die niet meer bestaat.",
+        "dueness": "Schuld is verankerd op {{c1}} in plaats van een opgeslagen {{c2}} kolom, dus het wijzigen van een schema heeft onmiddellijke effect en een gemiste tick kan geen toewijzing vastleggen. Een gepland toewijzing met {{c3}} ingesteld rapporteert alleen drift en verandert nooit de host - zie de gids over Configuratie Drift.",
+        "title": "Toewijzingen en planning"
+      },
+      "breadcrumb": "Configuratiebeheer",
+      "engines": {
+        "ansible": "Iemand met drie hosts heeft al <code>ansible-playbook</code>; het toepassen op één host is de directe analogie van scriptuitvoering, wat gratis is.",
+        "description": "Er worden vijf engine-identiteiten ondersteund. Welke vrij zijn en welke gelicentieerd zijn, volgt de waarde die ze toevoegen, niet de inspanning om hen te ondersteunen:",
+        "dsc": "Meegeleverd met de Windows-agent, dus is het de standaardpad voor single-host daar. Gerapporteerd als 'meegeleverd met de agent' in plaats van iets om te installeren.",
+        "platform": "Alleen DSC is platformgebonden, en alleen omdat het wat we leveren op Windows is. Puppet, Salt en Chef hebben allemaal Windows-agenten en draaien daar. <code>requires_license()</code> in <code>backend/services/config_mgmt_engines.py</code> is de enige bron van waarheid die wordt geraadpleegd door het apply-eindpunt, het installatie-eindpunt en de gebruikersinterface, dus de regel kan niet afwijken tussen de plekken waar een knop wordt aangeboden en de plekken waar de aanvraag wordt geweigerd.",
+        "title": "Motoren"
+      },
+      "feature_codes": {
+        "description": "Profielopslag, toewijzing, planning en de adapters Puppet/Salt/Chef worden geleverd door de {{c1}} module. Zonder deze module slaat de open-source server nog steeds runs op en voert {{c2}} en {{c3}} uit op één host; gelicentieerde engines worden geweigerd voordat iets in de wachtrij wordt geplaatst.",
+        "title": "Functiecodes"
+      },
+      "header": {
+        "description": "Gewenste-toestandconfiguratie: opgeslagen, versiebeheerde profielen die toegepast worden op hosts, tags of sites volgens schema of op aanvraag. Puppet, Salt en Chef zitten achter één profielabstracte; ansible-core en Windows DSC blijven open source.",
+        "screenshot": "De Configuratieprofielen pagina toont alle opgeslagen profielen met hun engine, versie en aantal toewijzingen.",
+        "title": "Configuratiebeheer"
+      },
+      "meta_description": "",
+      "overview": {
+        "description": "Een configuratieprofiel is een genaamde, versiebeheerde weergave van de gewenste toestand - een Puppet-manifest, een Salt-staat, een Chef-recept, een Ansible-playbook of een DSC-resourceset - samen met de engine die het interpreteert. Profielen worden serverzijde opgeslagen, toegewezen aan hosts, tags of locaties en toegepast op aanvraag of volgens een cron-schema. Elke toepassing wordt als een run geregistreerd, inclusief runs die niets veranderden.",
+        "title": "Overzicht"
+      },
+      "page_title": "Configuratiebeheer - SysManage Professional+",
+      "prereq": {
+        "bundled": "Niet vereist - DSC wordt meegeleverd met de agent",
+        "description": "Voordat er wordt aangeboden om een profiel uit te voeren, rapporteert de server of de host daadwerkelijk de uitvoerder heeft, en onderscheidt hij drie situaties die niet identiek beschreven mogen worden:",
+        "installable": "Niet geïnstalleerd, maar installeerbaar vanaf deze host's pakketbeheerder",
+        "satisfied": "Geïnstalleerd - met de gedetecteerde versie, dus een profiel kan een minimum declareren",
+        "title": "Uitvoeringsbereidheid",
+        "unmeasured": "Niet beschikbaar hier - ofwel wordt het pakket niet gedetecteerd op de distributie, of Windows-inventaris kan het niet rapporteren (een detectielimiet, geen platformlimiet)"
+      },
+      "profiles": {
+        "create": "aanmaken",
+        "description": "Elke wijziging aan een profiel's {{c1}} of {{c2}} verhoogt de versie en maakt een snapshot van het vorige lichaam naar {{c3}}. Alleen het bewerken van de beschrijving creëert geen nieuwe versie. Configuratie als code zonder geschiedenis is gewoon configuratie: de waarde van een opgeslagen profiel is in staat te antwoorden op 'wat er veranderd is en wanneer', zodra een run begint zich anders te gedragen.",
+        "list": "opmaken",
+        "restore": "herstellen van een eerdere body",
+        "title": "Profielen en versiebeheer",
+        "versions": "versiegeschiedenis"
+      },
+      "pull": {
+        "agent": "De executor is een agent-afhankelijkheid, dus een host die geen van deze kan uitvoeren, adverteert gewoonlijk geen capaciteit",
+        "creds": "Geen creatie van referenties: er is geen controleknooppunt dat sleutels naar elke host houdt",
+        "description": "Configuratiebeheer is conventionele push-gebaseerd: een beheernode opent SSH naar elk doel. SysManage doet het tegenovergestelde. De server stuurt het profiel {{c1}} en de agent voert het lokaal uit tegen {{c2}}, precies zoals scriptuitvoering al werkt.",
+        "port": "Geen nieuwe binnenkomende poort en geen SSH bereikbaarheid: de agent heeft 443 uitgaande en niets anders nodig",
+        "results": "Resultaten stromen terug via dezelfde verbinding als elke andere commando-uitvoer - geen nieuwe inkomende pad",
+        "title": "Pull-stijl uitvoering, niet push"
+      },
+      "spec": {
+        "description": "De open-source agent weet hoe hij {{c1}} en DSC moet uitvoeren. Hij kent niets van Puppet, Salt of Chef. In plaats van hem te onderwijzen, bouwt de gelicentieerde motor een {{c2}} en de agent voert deze generiek uit:",
+        "exit_code": "de betekenis die in de uitvoerbits wordt gedragen, met de bitwaarden die in de specificatie worden geleverd",
+        "json_file": "het nieuwste overeenkomende rapportbestand in de runmap (Chef)",
+        "json_lines": "één JSON-object per regel (ansible-core, via onze callback-plugin)",
+        "json_stdout": "één document op stdout (Salt, DSC)",
+        "shapes": "De {{c1}} bloknamen geven een van de vijf algemene vormen aan die de agent kan lezen, en bevatten de regels voor het lezen ervan. Welke vlaggen tot die uitvoer hebben geleid en wat de velden betekenen, is de taak van de gelicentieerde engine:",
+        "title": "Hoe één abstractie vier engines aandrijft",
+        "why": "Daarom is het toevoegen van een engine een gelicentieerde zijwijziging met geen agent release: een nieuwe engine levert nieuwe argv en nieuwe resultaatregels, niet nieuwe agentcode.",
+        "yaml_file": "hetzelfde, voor een YAML-rapport (Puppet's {{c1}}, wat een Ruby-tag heeft en met een veilige laadprogramma dat tags negeert wordt gelezen)]} */<|im_end|> */ (Opmerking: Ik heb de structuur van het JSON-object zoals gevraagd behouden.) */<|im_end|>*/  Let op: "
+      }
     }
   },
   "quick_start": {
@@ -21483,8 +21662,8 @@
       "windows": {
         "tab_title": "Windows",
         "title": "Windows",
-        "nginx": "[ONTHEEF: server_installatie.vereisten.Windows.Nginx]",
-        "nginx_note": "[NOTEVERK: server_installatie.vereisten.Windows.Nginx_opmerking]"
+        "nginx": "{{c1}} wordt automatisch geïnstalleerd door het MSI-pakket — geen handmatige stap vereist. De installer downloadt een gepinde versie, controleert de SHA-256-hash voordat deze wordt uitgepakt, en registreert deze als de {{c2}}-service. Op een air-gapped host, gebruik dan een air-gap bundle: het bevat nginx, dus de installatie vereist geen netwerktoegang.",
+        "nginx_note": "{{c1}} Het SysManage backend serveert de REST API en de agent WebSocket — het heeft geen handler voor statische bestanden. nginx serveert de webconsole, beëindigt TLS op 443 en proxyt {{c2}} en {{c3}} naar het backend op loopback 8080. Zonder het is er geen console bereikbaar."
       }
     },
     "requirements": {

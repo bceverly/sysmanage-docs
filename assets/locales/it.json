@@ -19560,6 +19560,28 @@
           },
           "link": "Guida alla scansione delle vulnerabilità &#8594;",
           "title": "🛡️ Scansione vulnerabilità"
+        },
+        "config_drift": {
+          "description": "Le verifiche programmate in modalità di controllo si trasformano in risultati che registrano la durata di ogni divergenza, con una correzione a un clic e avvisi su drift persistenti.",
+          "features": {
+            "alerting": "condizione di allarme con soglia di età minima",
+            "dashboard": "Dashboard della flotta ordinata per durata massima del drif",
+            "findings": "Risultati che registrano l'età dello scostamento, non solo lo stato attuale",
+            "remediate": "Risoluzione con un clic attraverso il percorso di applicazione normale"
+          },
+          "link": "Guida alla deriva di configurazione →",
+          "title": "📈 Drift di configurazione"
+        },
+        "config_management": {
+          "description": "Profilo di configurazione desiderato memorizzato, versionato e guidato da Puppet, Salt e Chef dietro a un'astrazione unica, applicato in stile pull sulla connessione dell'agente esistente.",
+          "features": {
+            "assign": "Assegnazione a host, tag o sito con pianificazione Cron",
+            "engines": "Adattatori Puppet, Salt e Chef dietro un unico profilo",
+            "profiles": "Profili versionati con storia restaurabile",
+            "pull": "Esecuzione in stile pull - nessun SSH, nessuna nuova porta in ingresso"
+          },
+          "link": "Guida alla Gestione della Configurazione",
+          "title": "🔧 Gestione della configurazione"
         }
       },
       "overview": {
@@ -21166,6 +21188,163 @@
           "title": "Visualizzazione dei risultati della scansione"
         }
       }
+    },
+    "config_drift": {
+      "alerting": {
+        "description": "L'engine di allarme guadagna una condizione {{c1}}. Legge le scoperte piuttosto che le esecuzioni, perché solo le scoperte sanno {{c2}}:",
+        "min_findings": "quanti risultati validi prima che la regola si attivi",
+        "min_hours": "Ignora lo scarto più vecchio di questo. Questo è il parametro che conta: un controllo eseguito pochi istanti dopo un deploy segnalerà legittimamente una divergenza che la corsa successiva risolverà da sola, e chiamare qualcuno per questo insegna loro a ignorare il canale. L'interfaccia utente imposta in modo predefinito 24 ore.",
+        "profile_name": "facoltativo; limita la regola a un unico profilo",
+        "resolved": "Le scoperte risolte non ri-inviano allarmi, quindi la risoluzione non appare come un nuovo fallimento. L'allarme nomina i profili coinvolti e quanto tempo è passata dalla più vecchia scoperta, perché un allarme che dice solo \"3 scoperte\" invierebbe l'operatore alla ricerca.",
+        "title": "Allarmi per lo sbilanciamento"
+      },
+      "architecture": {
+        "description": "Le operazioni di riconciliazione avvengono all'interno del gestore dei risultati, prima che un ciclo venga confermato, in modo che un ciclo e i suoi risultati arrivino insieme: un ciclo registrato senza i suoi risultati lascerebbe un driffo apparentemente risolto fino al successivo controllo. La riconciliazione non solleva mai errori: un problema di contabilità non deve far fallire il processore della coda e costare la registrazione del ciclo, che è l'elemento più prezioso dei due. Il tavolo <code>config_drift_finding</code> risiede nello schema open-source; le regole che lo popolano sono condizionate dal motore di gestione della configurazione con licenza <code>config_management_engine</code>, quindi un'installazione non licenziata ha uno schema coerente e semplicemente nessun risultato.",
+        "title": "Architettura"
+      },
+      "breadcrumb": "Drift di configurazione",
+      "dashboard": {
+        "fleet": "visualizzazione flotta: una riga per ogni host con il conteggio delle ricerche aperte, i profili coinvolti e quanto tempo è rimasto in stato di drift",
+        "host": "le singole scoperte per un host",
+        "ordering": "Le conclusioni sono ordinate in ordine cronologico inverso, perché lo spostamento che è persistito è il tipo interessante: una divergenza vista una volta potrebbe essere una corsa con un deployment, ma quella che rimane per settimane indica una configurazione che nessuno sta gestendo.",
+        "remediate": "applica nuovamente il profilo in tempo reale",
+        "title": "Dashboard e API"
+      },
+      "header": {
+        "description": "Quali host hanno divergito dai loro profili assegnati, cosa è divergito e — parte che una storia di esecuzione non può rispondere — quanto tempo è passato da allora.",
+        "screenshot": "Il dashboard del drift elenca gli host con risultati aperti, ordinati per anzianità, insieme ai profili coinvolti e alla durata del drift di ogni host.",
+        "title": "Drift di configurazione"
+      },
+      "meta_description": "",
+      "overview": {
+        "description": "La rilevazione della deriva riutilizza la macchina che esiste già invece di aggiungere un secondo percorso di raccolta. {{c1}} Una simulazione di un profilo assegnato risponde alla domanda \"Cosa cambierebbe su questo host\", che è la definizione della deriva rispetto a quel profilo. Quindi un'assegnazione in modalità di controllo programmata È il confronto, e ogni risultato viene riconciliato nelle scoperte man mano che arriva.",
+        "title": "Panoramica"
+      },
+      "page_title": "Drift di configurazione - SysManage Professional+",
+      "remediate": {
+        "description": "Il rimedio re-applica il profilo in modalità {{c1}} attraverso lo stesso costruttore di esecuzione di un'applicazione manuale e come il tick programmato, quindi un rimedio non può divergere da un'applicazione normale. Eredita quindi le porte di controllo dell'agente e le finestre di manutenzione gratuitamente piuttosto che ricontrollare l'uno o l'altro.",
+        "honest": "Mettere in coda una correzione non {{c1}} segna che il problema è stato risolto. I problemi si risolvono quando la prossima esecuzione di controllo di successo smette di segnalare il compito - dichiarare il successo al momento dell'invio sarebbe un dashboard che mente sulla flotta.",
+        "title": "Risoluzione a un clic"
+      },
+      "rules": {
+        "changed": "Solo i compiti segnalati come <strong>modificati</strong> contano. Un compito fallito è un errore da indagare, non una divergenza da rimediare.",
+        "check": "Solo le esecuzioni {{c1}} aprono scoperte. Un'esecuzione attiva che ha cambiato qualcosa non è deriva, è un cambiamento che abbiamo appena fatto; contare ciò come un nuovo problema segnalerebbe il sistema stesso come rimedio.",
+        "description": "Tre regole governano come un'esecuzione a terra cambia l'insieme dei risultati, e ciascuna esiste per prevenire una risposta sbagliata specifica:",
+        "regression": "Una scoperta che era stata risolta e riappare è un {{c1}}: la risoluzione viene cancellata e l'orologio ricomincia, quindi \"deriva da\" descrive sempre l'episodio attuale piuttosto che affermare una deriva continua durante un periodo in cui l'host era conforme.",
+        "success": "Solo un'esecuzione {{c1}} può risolvere una scoperta. Un'esecuzione in modalità di verifica fallita non conosce lo stato dell'host, quindi trattare il suo silenzio come \"la deriva è scomparsa\" chiuderebbe le scoperte sulla forza di un errore. Una esecuzione fallita potrebbe comunque aprire scoperte per ciò che ha osservato.",
+        "title": "Regole di riconciliazione"
+      },
+      "scope": {
+        "description": "Qui la deriva è misurata {{c1}}: il motore stesso riferisce ciò che cambierebbe, quindi non c'è bisogno di raccogliere altro. La deriva misurata contro un {{c2}} è una comparazione inventario limitato — pacchetti, utenti e gruppi, interfacce di rete, archiviazione, repository, stato del firewall e certificati — sui fatti che l'agente riferisce già.",
+        "title": "Cosa include e non include questa funzionalità"
+      },
+      "setup": {
+        "assign": "Assegna a un host, tag o sito con un programma cron e {{c1}} — questa è la comparazione",
+        "mixed": "Un profilo può essere assegnato due volte allo stesso obiettivo - una volta in modalità di controllo frequente per rilevare lo spostamento, e una volta in tempo reale con una frequenza più lenta per correggerlo - se si desidera rilevare e applicare le regole a ritmi diversi.",
+        "profile": "Creare un profilo di configurazione che descriva lo stato desiderato (si veda la guida sulla gestione della configurazione)",
+        "remediate": "Risolvi le scoperte dalla dashboard quando una divergenza è reale, e lascia che la prossima esecuzione di controllo chiuda la scoperta",
+        "title": "Configurazione",
+        "watch": "Controlla il dashboard della deriva, o aggiungi una regola di allarme {{c1}} con un {{c2}} che corrisponde a quanto velocemente il tuo ambiente si auto-ripara"
+      },
+      "why": {
+        "description": "Un'esecuzione in modalità di controllo afferma che {{c1}} cambierebbe. Ciò che non può dire è {{c2}} - ogni esecuzione conosce solo se stessa, quindi \"questo host ha avuto una deriva per nove giorni\" è una domanda senza risposta dalle righe di esecuzione senza scansionare l'intera cronologia ad ogni caricamento della pagina. Un rilevamento di deriva memorizza proprio quella durata e nulla altro; le esecuzioni rimangono la registrazione di ciò che è accaduto.",
+        "identity": "Una scoperta è identificata da {{c1}}. Questa è l'unica identità che la forma generica del risultato porta con sé: l'agente riferisce un compito {{c2}}, e nulla più stabile viaggia con esso. Il costo accettato è che rinominare un compito in un profilo riavvia la sua età di deriva, perché il nuovo nome è una diversa riga. Questa è la giusta contropartita rispetto al confronto su un compito {{c3}}, che ri-attribirebbe silenziosamente la storia di un compito ad un altro non appena qualcuno inserirebbe una fase — una data sbagliata è peggiore di un reset, perché un reset è visibilmente un reset.",
+        "title": "Perché i risultati esistono così come le esecuzioni"
+      },
+      "baseline": {
+        "buckets": "Ogni categoria restituisce tre bucket, denominati dal punto di vista del host {{c1}} perché è il host fisso: {{c2}} è sulla referenza ma non sull'obiettivo, {{c3}} è sull'obiettivo ma non sulla referenza, e {{c4}} è presente su entrambi con un campo confrontato che non corrisponde. \"Non ce l'hai\" e \"ce l'hai sbagliata\" sono due correzioni diverse, quindi non vengono mai fuse.",
+        "cat_certificates": "abbinato per nome del certificato, confrontato sull'emittente",
+        "cat_firewall": "abbinato per nome del firewall, confrontato sullo stato abilitazione",
+        "cat_groups": "abbinato per nome di gruppo",
+        "cat_interfaces": "corrisposto per nome dell'interfaccia, confrontato per tipo",
+        "cat_packages": "abbinato per nome, confrontato sulla versione",
+        "cat_repositories": "abbinato per nome, confrontato sull'URL e sullo stato abilitato",
+        "cat_storage": "corrisposto dal punto di montaggio, confrontato sul file system",
+        "cat_users": "abbinato per nome utente, confrontato sulla shell e sulla directory home",
+        "categories": "Otto categorie sono confrontate, ciascuna abbinata all'identità che rende due righe \"la stessa cosa\" su diversi host e confrontate sui campi che le fanno differire:",
+        "counts": "Le liste per elemento sono limitate in modo che una chiamata non possa restituire più di un megabyte di JSON, ma i conteggi restano esatti e un flag {{c1}} indica quando una lista è stata accorciata — un riepilogo non può mai sottostimare la dimensione di una divergenza.",
+        "description": "L'altra forma di deriva. La deriva del profilo risponde \"questo host corrisponde al profilo che gli abbiamo assegnato?\". La deriva di base risponde \"questo host corrisponde all'host {{c1}}? — questo è ciò a cui un operatore si rivolge quando non c'è ancora un profilo e lo staging funziona mentre la produzione no.",
+        "stateless": "Questa comparazione non memorizza nulla. È una funzione pura di due inventari host correnti, e a differenza di una scoperta di profilo non c'è alcuna durata da tracciare: una categoria differisce ora o non differisce affatto. {{c1}} riferisce le categorie supportate, quindi l'interfaccia utente non può offrire una categoria che il server rifiuterebbe.",
+        "title": "Confronto di base Golden-host",
+        "screenshot": "Confronto tra un host in drift e uno noto come 'buono'. Ogni categoria riporta cosa manca al target, cosa ha che il riferimento non ha, e cosa hanno in comune con un campo in disaccordo."
+      }
+    },
+    "config_management": {
+      "apply": {
+        "check": "Le esecuzioni in modalità di verifica eseguono la bandiera del motore ({{c1}}, {{c2}}, {{c3}}, {{c4}}) e riferiscono ciò che {{c5}} cambierebbe",
+        "description": "Un'applicazione mette in coda un comando per l'host attraverso la normale coda di uscita, quindi eredita le capacità dell'agente e le finestre di manutenzione anziché ricontrollare entrambi:",
+        "detail": "dettagli per compito di una esecuzione",
+        "idempotency": "Le esecuzioni che non hanno modificato nulla sono registrate comunque. La segnalazione dell'idempotenza è il punto della gestione dello stato desiderato e è una dichiarazione sulla storia: \"le ultime tre applicazioni di questo profilo non hanno modificato nulla\" non può essere risolta da una colonna dello stato corrente.",
+        "runs": "cronologia delle esecuzioni per un host",
+        "title": "Applicazione di un profilo"
+      },
+      "architecture": {
+        "description": "Lo schema vive nell'albero open-source perché il server open-source possiede il database; il comportamento — convalidare un profilo, versionarlo, risolvere un'assegnazione, decidere quando un programma è dovuto, costruire una specifica di esecuzione — vive nel compilato Cython di {{c1}}. Ciò significa che un'installazione non licenziata mantiene uno schema coerente e la sua storia di esecuzione esistente.",
+        "title": "Architettura"
+      },
+      "assignments": {
+        "description": "Un'assegnazione lega un profilo a esattamente un target — un host, un tag o un sito — con un programma cron e una bandiera di modalità di verifica opzionale. Tre colonne target opzionali sono utilizzate invece di una {{c1}} coppia, perché quella coppia non può essere una chiave esterna: permetterebbe ad un'assegnazione di sopravvivere all'host che nomina, e il primo sintomo sarebbe un'esecuzione programmata contro una macchina che non esiste più.",
+        "dueness": "La tempestività si basa su {{c1}} anziché su una colonna memorizzata {{c2}}, quindi cambiare un programma ha effetto immediato e un tick mancato non può intrappolare un'assegnazione. Un'assegnazione programmata con {{c3}} impostato solo mai riferisce la deriva e non cambia mai l'host — vedi la guida sulla deriva della configurazione.",
+        "title": "Assegnazioni e pianificazione"
+      },
+      "breadcrumb": "Gestione della configurazione",
+      "engines": {
+        "ansible": "Qualcuno con tre host ha già <code>ansible-playbook</code>; l'applicazione per un solo host è l'analogo diretto dell'esecuzione di uno script, che è gratuita.",
+        "description": "Cinque identità di motore sono supportate. Quali sono gratuite e quali sono licenziate dipende dal valore che aggiungono, non dallo sforzo per sostenerle:",
+        "dsc": "Accompagnato dall'agente Windows, quindi è il percorso predefinito per un singolo host lì. Segnalato come \"incluso con l'agente\" piuttosto che qualcosa da installare.",
+        "platform": "Solo DSC è vincolato alla piattaforma, e solo perché è ciò che vendiamo su Windows. Puppet, Salt e Chef forniscono tutti agenti per Windows e vi eseguono. <code>richiede_licenza()</code> in <code>backend/services/config_mgmt_engines.py</code> è l'unica fonte di verità consultata dall'endpoint di applicazione, dall'endpoint di installazione e dall'interfaccia utente, quindi la regola non può deviare tra il luogo che offre un pulsante e quello che rifiuta la richiesta.",
+        "title": "Motori"
+      },
+      "feature_codes": {
+        "description": "Il modulo di archiviazione, assegnazione, programmazione e gli adattatori Puppet/Salt/Chef sono forniti dal {{c1}}. Senza esso il server open-source memorizza ancora le esecuzioni e guida {{c2}} e {{c3}} su un singolo host; i motori licenziati vengono rifiutati prima che qualsiasi cosa venga programmata.",
+        "title": "Codici Funzionali"
+      },
+      "header": {
+        "description": "Configurazione desiderata: profili memorizzati e versionati applicati a host, tag o siti su una pianificazione o su richiesta. Puppet, Salt e Chef si trovano dietro ad un'astrazione di profilo; ansible-core e Windows DSC rimangono open source.",
+        "screenshot": "La pagina Profili di configurazione elenca ogni profilo memorizzato con il suo motore, versione e conteggio di assegnazioni.",
+        "title": "Gestione della configurazione"
+      },
+      "meta_description": "",
+      "overview": {
+        "description": "Un profilo di configurazione è un corpo nominato e versionato dello stato desiderato - un manifesto Puppet, uno stato Salt, una ricetta Chef, un playbook Ansible o un set di risorse DSC - più il motore che lo interpreta. I profili sono memorizzati lato server, assegnati a host, tag o siti, ed applicati su richiesta o in base ad un programma cron. Ogni applicazione viene registrata come esecuzione, comprese quelle che non hanno modificato nulla.",
+        "title": "Panoramica"
+      },
+      "page_title": "Gestione della configurazione - SysManage Professional+",
+      "prereq": {
+        "bundled": "Non richiesto — DSC viene fornito con l'agente",
+        "description": "Prima di offrire di eseguire un profilo, il server segnala se l'host dispone effettivamente dell'esecutore, e distingue tre situazioni che non devono essere descritte in modo identico:",
+        "installable": "Non installato, ma installabile da gestore pacchetti di questo host",
+        "satisfied": "Installato — con la versione rilevata, quindi un profilo può dichiarare un minimo",
+        "title": "Prontitudine dell'esecutore",
+        "unmeasured": "Non disponibile qui — o la distribuzione non include il pacchetto, o l'inventario di Windows non riesce a riportarlo (un limite di rilevamento, non una limitazione di piattaforma)"
+      },
+      "profiles": {
+        "create": "crea",
+        "description": "Ogni modifica a un profilo's {{c1}} o {{c2}} incrementa la sua versione e annota lo snapshot della precedente versione in {{c3}}. Modificare solo la descrizione non crea una nuova versione. La configurazione come codice senza storia è semplicemente il valore di un profilo memorizzato: essere in grado di rispondere \"che cosa è cambiato e quando\" una volta che una esecuzione inizia a comportarsi diversamente.",
+        "list": "elenco",
+        "restore": "ripristina un corpo precedente",
+        "title": "Profili e versioning",
+        "versions": "Cronologia delle versioni"
+      },
+      "pull": {
+        "agent": "L'esecutore è una dipendenza lato agente, quindi un host che non può eseguirlo semplicemente non pubblicizza tale capacità",
+        "creds": "Nessuna distribuzione di credenziali: non c'è un nodo di controllo che detiene le chiavi per ogni host",
+        "description": "La gestione della configurazione è convenzionalmente push-based: un nodo di controllo apre una connessione SSH a ciascun target. SysManage fa il contrario. Il server invia il profilo {{c1}} e l'agente lo esegue localmente contro {{c2}}, esattamente come funziona già l'esecuzione degli script.",
+        "port": "Nessun nuovo porto in entrata e nessuna raggiungibilità SSH: l'agente richiede 443 in uscita e nulla altro",
+        "results": "I flussi dei risultati tornano sulla stessa connessione di ogni altro comando risultato - nessun nuovo percorso in ingresso",
+        "title": "Esecuzione in stile pull, non push"
+      },
+      "spec": {
+        "description": "L'agente open-source sa come eseguire {{c1}} e DSC. Sa nulla di Puppet, Salt o Chef. Invece di insegnarglielo, il motore licenziato costruisce un {{c2}} e l'agente esegue genericamente:",
+        "exit_code": "significato trasportato nei bit di uscita, con i valori dei bit forniti dalla specifica",
+        "json_file": "il file di report corrispondente più recente nella directory di esecuzione (Chef)",
+        "json_lines": "un oggetto JSON per riga (ansible-core, tramite il nostro plugin di callback)",
+        "json_stdout": "un documento su stdout (Salt, DSC)",
+        "shapes": "Il blocco {{c1}} nomina uno dei cinque schemi generici che l'agente può leggere, e fornisce le regole per leggerlo. Quali bandiere hanno prodotto questa uscita, e cosa significano i campi, è affari del motore licenziato:",
+        "title": "Come un'astrazione guida quattro motori",
+        "why": "Ecco perché aggiungere un motore è una modifica lato licenziato senza rilascio dell'agente: un nuovo motore spedisce nuovi argomenti e nuove regole di risultato, non nuovo codice agente.",
+        "yaml_file": "lo stesso, per un rapporto YAML (Puppet's {{c1}}, che è etichettato Ruby e letto con un caricatore tollerante ai tag)"
+      }
     }
   },
   "quick_start": {
@@ -22519,8 +22698,8 @@
       },
       "ubuntu_debian": "Ubuntu / Debian",
       "windows": {
-        "nginx": "[PRERISORIE MANCANTI: installazione server. nginx su Windows]",
-        "nginx_note": "[NOTA: installazione server. nginx su Windows]",
+        "nginx": "{{c1}} Installato automaticamente dal MSI — nessun passo manuale. L'installatore scarica una versione pinata, verifica il suo SHA-256 prima di estrarre e la registra come servizio {{c2}}. Su un host air-gapped, usa un bundle air-gap: spedisce nginx quindi l'installazione non richiede rete.",
+        "nginx_note": "{{c1}} Il backend di SysManage serve l'API REST e il WebSocket dell'agente solo — non ha un gestore di file statici. nginx serve la console web, termina TLS su 443 e inoltra {{c2}} e {{c3}} al backend su loopback 8080. Senza di esso non c'è console accessibile.",
         "tab_title": "Windows",
         "title": "Windows"
       }

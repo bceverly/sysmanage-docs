@@ -18541,6 +18541,28 @@
           },
           "link": "Guía del Motor de Provisión →",
           "title": "🚀 Provisioning Engine"
+        },
+        "config_drift": {
+          "description": "Las comprobaciones programadas en modo de lectura se convierten en hallazgos que registran cuánto tiempo ha durado cada divergencia, con una corrección de un solo clic y alertas sobre el desajuste que persiste.",
+          "features": {
+            "alerting": "condición de alerta con un umbral de edad mínima",
+            "dashboard": "Panel de flota ordenado por el período más largo de deriva",
+            "findings": "Hallazgos que registran la edad del desvío, no solo el estado actual",
+            "remediate": "Una corrección de un solo clic a través del camino de aplicación normal"
+          },
+          "link": "Guía de Desviación de Configuración →",
+          "title": "📈 Desajuste de Configuración"
+        },
+        "config_management": {
+          "description": "Perfiles de estado deseado almacenados y versionados impulsados por Puppet, Salt y Chef detrás de una única abstracción, aplicados en estilo de extracción sobre la conexión del agente existente.",
+          "features": {
+            "assign": "Asignación a host, etiqueta o sitio con programación de cron",
+            "engines": "Adaptadores de Puppet, Salt y Chef detrás de un solo perfil",
+            "profiles": "Perfiles versionados con historial restaurable",
+            "pull": "Ejecución al estilo de tirón — sin SSH, sin nuevo puerto entrante"
+          },
+          "link": "Guía de Gestión de Configuración →",
+          "title": "🔧 Gestión de Configuración"
         }
       },
       "overview": {
@@ -20238,6 +20260,163 @@
           "staging_when": "Las entradas UEFI aparecen en la configuración generada de dnsmasq solo cuando la primera etapa UEFI ha sido colocada en la raíz TFTP."
         }
       }
+    },
+    "config_drift": {
+      "alerting": {
+        "description": "El motor de alertas gana una condición {{c1}}. Lee hallazgos en lugar de ejecuciones, porque solo los hallazgos saben {{c2}}:",
+        "min_findings": "¿Cuántos hallazgos calificantes antes de que se active la regla?",
+        "min_hours": "Ignorar el desvío que sea más antiguo que esto. Este es el parámetro que importa: una ejecución de comprobación momentos después de un despliegue informará legítimamente de una divergencia que la siguiente ejecución resuelve por sí misma, y llamar a alguien para eso les enseña a ignorar el canal. La interfaz de usuario lo establece en 24 por defecto.",
+        "profile_name": "opcional; limitar la regla a un único perfil",
+        "resolved": "Los hallazgos resueltos nunca re-alertan, por lo que la corrección no se lee como un nuevo fallo. La alerta nombra los perfiles involucrados y cuánto tiempo ha estado el hallazgo más antiguo, porque una alerta que solo dice \"3 hallazgos\" envía al operador en una cacería.",
+        "title": "Alerta por deriva"
+      },
+      "architecture": {
+        "description": "Las ejecuciones de reconciliación ocurren dentro del manejador de resultados, antes de que la ejecución sea comprometida, por lo que una ejecución y sus hallazgos aterrizan juntos — una ejecución registrada sin sus hallazgos dejaría que la deriva parezca resuelta hasta la próxima comprobación. Las conciliaciones nunca lanzan: un problema de contabilidad no debe fallar al procesador de colas y costar el registro de la ejecución, que es el más valioso de los dos. La tabla <code>config_drift_finding</code> vive en el esquema de código abierto; las reglas que la poblan están restringidas a los motores con licencia <code>config_management_engine</code>, por lo que una instalación sin licencia tiene un esquema coherente y simplemente no hay hallazgos.",
+        "title": "Arquitectura"
+      },
+      "breadcrumb": "Desviación de configuración",
+      "dashboard": {
+        "fleet": "vista de flota: una fila por anfitrión con su recuento de hallazgos abiertos, los perfiles involucrados y cuánto tiempo ha estado drifteando",
+        "host": "los hallazgos individuales para un host",
+        "ordering": "Los hallazgos están ordenados de más antiguo a más reciente, porque el derroche que ha persistido es el tipo interesante: una divergencia vista una vez puede ser una carrera con un despliegue, pero uno que permanece durante semanas es una configuración que nadie está gestionando.",
+        "remediate": "reaplicar el perfil en vivo",
+        "title": "Panel de control y API"
+      },
+      "header": {
+        "description": "Cuáles hosts se han desajustado de sus perfiles asignados, qué se ha desajustado y — parte que un historial de ejecuciones no puede responder — cuánto tiempo hace que está así.",
+        "screenshot": "El panel de desajuste lista los hosts con hallazgos abiertos, ordenados por antigüedad, junto con los perfiles involucrados y cuánto tiempo cada host ha estado desajustado.",
+        "title": "Desviación de configuración"
+      },
+      "meta_description": "",
+      "overview": {
+        "description": "La detección de deriva reutiliza la maquinaria que ya existe en lugar de agregar una segunda ruta de recolección. {{c1}} Una prueba sin cambios de un perfil asignado responde \"¿qué cambiaría en este host\", lo cual es la definición de deriva con respecto a ese perfil. Por lo tanto, una asignación programada en modo de verificación ES la comparación, y cada resultado se reconcilia en hallazgos a medida que llega.",
+        "title": "Vista general"
+      },
+      "page_title": "Desviación de configuración - SysManage Professional+",
+      "remediate": {
+        "description": "El remedio re-aplica el perfil en modo {{c1}} a través del mismo constructor de despliegue que una aplicación manual y como el tick programado, por lo que un remedio no puede divergir de una aplicación normal. Por lo tanto, hereda las capacidades de gating del agente y los ventanas de mantenimiento gratis.",
+        "honest": "Colocar una corrección en cola no {{c1}} marca la vulnerabilidad como resuelta. Las vulnerabilidades se resuelven cuando la siguiente ejecución de verificación exitosa deja de reportar la tarea — afirmar el éxito al momento del envío sería un panel que miente sobre la flota.",
+        "title": "Remedición de un solo clic"
+      },
+      "rules": {
+        "changed": "Solo las tareas reportadas como <strong>cambiadas</strong> cuentan. Una tarea fallida es un error a investigar, no una divergencia a remediar.",
+        "check": "Solo las ejecuciones {{c1}} abren hallazgos. Una ejecución activa que cambió algo no es desfasamiento, es un cambio que acabamos de hacer; contarlo reportaría como nuevo problema el propio remedio del sistema.",
+        "description": "Tres reglas rigen cómo una ejecución de aterrizaje cambia el conjunto de hallazgos, y cada una existe para prevenir una respuesta incorrecta específica:",
+        "regression": "Un hallazgo que había sido resuelto y reaparece es un {{c1}}: se limpia la resolución y el reloj se reinicia, por lo que \"desfasado desde\" siempre describe el episodio actual en lugar de afirmar un desfasamiento continuo a través de un período en el que la máquina estaba en cumplimiento.",
+        "success": "Solo una ejecución {{c1}} puede resolver un hallazgo. Una ejecución en modo de comprobación fallida no conoce el estado de la máquina, por lo que tratar su silencio como \"el desfasamiento ha desaparecido\" cerraría los hallazgos basados en un error. Una ejecución fallida aún podría abrir hallazgos para lo que observó.",
+        "title": "Las reglas de reconciliación"
+      },
+      "scope": {
+        "description": "Aquí el desfasamiento se mide {{c1}}: el motor mismo informa qué cambiaría, por lo que no es necesario recopilar nada extra. El desfasamiento medido contra un {{c2}} es una comparación de inventario delimitada — paquetes, usuarios y grupos, interfaces de red, almacenamiento, repositorios, estado del firewall y certificados — sobre hechos que el agente ya informa.",
+        "title": "Lo que esto cubre y no cubre"
+      },
+      "setup": {
+        "assign": "Asignarlo a un objetivo con un horario cron y {{c1}} — esta es la comparación",
+        "mixed": "Un perfil puede asignarse dos veces al mismo objetivo: una vez en un modo de verificación frecuente para detectar desviaciones, y otra vez en vivo con una frecuencia más lenta para corregirlas, si se desea la detección y aplicación en ritmos diferentes.",
+        "profile": "Crear un perfil de configuración que describa el estado deseado (consulte la guía de Administración de Configuración)",
+        "remediate": "Remediar desde la interfaz cuando una divergencia es real, y deja que la próxima ejecución de comprobación cierre el hallazgo",
+        "title": "Configuración",
+        "watch": "Monitorea el tablero de desfasamiento, o agrega una regla de alerta {{c1}} con un {{c2}} que coincida con qué rápido tu entorno se auto-repara"
+      },
+      "why": {
+        "description": "Una ejecución en modo de verificación dice {{c1}} cambiaría. Lo que no puede decir es {{c2}} — cada ejecución solo sabe de sí misma, por lo que \"este host ha estado drifteando durante nueve días\" es una pregunta sin respuesta a partir de las filas de ejecución sin escanear todo el historial en cada carga de página. Un hallazgo de deriva almacena exactamente esa duración y nada más; las ejecuciones siguen siendo el registro de lo que sucedió.",
+        "identity": "Un hallazgo se identifica por {{c1}}. Esa es la única identidad que lleva la forma de resultado genérica: el agente informa una tarea {{c2}}, y nada más estable viaja con ella. El costo aceptado es que renombrar una tarea en un perfil reinicia su edad de desfasamiento, porque el nuevo nombre es una fila diferente. Eso es el equilibrio adecuado contra coincidir en la tarea {{c3}}, lo cual reatribuiría silenciosamente la historia de una tarea a otra en el momento en que alguien insertara un paso — un error de fecha es peor que un reinicio de fecha, porque un reinicio es visiblemente un reinicio.",
+        "title": "Por qué existen hallazgos además de las ejecuciones"
+      },
+      "baseline": {
+        "buckets": "Cada categoría devuelve tres cubos, nombrados desde la perspectiva del host {{c1}} porque ese es el host fijo: {{c2}} está en la referencia pero no en el objetivo, {{c3}} está en el objetivo pero no en la referencia, y {{c4}} está presente en ambos con un campo comparado que no coincide. 'No lo tienes' y 'tienes el incorrecto' son soluciones diferentes, por lo que nunca se fusionan.",
+        "cat_certificates": "coincide por el nombre del certificado, comparado con el emisor",
+        "cat_firewall": "coincide por el nombre del firewall, comparado con el estado habilitado",
+        "cat_groups": "coincidido por nombre de grupo",
+        "cat_interfaces": "coincide por nombre de interfaz, comparado por tipo",
+        "cat_packages": "coincide por nombre, comparado por versión",
+        "cat_repositories": "coincide por nombre, comparado en la URL y estado habilitado",
+        "cat_storage": "coincide por punto de montaje, comparado en sistema de archivos",
+        "cat_users": "coincide por nombre de usuario, comparado en el shell y directorio de inicio",
+        "categories": "Se comparan ocho categorías, cada una emparejada según la identidad que hace que dos filas sean la misma cosa en diferentes hosts, y comparadas en los campos que las diferencian:",
+        "counts": "Las listas per-elemento están limitadas para evitar que una llamada devuelva un megabyte de JSON, pero los recuentos permanecen exactos y una bandera {{c1}} indica cuando una lista fue acortada — un resumen nunca subreporta el tamaño de una divergencia.",
+        "description": "El otro tipo de desfasamiento. El hallazgo de desfasamiento responde \"¿esta máquina coincide con el perfil que le asignamos?\". El desfasamiento de base responde \"¿coincide esta máquina con la máquina {{c1}}?\" — eso es lo que un operador busca cuando no hay un perfil aún y el entorno de prueba funciona mientras el entorno de producción no.",
+        "stateless": "Esta comparación no almacena nada. Es una función pura de dos inventarios de máquinas actuales, y a diferencia de un hallazgo de perfil, no hay ninguna duración que rastrear: una categoría o bien difiere ahora o no lo hace. {{c1}} informa las categorías admitidas, por lo que la UI no puede ofrecer una que el servidor rechazaría.",
+        "title": "Comparación de línea base Golden-host",
+        "screenshot": "Comparando un host que se desvía contra uno conocido bueno. Cada categoría informa qué le falta al objetivo, qué tiene que la referencia no y qué ambos tienen con un campo en desacuerdo."
+      }
+    },
+    "config_management": {
+      "apply": {
+        "check": "Las ejecuciones en modo de comprobación ejecutan la bandera seca del motor ({{c1}}, {{c2}}, {{c3}}, {{c4}}) e informan qué cambio ocurriría, según {{c5}}.",
+        "description": "Una aplicación coloca un comando para el host a través de la cola de salida normal, por lo que hereda las capacidades de agente de control y ventanas de mantenimiento en lugar de volver a comprobar cualquiera de ellas:",
+        "detail": "detalle por tarea para una ejecución",
+        "idempotency": "Las ejecuciones que cambiaron nada también son registradas. El informe de idempotencia es el punto de gestión del estado deseado y es una afirmación sobre la historia: \"las últimas tres aplicaciones de este perfil no cambiaron nada\" no se puede responder desde una columna de estado actual.",
+        "runs": "historial de ejecución para un host",
+        "title": "Aplicando un perfil"
+      },
+      "architecture": {
+        "description": "El esquema vive en el árbol de código abierto porque el servidor de código abierto posee la base de datos; el comportamiento — validar un perfil, versionarlo, resolver una asignación, decidir cuándo está programado un horario — vive en el compilado Cython de {{c1}}. Eso es lo mismo que Vulnerabilidad y Perfil de Cumplimiento, y significa que una instalación sin licencia mantiene un esquema coherente y su historial de ejecución existente.",
+        "title": "Arquitectura"
+      },
+      "assignments": {
+        "description": "Una asignación une un perfil a exactamente un objetivo — una máquina, una etiqueta o un sitio — con un horario cron y una bandera de modo de comprobación opcional. Se usan tres columnas de destino opcionales en lugar de una pareja {{c1}}, porque esa pareja no puede ser una clave foránea: permitiría que una asignación supere la vida del objetivo que nombra, y el primer síntoma sería una ejecución programada contra una máquina que ya no existe.",
+        "dueness": "La puntualidad se ancla en {{c1}} en lugar de una columna almacenada {{c2}}, por lo que cambiar un horario tiene efecto inmediato y un tick perdido no puede dejar colgada una asignación. Una asignación programada con {{c3}} establecida solo informa desfasamiento y nunca cambia la máquina — consulte la guía de detección de configuración.",
+        "title": "Asignaciones y programación"
+      },
+      "breadcrumb": "Gestión de Configuración",
+      "engines": {
+        "ansible": "Alguien con tres hosts ya tiene <code>ansible-playbook</code>; la aplicación de un solo host es el análogo directo de la ejecución de scripts, que es gratuita.",
+        "description": "Se soportan cinco identidades de motor. ¿Cuáles son gratuitas y cuáles con licencia depende del valor que añaden, no del esfuerzo en apoyarlas:",
+        "dsc": "Se incluye con el agente de Windows, por lo que es la ruta predeterminada para un solo host allí. Informado como \"incluido con el agente\" en lugar de algo para instalar.",
+        "platform": "Solo DSC está limitado a la plataforma, y solo porque es lo que ofrecemos en Windows. Puppet, Salt y Chef todos envían agentes de Windows y corren allí. <code>requiere_licencia()</code> en <code>backend/services/config_mgmt_engines.py</code> es la única fuente de verdad consultada por el punto final de aplicación, el punto final de instalación y la interfaz de usuario, por lo que la regla no puede desviarse entre el lugar que ofrece un botón y el que rechaza la solicitud.",
+        "title": "Motores"
+      },
+      "feature_codes": {
+        "description": "El almacenamiento del perfil, la asignación, la programación y los adaptadores Puppet/Salt/Chef son proporcionados por el módulo {{c1}}. Sin él, el servidor de código abierto aún almacena ejecuciones y ejecuta {{c2}} y {{c3}} en una sola máquina; las licencias rechazan cualquier tarea antes de que sea programada.",
+        "title": "Códigos de Características"
+      },
+      "header": {
+        "description": "Configuración de estado deseado: perfiles almacenados y versionados aplicados a hosts, etiquetas o sitios según una programación o bajo demanda. Puppet, Salt y Chef se encuentran detrás de una abstracción de perfil; ansible-core y Windows DSC permanecen de código abierto.",
+        "screenshot": "La página de perfiles de configuración lista cada perfil almacenado con su motor, versión y recuento de asignaciones.",
+        "title": "Gestión de Configuración"
+      },
+      "meta_description": "",
+      "overview": {
+        "description": "Un perfil de configuración es un cuerpo nombrado y versionado del estado deseado —un manifiesto Puppet, un estado Salt, una receta Chef, un playbook Ansible o un conjunto de recursos DSC— más el motor que lo interpreta. Los perfiles se almacenan en el servidor, se asignan a hosts, etiquetas o sitios, y se aplican ya sea bajo solicitud o según un horario cron. Cada ejecución de aplicación se registra, incluidas las ejecuciones que no cambiaron nada.",
+        "title": "Vista general"
+      },
+      "page_title": "Gestión de Configuración - SysManage Profesional+",
+      "prereq": {
+        "bundled": "No es necesario — DSC se entrega con el agente",
+        "description": "Antes de ofrecer ejecutar un perfil, el servidor informa si el host realmente tiene el ejecutor, y distingue tres situaciones que no deben describirse idénticamente:",
+        "installable": "No instalado, pero se puede instalar desde el gestor de paquetes de este host",
+        "satisfied": "Instalado — con la versión detectada, por lo que un perfil puede declarar un mínimo",
+        "title": "Preparación del ejecutor",
+        "unmeasured": "No disponible aquí — ya sea que la distribución no incluya el paquete o que el inventario de Windows no pueda reportarlo (un límite de detección, no un límite de plataforma)"
+      },
+      "profiles": {
+        "create": "crear",
+        "description": "Cada cambio a un perfil's {{c1}} o {{c2}} incrementa su versión y toma una instantánea del cuerpo anterior en {{c3}}. Editar solo la descripción no genera un nuevo versionado. La configuración como código sin historial es simplemente la configuración: el valor de un perfil almacenado es poder responder \"qué cambió y cuándo\" una vez que una ejecución comienza a comportarse de manera diferente.",
+        "list": "lista",
+        "restore": "restaurar un cuerpo anterior",
+        "title": "Perfiles y versión",
+        "versions": "historial de versiones"
+      },
+      "pull": {
+        "agent": "El ejecutor es una dependencia del lado del agente, por lo que un host que no pueda ejecutar uno simplemente no publicita la capacidad",
+        "creds": "No distribución de credenciales: no hay un nodo de control que posea claves para cada host",
+        "description": "La gestión de configuración es tradicionalmente basada en empuje: un nodo de control abre SSH a cada objetivo. SysManage hace lo contrario. El servidor envía el perfil {{c1}} y el agente lo ejecuta localmente contra {{c2}}, exactamente como ya funciona la ejecución de scripts.",
+        "port": "No se permiten nuevos puertos entrantes y no hay accesibilidad SSH: el agente requiere 443 salientes y nada más",
+        "results": "Los resultados fluyen de vuelta sobre la misma conexión que cada otro resultado de comando — no hay nuevo camino de ingreso",
+        "title": "Ejecución al estilo de tirón, no empuje"
+      },
+      "spec": {
+        "description": "El agente de código abierto sabe cómo ejecutar {{c1}} y DSC. No sabe nada sobre Puppet, Salt o Chef. En lugar de enseñárselo, el motor de licencia construye un {{c2}} y el agente ejecuta genéricamente:",
+        "exit_code": "significado transportado en los bits de salida, con los valores de bits proporcionados por la especificación",
+        "json_file": "el archivo de informe de coincidencia más reciente en el directorio de ejecución (Chef)",
+        "json_lines": "un objeto JSON por línea (ansible-core, a través de nuestro plugin de devolución de llamada)",
+        "json_stdout": "un documento en salida estándar (Salt, DSC)",
+        "shapes": "El bloque {{c1}} nombra uno de cinco formas genéricas que el agente puede leer, y proporciona las reglas para leerlo. ¿Qué banderas produjeron esa salida, y qué significan los campos? Es negocio del motor con licencia:",
+        "title": "¿Cómo una abstracción impulsa cuatro motores",
+        "why": "Esta es la razón por la que agregar un motor es un cambio del lado con licencia sin lanzamiento del agente: un nuevo motor envía nuevos argumentos y nuevas reglas de resultado, no nuevo código del agente.",
+        "yaml_file": "lo mismo, para un informe YAML (el Puppet's {{c1}}, que está etiquetado en Ruby y leído con un cargador tolerante a etiquetas),"
+      }
     }
   },
   "quick_start": {
@@ -21483,8 +21662,8 @@
       "windows": {
         "tab_title": "Windows",
         "title": "Windows",
-        "nginx": "[FALTANTE: requisitos de instalación del servidor. Windows. Nginx]",
-        "nginx_note": "[NOTA: requisitos de instalación del servidor. Windows. Nginx]"
+        "nginx": "{{c1}} Instalado automáticamente por el MSI — sin paso manual. El instalador descarga una versión pinada, verifica su SHA-256 antes de extraer, y lo registra como el servicio {{c2}}. En una máquina aislada, use un paquete aislado: envía nginx para que la instalación no requiera red.",
+        "nginx_note": "{{c1}} El backend de SysManage sirve la API REST y el WebSocket del agente solo — no tiene manejador de archivos estáticos. nginx sirve la consola web, termina TLS en 443, y reenvía {{c2}} y {{c3}} al backend en bucle 8080. Sin él, no habría consola para alcanzar."
       }
     },
     "requirements": {

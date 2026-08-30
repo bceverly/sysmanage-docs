@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en" data-i18n-title="pro_plus.config_management.page_title">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title data-i18n="pro_plus.config_management.page_title">Configuration Management - SysManage Professional+</title>
+    <meta name="description" content="Desired-state configuration management with stored, versioned profiles driven by Puppet, Salt and Chef behind one abstraction, applied pull-style over the existing agent connection." data-i18n-attr="content" data-i18n="pro_plus.config_management.meta_description">
+    <link rel="stylesheet" href="../../assets/css/style.css">
+    <link rel="icon" type="image/svg+xml" href="../../assets/images/favicon.svg">
+</head>
+<body data-auto-header="documentation" data-auto-footer>
+
+    <main class="docs-main">
+        <div class="container">
+            <div class="docs-breadcrumb">
+                <a href="../" data-i18n="nav.documentation">Documentation</a> &gt;
+                <a href="./" data-i18n="pro_plus.breadcrumb">Professional+</a> &gt;
+                <span data-i18n="pro_plus.config_management.breadcrumb">Configuration Management</span>
+            </div>
+
+            <div class="docs-header">
+                <div class="pro-plus-badge">&#11088; PRO+</div>
+                <h1 data-i18n="pro_plus.config_management.header.title">Configuration Management</h1>
+                <p data-i18n="pro_plus.config_management.header.description">Desired-state configuration: stored, versioned profiles applied to hosts, tags or sites on a schedule or on demand. Puppet, Salt and Chef sit behind one profile abstraction; ansible-core and Windows DSC stay open source.</p>
+                <figure class="docs-screenshot">
+                    <img src="/assets/images/config-profiles.png" alt="Configuration Profiles page">
+                    <figcaption data-i18n="pro_plus.config_management.header.screenshot">The Configuration Profiles page lists every stored profile with its engine, version and assignment count.</figcaption>
+                </figure>
+            </div>
+
+            <div class="docs-content">
+                <section class="docs-overview">
+                    <h2 data-i18n="pro_plus.config_management.overview.title">Overview</h2>
+                    <p data-i18n="pro_plus.config_management.overview.description">A configuration profile is a named, versioned body of desired state &mdash; a Puppet manifest, a Salt state, a Chef recipe, an Ansible playbook or a DSC resource set &mdash; plus the engine that interprets it. Profiles are stored server-side, assigned to hosts, tags or sites, and applied either on request or on a cron schedule. Every application is recorded as a run, including the runs that changed nothing.</p>
+                </section>
+
+                <section class="docs-section">
+                    <h2 data-i18n="pro_plus.config_management.pull.title">Pull-style execution, not push</h2>
+                    <p data-i18n="pro_plus.config_management.pull.description" data-i18n-html>Configuration management is conventionally push-based: a control node opens SSH to each target. SysManage does the opposite. The server ships the profile <em>down the existing agent WebSocket</em> and the agent runs it locally against <code>localhost</code>, exactly as script execution already works.</p>
+                    <ul>
+                        <li data-i18n="pro_plus.config_management.pull.port">No new inbound port and no SSH reachability: the agent needs 443 outbound and nothing else</li>
+                        <li data-i18n="pro_plus.config_management.pull.creds">No credential distribution: there is no control node holding keys to every host</li>
+                        <li data-i18n="pro_plus.config_management.pull.agent">The executor is an agent-side dependency, so a host that cannot run one simply does not advertise the capability</li>
+                        <li data-i18n="pro_plus.config_management.pull.results">Results flow back over the same connection as every other command result &mdash; no new ingress path</li>
+                    </ul>
+                </section>
+
+                <section class="docs-section">
+                    <h2 data-i18n="pro_plus.config_management.engines.title">Engines</h2>
+                    <p data-i18n="pro_plus.config_management.engines.description">Five engine identities are supported. Which are free and which are licensed follows the value they add, not the effort of supporting them:</p>
+                    <ul>
+                        <li><code>ansible-core</code> &mdash; <strong>Community Edition</strong>. <span data-i18n="pro_plus.config_management.engines.ansible" data-i18n-html>Someone with three hosts already has <code>ansible-playbook</code>; single-host apply is the direct analogue of script execution, which is free.</span></li>
+                        <li><code>dsc</code> &mdash; <strong>Community Edition</strong>. <span data-i18n="pro_plus.config_management.engines.dsc">Vendored with the Windows agent, so it is the default single-host path there. Reported as "included with the agent" rather than as something to install.</span></li>
+                        <li><code>puppet</code> &mdash; <strong>Professional+</strong></li>
+                        <li><code>salt</code> &mdash; <strong>Professional+</strong></li>
+                        <li><code>chef</code> &mdash; <strong>Professional+</strong></li>
+                    </ul>
+                    <p data-i18n="pro_plus.config_management.engines.platform" data-i18n-html>Only DSC is platform-bound, and only because it is what we vendor on Windows. Puppet, Salt and Chef all ship Windows agents and run there. <code>requires_license()</code> in <code>backend/services/config_mgmt_engines.py</code> is the single source of truth consulted by the apply endpoint, the install endpoint and the UI, so the rule cannot drift between the place that offers a button and the place that refuses the request.</p>
+                </section>
+
+                <section class="docs-section">
+                    <h2 data-i18n="pro_plus.config_management.spec.title">How one abstraction drives four engines</h2>
+                    <p data-i18n="pro_plus.config_management.spec.description" data-i18n-html>The open-source agent knows how to run <code>ansible-playbook</code> and DSC. It knows nothing about Puppet, Salt or Chef. Instead of teaching it, the licensed engine builds an <strong>execution spec</strong> and the agent executes it generically:</p>
+                    <div class="code-block">
+                        <pre><code>{
+  "engine": "puppet",
+  "argv":   ["puppet", "apply", "--noop", "--color=false", "--vardir", "{workdir}/var", "site.pp"],
+  "profile": {"name": "site.pp", "content": "file { '/etc/motd': ... }"},
+  "files":  [{"name": "client.rb", "content": "..."}],
+  "env":    {"CHEF_LICENSE": "accept"},
+  "result": {"format": "yaml_file", "report_glob": "last_run_report.yaml",
+             "entries_path": "resource_statuses",
+             "changed_key": "out_of_sync", "name_key": "title"}
+}</code></pre>
+                    </div>
+                    <p data-i18n="pro_plus.config_management.spec.shapes" data-i18n-html>The <code>result</code> block names one of five generic shapes the agent can read, and supplies the rules for reading it. Which flags produced that output, and what the fields mean, is the licensed engine's business:</p>
+                    <ul>
+                        <li><code>json_lines</code> &mdash; <span data-i18n="pro_plus.config_management.spec.json_lines">one JSON object per line (ansible-core, via our callback plugin)</span></li>
+                        <li><code>json_stdout</code> &mdash; <span data-i18n="pro_plus.config_management.spec.json_stdout">one document on stdout (Salt, DSC)</span></li>
+                        <li><code>json_file</code> &mdash; <span data-i18n="pro_plus.config_management.spec.json_file">the newest matching report file in the run directory (Chef)</span></li>
+                        <li><code>yaml_file</code> &mdash; <span data-i18n="pro_plus.config_management.spec.yaml_file" data-i18n-html>the same, for a YAML report (Puppet's <code>last_run_report.yaml</code>, which is Ruby-tagged and read with a tag-tolerant safe loader)</span></li>
+                        <li><code>exit_code</code> &mdash; <span data-i18n="pro_plus.config_management.spec.exit_code">meaning carried in the exit bits, with the bit values supplied by the spec</span></li>
+                    </ul>
+                    <p data-i18n="pro_plus.config_management.spec.why">This is why adding an engine is a licensed-side change with no agent release: a new engine ships new argv and new result rules, not new agent code.</p>
+                </section>
+
+                <section class="docs-section">
+                    <h2 data-i18n="pro_plus.config_management.profiles.title">Profiles and versioning</h2>
+                    <p data-i18n="pro_plus.config_management.profiles.description" data-i18n-html>Every change to a profile's <code>engine</code> or <code>content</code> bumps its version and snapshots the previous body into <code>config_profile_version</code>. Editing only the description does not burn a version. Config-as-code without history is just config: the value of a stored profile is being able to answer "what changed, and when" once a run starts behaving differently.</p>
+                    <ul>
+                        <li><code>GET /api/v1/config-management/profiles</code> &mdash; <span data-i18n="pro_plus.config_management.profiles.list">list</span></li>
+                        <li><code>POST /api/v1/config-management/profiles</code> &mdash; <span data-i18n="pro_plus.config_management.profiles.create">create</span></li>
+                        <li><code>GET /api/v1/config-management/profiles/{id}/versions</code> &mdash; <span data-i18n="pro_plus.config_management.profiles.versions">version history</span></li>
+                        <li><code>POST /api/v1/config-management/profiles/{id}/restore/{version}</code> &mdash; <span data-i18n="pro_plus.config_management.profiles.restore">restore a prior body</span></li>
+                    </ul>
+                </section>
+
+                <section class="docs-section">
+                    <h2 data-i18n="pro_plus.config_management.assignments.title">Assignments and scheduling</h2>
+                    <p data-i18n="pro_plus.config_management.assignments.description" data-i18n-html>An assignment binds a profile to exactly one target &mdash; a host, a tag or a site &mdash; with an optional cron schedule and an optional check-mode flag. Three nullable target columns are used rather than a <code>(target_type, target_id)</code> pair, because that pair cannot be a foreign key: it would let an assignment outlive the host it names, and the first symptom would be a scheduled run against a machine that no longer exists.</p>
+                    <p data-i18n="pro_plus.config_management.assignments.dueness" data-i18n-html>Due-ness is anchored on <code>last_applied_at</code> rather than a stored <code>next_run</code> column, so changing a schedule takes effect immediately and a missed tick cannot strand an assignment. A scheduled assignment with <code>check_mode</code> set only ever reports drift and never changes the host &mdash; see the Configuration Drift guide.</p>
+                </section>
+
+                <section class="docs-section">
+                    <h2 data-i18n="pro_plus.config_management.apply.title">Applying a profile</h2>
+                    <p data-i18n="pro_plus.config_management.apply.description">An apply queues a command for the host through the normal outbound queue, so it inherits agent capability gating and maintenance windows rather than re-checking either:</p>
+                    <div class="code-block">
+                        <pre><code>POST /api/v1/hosts/{host_id}/config-management/apply
+{
+  "profile_id": "..uuid..",
+  "check_mode": true
+}</code></pre>
+                    </div>
+                    <ul>
+                        <li data-i18n="pro_plus.config_management.apply.check" data-i18n-html>Check mode runs the engine's dry-run flag (<code>--check</code>, <code>--noop</code>, <code>test=True</code>, <code>--why-run</code>) and reports what <em>would</em> change</li>
+                        <li><code>GET /api/v1/hosts/{host_id}/config-management/runs</code> &mdash; <span data-i18n="pro_plus.config_management.apply.runs">run history for a host</span></li>
+                        <li><code>GET /api/v1/config-management/runs/{run_id}</code> &mdash; <span data-i18n="pro_plus.config_management.apply.detail">per-task detail for one run</span></li>
+                    </ul>
+                    <p data-i18n="pro_plus.config_management.apply.idempotency">Runs that changed nothing are recorded too. Idempotency reporting is the point of desired-state management and it is a claim about history: "the last three applications of this profile changed nothing" cannot be answered from a current-state column.</p>
+                </section>
+
+                <section class="docs-section">
+                    <h2 data-i18n="pro_plus.config_management.prereq.title">Executor readiness</h2>
+                    <p data-i18n="pro_plus.config_management.prereq.description">Before offering to run a profile, the server reports whether the host actually has the executor, and distinguishes three situations that must not be described identically:</p>
+                    <ul>
+                        <li data-i18n="pro_plus.config_management.prereq.satisfied">Installed &mdash; with the detected version, so a profile can declare a minimum</li>
+                        <li data-i18n="pro_plus.config_management.prereq.installable">Not installed, but installable from this host's package manager</li>
+                        <li data-i18n="pro_plus.config_management.prereq.bundled">Not required &mdash; DSC ships with the agent</li>
+                        <li data-i18n="pro_plus.config_management.prereq.unmeasured">Not available here &mdash; either the distro is measured not to carry the package, or Windows inventory cannot report it (a detection limit, not a platform limit)</li>
+                    </ul>
+                </section>
+
+                <section class="docs-section">
+                    <h2 data-i18n="pro_plus.config_management.feature_codes.title">Feature Codes</h2>
+                    <p data-i18n="pro_plus.config_management.feature_codes.description" data-i18n-html>Profile storage, assignment, scheduling and the Puppet/Salt/Chef adapters are provided by the <code>config_management_engine</code> module. Without it the open-source server still stores runs and drives <code>ansible-core</code> and <code>dsc</code> on a single host; licensed engines are refused before anything is queued.</p>
+                </section>
+
+                <section class="docs-section">
+                    <h2 data-i18n="pro_plus.config_management.architecture.title">Architecture</h2>
+                    <p data-i18n="pro_plus.config_management.architecture.description" data-i18n-html>The schema lives in the open-source tree because the OSS server owns the database; the behaviour &mdash; validating a profile, versioning it, resolving an assignment, deciding when a schedule is due, building an execution spec &mdash; lives in the Cython-compiled <code>config_management_engine</code>. That is the same split Vulnerability and ComplianceProfile use, and it means an unlicensed install keeps a coherent schema and its existing run history.</p>
+                </section>
+            </div>
+        </div>
+    </main>
+
+</body>
+</html>
