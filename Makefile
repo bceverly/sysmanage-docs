@@ -103,7 +103,7 @@ endif
 .PHONY: release help install-dev install-hooks install-vm-deps install-browsers screenshot clean check-deps platform-info ensure-lint-tools \
        test test-spelling test-markdown-lint test-vale test-accessibility test-links \
        check-test-deps website-package i18n-validate i18n-markup i18n-markup-fix i18n-seed i18n-extract i18n-fix \
-       translate translate-dry translate-check lint lint-file-length lint-python lint-security lint-js
+       translate translate-dry translate-check lint lint-file-length lint-python lint-security lint-js lint-css lint-css-fix ensure-css-lint-tools
 
 # Default target
 help:
@@ -1011,7 +1011,27 @@ lint-js: ensure-js-lint-tools
 	@./node_modules/.bin/eslint assets/js/*.js real-screenshot.js screenshot-generator.js screenshots/capture.mjs
 	@echo "[OK] eslint passed"
 
-lint: lint-file-length lint-python lint-security lint-js i18n-validate i18n-strict i18n-markup translate-check
+ensure-css-lint-tools:
+	@test -x node_modules/.bin/stylelint || { \
+		echo "$(YELLOW)stylelint devDependency missing — installing...$(RESET)"; \
+		$(NPM) install --ignore-scripts || true; \
+	}
+	@test -x node_modules/.bin/stylelint || { \
+		echo "$(RED)stylelint is not installed — run 'make install-dev' (gmake on the BSDs).$(RESET)"; \
+		exit 1; \
+	}
+
+lint-css: ensure-css-lint-tools
+	@echo "=== CSS Linting (stylelint) ==="
+	@./node_modules/.bin/stylelint "assets/css/**/*.css"
+	@echo "[OK] CSS linting completed"
+
+lint-css-fix: ensure-css-lint-tools
+	@echo "=== CSS Auto-fix (stylelint --fix) ==="
+	@./node_modules/.bin/stylelint "assets/css/**/*.css" --fix
+	@echo "[OK] CSS auto-fix completed"
+
+lint: lint-file-length lint-python lint-security lint-js lint-css i18n-validate i18n-strict i18n-markup translate-check
 	@echo "[OK] docs lint (python + security + js + i18n) passed"
 
 # Structure gate. i18n-validate asks "is the key there?", translate-check asks
@@ -1061,8 +1081,16 @@ i18n-extract:
 #   or:  make translate SERVICE=http://beast:8765
 SERVICE ?= $(or $(TRANSLATION_SERVICE_URL),http://localhost:8765)
 
+# CLIENT_BATCH caps how many strings go in ONE HTTP request (script default
+# 100).  A whole language in a single request means one long silent POST while
+# the GPU works; anything that drops an idle TCP flow -- or a genuinely slow
+# target like zh_CN over long paragraphs -- loses the entire language's work.
+# Lower it (CLIENT_BATCH=8) when a language keeps stalling.
+CLIENT_BATCH ?=
+
 translate:
-	@$(PYTHON) scripts/translate_i18n.py --service "$(SERVICE)" --fail-on-gaps
+	@$(PYTHON) scripts/translate_i18n.py --service "$(SERVICE)" --fail-on-gaps \
+		$(if $(CLIENT_BATCH),--client-batch $(CLIENT_BATCH),)
 
 translate-dry:
 	@$(PYTHON) scripts/translate_i18n.py --dry-run

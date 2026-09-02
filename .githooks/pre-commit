@@ -1,0 +1,67 @@
+#!/usr/bin/env bash
+# Pre-commit hook — refuses commits whose staged CSS fails stylelint.
+#
+# Pairs with the ``pre-push`` hook (which runs the full ``make lint``):
+#   * pre-commit fires per commit, only on staged .css files — cheap,
+#     fast, blocks bad commits before they even land in history.
+#   * pre-push fires once per push and runs the whole lint chain, so it
+#     catches anything that slipped through (``--no-verify`` commits, or
+#     drift introduced by an editor between commit and push).
+#
+# stylelint writes its REPORT to stderr and exits 2, so ``2>/dev/null``
+# would throw away the very output the developer needs.  Captured with
+# 2>&1 for that reason.
+#
+# Installed by ``make install-hooks`` (core.hooksPath = .githooks).
+
+set -e
+
+REPO_ROOT="$(git rev-parse --show-toplevel 2>/dev/null || true)"
+if [ -z "${REPO_ROOT}" ]; then
+exit 0
+fi
+cd "${REPO_ROOT}"
+
+STAGED_CSS=$(git diff --cached --name-only --diff-filter=ACMR -- \
+    'assets/css/*.css' 'assets/css/**/*.css' 2>/dev/null || true)
+
+if [ -z "${STAGED_CSS}" ]; then
+exit 0
+fi
+
+STYLELINT=node_modules/.bin/stylelint
+
+if [ ! -x "${STYLELINT}" ]; then
+echo ""
+echo "[pre-commit] stylelint is NOT INSTALLED."
+echo "             Your CSS is fine -- the linter never ran."
+echo ""
+echo "                 npm ci      # or: make install-dev"
+echo ""
+exit 1
+fi
+
+set +e
+CSS_OUT=$("${STYLELINT}" ${STAGED_CSS} 2>&1)
+CSS_RC=$?
+set -e
+
+if [ "${CSS_RC}" -ne 0 ]; then
+echo ""
+echo "[pre-commit] stylelint found problems in staged CSS."
+echo ""
+echo "${CSS_OUT}"
+echo "             Most rules auto-fix.  Fix locally with:"
+echo ""
+echo "                 make lint-css-fix"
+echo "                 git add <files>"
+echo "                 git commit"
+echo ""
+echo "             Bypass with 'git commit --no-verify' if you must,"
+echo "             but pre-push and CI both run the same check and"
+echo "             will reject it later."
+echo ""
+exit 1
+fi
+
+exit 0

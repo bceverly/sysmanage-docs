@@ -17,7 +17,7 @@ This repository contains the complete documentation for SysManage, an open-sourc
 - **[Server Documentation](docs/server/)** - Installation, configuration, and deployment
 - **[Agent Documentation](docs/agent/)** - Cross-platform agent setup and management
 - **[Deployment](docs/deployment/)** - Deployment guides and topologies
-- **[Professional+](docs/professional-plus/)** - Pro+ engines, air-gap deployment, multi-site federation, and content lifecycle management
+- **[Professional+](docs/professional-plus/)** - Pro+ engines, air-gap deployment, multi-site federation, content lifecycle management, and configuration management & drift
 - **[API Reference](docs/api/)** - Complete REST API documentation
 - **[Security](docs/security/)** - Authentication, mTLS, and best practices
 - **[Architecture](docs/architecture/)** - System design and scaling strategies
@@ -281,10 +281,15 @@ sysmanage-docs/
 │   ├── getting-started/    # Getting started guides
 │   ├── server/            # Server documentation
 │   ├── agent/             # Agent documentation
+│   ├── deployment/        # Deployment guides and topologies
+│   ├── professional-plus/ # Pro+ / Enterprise feature documentation
+│   ├── comparison/        # Comparisons with other management platforms
 │   ├── api/               # API reference
 │   ├── security/          # Security guides
 │   ├── architecture/      # System architecture
 │   └── administration/    # Admin guides
+├── roadmap/               # Public roadmap page
+├── screenshots/           # Capture harness + generated product screenshots
 ├── repo/                  # Package repositories
 │   ├── deb/              # Debian/Ubuntu APT repository
 │   ├── rpm/              # Red Hat/Fedora YUM/DNF repository

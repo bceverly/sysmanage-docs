@@ -97,16 +97,41 @@ def _post(url: str, payload: dict, timeout: float = 1800.0) -> dict:
         return json.loads(resp.read().decode("utf-8"))
 
 
-def _service_ok(service: str) -> bool:
+# Health-probe timeout.  Deliberately generous: this endpoint shares a process
+# with inference, so a box that is UP but mid-batch will not answer promptly.
+# At 10s (the original value) a busy GPU box reported as "not reachable",
+# which sent the operator to check the network on a host that pinged fine.
+_HEALTH_TIMEOUT = 30.0
+
+
+def _service_probe(service: str) -> str:
+    """Return "" when the service is healthy, else a short human reason.
+
+    The reason MATTERS.  "connection refused" and "timed out" call for
+    opposite responses -- start the service vs. wait for / shrink the batch it
+    is already chewing on -- and collapsing both into one "not reachable"
+    message has cost real debugging time.
+    """
     try:
         # nosemgrep: dynamic-urllib-use-detected -- service URL is operator config (trusted LAN), not request input
         # B310 rationale: same trusted operator-config service URL as above.
         with urllib.request.urlopen(  # noqa: S310  # nosec B310
-            f"{service.rstrip('/')}/health", timeout=10
+            f"{service.rstrip('/')}/health", timeout=_HEALTH_TIMEOUT
         ) as resp:
-            return resp.status == 200
-    except (urllib.error.URLError, OSError):
-        return False
+            return "" if resp.status == 200 else f"HTTP {resp.status}"
+    except urllib.error.URLError as exc:
+        reason = getattr(exc, "reason", exc)
+        if isinstance(reason, TimeoutError):
+            return "timed out"
+        return str(reason)
+    except TimeoutError:
+        return "timed out"
+    except OSError as exc:
+        return str(exc)
+
+
+def _service_ok(service: str) -> bool:
+    return _service_probe(service) == ""
 
 
 def translate_to(
@@ -535,13 +560,24 @@ def main() -> None:
 
     print(f"service={service or '(dry-run)'} langs={langs}", flush=True)
 
-    if service and not _service_ok(service):
+    why = _service_probe(service) if service else ""
+    if service and why:
         sys.exit(
-            f"\nERROR: translation service not reachable at {service}\n"
-            "  Is it running on the GPU box?  Point at it with one of:\n"
-            "    make translate SERVICE=http://<beast>:8765\n"
-            "    export TRANSLATION_SERVICE_URL=http://<beast>:8765\n"
-            "  (the default is http://localhost:8765)."
+            f"\nERROR: translation service at {service} did not answer: {why}\n"
+            + (
+                "  It TIMED OUT rather than refusing the connection, so something\n"
+                "  is listening -- the box is most likely still busy with a batch\n"
+                "  from a previous run (the health endpoint shares the inference\n"
+                "  process).  Wait for it to drain and re-run; translation resumes\n"
+                "  where it left off.  If a single language keeps stalling, send\n"
+                "  it in smaller pieces:\n"
+                "    make translate SERVICE=" + service + " CLIENT_BATCH=8\n"
+                if why == "timed out"
+                else "  Is it running on the GPU box?  Point at it with one of:\n"
+                "    make translate SERVICE=http://<beast>:8765\n"
+                "    export TRANSLATION_SERVICE_URL=http://<beast>:8765\n"
+                "  (the default is http://localhost:8765)."
+            )
         )
 
     if FORMAT == "json":
