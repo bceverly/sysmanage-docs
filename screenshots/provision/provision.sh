@@ -187,6 +187,14 @@ email:
 # fake coordinates seed_geo.sql writes directly into the host rows.
 geo_lookup:
   enabled: false
+# The demo hosts are REST fixtures with no agent behind them, so they never send
+# a heartbeat. At the 5-minute default the monitor marks every approved host
+# down (and active=false) partway through a capture run, which silently empties
+# anything that resolves only ACTIVE hosts -- the config-management inventory
+# counts land on "0 hosts" and the feature looks broken in the docs. A window
+# longer than the life of the VM keeps the demo fleet up.
+monitoring:
+  heartbeat_timeout: 10080
 YAML
 
 echo "=== [5/7] install + migrate the server ==="

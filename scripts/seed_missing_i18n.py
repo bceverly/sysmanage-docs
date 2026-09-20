@@ -15,7 +15,10 @@ HTML English everywhere.
 This script fixes that by, for every key whose en.json value is a
 ``[MISSING:...]`` placeholder:
 
-  * extracting the element's content from the HTML,
+  * extracting the element's content from the HTML -- or, when it carries
+    ``data-i18n-attr="X"``, the value of attribute ``X``, because the
+    runtime writes the translation there and a void element like
+    ``<meta>`` has no content to read,
   * if the element contains inline markup (``<code>``, ``<strong>``, ...),
     marking it ``data-i18n-html`` and storing the inner HTML (so the runtime
     uses ``innerHTML``); otherwise storing plain text (``textContent``),
@@ -91,11 +94,16 @@ def dump(lang: str, data: dict) -> None:
 
 def main() -> int:
     en = load("en")
+    # EMPTY counts as missing, not just the [MISSING:] placeholder. An empty
+    # English value is the more dangerous of the two precisely because it is
+    # invisible: it is not [MISSING:], not [TODO] and not English-identical,
+    # so every gate passes it. That is how 21 meta descriptions shipped
+    # untranslated in 13 locales without a single check complaining.
     missing = {
         k for k, v in walk(en)
-        if isinstance(v, str) and v.startswith("[MISSING:")
+        if isinstance(v, str) and (v.startswith("[MISSING:") or not v.strip())
     }
-    print(f"{len(missing)} [MISSING] keys in en.json")
+    print(f"{len(missing)} missing/empty key(s) in en.json")
 
     html_files = [
         p for p in REPO.rglob("*.html")
@@ -105,6 +113,7 @@ def main() -> int:
 
     extracted: dict[str, tuple[str, bool]] = {}  # key -> (value, is_html)
     skipped_nested = []
+    skipped_empty_attr = []
     for hp in html_files:
         raw = hp.read_text(encoding="utf-8")
         soup = BeautifulSoup(raw, "html.parser")
@@ -113,6 +122,26 @@ def main() -> int:
             key = el.get("data-i18n")
             if key not in missing or key in extracted:
                 continue
+            # ATTRIBUTE-VALUED KEYS FIRST.  ``data-i18n-attr="content"`` tells
+            # the runtime to write the translation into that ATTRIBUTE rather
+            # than into the element, and the canonical English therefore lives
+            # in the attribute too.  <meta> is a void element, so both
+            # decode_contents() and get_text() return "" for it -- which is
+            # exactly what got written: 21 meta descriptions sat empty in
+            # en.json, invisible to every gate (an empty string is not
+            # [MISSING:], not [TODO] and not English-identical), so no page's
+            # description was ever translated in any locale.
+            i18n_attr = el.get("data-i18n-attr")
+            if i18n_attr:
+                source = collapse(el.get(i18n_attr) or "")
+                if not source:
+                    skipped_empty_attr.append((key, i18n_attr))
+                    continue
+                # An attribute value is plain text by definition -- it cannot
+                # carry markup for innerHTML, so it never gets data-i18n-html.
+                extracted[key] = (source, False)
+                continue
+
             inner = collapse(el.decode_contents())
             # Refuse to swallow a nested translation scope.
             if "data-i18n" in inner:
@@ -138,6 +167,12 @@ def main() -> int:
     print(f"extracted {len(extracted)} keys from HTML")
     if skipped_nested:
         print(f"skipped {len(skipped_nested)} nested-scope keys: {skipped_nested}")
+    if skipped_empty_attr:
+        # The attribute the key points at is itself empty in the HTML, so
+        # there is no English to seed. Reported rather than silently written
+        # as "", which is the failure this whole branch exists to prevent.
+        print(f"skipped {len(skipped_empty_attr)} key(s) whose target attribute "
+              f"is empty in the HTML: {skipped_empty_attr}")
     orphan = missing - set(extracted) - set(skipped_nested)
     if orphan:
         print(f"WARN: {len(orphan)} [MISSING] keys have no HTML element (left as-is)")
@@ -147,7 +182,13 @@ def main() -> int:
         n = 0
         for key, (val, _ishtml) in extracted.items():
             cur = get_dotted(data, key)
-            if cur is None or (isinstance(cur, str) and cur.startswith("[MISSING:")):
+            # Same widening as the trigger above: an EMPTY value is a gap, and
+            # overwriting it is safe precisely because it holds nothing. A real
+            # translation or an existing [TODO] is still left alone.
+            if cur is None or (
+                isinstance(cur, str)
+                and (cur.startswith("[MISSING:") or not cur.strip())
+            ):
                 if set_dotted(data, key, val if lang == "en" else f"[TODO] {val}"):
                     n += 1
         dump(lang, data)

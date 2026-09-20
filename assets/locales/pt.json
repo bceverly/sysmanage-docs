@@ -30,7 +30,7 @@
       "techpoint": "Membro do Conselho da TechPoint",
       "title": "Educação e reconhecimento"
     },
-    "meta_description": "",
+    "meta_description": "SysManage é construído por Bryan Everly, um executivo de engenharia com mais de 30 anos de experiência em infraestrutura corporativa nas empresas Canonical, Cummins, Cox Automotive, IBM e outras.",
     "timeline": {
       "title": "Três décadas construindo infraestrutura em escala"
     },
@@ -729,7 +729,7 @@
       "p1": "O relatório carrega uma versão do esquema. Um servidor ignora campos que ele não reconhece de um agente mais novo em vez de rejeitar o relatório, e um agente mais novo que seu servidor é registrado claramente em vez de ser tratado silenciosamente como desconhecido para sempre. Agentes existentes que precedem a funcionalidade continuam funcionando e simplesmente mostram-se Desconhecidos até serem atualizados.",
       "title": "Compatibilidade"
     },
-    "description": "",
+    "description": "Como o agente SysManage anuncia o que pode fazer, como o servidor apresenta agentes limitados e por que os comandos são recusados antes de serem despachados.",
     "gating": {
       "p1": "O conjunto anunciado não é apenas informativo. Quando o servidor é solicitado a enviar um comando que um host não anunciou, ele recusa antes que o comando seja enfileirado e informa que o agente não suporta — em vez de despachar trabalho que falha minutos depois em algum log.",
       "p2": "Um host no estado Desconhecido não é bloqueado. Recusar trabalho porque um agente ainda não reportou seria quebrar todos os hosts existentes assim que a funcionalidade foi enviada.",
@@ -790,6 +790,22 @@
     }
   },
   "agent_configuration": {
+    "fallback": {
+      "behaviour_poll": "Assim, o agente cai automaticamente para HTTP long-polling, no mesmo origem e porta, postando para",
+      "behaviour_same": "Isso esgota a mesma fila de mensagens, então nada abaixo pode distinguir. Não há configuração necessária, e nenhuma regra adicional de porta ou firewall.",
+      "cost_detail": "Isso leva cerca de cinco segundos normalmente, ou quinze enquanto o servidor está com erro, e um agente inativo ainda faz uma solicitação a cada intervalo. É por isso que é um mecanismo de backup em vez da configuração padrão.",
+      "cost_latency": "O custo: um comando iniciado pelo servidor aguarda até um intervalo de sondagem em vez de chegar imediatamente.",
+      "intro_channel": "O canal de comando do agente é um WebSocket sobre a mesma conexão 443.",
+      "intro_cost": "Tentar novamente indefinidamente deixaria o host permanentemente invisível — nenhum comando, nenhum inventário, nenhum pulso — até que alguém altere o proxy.",
+      "intro_refuse": "Alguns proxies se recusam a transmitir uma solicitação.",
+      "intro_shapes": "Aparece como um túnel CONNECT respondido com <code>HTTP 403</code>, ou um <code>Upgrade</code> que retorna um simples <code>200</code>.",
+      "log_lead": "Você verá isso no log do agente quando acontecer:",
+      "recovery_distinguish": "O agente informa uma rede que não carrega WebSockets, exceto um servidor que simplesmente reiniciou, então uma conexão TCP recusada continua tentando em vez de degradar a frota.",
+      "recovery_retest": "Depois de falhar, ele retesta o WebSocket a cada 15 minutos, então corrigir o proxy restaura a entrega imediata por si só, sem reiniciar o agente.",
+      "shape_connect": "um túnel CONNECT respondido com",
+      "shape_upgrade": "respondido com um 200 simples em vez de um 101.",
+      "title": "Se sua rede recusar WebSockets"
+    },
     "firewall": {
       "detail": "Não há porta separada de API, nenhuma porta WebSocket separada e nenhuma porta de inscrição. Registro, canal de comando, inventário de pacotes e relatórios de capacidade viajam por essa única conexão HTTPS, que o agente abre de saída. Nada precisa alcançar o agente, então nenhuma regra de entrada é necessária no host onde ele está rodando.",
       "proxy": "Por trás de um proxy? O agente respeita <code>HTTPS_PROXY</code>, <code>HTTP_PROXY</code> e <code>NO_PROXY</code> do ambiente, e <code>server.proxy</code> define explicitamente um onde o ambiente não alcançá-lo. Se seu proxy re-assina TLS, aponte <code>server.ca_bundle</code> para o certificado raiz — isso mantém a verificação de certificado ligada, que desligar <code>verify_ssl</code> não faz.",
@@ -804,22 +820,6 @@
       "proxy_desc": "Proxy de saída explícito. Normalmente desnecessário — <code>HTTPS_PROXY</code>, <code>HTTP_PROXY</code> e <code>NO_PROXY</code> são respeitados do ambiente.",
       "url_desc": "A única origem com a qual o agente se comunica, por exemplo <code>https://sysmanage.example.com</code>. Omita o porta para significar 443. Preferido sobre os campos legados abaixo.",
       "use_https_desc": "Legado. Substituído pelo esquema em <code>url</code>."
-    },
-    "fallback": {
-      "behaviour_same": "Isso esgota a mesma fila de mensagens, então nada abaixo pode distinguir. Não há configuração necessária, e nenhuma regra adicional de porta ou firewall.",
-      "cost_detail": "Isso leva cerca de cinco segundos normalmente, ou quinze enquanto o servidor está com erro, e um agente inativo ainda faz uma solicitação a cada intervalo. É por isso que é um mecanismo de backup em vez da configuração padrão.",
-      "cost_latency": "O custo: um comando iniciado pelo servidor aguarda até um intervalo de sondagem em vez de chegar imediatamente.",
-      "intro_channel": "O canal de comando do agente é um WebSocket sobre a mesma conexão 443.",
-      "intro_cost": "Tentar novamente indefinidamente deixaria o host permanentemente invisível — nenhum comando, nenhum inventário, nenhum pulso — até que alguém altere o proxy.",
-      "intro_refuse": "Alguns proxies se recusam a transmitir uma solicitação.",
-      "intro_shapes": "Aparece como um túnel CONNECT respondido com <code>HTTP 403</code>, ou um <code>Upgrade</code> que retorna um simples <code>200</code>.",
-      "log_lead": "Você verá isso no log do agente quando acontecer:",
-      "title": "Se sua rede recusar WebSockets",
-      "behaviour_poll": "Assim, o agente cai automaticamente para HTTP long-polling, no mesmo origem e porta, postando para",
-      "recovery_distinguish": "O agente informa uma rede que não carrega WebSockets, exceto um servidor que simplesmente reiniciou, então uma conexão TCP recusada continua tentando em vez de degradar a frota.",
-      "recovery_retest": "Depois de falhar, ele retesta o WebSocket a cada 15 minutos, então corrigir o proxy restaura a entrega imediata por si só, sem reiniciar o agente.",
-      "shape_connect": "um túnel CONNECT respondido com",
-      "shape_upgrade": "respondido com um 200 simples em vez de um 101."
     }
   },
   "agent_docs": {
@@ -1685,7 +1685,7 @@
       "lead": "A maioria das plataformas de gerenciamento presume que uma chamada da nuvem está a um salto de distância. Indústrias inteiras não podem fazer essa suposição. O SysManage foi construído para funcionar — com todas as funcionalidades disponíveis — em redes sem conexão à internet alguma.",
       "title": "Gerencie infraestrutura que nunca entra em contato com a internet"
     },
-    "meta_description": "",
+    "meta_description": "O SysManage gerencia totalmente infraestruturas desconectadas da rede (air-gapped) sem conexão com a internet: aplicativo de inquilino único, armazenamento local de segredos, entrega de conteúdo offline e suporte de primeira classe para BSD — para defesa, serviços públicos, saúde e infraestrutura crítica.",
     "repos": {
       "body": "Dentro do enclave, o SysManage atua como a fonte local de verdade para Windows, Linux, macOS e as variantes BSD. A mesma linha de montagem sem conexão à internet que alimenta seus hosts Debian e RHEL também alimenta FreeBSD, OpenBSD e NetBSD — plataformas que dominam defesa, rede e infraestrutura crítica e que outras ferramentas deixam isoladas offline.",
       "li1": "Um pipeline offline para todas as seis plataformas de sistema operacional",
@@ -1905,7 +1905,7 @@
       "li4": "Gerenciamento de conformidade e vulnerabilidades — as mesmas funcionalidades para Linux, Windows e macOS",
       "title": "O mesmo ciclo de vida em cada BSD"
     },
-    "meta_description": "",
+    "meta_description": "SysManage oferece gerenciamento de primeira linha para sistemas FreeBSD, OpenBSD e NetBSD: um agente, uma console e o mesmo ciclo de vida, recursos de correção, conformidade e vulnerabilidades que Windows, Linux e macOS. Gerencie BSD e Linux juntos - onde Intune, Landscape, Satellite e Jamf abandonam os BSDs.",
     "mixed": {
       "body": "Frota real não é apenas BSD. Eles também executam Linux e, muitas vezes, Windows e macOS. O SysManage gerencia tudo juntos em um único painel de controle — então você gerencia BSD e Linux juntos em vez de costurar duas ferramentas em uma única dashboard. E funciona totalmente <a href=\"/air-gapped/\">sem conexão à internet</a>, para as redes isoladas onde os BSDs vivem com frequência.",
       "cta": "Veja a comparação completa",
@@ -2034,7 +2034,7 @@
       "lead": "Seja que você esteja avaliando o SysManage para um ambiente empresarial misto, uma rede isolada regulamentada ou uma prática de MSP multiinquilino, você falará diretamente com a equipe de engenharia — não com um roteiro de vendas.",
       "title": "Vamos falar sobre sua frota"
     },
-    "meta_description": "",
+    "meta_description": "Solicite uma demonstração do SysManage, inicie uma avaliação corporativa, torne-se um parceiro de design ou converse diretamente com a engenharia sobre sua frota heterogênea.",
     "partner": {
       "body": "Desenhe o roadmap. Parceiros de design recebem acesso direto à engenharia e influência sobre o que será lançado em seguida.",
       "cta": "Trabalhe Conosco",
@@ -2393,7 +2393,7 @@
           "description": "A sequência completa de operadores para mover pacotes através de uma barreira aça com SysManage — desde escolher papéis de servidor até hosts em barreiras aças instalando atualizações do espelho local. O <a href=\"airgap-deployment.html\">Guia de implantação</a> cobre a arquitetura e o <a href=\"airgap-runbook.html\">Runbook</a> cobre operações do dia-a-dia; esta página é o caminho linear \"faça isso, em seguida faça isso\" que liga-os e aponta para os controles de UI envolvidos.",
           "title": "Fluxo End-to-End em Isolamento"
         },
-        "meta_description": "",
+        "meta_description": "Fluxo de trabalho passo a passo para o SysManage air-gap: definir funções, copiar a chave pública do coletor, construir uma ISO de coleta assinada, confiar na chave no repositório, importar os meios de um drive óptico/USB, servir o espelho e redirecionar automaticamente os agentes.",
         "overview": {
           "step1": "<strong>Atribuir papéis</strong> — um servidor para <em>Air-Gap Collector</em>, outro para <em>Air-Gap Repository</em> (Configurações → Papel do Servidor).",
           "step2": "<strong>Criar confiança</strong> — copie a chave pública do coletor e importe-a no repositório.",
@@ -3439,6 +3439,15 @@
     },
     "architecture": {
       "database_schema": "Design do Banco de Dados",
+      "datasync": {
+        "packages": {
+          "delta": "Os agentes agora enviam apenas o que mudou desde a varredura anterior - entradas adicionadas, removidas e atualizadas - com uma reconciliação periódica completa para corrigir qualquer desvio em vez de acumular.",
+          "measured": "Enviá-lo inteiro em cada ciclo dominou o tráfego de agentes: medido em uma frota de desenvolvimento, os lotes de pacotes contabilizaram 78.979 mensagens e 9,4 GB em oito dias, ou 83% de tudo o que os agentes enviaram.",
+          "problem": "O catálogo de pacotes instalados de um host é o item mais extenso que um agente relata, e para a maioria dos hosts, ele muda muito pouco entre as varreduras.",
+          "sizing": "Planeje a capacidade com base na diferença, não no catálogo. Uma frota em estado estável custa uma pequena fração da figura do catálogo completo, o que importa mais em links medidos ou restritos, e a reconciliação periódica é o pico para dimensionar.",
+          "title": "Sincronização do catálogo de pacotes"
+        }
+      },
       "description": "Documentação técnica de arquitetura incluindo design do sistema, fluxo de mensagens e interações de componentes.",
       "message_flow": {
         "overview": {
@@ -3568,16 +3577,7 @@
       "testing_excellence_link": "Testes Excellence",
       "title": "Arquitetura",
       "view_docs": "Ver Arquitetura →",
-      "websocket_protocol": "Protocolos de Comunicação",
-      "datasync": {
-        "packages": {
-          "delta": "Os agentes agora enviam apenas o que mudou desde a varredura anterior - entradas adicionadas, removidas e atualizadas - com uma reconciliação periódica completa para corrigir qualquer desvio em vez de acumular.",
-          "measured": "Enviá-lo inteiro em cada ciclo dominou o tráfego de agentes: medido em uma frota de desenvolvimento, os lotes de pacotes contabilizaram 78.979 mensagens e 9,4 GB em oito dias, ou 83% de tudo o que os agentes enviaram.",
-          "problem": "O catálogo de pacotes instalados de um host é o item mais extenso que um agente relata, e para a maioria dos hosts, ele muda muito pouco entre as varreduras.",
-          "sizing": "Planeje a capacidade com base na diferença, não no catálogo. Uma frota em estado estável custa uma pequena fração da figura do catálogo completo, o que importa mais em links medidos ou restritos, e a reconciliação periódica é o pico para dimensionar.",
-          "title": "Sincronização do catálogo de pacotes"
-        }
-      }
+      "websocket_protocol": "Protocolos de Comunicação"
     },
     "auto": {
       "administration": {
@@ -16824,7 +16824,7 @@
           "subtitle": "Visões de conteúdo estilo Satellite, ambientes de ciclo de vida e promoção controlada. Transforme seus espelhos de repositórios em conteúdo versificado, filtrado e promovível que flui Biblioteca → Dev → Teste → Produção com retrocesso instantâneo, exportação de mídia isolada, sincronização de sites federados e diferenças de versão.",
           "title": "Gerenciamento de Ciclo de Vida de Conteúdo"
         },
-        "meta_description": "",
+        "meta_description": "Visualizações de conteúdo estilo satélite corporativo, ambientes de ciclo de vida, promoções com portão com capacidade de rolagem para trás, conteúdo filtrado e versado, visualizações compostas, exportação em gap de ar, sincronização de sites federados e diferenças de versão",
         "overview": {
           "intro": "O módulo Enterprise do <code>content_lifecycle_engine</code> é construído sobre o substrato de instantâneos do <a href=\"repository-mirroring.html\">repositório de espelhamento</a>. Espelhos planos se tornam <strong>visualizações de conteúdo</strong>: seleções nomeadas, filtradas e versionadas de repositórios. A publicação de uma visualização de conteúde materializa uma <strong>versão imutável</strong> no host espelho, que você em seguida <strong>promove</strong> ao longo de um caminho de ambiente ordenado. Assim como com os outros motores, o servidor OSS possui a API, o esquema e a porta da licença (cada ponto final retorna HTTP 402 sem o motor carregado); o motor emite as mensagens <code>apply_deployment_plan</code> que o agente do host espelho executa. Nenhuma alteração no código do agente é necessária.",
           "split": "Definições de visão de conteúdo (ambientes, visões, filtros, versões) são a verdade do sistema na partição compartilhada; o estado de promoção por locatário (qual versão está vinculada a qual ambiente, o rastro de auditoria e as assinaturas do site) vive na partição do locatário, cruzando-se com os IDs compartilhados.",
@@ -16928,6 +16928,23 @@
           "staged": "qualquer <strong>etapa</strong> (pendente, próxima inicialização) em andamento;",
           "title": "A detecção é automática (e gratuita para ver)"
         },
+        "driver": {
+          "bypass_default": "Para que Stage e Apply ainda funcionem, SysManage passa esta bandeira para rpm-ostree por padrão:",
+          "bypass_why": "Sem ele, ambas as ações falham diretamente no Fedora CoreOS e o SysManage não consegue atualizar a plataforma de forma alguma.",
+          "control_api": "Para deixar o driver do host responsável, envie <code>bypass_update_driver: false</code> na solicitação Stage ou Apply.",
+          "control_honest": "Em um host gerenciado por driver que solicita e falha com a recusa do próprio driver, esse é o resultado honesto, em vez de uma operação silenciosa sem ação.",
+          "control_setting": "O contornamento é uma configuração por solicitação, não uma política armazenada. A guia Modo de Imagem não o expõe, então as ações tomadas da interface do usuário sempre usam o padrão.",
+          "intro_fcos": "Fedora CoreOS é o caso comum. Enquanto Zincati estiver ativo, rpm-ostree se recusa a agir em nome de outros, saindo com 'Atualizações e implantações são impulsionadas por Zincati'.",
+          "intro_what": "Algumas plataformas em modo de imagem enviam seu próprio driver de atualização — um serviço que atualiza o sistema operacional em sua própria agenda.",
+          "scope_bootc": "O bypass se aplica apenas a",
+          "scope_bootc_note": "Hospedeiros bootc não possuem driver de atualização, então não são afetados.",
+          "scope_rollback": "Rollback nunca o utiliza: <code>rpm-ostree rollback</code> rejeita a bandeira de forma definitiva. Passá-la uniformemente quebraria a única ação que já funcionava em todos os lugares.",
+          "title": "Quando o host possui seu próprio driver de atualização (Zincati)",
+          "tradeoff_advice": "Onde o driver próprio da plataforma deve permanecer responsável, deixe o bypass desligado e coordene as atualizações através desse driver em vez disso.",
+          "tradeoff_both": "Contornar não para o motorista próprio do host. Tanto o SysManage quanto o Zincati estão então dirigindo.",
+          "tradeoff_risk": "Zincati ainda pode buscar e reiniciar por sua própria agenda, então um host pode avançar de você entre um Stage e um Apply.",
+          "tradeoff_title": "O compromisso é real"
+        },
         "gating": {
           "intro": "Como você não aplica atualizações de pacote em um hospedeiro em modo imagem, as ações <strong>Updates</strong> e <strong>Request Available Packages</strong> são ocultas para esses hospedeiros. Você gerencia o sistema operacional através de Stage / Apply / Rollback na guia Image Mode — avançando ou revertendo toda a imagem em vez de corrigir pacotes dentro dela.",
           "title": "Interface de Atualização de Pacotes Desabilitada"
@@ -16936,7 +16953,7 @@
           "subtitle": "Gerencie hosts que inicializam a partir de uma imagem do sistema operacional atômica – Fedora/RHEL <strong>bootc</strong>, ou <strong>rpm-ostree</strong> / sistemas OSTree como o Fedora CoreOS – em vez de um conjunto mutável de pacotes. A detecção é automática e sempre visível; a Enterprise <code>image_mode_engine</code> adiciona ações de primeira classe <strong>Etapar</strong>, <strong>Aplique</strong> e <strong>Retroceder</strong> na imagem inteira. Isso é a paridade da imagem do Satellite.",
           "title": "Gerenciamento de Hosts em Modo Imagem"
         },
-        "meta_description": "",
+        "meta_description": "Gestão empresarial para hospedeiros de modo de imagem atômica (Fedora/RHEL bootc e sistemas rpm-ostree / OSTree): detecção automática, a guia Modo de Imagem, e ações de primeira classe Stage, Aplicar e Rebater no conjunto completo da imagem do sistema operacional.",
         "overview": {
           "backends": "Dois backends são suportados: Fedora/RHEL <strong>bootc</strong> (modo imagem nativo de contéiner), e <strong>rpm-ostree</strong> / sistemas OSTree como o Fedora CoreOS. O SysManage detecta qual um host usa e dirige os comandos corretos abaixo de um conjunto uniforme de ações.",
           "intro": "Um <strong>hospedeiro em modo imagem</strong> inicia seu sistema operacional inteiro a partir de uma única imagem versificada e identificada por digest, em vez de um conjunto mutável de pacotes instalados. Você não faz <code>dnf install</code> nele — ao invés disso, troca a imagem e reinicializa. O sistema operacional inteiro é um artefato atômico que você pode avançar ou reverter como uma unidade. SysManage gerencia esses hospedeiros através do compilado Enterprise <code>image_mode_engine</code>.",
@@ -16955,24 +16972,7 @@
           "intro": "Aparece uma guia <strong>Image Mode</strong> na página detalhada do hospedeiro — mas apenas para hospedeiros que realmente estão em modo imagem. Ela exibe o estado de imagem inicializada, estagiada e rollback reportado no check-in, e fornece três ações principais para avançar ou reverter a imagem do sistema operacional.",
           "title": "A aba MODO IMAGEM"
         },
-        "title": "Gerenciamento de Host em Modo Imagem - Professional+ - SysManage",
-        "driver": {
-          "bypass_why": "Sem ele, ambas as ações falham diretamente no Fedora CoreOS e o SysManage não consegue atualizar a plataforma de forma alguma.",
-          "control_api": "Para deixar o driver do host responsável, envie <code>bypass_update_driver: false</code> na solicitação Stage ou Apply.",
-          "control_honest": "Em um host gerenciado por driver que solicita e falha com a recusa do próprio driver, esse é o resultado honesto, em vez de uma operação silenciosa sem ação.",
-          "control_setting": "O contornamento é uma configuração por solicitação, não uma política armazenada. A guia Modo de Imagem não o expõe, então as ações tomadas da interface do usuário sempre usam o padrão.",
-          "scope_rollback": "Rollback nunca o utiliza: <code>rpm-ostree rollback</code> rejeita a bandeira de forma definitiva. Passá-la uniformemente quebraria a única ação que já funcionava em todos os lugares.",
-          "tradeoff_advice": "Onde o driver próprio da plataforma deve permanecer responsável, deixe o bypass desligado e coordene as atualizações através desse driver em vez disso.",
-          "tradeoff_both": "Contornar não para o motorista próprio do host. Tanto o SysManage quanto o Zincati estão então dirigindo.",
-          "tradeoff_risk": "Zincati ainda pode buscar e reiniciar por sua própria agenda, então um host pode avançar de você entre um Stage e um Apply.",
-          "tradeoff_title": "O compromisso é real",
-          "scope_bootc_note": "Hospedeiros bootc não possuem driver de atualização, então não são afetados.",
-          "bypass_default": "Para que Stage e Apply ainda funcionem, SysManage passa esta bandeira para rpm-ostree por padrão:",
-          "intro_fcos": "Fedora CoreOS é o caso comum. Enquanto Zincati estiver ativo, rpm-ostree se recusa a agir em nome de outros, saindo com 'Atualizações e implantações são impulsionadas por Zincati'.",
-          "intro_what": "Algumas plataformas em modo de imagem enviam seu próprio driver de atualização — um serviço que atualiza o sistema operacional em sua própria agenda.",
-          "scope_bootc": "O bypass se aplica apenas a",
-          "title": "Quando o host possui seu próprio driver de atualização (Zincati)"
-        }
+        "title": "Gerenciamento de Host em Modo Imagem - Professional+ - SysManage"
       },
       "imgcontent": {
         "breadcrumb": "Conteúdo de Imagem de Contêiner",
@@ -16986,7 +16986,7 @@
           "subtitle": "Traga imagens OCI/Docker de contêiner para a mesma linha de distribuição de conteúdo que pacotes e snaps. Capture as imagens, fixe-as por digest, snapshot-as em versões imutáveis da visão de conteúdo, promova-as através dos ambientes do ciclo de vida e sirva-as a hospedeiros offline — incluindo totalmente isolados.",
           "title": "Ciclo de Vida do Conteúdo de Imagem de Contêiner"
         },
-        "meta_description": "",
+        "meta_description": "Visualizações de conteúdo de imagem de contêiner empresarial: rastrear imagens OCI/Docker em um espelho, capturá-las sem daemon com skopeo para layouts OCI com digitos fixos, criar instantâneos em versões de visualização de conteúdo, promover através de ambientes de ciclo de vida e servir a hosts offline, incluindo redes isoladas.",
         "overview": {
           "gate": "Assim como com os outros módulos, o recurso é limitado à Enterprise — o servidor OSS possui a API, o esquema e a barreira de licença, enquanto o módulo compilado realiza a captura e trabalho de conteúdo. Com ele carregado, as imagens de contêiner se tornam <strong>conteúdo curado, versificado e offline</strong>: capture-as uma vez, fixe-as por digest, snapshot-as em uma versão imutável da visão de conteúdo, promova-as através dos ambientes do ciclo de vida e sirva-as a hospedeiros sem um registro ao vivo.",
           "intro": "O Ciclo de Vida do Conteúdo de Imagem de Contêiner é uma <strong>funcionalidade Enterprise</strong>, entregue pelo compilado <code>oci_proxy_engine</code>. Ele atinge a paridade com um estilo Satellite de visão de imagem de contêiner: suas imagens OCI / Docker <strong>de contêiner</strong> fluem através do mesmo pipeline de captura → versão → promoção → serviço que os pacotes <a href=\"repository-mirroring.html\">espelhados</a> e snaps <a href=\"snap-proxy.html\">servidos</a>.",
@@ -17168,7 +17168,7 @@
           "body": "O módulo Enterprise compilado <code>snap_proxy_engine</code> estende a linha de distribuição de conteúdo do SysManage para Ubuntu <strong>snaps</strong>. Uma frota pode consumir snaps de uma fonte interna curada, versionada e offline-friendly em vez de cada host alcançar diretamente o <code>snapcraft.io</code> — o que é mais importante em redes medidoras, bloqueadas ou totalmente isoladas. Isso traz a mesma distribuição curada-offline de snaps como um proxy snap do Landscape, entregue como uma capacidade Enterprise-gated que viaja na infraestrutura existente do SysManage para <a href=\"repository-mirroring.html\">espelhamento</a> e <a href=\"content-lifecycle.html\">ciclo de vida de conteúdo</a>.",
           "title": "Visão Geral"
         },
-        "meta_description": "",
+        "meta_description": "Conteúdo do snap curado, versionado e capaz de funcionar offline: rastreie snaps por nome e canal em um espelho, capture snaps e afirmações, promova através de visualizações de conteúdo e ambientes de ciclo de vida, e redirecione hosts para instalar snaps offline, incluindo redes desconectadas.",
         "promote": {
           "body": "Os snaps capturados materializam-se em um <strong>conteúdo-view versão imutável</strong> junto com os pacotes, então uma única versão publicada pode carregar tanto conteúdo DEB/RPM quanto os snaps que seus hospedeiros precisam. Daí elas promovem através dos <a href=\"content-lifecycle.html\">Ambientes do Ciclo de Vida</a> pelo caminho ordenado usual — <strong>Biblioteca → Desenvolvimento → Teste → Produção</strong> — e elas acompanham o <strong>ISO de exportação de rede isolada</strong> gratuitamente, sem passos adicionais.",
           "title": "Promova através das visões de conteúdo"
@@ -17270,7 +17270,7 @@
       "li3": "Relatórios unificados que leem além da barreira do sistema operacional em vez de parar nela",
       "title": "Um inventário para toda a frota"
     },
-    "meta_description": "",
+    "meta_description": "Consolidar uma pilha de ferramentas de gerenciamento de sistemas operacionais individuais em um único plano de controle. O SysManage oferece aos TI corporativos um inventário único, relatórios unificados e correção de problemas coordenada em Windows, Linux, macOS e os BSDs.",
     "reports": {
       "body": "Executivos e auditores perguntam sobre o ambiente, não sobre uma plataforma. O SysManage responde a esse nível: conformidade, postura de vulnerabilidade e estado de patch se agrupam em toda a propriedade, então uma única visão lhe diz onde você está em vez de forçá-lo a montar a imagem de ferramentas separadas por OS.",
       "li1": "Relatórios de conformidade que abrangem todo o ambiente, todas as plataformas incluídas",
@@ -17536,7 +17536,7 @@
       "lead": "Ambientes de governo e defesa carregam requisitos que a maioria das ferramentas de gerenciamento nunca foi projetada para atender - sem internet, sem caixas pretas e uma postura de conformidade que você pode defender a um auditor. O SysManage é construído exatamente para esses limites, desde enclaves totalmente isolados da rede até relatórios cientes do FIPS e suporte de primeira classe aos BSDs.",
       "title": "Gerencie infraestrutura classificada, regulamentada e desconectada sem compromissos"
     },
-    "meta_description": "",
+    "meta_description": "O SysManage gerencia sistemas governamentais, de defesa e de infraestrutura crítica sem compromissos: implantação totalmente isolada do ar, relatórios de conformidade com o FIPS, um núcleo de código aberto inspecionável e suporte de primeira classe ao BSD.",
     "platforms": {
       "body": "Uma grande quantidade de defesa, rede e infraestrutura crítica roda nos BSDs — e a maioria das ferramentas de gerenciamento os trata como um pensamento secundário, se suportam em absoluto. O SysManage dá FreeBSD, OpenBSD e NetBSD o mesmo tratamento de primeira classe que qualquer outra plataforma: inventário completo, patching, conformidade e gerenciamento de vulnerabilidades, em uma única console, ao lado do Windows, Linux e macOS.",
       "li1": "FreeBSD, OpenBSD e NetBSD gerenciados como cidadãos de primeira classe",
@@ -17902,7 +17902,7 @@
       "body": "A maioria das ferramentas multiinquilino armazena os hosts de cada cliente em uma única tabela compartilhada e filtra por meio de uma coluna de inquilino. Uma cláusula WHERE esquecida e um cliente pode ver dados de outro cliente. O SysManage adota uma abordagem diferente: cada inquilino recebe um banco de dados dedicado. A isolação é garantida pela arquitetura, não por lembrar de filtrar todas as consultas.",
       "title": "Isolamento que realmente isola"
     },
-    "meta_description": "",
+    "meta_description": "O SysManage permite que provedores de serviço gerenciados executem várias frotas isoladas de clientes a partir de uma única plataforma, com um banco de dados dedicado por inquilino em vez de filtragem de tabela compartilhada — além de credenciais negociadas por inquilino, residência de dados e provisionamento autoatendido.",
     "title": "Multi-tenant management for MSPs - SysManage"
   },
   "multi_os_cicd": {
@@ -18204,7 +18204,7 @@
       "small": "<strong>Somos pequenos:</strong> a SysManage está numa fase inicial. Vai lidar diretamente com quem escreveu o código, o que tem dois lados &mdash; respostas rápidas, mas ainda sem um serviço de apoio a parceiros 24/7.",
       "title": "Onde realmente estamos"
     },
-    "meta_description": "",
+    "meta_description": "Como trabalhar com o SysManage como revendedor, provedor de serviços gerenciados, integrador de sistemas ou OEM - incluindo o que estamos prontos para hoje e o que não estamos.",
     "title": "Parceria com SysManage - Revendedores, MSPs & Integradores",
     "who": {
       "msp": {
@@ -19080,6 +19080,180 @@
         }
       }
     },
+    "config_drift": {
+      "alerting": {
+        "description": "O motor de alerta ganha uma condição {{c1}}. Ele lê achados em vez de execuções, porque apenas achados sabem {{c2}}:",
+        "min_findings": "quantas descobertas qualificantes antes da regra ser acionada",
+        "min_hours": "Ignorar derivações mais antigas que este valor. Este é o parâmetro que importa: uma verificação executada momentos após um deploy pode relatar legitimamente uma divergência que a próxima execução resolve por si só, e chamar alguém para isso ensina-os a ignorar o canal. A interface de usuário define o padrão como 24.",
+        "profile_name": "opcional; escale a regra para um único perfil",
+        "resolved": "Achados resolvidos nunca re-alertam, então a remediação não parece como um novo fracasso. O alerta nomeia os perfis envolvidos e quanto tempo o mais antigo achado esteve aberto, porque um alerta dizendo apenas \"3 achados\" faz com que o operador procure.",
+        "title": "Alertas sobre drifte"
+      },
+      "architecture": {
+        "description": "As reconciliações são executadas dentro do manipulador de resultados, antes que uma execução seja confirmada, de modo que uma execução e suas descobertas sejam registradas juntas — uma execução registrada sem suas descobertas criaria um desvio aparente resolvido até o próximo verificação. A reconciliação nunca levanta exceções: um problema contábil não deve impedir o processador da fila e custar o registro da execução, que é o mais valioso dos dois. A tabela <code>config_drift_finding</code> reside no esquema de código aberto; as regras que a populam são restritas ao motor de gerenciamento de configuração licenciado <code>config_management_engine</code>, então uma instalação não licenciada possui um esquema coerente e simplesmente nenhuma descobertas.",
+        "title": "Arquitetura"
+      },
+      "baseline": {
+        "buckets": "Cada categoria retorna três buckets, nomeados da perspectiva do host {{c1}}, pois é o host que está sendo fixado: {{c2}} está presente na referência, mas não no alvo; {{c3}} está presente no alvo, mas não na referência; e {{c4}} está presente em ambos com um campo comparado discordante. 'Você não tem isso' e 'você tem o errado' são correções diferentes, portanto nunca são fundidas.",
+        "cat_certificates": "correspondido pelo nome do certificado, comparado com o emissor",
+        "cat_firewall": "correspondente ao nome do firewall, comparado com o estado de habilitação",
+        "cat_groups": "correspondente ao grupo pelo nome",
+        "cat_interfaces": "correspondente pelo nome da interface, comparado pelo tipo",
+        "cat_packages": "correspondente pelo nome, comparado pela versão",
+        "cat_repositories": "correspondido por nome, comparado na URL e estado habilitado",
+        "cat_storage": "correspondente ao ponto de montagem, comparado no sistema de arquivos",
+        "cat_users": "correspondente ao nome de usuário, comparado com o shell e o diretório home",
+        "categories": "Oitavo categorias são comparadas, cada uma correspondendo à identidade que torna duas linhas \"a mesma coisa\" entre os hosts e comparando os campos que as diferenciam:",
+        "counts": "Listas por item são limitadas para que uma chamada não possa retornar um megabyte de JSON, mas os contadores permanecem exatos e um sinal {{c1}} diz quando uma lista foi encurtada — um resumo nunca sub-relatará o tamanho de uma divergência.",
+        "description": "Outro tipo de flutuação. O achado de perfil responde \"este host corresponde ao perfil que atribuímos a ele\". A flutuação de linha de base responde \"este host corresponde ao host {{c1}}\" — isso é o que um operador busca quando não há perfil ainda e o ambiente de teste funciona enquanto a produção não.",
+        "screenshot": "Comparando um host flutuante com um conhecido bom. Cada categoria relata o que o alvo está faltando, o que ele tem que a referência não tem, e o que ambos têm com um campo que discorda.",
+        "stateless": "Esta comparação não armazena nada. É uma função pura de dois inventários de host atuais, e ao contrário de um achado de perfil, não há período de vida a acompanhar: uma categoria difere agora ou nunca difere. {{c1}} relata as categorias suportadas, então o UI não pode oferecer uma que o servidor recusaria.",
+        "title": "Comparação de linha de base do Golden-host"
+      },
+      "breadcrumb": "Desvio de Configuração",
+      "dashboard": {
+        "fleet": "visualização de frota: uma linha por host com a contagem de descobertas abertas, os perfis envolvidos e quanto tempo ele tem flutuado",
+        "host": "encontradas individualmente para um host",
+        "ordering": "Encontros são ordenados da mais antiga para a mais recente, porque o desvio que persistiu é o tipo interessante: uma divergência vista uma vez pode ser uma corrida com um deploy, mas uma que permanece por semanas é uma configuração que ninguém está gerenciando.",
+        "remediate": "reaplicar o perfil ao vivo",
+        "title": "Painel e API"
+      },
+      "header": {
+        "description": "Quais hosts divergiram de seus perfis atribuídos, o que divergiu e — parte que um histórico de execuções não pode responder — quanto tempo isso vem acontecendo.",
+        "screenshot": "O painel de drifts lista hosts com achados abertos, ordenados pela data mais antiga, com os perfis envolvidos e quanto tempo cada host está drifando.",
+        "title": "Desvio de Configuração"
+      },
+      "meta_description": "Verificações agendadas em modo de verificação transformaram-se em descobertas de deriva que registram quanto tempo cada divergência durou, com correção de um clique e regras de alerta que disparam apenas sobre a deriva que persistiu.",
+      "overview": {
+        "description": "A detecção de deriva reutiliza a infraestrutura já existente em vez de adicionar um segundo caminho de coleta.  {{c1}} Uma simulação de um perfil atribuído responde à pergunta \"Quais mudanças ocorreriam neste host\", que é a definição de deriva em relação a esse perfil. Portanto, uma atribuição de modo de verificação agendada É a comparação, e cada resultado é reconciliado em descobertas conforme chega.",
+        "title": "Visão Geral"
+      },
+      "page_title": "Desalinhamento de Configuração - SysManage Professional+",
+      "playbooks": {
+        "api_match": "O que corrigiria este achado, sem fazer isso. Três respostas distintas: nada correspondeu, uma regra correspondeu mas seu perfil está aposentado, ou aqui está o que será executado",
+        "api_repair": "Aplicar o playbook correspondente a este host",
+        "api_rules": "A biblioteca de regras, retornada em ordem de precedência",
+        "auto": "<em>Automático</em> — desabilitado por padrão. Quando ativado, a correção é enfileirada no momento em que o desvio é <strong>primeiro</strong> detectado.",
+        "binding": "Um playbook de correção é a alternativa mais restrita. É um <strong>perfil</strong> de configuração comum — escrito, versionado e distribuído exatamente como qualquer outro — ligado por uma <strong>regra</strong> aos desvios que repara. Apenas a ligação é nova, e por isso não há uma segunda interface de autoria: a validação, o histórico de versões, os geradores de especificação do motor e o histórico de execuções são todos reaproveitados em vez de recriados.",
+        "description": "A correção com um clique reaplica <em>todo</em> o perfil do qual um host se desviou. Isso é correto quando o perfil é pequeno e errado quando é uma linha de base de quatrocentas tarefas e a divergência é um único modo de arquivo: você queria corrigir uma permissão e obteve uma hora de convergência não relacionada, dentro de uma janela de manutenção prevista para uma única mudança.",
+        "guards": "Reparos automáticos herdam as mesmas duas proteções de tudo o que é agendado normalmente e não reimplementam nenhuma: um host que não anunciou suporte à gestão de configuração é recusado na fila, e a entrega é suspensa para qualquer host dentro de uma janela de manutenção. Uma regra cujo perfil de reparo foi aposentado é relatada ruidosamente no log e não aplica nada — a quebra silenciosa de um reparo escrito por alguém é exatamente o que torna a correção automática perigosa.",
+        "honest": "Assim como reaplicar uma linha de base, enfileirar uma reparação direcionada <em>não</em> marca a descoberta como corrigida. Ela é limpa quando a próxima execução de verificação bem-sucedida para de relatar a tarefa.",
+        "matching": "Uma regra carrega quatro coisas que decidem se e quando ela é acionada:",
+        "once": "Uma correção automática é acionada uma vez por episódio, não uma vez por verificação. Apenas uma descoberta que foi <em>aberta</em> recentemente é elegível; uma descoberta que está simplesmente ainda aberta não é um novo evento, então uma divergência no playbook não consegue corrigir aparece como deriva persistente em vez de um loop infinito de tentativas. Uma descoberta que foi resolvida e volta é um novo episódio e merece uma nova tentativa.",
+        "pattern": "<strong>Padrão de tarefa</strong> — uma expressão glob que corresponde ao nome da tarefa, ignorando maiúsculas e minúsculas, por exemplo, <code>garantir nginx*</code>. Expressões glob são usadas em vez de expressões regulares porque a mesma string pode ter significados diferentes como regex, o que poderia causar correspondências inesperadas. Um <code>*</code> sem contexto é recusado: com correção automática, ele acionaria um perfil em cada divergência na frota, dando a impressão de que o sistema está funcionando.",
+        "priority": "<strong>Prioridade</strong> — a menor prioridade vence. Em caso de prioridades iguais, a regra com escopo de perfil supera a global, pois a reivindicação mais específica é a do autor que tem mais conhecimento da situação; qualquer empate restante é quebrado pelo nome, então o vencedor é o mesmo em todos os servidores e após cada reinicialização. Um operador que não consegue prever qual reparo será acionado nunca ligará um reparo automático.",
+        "scope": "<strong>Scope</strong> — optionally narrow the rule to drift from one profile. Left open, a rule repairs that task wherever it drifts, which is what makes a rule library worth having across profiles.",
+        "screenshot": "As regras são listadas em ordem de precedência, não alfabeticamente: a lista é a sequência contra a qual um achado é testado, e os que disparam sem supervisão são marcados.",
+        "title": "Playbooks de remediação"
+      },
+      "remediate": {
+        "description": "A remediação reaplica o perfil em modo {{c1}} através do mesmo construtor de execução que uma aplicação manual e como o tick agendado, então uma remediação não pode divergir de uma aplicação normal. Portanto, ele herda os gates de capacidade do agente e janelas de manutenção de graça, em vez de re-verificar qualquer coisa.",
+        "honest": "Colocar uma correção na fila {{c1}} marca a constatação como resolvida. As constatações só são resolvidas quando a próxima verificação bem-sucedida deixa de relatar a tarefa — alegar sucesso no momento do envio seria um painel que mente sobre a frota.",
+        "title": "Remediação de um clique"
+      },
+      "rules": {
+        "changed": "Apenas tarefas reportadas como <strong> alteradas </strong> contam. Uma tarefa falhada é um erro a ser investigado, não uma divergência a ser corrigida.",
+        "check": "Apenas execuções {{c1}} abrem achados. Uma execução ao vivo que mudou algo não é flutuação, é uma mudança que fizemos; contá-la como um novo problema relataria a própria remediação do sistema como um novo problema.",
+        "description": "Três regras governam como uma execução de aterrissagem altera o conjunto de achados, e cada uma existe para impedir uma resposta errônea específica:",
+        "regression": "Um achado que foi resolvido e reaparece é um {{c1}}: a resolução é limpa e o relógio reinicia, então \"flutuando desde\" sempre descreve o episódio atual em vez de afirmar uma flutuação contínua durante um período em que o host estava em conformidade.",
+        "success": "Apenas uma execução {{c1}} pode resolver um achado. Uma execução de verificação que falhou não sabe do estado do host, então tratar seu silêncio como \"a flutuação desapareceu\" fecharia achados com base em um erro. Uma execução de verificação falhada ainda pode abrir achados para o que ela observou.",
+        "title": "Regras de reconciliação"
+      },
+      "scope": {
+        "description": "Aqui, a flutuação é medida {{c1}}: o próprio motor relata o que mudaria, então nada extra precisa ser coletado. A flutuação medida contra um {{c2}} é uma comparação de inventário limitado — pacotes, usuários e grupos, interfaces de rede, armazenamento, repositórios, estado do firewall e certificados — sobre fatos que o agente já relata.",
+        "title": "O que isso cobre e não cobre"
+      },
+      "setup": {
+        "assign": "Atribua-o a um host, tag ou local com um cronograma e {{c1}} — essa é a comparação",
+        "mixed": "Um perfil pode ser atribuído duas vezes ao mesmo destino — uma vez em uma programação de verificação frequente para detectar drifte e uma vez ao vivo em uma programação mais lenta para corrigi-lo — se você quiser detecção e aplicação em ritmos diferentes.",
+        "profile": "Crie um perfil de configuração que descreva o estado desejado (consulte o guia de Gerenciamento de Configuração)",
+        "remediate": "Remediação do dashboard quando uma divergência é real, e deixe a próxima verificação fechar o achado",
+        "title": "Configuração",
+        "watch": "Assista ao dashboard de flutuação, ou adicione uma regra de alerta {{c1}} com um {{c2}} que corresponda a como rapidamente seu ambiente se auto-repara"
+      },
+      "why": {
+        "description": "Uma execução em modo de verificação diz que {{c1}} mudaria. O que ela não pode dizer é {{c2}} — cada execução só sabe de si mesma, então \"este host tem se desviado por nove dias\" é uma informação indisponível nas linhas de execução sem escanear o histórico completo a cada carregamento da página. Um achado de desvio armazena exatamente esse período de vida e nada mais; as execuções permanecem o registro do que aconteceu.",
+        "identity": "Um achado é identificado por {{c1}}. Essa é a única identidade que a forma genérica do resultado carrega: o agente relata uma tarefa {{c2}}, e nada mais estável viaja com ela. O custo aceito é que renomear uma tarefa em um perfil reinicia sua idade de flutuação, porque o novo nome é uma linha diferente. Isso é a troca certa contra corresponder à tarefa {{c3}}, que reatribuiria silenciosamente a história de um achado para outro no momento em que alguém inserisse um passo — um erro de data é pior do que um reset, porque um reset é visivelmente um reset.",
+        "title": "Por que os achados existem bem como as execuções"
+      }
+    },
+    "config_management": {
+      "apply": {
+        "check": "As execuções de modo de verificação executam a bandeira seca do motor ({{c1}}, {{c2}}, {{c3}}, {{c4}}) e relata o que mudaria, {{c5}}.",
+        "description": "Uma aplicação coloca um comando na fila para o host através da fila de saída normal, então ela herda a capacidade do agente e as janelas de manutenção, em vez de reverificar qualquer coisa.",
+        "detail": "detalhes da tarefa por execução",
+        "idempotency": "Execuções que alteraram nada são registradas também. Relatórios de idempotência é o ponto da gestão de estado desejado e é uma afirmação sobre história: \"as últimas três aplicações deste perfil não alteraram nada\" não pode ser respondido a partir de uma coluna de estado atual.",
+        "runs": "histórico de execução de um host",
+        "title": "Aplicando um perfil"
+      },
+      "architecture": {
+        "description": "O esquema vive na árvore de código aberto porque o servidor de código aberto possui o banco de dados; o comportamento — validar um perfil, versioná-lo, resolver uma atribuição, decidir quando um cronograma está devido, construir uma especificação de execução — vive no {{c1}} compilado em Cython. Isso é a mesma divisão que Vulnerabilidade e Perfil de Conformidade usam, e significa que uma instalação sem licença mantém um esquema coerente e seu histórico de execução existente.",
+        "title": "Arquitetura"
+      },
+      "assignments": {
+        "description": "Uma atribuição liga um perfil exatamente a um alvo — um host, uma tag ou um local — com um cronograma opcional e uma bandeira de modo de verificação opcional. Três colunas de alvo opcionais são usadas em vez de um par {{c1}}, porque esse par não pode ser uma chave estrangeira: permitiria que uma atribuição durasse mais do que o host que ela nomeia, e o primeiro sintoma seria uma execução agendada contra uma máquina que não existe mais.",
+        "dueness": "A devida data é ancorada em {{c1}} em vez de uma coluna armazenada {{c2}}, então alterar um cronograma tem efeito imediato e um tick perdido não pode aprisionar uma atribuição. Uma atribuição agendada com {{c3}} definida apenas relata flutuação e nunca altera o host — veja o guia de flutuação da configuração.",
+        "title": "Atribuições e agendamento"
+      },
+      "breadcrumb": "Gestão de Configuração",
+      "engines": {
+        "ansible": "Alguém com três hosts já tem <code>ansible-playbook</code>; a aplicação de um único host é o equivalente direto da execução de scripts, que é gratuita.",
+        "description": "Cinco identidades de motor são suportadas. O que é gratuito e o que é licenciado segue o valor que adicionam, não o esforço para apoiá-las:",
+        "dsc": "Incluído com o agente do Windows, portanto é o caminho padrão de um único host lá. Relatado como \"incluído com o agente\" em vez de algo a ser instalado.",
+        "platform": "Apenas DSC é limitado à plataforma, e apenas porque é o que vendemos no Windows. Puppet, Salt e Chef todos enviam agentes do Windows e rodam lá. <code>requer_licença()</code> em <code>backend/serviços/motores_de_gerenciamento_de_configuração.py</code> é a única fonte de verdade consultada pelo endpoint aplicar, o endpoint instalar e a interface do usuário, então a regra não pode desviar entre o lugar que oferece um botão e o lugar que nega o pedido.",
+        "title": "Motores"
+      },
+      "feature_codes": {
+        "description": "O armazenamento de perfil, atribuição, agendamento e os adaptadores Puppet/Salt/Chef são fornecidos pelo módulo {{c1}}. Sem ele, o servidor de código aberto ainda armazena execuções e executa {{c2}} e {{c3}} em um único host; motores licenciados são recusados antes que qualquer coisa seja agendada.",
+        "title": "Códigos de Recursos"
+      },
+      "header": {
+        "description": "Configuração de estado desejado: perfis armazenados e versionados aplicados a hosts, tags ou locais em um agendamento ou sob demanda. Puppet, Salt e Chef estão por trás de uma abstração de perfil; ansible-core e Windows DSC permanecem de código aberto.",
+        "screenshot": "A página de Perfis de Configuração lista todos os perfis armazenados com seu motor, versão e contagem de atribuições.",
+        "title": "Gestão de Configuração"
+      },
+      "meta_description": "Gestão de configuração em estado desejado com perfis armazenados e versionados impulsionados por Puppet, Salt e Chef por trás de uma abstração, aplicados de forma pull sobre a conexão do agente existente.",
+      "overview": {
+        "description": "Um perfil de configuração é um corpo desejado nomeado e versionado — um manifesto Puppet, um estado Salt, uma receita Chef, um playbook Ansible ou um conjunto de recursos DSC — mais o motor que interpreta isso. Os perfis são armazenados no servidor, atribuídos a hosts, tags ou sites e aplicados de acordo com a solicitação ou em uma programação cron. Cada execução é registrada como uma execução, incluindo as execuções que não mudaram nada.",
+        "title": "Visão Geral"
+      },
+      "page_title": "Gestão de Configuração - SysManage Profissional+",
+      "prereq": {
+        "bundled": "Não necessário — O DSC é enviado com o agente",
+        "description": "Antes de oferecer para executar um perfil, o servidor verifica se o host possui realmente o executor e distingue três situações que não devem ser descritas da mesma maneira:",
+        "installable": "Não instalado, mas instalável a partir do gerenciador de pacotes deste host",
+        "satisfied": "Instalado — com a versão detectada, então um perfil pode declarar um mínimo",
+        "title": "Prontidão do Executor",
+        "unmeasured": "Não disponível aqui — ou a distribuição não possui o pacote, ou o inventário do Windows não consegue relatá-lo (um limite de detecção, não uma limitação da plataforma)"
+      },
+      "profiles": {
+        "create": "criar",
+        "description": "Cada mudança em um perfil's {{c1}} ou {{c2}} incrementa sua versão e faz um snapshot do corpo anterior em {{c3}}. Editar apenas a descrição não cria uma nova versão. A configuração como código sem histórico é simplesmente a configuração: o valor de um perfil armazenado é ser capaz de responder \"o que mudou e quando\" uma vez que uma execução começa a se comportar de forma diferente.",
+        "list": "lista",
+        "restore": "restaurar um corpo anterior",
+        "title": "Perfis e versionamento",
+        "versions": "Histórico de Versões"
+      },
+      "pull": {
+        "agent": "O executor é uma dependência do lado do agente, então um host que não pode executá-lo simplesmente não anuncia a capacidade",
+        "creds": "Sem distribuição de credenciais: não há nó de controle que detenha chaves para todos os hosts",
+        "description": "A gestão de configuração é convencionalmente baseada em push: um nó de controle abre uma conexão SSH para cada alvo. O SysManage faz o oposto. O servidor envia o perfil {{c1}} e o agente executa-o localmente contra {{c2}}, exatamente como a execução de script já funciona.",
+        "port": "Não há novos portos de entrada e sem acessibilidade SSH: o agente precisa do porto 443 para saída e nada mais",
+        "results": "Resultados fluem de volta pela mesma conexão de todo outro comando resultado — nenhum novo caminho de entrada",
+        "title": "Execução estilo pull, não push"
+      },
+      "spec": {
+        "description": "O agente de código aberto sabe como executar {{c1}} e DSC. Ele não sabe nada sobre Puppet, Salt ou Chef. Em vez de ensiná-lo, o motor licenciado constrói um {{c2}} e o agente executa-o genericamente:",
+        "exit_code": "significado carregado nos bits de saída, com os valores dos bits fornecidos pela especificação",
+        "json_file": "o arquivo de relatório de correspondência mais recente na pasta de execução (Chef)",
+        "json_lines": "um objeto JSON por linha (ansible-core, através do nosso plugin de callback)",
+        "json_stdout": "um documento na saída padrão (Salt, DSC)",
+        "shapes": "O bloco {{c1}} nomeia um dos cinco formatos genéricos que o agente pode ler, e fornece as regras para lê-lo. Quais bandeiras produziram essa saída, e o que os campos significam, é negócio do motor licenciado:",
+        "title": "Como uma abstração impulsiona quatro motores",
+        "why": "Este é o motivo de adicionar um motor ser uma mudança licenciada sem lançamento do agente: um novo motor envia novos argumentos e novas regras de resultado, não novo código do agente.",
+        "yaml_file": "o mesmo, para um relatório YAML (Puppet's {{c1}}, que é marcado em Ruby e lido com um carregador tolerante a tags),"
+      }
+    },
     "container": {
       "api": {
         "description": "O Motor de Contêineres é totalmente acessível via API REST:",
@@ -19337,6 +19511,16 @@
         "description": "Adicionar análise de saúde alimentada por IA, varredura de vulnerabilidades e recursos empresariais para gerenciamento de infraestrutura.",
         "title": "SysManage Profissional+"
       },
+      "integrity": {
+        "binding_identity": "A assinatura abrange a identidade do módulo — código, versão, plataforma, arquitetura e versão do Python — não apenas seus bytes.",
+        "binding_replay": "Um pacote devidamente assinado não pode ser servido em lugar de um motor diferente, e uma versão antiga não pode ser reproduzida sobre uma versão corrigida.",
+        "failclosed_anchor": "Não há configuração para desativá-lo, e o ancor de confiança é compilado no servidor em vez de ser lido de um arquivo ao lado dos módulos — quem puder substituir um módulo pode substituir uma chave sentada ao seu lado.",
+        "failclosed_cache": "A verificação é fail-closed e bloqueia o único ponto por onde passa cada módulo, então a cópia em cache no disco é verificada em cada inicialização, não apenas durante o download inicial.",
+        "intro_risk": "Módulos Pro+ são objetos compartilhados nativos carregados no processo do servidor, e os pacotes de plugin são JavaScript que rodam no navegador de um administrador autenticado",
+        "intro_signed": "Este é o caminho de código com as piores consequências se for manipulado, então cada módulo e pacote é assinado com Ed25519 e verificado antes de ser carregado.",
+        "operator": "Não há nada a configurar ou rotacionar do seu lado. Se um módulo falhar na verificação, o servidor se recusará a carregá-lo e registrará o motivo, tornando a funcionalidade indisponível em vez de executar silenciosamente código não verificado.",
+        "title": "Como os Módulos São Verificados"
+      },
       "meta_description": "Documentação do SysManage Professional+ - análise de saúde alimentada por IA, varredura de vulnerabilidades e recursos empresariais.",
       "modules": {
         "airgap": {
@@ -19417,6 +19601,29 @@
           "link": "Guia do Motor de Conformidade ->",
           "title": "Motor de Conformidade"
         },
+        "config_drift": {
+          "description": "Verificações agendadas em modo de verificação convertidas em achados que registram quanto tempo cada divergência durou, com correção de um clique e alertas sobre drifts persistentes.",
+          "features": {
+            "alerting": "condição de alerta com um limiar de idade mínimo",
+            "dashboard": "Painel de frota ordenado por mais longo período de deriva",
+            "findings": "Concluções que registram a idade do desvio, não apenas o estado atual",
+            "playbooks": "Playbooks de remediação que corrigem uma única divergência ao invés de reaplicar uma linha de base inteira",
+            "remediate": "Remediação de um clique através do caminho normal de aplicação"
+          },
+          "link": "Guia de Desvio de Configuração →",
+          "title": "📈 Drift de Configuração"
+        },
+        "config_management": {
+          "description": "Perfis de estado desejado armazenados, versionados e impulsionados por Puppet, Salt e Chef atrás de uma única abstração, aplicados de forma pull sobre a conexão existente do agente.",
+          "features": {
+            "assign": "Atribuição ao host, tag ou local com agendamento Cron",
+            "engines": "Adaptadores Puppet, Salt e Chef atrás de um único perfil",
+            "profiles": "Perfis versionados com histórico restaurável",
+            "pull": "Execução estilo pull — sem SSH, sem novo porto de entrada"
+          },
+          "link": "Guia de Gerenciamento de Configuração",
+          "title": "🔧 Gestão de Configuração"
+        },
         "container": {
           "description": "Gerenciamento do ciclo de vida de contêineres WSL e LXD com criação, iniciar/parar/reiniciar/excluir, gerenciamento de distribuições e monitoramento.",
           "features": {
@@ -19472,6 +19679,17 @@
           },
           "link": "Guia do Motor de Frota →",
           "title": "🌐 Motor de Frota"
+        },
+        "fleet_jobs": {
+          "description": "Um perfil único em milhares de hosts, liberado em ondas limitadas ao invés de tudo de uma vez, com uma linha por host registrando o que aconteceu com ele.",
+          "features": {
+            "inventories": "Inventários reutilizáveis construídos a partir de hosts, tags e locais",
+            "targets": "Linhas de resultado por host, então falhas são uma consulta",
+            "templates": "Modelos de tarefas com concorrência por modelo e cron",
+            "waves": "Ondas limitadas guiadas pelos resultados, não por um relógio"
+          },
+          "link": "Guia de Configuração de Frotas →",
+          "title": "🚀 Fleet Configuration Jobs"
         },
         "gpg_keys": {
           "description": "Chaves GPG nomeadas armazenadas como segredos OpenBAO KV, atribuídas a um host ou a um usuário específico em um host, e instaladas no keyring de destino do GnuPG pelo agente sobre a fila durável.",
@@ -19594,28 +19812,6 @@
           },
           "link": "Vulnerabilidade Scanning Guia &#8594;",
           "title": "🛡️ Varredura de vulnerabilidades"
-        },
-        "config_drift": {
-          "description": "Verificações agendadas em modo de verificação convertidas em achados que registram quanto tempo cada divergência durou, com correção de um clique e alertas sobre drifts persistentes.",
-          "features": {
-            "alerting": "condição de alerta com um limiar de idade mínimo",
-            "dashboard": "Painel de frota ordenado por mais longo período de deriva",
-            "findings": "Concluções que registram a idade do desvio, não apenas o estado atual",
-            "remediate": "Remediação de um clique através do caminho normal de aplicação"
-          },
-          "link": "Guia de Desvio de Configuração →",
-          "title": "📈 Drift de Configuração"
-        },
-        "config_management": {
-          "description": "Perfis de estado desejado armazenados, versionados e impulsionados por Puppet, Salt e Chef atrás de uma única abstração, aplicados de forma pull sobre a conexão existente do agente.",
-          "features": {
-            "assign": "Atribuição ao host, tag ou local com agendamento Cron",
-            "engines": "Adaptadores Puppet, Salt e Chef atrás de um único perfil",
-            "profiles": "Perfis versionados com histórico restaurável",
-            "pull": "Execução estilo pull — sem SSH, sem novo porto de entrada"
-          },
-          "link": "Guia de Gerenciamento de Configuração",
-          "title": "🔧 Gestão de Configuração"
         }
       },
       "overview": {
@@ -19640,71 +19836,61 @@
         "enterprise": {
           "description": "Para implantações em grande escala, com recursos adicionais de segurança, conformidade e integração.",
           "features": {
+            "airgap": "Implementação totalmente isolada do ar, incluindo espelhos privados para os canais de instalação próprios do agente",
             "all_pro": "Tudo no Profissional",
             "audit": "Registro e retenção de auditoria",
             "automation": "Saved-script biblioteca + agendado execução + approval fluxos de trabalho",
-            "compliance": "Geração de relatórios de conformidade",
-            "firewall": "Orquestração de firewall multiplataforma com detecção de conflitos de regras",
-            "fleet": "Grupos de hosts + operações em massa + implantações contínuas",
-            "ha": "Suporte a alta disponibilidade",
-            "observability": "Provisionamento de frota OpenTelemetry, Graylog e Grafana",
-            "rbac": "Controle de acesso baseado em funções avançado",
-            "sla": "Garantia SLA com suporte dedicado",
-            "sso": "Integração de SSO/IdP externo e autenticação multifator",
-            "virtualization": "Gestão de virtualização de hardware (KVM/QEMU, bhyve, VMM/vmd)",
-            "vulnerability": "Motor de varredura de vulnerabilidades",
-            "airgap": "Implementação totalmente isolada do ar, incluindo espelhos privados para os canais de instalação próprios do agente",
             "av": "Gestão centralizada de antivírus com detecção de AV comercial",
+            "compliance": "Geração de relatórios de conformidade",
             "config_management": "Gestão de configuração em estado desejado e detecção de deriva entre Ansible, PowerShell DSC, Puppet, Salt e Chef, com aplicação agendada e correção para a linha de base",
             "content_distribution": "Proxy da Loja Snap e conteúdo de ciclo de vida de imagem de contêiner (OCI)",
             "content_lifecycle": "Visualizações de conteúdo e ambientes de ciclo de vida com promoção restrita",
             "federation": "Federação multi-site com papéis de coordenador e servidor de site",
             "fips": "Habilitar e desabilitar modo de conformidade FIPS 140",
+            "firewall": "Orquestração de firewall multiplataforma com detecção de conflitos de regras",
+            "fleet": "Grupos de hosts + operações em massa + implantações contínuas",
+            "ha": "Suporte a alta disponibilidade",
             "image_mode": "Modo de imagem (bootc / rpm-ostree) de gerenciamento de host",
             "mirroring": "Repositório de espelhamento de pacotes",
-            "provisioning": "Provisionamento de host em hipervisor externo e em metal nu sobre PXE, com descoberta de hardware"
+            "observability": "Provisionamento de frota OpenTelemetry, Graylog e Grafana",
+            "provisioning": "Provisionamento de host em hipervisor externo e em metal nu sobre PXE, com descoberta de hardware",
+            "rbac": "Controle de acesso baseado em funções avançado",
+            "sla": "Garantia SLA com suporte dedicado",
+            "sso": "Integração de SSO/IdP externo e autenticação multifator",
+            "virtualization": "Gestão de virtualização de hardware (KVM/QEMU, bhyve, VMM/vmd)",
+            "vulnerability": "Motor de varredura de vulnerabilidades"
           },
           "title": "Nível Empresa"
         },
         "professional": {
           "description": "Para organizações em crescimento que necessitam de insights alimentados por IA, gerenciamento de contíneres e monitoramento.",
           "features": {
-            "containers": "Gerenciamento do ciclo de vida de contêineres WSL e LXD",
-            "health": "Análise de saúde com IA e histórico de pontuações, notas e classificações",
-            "history": "Histórico e tendências de saúde",
-            "monitoring": "Painéis de monitoramento avançado",
-            "reboot_orchestration": "Reinicialização segura do host principal com orquestração dos hosts filhos",
-            "reports": "Geração agendada de relatórios em HTML e PDF",
-            "support": "Suporte por e-mail prioritário",
             "advisory": "Gestão de avisos de fornecedores (USN, RHSA, SUSE-SU, DSA, FreeBSD-SA) com instalação por aviso",
             "alerting": "Regras de alerta roteadas para e-mail, webhook, Slack e Teams",
             "audit": "Rastro de auditoria expandido com retenção e exportação",
             "compliance": "Auditoria e geração de relatórios de conformidade com o CIS/DISA STIG",
+            "containers": "Gerenciamento do ciclo de vida de contêineres WSL e LXD",
+            "health": "Análise de saúde com IA e histórico de pontuações, notas e classificações",
+            "history": "Histórico e tendências de saúde",
+            "monitoring": "Painéis de monitoramento avançado",
             "os_lifecycle": "Acompanhamento do fim de vida do sistema operacional e atualizações de lançamento da distribuição conscientes das janelas de manutenção",
             "provisioning_templates": "Autorização de modelo de provisionamento (kickstart, preseed, autoinstalação, cloud-init)",
+            "reboot_orchestration": "Reinicialização segura do host principal com orquestração dos hosts filhos",
+            "reports": "Geração agendada de relatórios em HTML e PDF",
             "secrets": "Gestão de segredos apoiada pelo OpenBAO",
+            "support": "Suporte por e-mail prioritário",
             "vulnerability": "Varrimento de vulnerabilidades CVE com pontuação de risco por host"
           },
           "title": "Nível Profissional"
         },
-        "title": "Níveis de licença",
         "saas": {
           "features": {
             "db_ha": "Credenciais de banco de dados por inquilino liberadas limpa através de um failover primário PostgreSQL, então um cluster HA e brokeragem por inquilino OpenBAO funcionam juntos em vez de contra cada outro"
           }
-        }
+        },
+        "title": "Níveis de licença"
       },
-      "title": "Profissional+ - SysManage",
-      "integrity": {
-        "binding_identity": "A assinatura abrange a identidade do módulo — código, versão, plataforma, arquitetura e versão do Python — não apenas seus bytes.",
-        "binding_replay": "Um pacote devidamente assinado não pode ser servido em lugar de um motor diferente, e uma versão antiga não pode ser reproduzida sobre uma versão corrigida.",
-        "failclosed_anchor": "Não há configuração para desativá-lo, e o ancor de confiança é compilado no servidor em vez de ser lido de um arquivo ao lado dos módulos — quem puder substituir um módulo pode substituir uma chave sentada ao seu lado.",
-        "failclosed_cache": "A verificação é fail-closed e bloqueia o único ponto por onde passa cada módulo, então a cópia em cache no disco é verificada em cada inicialização, não apenas durante o download inicial.",
-        "intro_risk": "Módulos Pro+ são objetos compartilhados nativos carregados no processo do servidor, e os pacotes de plugin são JavaScript que rodam no navegador de um administrador autenticado",
-        "operator": "Não há nada a configurar ou rotacionar do seu lado. Se um módulo falhar na verificação, o servidor se recusará a carregá-lo e registrará o motivo, tornando a funcionalidade indisponível em vez de executar silenciosamente código não verificado.",
-        "title": "Como os Módulos São Verificados",
-        "intro_signed": "Este é o caminho de código com as piores consequências se for manipulado, então cada módulo e pacote é assinado com Ed25519 e verificado antes de ser carregado."
-      }
+      "title": "Profissional+ - SysManage"
     },
     "federation": {
       "alerts": {
@@ -20005,6 +20191,76 @@
       "selector": {
         "description": "Um HostSelector é um filtro composto que combina IDs de hosts explícitos com critérios opcionais (unidos com AND). Os atalhos de conveniência (platforms, tags, groups, approval_status) compilam para critérios equivalentes antes da avaliação.",
         "title": "DSL do Seletor de Hosts"
+      }
+    },
+    "fleet_jobs": {
+      "api": {
+        "cancel": "Parar o despacho",
+        "inventories": "Listar e criar inventários",
+        "jobs": "Trabalhos recentes com suas contagens",
+        "launch": "Iniciar agora; a primeira onda é despachada antes da resposta retornar",
+        "members": "O host, tag e local seletores de um inventário é construído a partir",
+        "preview": "O que isso resolve agora",
+        "roles": "Criar um inventário ou um modelo exige a permissão <strong>Add Script</strong> / <strong>Edit Script</strong>. <em>Lançar</em> um exige <strong>Run Script</strong> — a mesma permissão de aplicar um perfil a um único host, porque é essa mesma operação com um raio de impacto maior, e não uma operação diferente.",
+        "targets": "As linhas por host, falhas primeiro",
+        "templates": "Listar e criar modelos",
+        "title": "API"
+      },
+      "architecture": {
+        "description": "Os tabelas residem no esquema de código aberto, pois o servidor de código aberto possui o banco de dados. O que é licenciado é o <em>comportamento</em>: até onde uma onda pode chegar, o que um status de trabalho significa quando alguns hosts falharam, o que um inventário seleciona e quando um modelo agendado está devido. Essas regras residem no módulo <code>config_management_engine</code>, e sem ele, uma instalação não licenciada tem um esquema coerente, sem trabalhos e um executor que não libera nada em vez de recuar para o comportamento não limitado dos trabalhos existentes para substituir.",
+        "state": "O estado de um trabalho existe inteiramente nas suas linhas. Não há tarefas por trabalho e nada espera por um resultado, então um servidor reiniciado no meio de uma execução de quatro mil hosts retoma lendo as linhas em vez de perder o loop.",
+        "title": "Arquitetura"
+      },
+      "breadcrumb": "Trabalhos de Configuração da Frota",
+      "execution": {
+        "description": "Lançando materializa um <strong>alvo</strong> por host selecionado, todos pendentes, e libera imediatamente a primeira onda. Os alvos são criados de antemão, em vez de descobertos conforme o trabalho avança, o que custa uma inserção por host e garante a funcionalidade da característica: desde o primeiro segundo, o trabalho pode informar quantos hosts serão afetados e quais.",
+        "guards": "A distribuição segue o mesmo construtor de uma aplicação manual e do sinal de atribuição, então um trabalho de frota não pode se desviar do que uma aplicação normal teria feito — e ele herda ambas as guardas existentes sem reverificar nenhuma: um host que não anunciou suporte à gestão de configuração é recusado na fila, e a entrega é suspensa para qualquer host dentro de uma janela de manutenção.",
+        "stall": "Um alvo foi despachado, mas nunca respondeu, e expira após seis horas como falho. Algo deve: uma tarefa presa em 'executando', mantendo slots para sempre, com um contador pendente que nunca se move, lido como uma funcionalidade quebrada ao invés de um host falho.",
+        "title": "Como um trabalho é executado",
+        "waves": "A partir daí o trabalho é ritmado pelos <em>resultados</em>, não por um relógio. Cada resultado que chega encerra o seu alvo e libera imediatamente o seguinte, de modo que uma frota é percorrida tão rápido quanto responde. Um ciclo em segundo plano a cada 60 segundos é apenas uma rede de segurança para trabalhos cujos resultados demoram ou não chegam."
+      },
+      "header": {
+        "description": "Um perfil de configuração que abrange milhares de hosts, trabalhado em ondas limitadas, com uma linha por host, de modo que 'quais doze dos quatro mil falharam' é uma pergunta que você pode responder.",
+        "screenshot": "Três trabalhos: um concluído com um único host falhando, um ainda liberando ondas e um onde dois hosts recusaram o comando porque seus agentes não podem executar playbooks.",
+        "title": "Trabalhos de Configuração da Frota"
+      },
+      "history": {
+        "description": "Deletar um modelo não apaga o registro de que ele alterou quatro mil hosts na terça-feira passada. O trabalho mantém o nome do modelo, o nome do perfil e o nome do inventário ao lado das chaves estrangeiras que se tornam nulas, e cada alvo mantém seu nome de host totalmente qualificado. Um trabalho é um artefato de auditoria; desativar um host ou organizar um modelo deve deixá-lo legível.",
+        "title": "A história sobrevive aos seus pais"
+      },
+      "inventories": {
+        "description": "Um inventário é um conjunto nomeado e reutilizável de hosts construídos a partir das mesmas três atribuições de seletores — um <strong>host</strong>, uma <strong>tag</strong> ou um <strong>site</strong> — ou a bandeira que significa todos os hosts ativos. Os membros unem-se, em vez de interseção: um inventário de ‘tag=web’ mais ‘site=eu-west’ é todos os hosts em qualquer um.",
+        "empty": "Um inventário que se resolve em nada é recusado em vez de permitido, e uma tarefa lançada contra um que já está vazio completa imediatamente informando isso. Uma tarefa que relata sucesso limpo sobre zero hosts lê como 'a frota está convergida', o que é a maneira mais cara de esta funcionalidade estar errada.",
+        "resolution": "Um inventário <strong>é resolvido no lançamento</strong>; ele nunca armazena uma lista de hosts. Uma lista copiada estaria errada no instante em que um host entrasse na etiqueta — e errada <em>silenciosamente</em>, porque um trabalho que simplesmente deixa máquinas de fora tem exatamente a mesma aparência de um trabalho bem-sucedido. Pela mesma razão, a contagem de hosts na página é calculada a cada leitura em vez de ficar em cache, e o botão <em>Visualizar</em> responde a «o que estou prestes a mudar?» no momento em que você pergunta.",
+        "screenshot": "Cada inventário relata o número de hosts que ele resolve atualmente. O inventário 'todo host' é marcado, pois 'a frota inteira' é uma afirmação mais perigosa do que qualquer seletor e deve ser lida como tal.",
+        "title": "Inventários"
+      },
+      "meta_description": "Execute um perfil de configuração em milhares de hosts em ondas limitadas, com uma linha por host registrando o que aconteceu, inventários reutilizáveis construídos a partir de hosts, tags e locais, e modelos de tarefa que podem ser executados de acordo com uma programação.",
+      "overview": {
+        "description": "Uma <em>atribuição</em> de perfil é uma intenção permanente — «este perfil se aplica aqui, para sempre, nesta programação». Um <strong>trabalho</strong> é uma única execução delimitada, com início, fim e um resultado para o qual se pode apontar depois. Os dois são deliberadamente separados: fundi-los significaria dar a uma intenção permanente um estado de conclusão que ela nunca pode alcançar, ou dar a uma execução encerrada uma expressão cron.",
+        "title": "Visão geral",
+        "why": "As atribuições já se espalham para todos os hosts correspondentes, e isso está correto para dezenas de hosts e incorreto para milhares em duas maneiras distintas: uma transação de banco de dados que segura a frota inteira, e um pico de mensagens que chegam todas de uma vez, independentemente do que a fila, a rede e os agentes podem absorver. Uma tarefa corrige ambos os problemas ao nunca ter mais de sua <strong>concorrência</strong> em execução."
+      },
+      "page_title": "Jobs de Configuração de Frota - SysManage Professional+",
+      "status": {
+        "cancel": "Cancelar interrompe o envio adicional e marca os alvos não processados como pulados. Alvos já em execução permanecem inalterados — o comando está com o agente e o servidor não pode revogá-lo, portanto, afirmar o contrário seria um status que mente. Seus resultados ainda são entregues e ainda fecham seus alvos, por isso as contagens de um trabalho cancelado continuam se movendo por algum tempo.",
+        "canceled": "Um operador parou isso",
+        "completed": "Todos os alvos chegaram a um estado terminal e pelo menos um teve sucesso, ou todos os hosts recusaram",
+        "description": "O status de um trabalho responde à pergunta <strong>“este trabalho realizou sua tarefa?”</strong>, não “todos os hospedeiros estão felizes?”, o que é a resposta das contagens. Assim, um trabalho onde alguns hospedeiros falharam é <code>concluído</code>, de propósito.",
+        "failed": "O trabalho não alcançou nada: algo falhou e nenhum teve sucesso. Isso também é o que um perfil indisponível produz.",
+        "pending": "Criado, nada despachado ainda",
+        "running": "Os alvos estão em voo ou ainda esperando por uma onda",
+        "skipped": "Um host que não consegue executar o comando é <strong>pularado</strong>, nunca falhou, e o motivo é escrito na sua linha. Essa distinção importa em uma frota mista: 'este agente não anuncia suporte à gestão de configuração' é uma resposta verdadeira e útil que não deve ser arquivada ao lado de 'o playbook falhou'.",
+        "title": "Verificar o status de um trabalho",
+        "why": "A tentação é marcar um trabalho como falhado assim que qualquer alvo falha, e isso está errado por um motivo que só aparece em escala: em uma frota de quatro mil, um punhado de máquinas estão sempre offline, em meio a um reboot ou recém reconstruídas. Um status que vira vermelho toda vez é ignorado em uma semana, e depois ele não significa nada no dia em que significa algo."
+      },
+      "templates": {
+        "check_mode": "<strong>Simulação seca</strong> é o padrão para um novo modelo. A primeira coisa a fazer com um é descobrir o que ele <em>faria</em> de diferente; uma execução ao vivo em toda a frota é o único erro aqui que não pode ser desfeito.",
+        "concurrency": "<strong>Concorrência</strong> é limitada em vez de rejeitada. Alguém digitando 10.000 significa “o mais rápido possível”, então o servidor armazena seu limite e a página informa o que você obteve — recusar todo o modelo acima desse limite transformaria uma intenção clara em uma mensagem de erro.",
+        "description": "Um modelo nomeia um <strong>perfil</strong>, um <strong>inventário</strong> e o quão difícil é executá-lo. Seu valor é que as três decisões que você faria novamente a cada execução são tomadas uma vez e nomeadas, de modo que a execução que acontece às 3 da manhã sob um agendamento seja provavelmente a execução revisada por alguém.",
+        "schedule": "Uma <strong>programação cron</strong> transforma o modelo em um trabalho de frota permanente. O vencimento é derivado do último lançamento, de modo que um servidor que ficou fora do ar durante a noite é lançado <em>uma vez</em> no ciclo seguinte, em vez de repetir todas as ocorrências perdidas.",
+        "screenshot": "A concorrência é armazenada por modelo, não configurada globalmente: o valor correto é uma propriedade do trabalho. Um perfil que toca pacotes contra um espelho compartilhado quer um número pequeno; uma varredura de permissões de arquivo pode saturar.",
+        "title": "Modelos de Tarefas"
       }
     },
     "gpg_keys": {
@@ -20342,6 +20598,24 @@
           "facts": "Cada entrada carrega fabricante e modelo, CPU e contagem de nucleos, memória, contagem de discos e disco primario, e número de série — o suficiente para diferenciar um node computacional de 256 GB de uma caixa edge de 64 GB sem ir ao rack. Atribuir um SO a partir daqui é o caminho rápido: o MAC já está conhecido, então o operador só escolhe uma fonte de instalação. Uma máquina que não deve ser provisionada pode ser ignorada em vez disso.",
           "title": "Descoberta de Host"
         },
+        "firmware": {
+          "arm_unsupported": "ARM64 UEFI não está disponível. A imagem embutida é construída apenas para x86-64.",
+          "arm_why": "SysManage intencionalmente não anuncia isso para clientes ARM: entregar uma máquina um binário cujo firmware não pode executar parece uma imagem quebrada, em vez de ausente. Máquinas ARM64 precisam de outro caminho de provisionamento.",
+          "intro_arch": "Um cliente PXE anuncia seu tipo de firmware na opção DHCP 93, e o SysManage serve uma imagem de estágio inicial diferente para cada um.",
+          "intro_bios": "Clientes BIOS Legado",
+          "intro_embedded": "Ambos carregam o script de inicialização embutido, então uma máquina atinge seu instalador atribuído em um passo, sem nada a descobrir via TFTP.",
+          "intro_uefi": "Clientes UEFI x86-64",
+          "mismatch": "Os dois binários não são intercambiáveis. Fornecer a imagem do BIOS para uma máquina UEFI falha de maneira que parece um erro de rede, o que leva ao fato de que o servidor DHCP faz a correspondência da arquitetura, em vez de deixar isso para o cliente.",
+          "secureboot": {
+            "check": "Desabilite o Boot Seguro nas máquinas que você pretende provisionar. É a configuração padrão da fábrica na maioria do hardware moderno, então verifique-o primeiro quando um cliente UEFI nunca entra em contato.",
+            "silent": "A rejeição ocorre no firmware antes de qualquer coisa nossa ser executada, então não há erro para ver no SysManage. A máquina simplesmente não aparece.",
+            "title": "A inicialização segura deve estar desligada em clientes UEFI",
+            "unsigned": "A imagem iPXE não é assinada por uma autoridade confiável de firmware, portanto uma máquina UEFI com Secure Boot habilitado recusará executá-la."
+          },
+          "staging_symptom": "Se os clientes UEFI forem ignorados enquanto os clientes BIOS iniciam normalmente, uma configuração foi gerada sem este arquivo e serve apenas para BIOS:",
+          "staging_when": "As entradas UEFI aparecem na configuração gerada do dnsmasq apenas quando a primeira etapa UEFI foi estagiada na raiz TFTP.",
+          "title": "Clientes BIOS e UEFI"
+        },
         "flow": "O caminho completo é: máquina network-boots → o endpoint de boot por MAC resolve sua atribuição → um arquivo de resposta é gerado para essa máquina → o SO instala sem intervenção → um script de primeira inicialização instala o agente com um <strong>token de inscrição</strong> único → o host aparece no locatário correto → netboot é desabilitado, permitindo que a máquina inicie do seu próprio disco a partir daí.",
         "readiness": {
           "advisor": "Uma vez que as ferramentas estejam presentes, o <strong>conselheiro de configuração</strong> renderiza uma configuração pronta para aplicação <code>dnsmasq</code> para o segmento. Ela tem dois modos e escolher corretamente importa mais do que parece:",
@@ -20369,25 +20643,7 @@
           "rhel": "RHEL / Rocky / Alma → <code>kickstart</code>; SUSE → <code>autoyast</code>",
           "title": "Catálogo de Fontes de Instalação"
         },
-        "title": "Provisionamento em Metal (PXE)",
-        "firmware": {
-          "arm_why": "SysManage intencionalmente não anuncia isso para clientes ARM: entregar uma máquina um binário cujo firmware não pode executar parece uma imagem quebrada, em vez de ausente. Máquinas ARM64 precisam de outro caminho de provisionamento.",
-          "intro_arch": "Um cliente PXE anuncia seu tipo de firmware na opção DHCP 93, e o SysManage serve uma imagem de estágio inicial diferente para cada um.",
-          "intro_bios": "Clientes BIOS Legado",
-          "intro_embedded": "Ambos carregam o script de inicialização embutido, então uma máquina atinge seu instalador atribuído em um passo, sem nada a descobrir via TFTP.",
-          "intro_uefi": "Clientes UEFI x86-64",
-          "mismatch": "Os dois binários não são intercambiáveis. Fornecer a imagem do BIOS para uma máquina UEFI falha de maneira que parece um erro de rede, o que leva ao fato de que o servidor DHCP faz a correspondência da arquitetura, em vez de deixar isso para o cliente.",
-          "secureboot": {
-            "check": "Desabilite o Boot Seguro nas máquinas que você pretende provisionar. É a configuração padrão da fábrica na maioria do hardware moderno, então verifique-o primeiro quando um cliente UEFI nunca entra em contato.",
-            "silent": "A rejeição ocorre no firmware antes de qualquer coisa nossa ser executada, então não há erro para ver no SysManage. A máquina simplesmente não aparece.",
-            "title": "A inicialização segura deve estar desligada em clientes UEFI",
-            "unsigned": "A imagem iPXE não é assinada por uma autoridade confiável de firmware, portanto uma máquina UEFI com Secure Boot habilitado recusará executá-la."
-          },
-          "title": "Clientes BIOS e UEFI",
-          "arm_unsupported": "ARM64 UEFI não está disponível. A imagem embutida é construída apenas para x86-64.",
-          "staging_symptom": "Se os clientes UEFI forem ignorados enquanto os clientes BIOS iniciam normalmente, uma configuração foi gerada sem este arquivo e serve apenas para BIOS:",
-          "staging_when": "As entradas UEFI aparecem na configuração gerada do dnsmasq apenas quando a primeira etapa UEFI foi estagiada na raiz TFTP."
-        }
+        "title": "Provisionamento em Metal (PXE)"
       },
       "breadcrumb": "Motor de Provisionamento",
       "credentials": {
@@ -20415,7 +20671,7 @@
         "description": "Levantar hosts totalmente novos que se inscrevem automaticamente no rebanho na primeira inicialização. Um modelo plugável de provedor computacional impulsiona libvirt remoto e Proxmox VE; modelos de provisionamento reutilizáveis renderizam os artefatos da primeira inicialização; e um fluxo de credenciais coladas e vá armazena as senhas do provedor no OpenBAO para que o operador nunca gerencie manualmente um caminho do cofre.",
         "title": "Motor de Provisionamento"
       },
-      "meta_description": "",
+      "meta_description": "Provisionamento de novos hosts: um modelo de provedor de computação plugável, PXE em metal nu com atribuição de SO por MAC e descoberta de hardware, modelos de provisionamento, credenciais coladas e armazenadas no OpenBAO, e inscrição automática na primeira inicialização.",
       "overview": {
         "description": "Cada outro caminho de implantação no SysManage assume que um host já está executando um agente. O Provisioning Engine fecha essa lacuna: ele ativa um provedor computacional (servidor → API do hipervisor) para clonar uma imagem base, anexa uma semente cloud-init de primeira inicialização carregando o <strong>token de inscrição</strong> do inquilino, e o novo host instala o agente e se registra automaticamente no inquilino e site corretos. Adicionar um provedor é incremental — cada backend implementa um contrato <code>create</code> / <code>status</code> / <code>destroy</code> / <code>console</code> por meio de uma descrição de capacidade.",
         "title": "Visão Geral"
@@ -20924,17 +21180,17 @@
         "cta": "Contatar vendas",
         "description": "Solução completa para infraestrutura empresarial de grande escala.",
         "features": {
+          "airgap_federation": "⭐ Air-Gap & Federação Multi-Site",
           "all_professional": "✓ Tudo no Profissional",
+          "automation": "⭐ Automação & Operações de Frota",
           "compliance": "⭐ Relatórios de conformidade",
+          "config_management": "⭐ Gerenciamento de Configuração & Deriva",
           "rbac": "⭐ RBAC avançado",
+          "security_orchestration": "⭐ Antivírus & Orquestração de Firewall",
           "sla": "⭐ Garantia SLA",
           "sso": "⭐ Integração SSO",
-          "vulnerability": "⭐ Varredura de vulnerabilidades",
-          "airgap_federation": "⭐ Air-Gap & Federação Multi-Site",
-          "automation": "⭐ Automação & Operações de Frota",
-          "config_management": "⭐ Gerenciamento de Configuração & Deriva",
-          "security_orchestration": "⭐ Antivírus & Orquestração de Firewall",
-          "virtualization": "⭐ Virtualização & Provisionamento"
+          "virtualization": "⭐ Virtualização & Provisionamento",
+          "vulnerability": "⭐ Varredura de vulnerabilidades"
         },
         "name": "Empresa",
         "price": "Entre em contato"
@@ -20945,14 +21201,14 @@
         "description": "Insights e análises alimentados por IA para organizações em crescimento.",
         "features": {
           "advanced_monitoring": "⭐ Monitoramento avançado",
+          "advisory": "⭐ Vendor Advisory Management",
           "all_community": "✓ Tudo na Comunidade",
+          "compliance": "⭐ CIS / DISA STIG Compliance",
           "custom_reports": "⭐ Relatórios personalizados",
           "health_analysis": "⭐ Análise de saúde IA",
           "health_history": "⭐ Histórico de pontuação",
-          "priority_support": "⭐ Suporte prioritário",
-          "advisory": "⭐ Vendor Advisory Management",
-          "compliance": "⭐ CIS / DISA STIG Compliance",
           "os_lifecycle": "⭐ Ciclo de Vida do SO & Atualizações de Lançamento",
+          "priority_support": "⭐ Suporte prioritário",
           "vulnerability": "⭐ CVE Vulnerability Scanning"
         },
         "name": "Profissional",
@@ -21254,163 +21510,6 @@
           "title": "Visualizando Scan Resultados"
         }
       }
-    },
-    "config_drift": {
-      "alerting": {
-        "description": "O motor de alerta ganha uma condição {{c1}}. Ele lê achados em vez de execuções, porque apenas achados sabem {{c2}}:",
-        "min_findings": "quantas descobertas qualificantes antes da regra ser acionada",
-        "min_hours": "Ignorar derivações mais antigas que este valor. Este é o parâmetro que importa: uma verificação executada momentos após um deploy pode relatar legitimamente uma divergência que a próxima execução resolve por si só, e chamar alguém para isso ensina-os a ignorar o canal. A interface de usuário define o padrão como 24.",
-        "profile_name": "opcional; escale a regra para um único perfil",
-        "resolved": "Achados resolvidos nunca re-alertam, então a remediação não parece como um novo fracasso. O alerta nomeia os perfis envolvidos e quanto tempo o mais antigo achado esteve aberto, porque um alerta dizendo apenas \"3 achados\" faz com que o operador procure.",
-        "title": "Alertas sobre drifte"
-      },
-      "architecture": {
-        "description": "As reconciliações são executadas dentro do manipulador de resultados, antes que uma execução seja confirmada, de modo que uma execução e suas descobertas sejam registradas juntas — uma execução registrada sem suas descobertas criaria um desvio aparente resolvido até o próximo verificação. A reconciliação nunca levanta exceções: um problema contábil não deve impedir o processador da fila e custar o registro da execução, que é o mais valioso dos dois. A tabela <code>config_drift_finding</code> reside no esquema de código aberto; as regras que a populam são restritas ao motor de gerenciamento de configuração licenciado <code>config_management_engine</code>, então uma instalação não licenciada possui um esquema coerente e simplesmente nenhuma descobertas.",
-        "title": "Arquitetura"
-      },
-      "breadcrumb": "Desvio de Configuração",
-      "dashboard": {
-        "fleet": "visualização de frota: uma linha por host com a contagem de descobertas abertas, os perfis envolvidos e quanto tempo ele tem flutuado",
-        "host": "encontradas individualmente para um host",
-        "ordering": "Encontros são ordenados da mais antiga para a mais recente, porque o desvio que persistiu é o tipo interessante: uma divergência vista uma vez pode ser uma corrida com um deploy, mas uma que permanece por semanas é uma configuração que ninguém está gerenciando.",
-        "remediate": "reaplicar o perfil ao vivo",
-        "title": "Painel e API"
-      },
-      "header": {
-        "description": "Quais hosts divergiram de seus perfis atribuídos, o que divergiu e — parte que um histórico de execuções não pode responder — quanto tempo isso vem acontecendo.",
-        "screenshot": "O painel de drifts lista hosts com achados abertos, ordenados pela data mais antiga, com os perfis envolvidos e quanto tempo cada host está drifando.",
-        "title": "Desvio de Configuração"
-      },
-      "meta_description": "",
-      "overview": {
-        "description": "A detecção de deriva reutiliza a infraestrutura já existente em vez de adicionar um segundo caminho de coleta.  {{c1}} Uma simulação de um perfil atribuído responde à pergunta \"Quais mudanças ocorreriam neste host\", que é a definição de deriva em relação a esse perfil. Portanto, uma atribuição de modo de verificação agendada É a comparação, e cada resultado é reconciliado em descobertas conforme chega.",
-        "title": "Visão Geral"
-      },
-      "page_title": "Desalinhamento de Configuração - SysManage Professional+",
-      "remediate": {
-        "description": "A remediação reaplica o perfil em modo {{c1}} através do mesmo construtor de execução que uma aplicação manual e como o tick agendado, então uma remediação não pode divergir de uma aplicação normal. Portanto, ele herda os gates de capacidade do agente e janelas de manutenção de graça, em vez de re-verificar qualquer coisa.",
-        "honest": "Colocar uma correção na fila {{c1}} marca a constatação como resolvida. As constatações só são resolvidas quando a próxima verificação bem-sucedida deixa de relatar a tarefa — alegar sucesso no momento do envio seria um painel que mente sobre a frota.",
-        "title": "Remediação de um clique"
-      },
-      "rules": {
-        "changed": "Apenas tarefas reportadas como <strong> alteradas </strong> contam. Uma tarefa falhada é um erro a ser investigado, não uma divergência a ser corrigida.",
-        "check": "Apenas execuções {{c1}} abrem achados. Uma execução ao vivo que mudou algo não é flutuação, é uma mudança que fizemos; contá-la como um novo problema relataria a própria remediação do sistema como um novo problema.",
-        "description": "Três regras governam como uma execução de aterrissagem altera o conjunto de achados, e cada uma existe para impedir uma resposta errônea específica:",
-        "regression": "Um achado que foi resolvido e reaparece é um {{c1}}: a resolução é limpa e o relógio reinicia, então \"flutuando desde\" sempre descreve o episódio atual em vez de afirmar uma flutuação contínua durante um período em que o host estava em conformidade.",
-        "success": "Apenas uma execução {{c1}} pode resolver um achado. Uma execução de verificação que falhou não sabe do estado do host, então tratar seu silêncio como \"a flutuação desapareceu\" fecharia achados com base em um erro. Uma execução de verificação falhada ainda pode abrir achados para o que ela observou.",
-        "title": "Regras de reconciliação"
-      },
-      "scope": {
-        "description": "Aqui, a flutuação é medida {{c1}}: o próprio motor relata o que mudaria, então nada extra precisa ser coletado. A flutuação medida contra um {{c2}} é uma comparação de inventário limitado — pacotes, usuários e grupos, interfaces de rede, armazenamento, repositórios, estado do firewall e certificados — sobre fatos que o agente já relata.",
-        "title": "O que isso cobre e não cobre"
-      },
-      "setup": {
-        "assign": "Atribua-o a um host, tag ou local com um cronograma e {{c1}} — essa é a comparação",
-        "mixed": "Um perfil pode ser atribuído duas vezes ao mesmo destino — uma vez em uma programação de verificação frequente para detectar drifte e uma vez ao vivo em uma programação mais lenta para corrigi-lo — se você quiser detecção e aplicação em ritmos diferentes.",
-        "profile": "Crie um perfil de configuração que descreva o estado desejado (consulte o guia de Gerenciamento de Configuração)",
-        "remediate": "Remediação do dashboard quando uma divergência é real, e deixe a próxima verificação fechar o achado",
-        "title": "Configuração",
-        "watch": "Assista ao dashboard de flutuação, ou adicione uma regra de alerta {{c1}} com um {{c2}} que corresponda a como rapidamente seu ambiente se auto-repara"
-      },
-      "why": {
-        "description": "Uma execução em modo de verificação diz que {{c1}} mudaria. O que ela não pode dizer é {{c2}} — cada execução só sabe de si mesma, então \"este host tem se desviado por nove dias\" é uma informação indisponível nas linhas de execução sem escanear o histórico completo a cada carregamento da página. Um achado de desvio armazena exatamente esse período de vida e nada mais; as execuções permanecem o registro do que aconteceu.",
-        "identity": "Um achado é identificado por {{c1}}. Essa é a única identidade que a forma genérica do resultado carrega: o agente relata uma tarefa {{c2}}, e nada mais estável viaja com ela. O custo aceito é que renomear uma tarefa em um perfil reinicia sua idade de flutuação, porque o novo nome é uma linha diferente. Isso é a troca certa contra corresponder à tarefa {{c3}}, que reatribuiria silenciosamente a história de um achado para outro no momento em que alguém inserisse um passo — um erro de data é pior do que um reset, porque um reset é visivelmente um reset.",
-        "title": "Por que os achados existem bem como as execuções"
-      },
-      "baseline": {
-        "buckets": "Cada categoria retorna três buckets, nomeados da perspectiva do host {{c1}}, pois é o host que está sendo fixado: {{c2}} está presente na referência, mas não no alvo; {{c3}} está presente no alvo, mas não na referência; e {{c4}} está presente em ambos com um campo comparado discordante. 'Você não tem isso' e 'você tem o errado' são correções diferentes, portanto nunca são fundidas.",
-        "cat_certificates": "correspondido pelo nome do certificado, comparado com o emissor",
-        "cat_firewall": "correspondente ao nome do firewall, comparado com o estado de habilitação",
-        "cat_groups": "correspondente ao grupo pelo nome",
-        "cat_interfaces": "correspondente pelo nome da interface, comparado pelo tipo",
-        "cat_packages": "correspondente pelo nome, comparado pela versão",
-        "cat_repositories": "correspondido por nome, comparado na URL e estado habilitado",
-        "cat_storage": "correspondente ao ponto de montagem, comparado no sistema de arquivos",
-        "cat_users": "correspondente ao nome de usuário, comparado com o shell e o diretório home",
-        "categories": "Oitavo categorias são comparadas, cada uma correspondendo à identidade que torna duas linhas \"a mesma coisa\" entre os hosts e comparando os campos que as diferenciam:",
-        "counts": "Listas por item são limitadas para que uma chamada não possa retornar um megabyte de JSON, mas os contadores permanecem exatos e um sinal {{c1}} diz quando uma lista foi encurtada — um resumo nunca sub-relatará o tamanho de uma divergência.",
-        "description": "Outro tipo de flutuação. O achado de perfil responde \"este host corresponde ao perfil que atribuímos a ele\". A flutuação de linha de base responde \"este host corresponde ao host {{c1}}\" — isso é o que um operador busca quando não há perfil ainda e o ambiente de teste funciona enquanto a produção não.",
-        "stateless": "Esta comparação não armazena nada. É uma função pura de dois inventários de host atuais, e ao contrário de um achado de perfil, não há período de vida a acompanhar: uma categoria difere agora ou nunca difere. {{c1}} relata as categorias suportadas, então o UI não pode oferecer uma que o servidor recusaria.",
-        "title": "Comparação de linha de base do Golden-host",
-        "screenshot": "Comparando um host flutuante com um conhecido bom. Cada categoria relata o que o alvo está faltando, o que ele tem que a referência não tem, e o que ambos têm com um campo que discorda."
-      }
-    },
-    "config_management": {
-      "apply": {
-        "check": "As execuções de modo de verificação executam a bandeira seca do motor ({{c1}}, {{c2}}, {{c3}}, {{c4}}) e relata o que mudaria, {{c5}}.",
-        "description": "Uma aplicação coloca um comando na fila para o host através da fila de saída normal, então ela herda a capacidade do agente e as janelas de manutenção, em vez de reverificar qualquer coisa.",
-        "detail": "detalhes da tarefa por execução",
-        "idempotency": "Execuções que alteraram nada são registradas também. Relatórios de idempotência é o ponto da gestão de estado desejado e é uma afirmação sobre história: \"as últimas três aplicações deste perfil não alteraram nada\" não pode ser respondido a partir de uma coluna de estado atual.",
-        "runs": "histórico de execução de um host",
-        "title": "Aplicando um perfil"
-      },
-      "architecture": {
-        "description": "O esquema vive na árvore de código aberto porque o servidor de código aberto possui o banco de dados; o comportamento — validar um perfil, versioná-lo, resolver uma atribuição, decidir quando um cronograma está devido, construir uma especificação de execução — vive no {{c1}} compilado em Cython. Isso é a mesma divisão que Vulnerabilidade e Perfil de Conformidade usam, e significa que uma instalação sem licença mantém um esquema coerente e seu histórico de execução existente.",
-        "title": "Arquitetura"
-      },
-      "assignments": {
-        "description": "Uma atribuição liga um perfil exatamente a um alvo — um host, uma tag ou um local — com um cronograma opcional e uma bandeira de modo de verificação opcional. Três colunas de alvo opcionais são usadas em vez de um par {{c1}}, porque esse par não pode ser uma chave estrangeira: permitiria que uma atribuição durasse mais do que o host que ela nomeia, e o primeiro sintoma seria uma execução agendada contra uma máquina que não existe mais.",
-        "dueness": "A devida data é ancorada em {{c1}} em vez de uma coluna armazenada {{c2}}, então alterar um cronograma tem efeito imediato e um tick perdido não pode aprisionar uma atribuição. Uma atribuição agendada com {{c3}} definida apenas relata flutuação e nunca altera o host — veja o guia de flutuação da configuração.",
-        "title": "Atribuições e agendamento"
-      },
-      "breadcrumb": "Gestão de Configuração",
-      "engines": {
-        "ansible": "Alguém com três hosts já tem <code>ansible-playbook</code>; a aplicação de um único host é o equivalente direto da execução de scripts, que é gratuita.",
-        "description": "Cinco identidades de motor são suportadas. O que é gratuito e o que é licenciado segue o valor que adicionam, não o esforço para apoiá-las:",
-        "dsc": "Incluído com o agente do Windows, portanto é o caminho padrão de um único host lá. Relatado como \"incluído com o agente\" em vez de algo a ser instalado.",
-        "platform": "Apenas DSC é limitado à plataforma, e apenas porque é o que vendemos no Windows. Puppet, Salt e Chef todos enviam agentes do Windows e rodam lá. <code>requer_licença()</code> em <code>backend/serviços/motores_de_gerenciamento_de_configuração.py</code> é a única fonte de verdade consultada pelo endpoint aplicar, o endpoint instalar e a interface do usuário, então a regra não pode desviar entre o lugar que oferece um botão e o lugar que nega o pedido.",
-        "title": "Motores"
-      },
-      "feature_codes": {
-        "description": "O armazenamento de perfil, atribuição, agendamento e os adaptadores Puppet/Salt/Chef são fornecidos pelo módulo {{c1}}. Sem ele, o servidor de código aberto ainda armazena execuções e executa {{c2}} e {{c3}} em um único host; motores licenciados são recusados antes que qualquer coisa seja agendada.",
-        "title": "Códigos de Recursos"
-      },
-      "header": {
-        "description": "Configuração de estado desejado: perfis armazenados e versionados aplicados a hosts, tags ou locais em um agendamento ou sob demanda. Puppet, Salt e Chef estão por trás de uma abstração de perfil; ansible-core e Windows DSC permanecem de código aberto.",
-        "screenshot": "A página de Perfis de Configuração lista todos os perfis armazenados com seu motor, versão e contagem de atribuições.",
-        "title": "Gestão de Configuração"
-      },
-      "meta_description": "",
-      "overview": {
-        "description": "Um perfil de configuração é um corpo desejado nomeado e versionado — um manifesto Puppet, um estado Salt, uma receita Chef, um playbook Ansible ou um conjunto de recursos DSC — mais o motor que interpreta isso. Os perfis são armazenados no servidor, atribuídos a hosts, tags ou sites e aplicados de acordo com a solicitação ou em uma programação cron. Cada execução é registrada como uma execução, incluindo as execuções que não mudaram nada.",
-        "title": "Visão Geral"
-      },
-      "page_title": "Gestão de Configuração - SysManage Profissional+",
-      "prereq": {
-        "bundled": "Não necessário — O DSC é enviado com o agente",
-        "description": "Antes de oferecer para executar um perfil, o servidor verifica se o host possui realmente o executor e distingue três situações que não devem ser descritas da mesma maneira:",
-        "installable": "Não instalado, mas instalável a partir do gerenciador de pacotes deste host",
-        "satisfied": "Instalado — com a versão detectada, então um perfil pode declarar um mínimo",
-        "title": "Prontidão do Executor",
-        "unmeasured": "Não disponível aqui — ou a distribuição não possui o pacote, ou o inventário do Windows não consegue relatá-lo (um limite de detecção, não uma limitação da plataforma)"
-      },
-      "profiles": {
-        "create": "criar",
-        "description": "Cada mudança em um perfil's {{c1}} ou {{c2}} incrementa sua versão e faz um snapshot do corpo anterior em {{c3}}. Editar apenas a descrição não cria uma nova versão. A configuração como código sem histórico é simplesmente a configuração: o valor de um perfil armazenado é ser capaz de responder \"o que mudou e quando\" uma vez que uma execução começa a se comportar de forma diferente.",
-        "list": "lista",
-        "restore": "restaurar um corpo anterior",
-        "title": "Perfis e versionamento",
-        "versions": "Histórico de Versões"
-      },
-      "pull": {
-        "agent": "O executor é uma dependência do lado do agente, então um host que não pode executá-lo simplesmente não anuncia a capacidade",
-        "creds": "Sem distribuição de credenciais: não há nó de controle que detenha chaves para todos os hosts",
-        "description": "A gestão de configuração é convencionalmente baseada em push: um nó de controle abre uma conexão SSH para cada alvo. O SysManage faz o oposto. O servidor envia o perfil {{c1}} e o agente executa-o localmente contra {{c2}}, exatamente como a execução de script já funciona.",
-        "port": "Não há novos portos de entrada e sem acessibilidade SSH: o agente precisa do porto 443 para saída e nada mais",
-        "results": "Resultados fluem de volta pela mesma conexão de todo outro comando resultado — nenhum novo caminho de entrada",
-        "title": "Execução estilo pull, não push"
-      },
-      "spec": {
-        "description": "O agente de código aberto sabe como executar {{c1}} e DSC. Ele não sabe nada sobre Puppet, Salt ou Chef. Em vez de ensiná-lo, o motor licenciado constrói um {{c2}} e o agente executa-o genericamente:",
-        "exit_code": "significado carregado nos bits de saída, com os valores dos bits fornecidos pela especificação",
-        "json_file": "o arquivo de relatório de correspondência mais recente na pasta de execução (Chef)",
-        "json_lines": "um objeto JSON por linha (ansible-core, através do nosso plugin de callback)",
-        "json_stdout": "um documento na saída padrão (Salt, DSC)",
-        "shapes": "O bloco {{c1}} nomeia um dos cinco formatos genéricos que o agente pode ler, e fornece as regras para lê-lo. Quais bandeiras produziram essa saída, e o que os campos significam, é negócio do motor licenciado:",
-        "title": "Como uma abstração impulsiona quatro motores",
-        "why": "Este é o motivo de adicionar um motor ser uma mudança licenciada sem lançamento do agente: um novo motor envia novos argumentos e novas regras de resultado, não novo código do agente.",
-        "yaml_file": "o mesmo, para um relatório YAML (Puppet's {{c1}}, que é marcado em Ruby e lido com um carregador tolerante a tags),"
-      }
     }
   },
   "quick_start": {
@@ -21633,6 +21732,10 @@
         "body": "Recomendações de estilo Insights pontuadas por risco em seus fatos coletados, CVEs, resultados de conformidade e estado de configuração, com o osquery integrado ao agente como substrato de coleta de fatos — o inventário osquery bruto faz parte da Edição Comunitária, os pacotes de consulta curados são Profissionais. Ao lado delas: assinatura e detecção de malware YARA, além de um assistente de modelo de ameaça guiado que transforma suas respostas em uma lista de verificação de postura priorizada com isenções auditadas. Empresa, a menos que seja especificado o contrário. O mesmo armazém de fatos coletados também alimenta gráficos de métricas embutidos com amostras retidas, que fluem para o ponto final existente do Prometheus para o Grafana (Professional+).",
         "title": "Operações proativas & conselheiro"
       },
+      "arch": {
+        "body": "O agente em ferro corporativo e silício emergente além de x86-64 e arm64 — IBM Power (ppc64le), IBM Z (s390x) e RISC-V (riscv64), incluindo o trabalho de correção de endianness que s390x exige. O agente é de código aberto, então isso vai para a Edição Comunitária.",
+        "title": "Suporte de hardware mais amplo"
+      },
       "config": {
         "body": "A configuração de estado desejado através de Ansible, PowerShell DSC, Puppet, Salt e Chef está disponível hoje, juntamente com a aplicação agendada por host, tag ou local, captura de linha de base, detecção de deriva e remediação de um clique para retornar à linha de base. Ainda em desenvolvimento: modelos de tarefa e inventários construídos a partir dos hosts, tags e locais do SysManage, de modo que uma execução de perfil única possa atingir milhares de hosts ao mesmo tempo, e playbooks de remediação que consertem um host desviado em vez de apenas reaplicar seu perfil.",
         "title": "Gestão de configuração em escala de frota"
@@ -21641,24 +21744,6 @@
         "body": "Visualizações de conteúdo e ambientes de ciclo de vida, para um conjunto fixo de pacotes e atualizações serem promovidos através das portas dev → staging → produção em vez de cada host puxar o que é mais novo. Inclui um proxy Snap, conteúdo de imagem-contêiner e suporte para hosts no modo imagem (bootc / rpm-ostree).",
         "title": "Ciclo de vida e distribuição de conteúdo"
       },
-      "intro": "A próxima fase fecha a lacuna com ferramentas de gerenciamento de frota já estabelecidas, mantendo nossa posição como o plano de gerenciamento e correção, em vez de outro agente para monitorar. A edição de cada um é marcada por item.",
-      "provisioning": {
-        "body": "Provisionamento PXE em metal nu, atribuição de SO por máquina, descoberta de hardware e provisionamento em hipervisor externo já estão disponíveis hoje, em libvirt remoto e Proxmox. Ainda a serem implementados estão os provedores de computação adiados desse trabalho: EC2, Azure e GCE para provisionamento em nuvem pública, e VMware/vSphere.",
-        "title": "Provisionamento e descoberta"
-      },
-      "title": "No roadmap",
-      "arch": {
-        "body": "O agente em ferro corporativo e silício emergente além de x86-64 e arm64 — IBM Power (ppc64le), IBM Z (s390x) e RISC-V (riscv64), incluindo o trabalho de correção de endianness que s390x exige. O agente é de código aberto, então isso vai para a Edição Comunitária.",
-        "title": "Suporte de hardware mais amplo"
-      },
-      "mobile": {
-        "body": "Telefones e tablets como uma classe de ponto final de primeira classe em vez de um acréscimo. Visibilidade de inventário e nível de patch do sistema operacional para iOS, iPadOS e Android na Edição Comunitária; ingestão a partir do UEM que você já executa — Microsoft Intune, Jamf Pro, Workspace ONE, Kandji — no Nível Profissional; um aplicativo de autoatentação complementar para dispositivos BYOD não cobertos por UEM; e, finalmente, autoridade nativa de MDM sobre o protocolo MDM da Apple e a API de Gerenciamento do Android, com inscrição sem toque, na Edição Empresarial.",
-        "title": "Dispositivos móveis & MDM"
-      },
-      "security": {
-        "body": "Encontrando você onde você está em vez de substituir o que você já executa: orquestrando Velociraptor para resposta a incidentes e caça a ameaças, e ingerindo alertas do Wazuh nas mesmas superfícies de alerta, relatório e auditoria de tudo o mais. Enterprise.",
-        "title": "Coexistência de ferramentas de segurança"
-      },
       "discovery": {
         "body": "O que está na sua rede e o SysManage não gerencia? Agentes já estão presentes em cada segmento, então eles relatam os vizinhos que podem ver - por padrão passivo, com varreduras ativas opcionais, escopadas e auditadas - e qualquer coisa já coberta por um host gerenciado é filtrada. O resultado é uma página de revisão, não uma linha de integração: detectamos máquinas não cadastradas, mas não as forçamos a se cadastrar, pois isso exigiria credenciais no alvo e reintroduziria o acesso de entrada que a arquitetura intencionalmente evita. Dispositivos que você nunca gerencia - um sensor IoT, uma impressora, um switch - são listados para permitir permanentemente, com um motivo e um proprietário registrados.",
         "title": "Visibilidade de ativos não gerenciados"
@@ -21666,7 +21751,21 @@
       "ha": {
         "body": "Sobreviva à perda de um servidor e sobreviva à perda de um site. Vários servidores SysManage em execução ativamente atrás de um balanceador de carga, com o trabalho agendado líder eleito para que ele ainda seja executado exatamente uma vez; integração com os gerentes de failover PostgreSQL que você já executa, em vez de um quinto da nossa própria; e um segundo servidor quente em outra rede para a qual os agentes falham automaticamente quando o primário se torna inalcançável — o agente carrega uma lista ordenada de servidores em vez de um único endereço. A promoção é explícita e delimitada, então um link quebrado não pode deixar dois servidores aceitando check-ins.",
         "title": "Alta disponibilidade e recuperação de desastres"
-      }
+      },
+      "intro": "A próxima fase fecha a lacuna com ferramentas de gerenciamento de frota já estabelecidas, mantendo nossa posição como o plano de gerenciamento e correção, em vez de outro agente para monitorar. A edição de cada um é marcada por item.",
+      "mobile": {
+        "body": "Telefones e tablets como uma classe de ponto final de primeira classe em vez de um acréscimo. Visibilidade de inventário e nível de patch do sistema operacional para iOS, iPadOS e Android na Edição Comunitária; ingestão a partir do UEM que você já executa — Microsoft Intune, Jamf Pro, Workspace ONE, Kandji — no Nível Profissional; um aplicativo de autoatentação complementar para dispositivos BYOD não cobertos por UEM; e, finalmente, autoridade nativa de MDM sobre o protocolo MDM da Apple e a API de Gerenciamento do Android, com inscrição sem toque, na Edição Empresarial.",
+        "title": "Dispositivos móveis & MDM"
+      },
+      "provisioning": {
+        "body": "Provisionamento PXE em metal nu, atribuição de SO por máquina, descoberta de hardware e provisionamento em hipervisor externo já estão disponíveis hoje, em libvirt remoto e Proxmox. Ainda a serem implementados estão os provedores de computação adiados desse trabalho: EC2, Azure e GCE para provisionamento em nuvem pública, e VMware/vSphere.",
+        "title": "Provisionamento e descoberta"
+      },
+      "security": {
+        "body": "Encontrando você onde você está em vez de substituir o que você já executa: orquestrando Velociraptor para resposta a incidentes e caça a ameaças, e ingerindo alertas do Wazuh nas mesmas superfícies de alerta, relatório e auditoria de tudo o mais. Enterprise.",
+        "title": "Coexistência de ferramentas de segurança"
+      },
+      "title": "No roadmap"
     },
     "edition": {
       "community": "Gratuito, de código aberto e auto-hospedado em um único servidor e banco de dados. Um agente persistente para Linux, Windows, macOS, FreeBSD, OpenBSD e NetBSD; monitoramento em tempo real via WebSocket; inventário de hardware e software; gerenciamento de pacotes e atualizações do sistema operacional; gerenciamento de usuários e acesso; etiquetagem; status do firewall; scripts ad-hoc; geração de relatórios; alta disponibilidade do banco de dados, de modo que o servidor funcione contra um cluster Patroni / pg_auto_failover / Stolon e sobreviva a um failover primário sem intervenção manual — aponte-o para um VIP proxy ou uma DSN multi-host libpq e conexões em pool se re-resolvem para o novo primário automaticamente; relatórios de capacidade do agente, de modo que uma frota mista mostre o que cada agente pode realmente fazer na sua plataforma; e um log de auditoria.",
@@ -21734,7 +21833,7 @@
       "li4": "Status antivírus — verifique se a proteção no endpoint está presente e ativa",
       "title": "Postura de segurança por host"
     },
-    "meta_description": "",
+    "meta_description": "SysManage oferece às equipes de segurança um inventário consistente, estado de patches e visibilidade de vulnerabilidades em todos os sistemas operacionais — uma fonte única de verdade para cada host, em vez de seis consoles específicos do sistema operacional e seis pontos cegos.",
     "operational": {
       "body": "Gerenciamento de inventário, correção de patches e gerenciamento de vulnerabilidades são controles de segurança fundamentais agora — não mais tarefas administrativas do setor de TI para serem delegadas e esquecidas. O SysManage os coloca em um único plano de controle para que a remediação seja coordenada, verificável e defensável. Gerenciamento de inventário, correção de patches e registro de auditoria são fornecidos na versão open-source; varredura de vulnerabilidades, o banco de dados CVE e relatórios de conformidade são capacidades do Professional+ e Enterprise. O acesso em toda a extensão é protegido por JWT, mTLS e controle de acesso baseado em papel.",
       "proplus": "Explorar Profissional+ & Empresarial →",
@@ -22989,7 +23088,7 @@
       "lead": "O painel de controle unificado significa a mesma coisa para uma empresa com 30.000 pontos finais, um MSP executando várias flotas de clientes isoladas, uma rede de defesa sem internet alguma e uma equipe de segurança que precisa apenas da verdade sobre cada host. Veja como o SysManage se encaixa em cada caso.",
       "title": "Uma plataforma. Problemas muito diferentes para resolver."
     },
-    "meta_description": "",
+    "meta_description": "Soluções SysManage para TI corporativa, provedores de serviços gerenciados, governo e defesa, e equipes de segurança - um plano de controle unificado para frotas heterogêneas.",
     "msp": {
       "body": "Execute muitas frotas de clientes de um único plataforma com um banco de dados dedicado para cada locatário — verdadeiro isolamento, não filtragem por linha.",
       "go": "Explorar MSP →",
@@ -23431,7 +23530,7 @@
       "start": "Comece gratuitamente",
       "title": "Gerenciamento de pontos finais multiplataforma, de uma única plataforma de controle"
     },
-    "meta_description": "",
+    "meta_description": "O SysManage entrega gerenciamento unificado de pontos finais e infraestrutura em plataformas cruzadas: gerencie Windows, Linux, macOS, FreeBSD, OpenBSD e NetBSD juntos a partir de um plano de controle, com o mesmo inventário, correção de patches, monitoramento e fluxo de trabalho de conformidade em todos os sistemas operacionais.",
     "problem": {
       "body": "A maioria das equipes termina comprando uma ferramenta de gerenciamento diferente para cada plataforma que roda. O resultado é um conjunto de consolas desconectadas que nunca concordam entre si — e uma frota que ninguém pode ver como um todo. Gerenciar Linux e Windows juntos não deve significar manter duas coisas duplicadas.",
       "consoles": {

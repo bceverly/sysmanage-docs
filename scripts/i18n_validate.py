@@ -133,6 +133,43 @@ def cmd_validate(seed: bool) -> int:
         return 1
     en_data = load_locale("en")
     failures = 0
+
+    # A key that EXISTS in en.json but holds an empty string is the nastiest
+    # shape this store can take, because every other check passes it: it is
+    # present (so not "absent in locale"), it is not "[MISSING:]", it is not
+    # "[TODO]", and it is not English-identical. Twenty-one <meta name=
+    # "description"> keys sat like that and no page's description was ever
+    # translated in any locale -- found 2026-09-20.
+    #
+    # The cause is that ``data-i18n-attr="content"`` puts the English in an
+    # ATTRIBUTE, and <meta> is a void element, so anything reading the
+    # element's text reads "". seed_missing_i18n.py now reads the named
+    # attribute; this gate is what makes sure a regression there is loud
+    # rather than silent.
+    #
+    # Scoped to keys the HTML actually references: an unreferenced empty leaf
+    # is dead weight for i18n-strip-orphans to deal with, not a broken page.
+    blank = sorted(k for k in keys if not str(lookup(en_data, k) or "").strip())
+    if blank:
+        print(
+            f"en: {len(blank)} key(s) referenced in HTML hold an EMPTY English "
+            f"value — they can never be translated",
+            file=sys.stderr,
+        )
+        for key in blank[:5]:
+            print(f"  - {key}", file=sys.stderr)
+        if len(blank) > 5:
+            print(f"  ... and {len(blank) - 5} more", file=sys.stderr)
+        if seed:
+            print(
+                "  → run scripts/seed_missing_i18n.py: it reads the value "
+                "from the element, or from the attribute named by "
+                "data-i18n-attr",
+                file=sys.stderr,
+            )
+        else:
+            failures += 1
+
     for lang in locales:
         data = load_locale(lang)
         flat = flatten(data)
@@ -188,6 +225,16 @@ def cmd_validate(seed: bool) -> int:
             "\n"
             "  3. make i18n-validate\n"
             "       Re-run this check — it should now pass.\n"
+            "\n"
+            "'holds an EMPTY English value' is different: the key exists but\n"
+            "en.json has \"\" for it, so there is nothing to translate. That\n"
+            "happens when the English lives in an ATTRIBUTE (data-i18n-attr,\n"
+            "e.g. <meta name=\"description\" content=\"...\">) rather than in the\n"
+            "element's text. Fix it with:\n"
+            "\n"
+            "  python3 scripts/seed_missing_i18n.py\n"
+            "       Reads the element's content, or the attribute named by\n"
+            "       data-i18n-attr, and seeds en + the 13 [TODO] placeholders.\n"
             "\n"
             "Translation QUALITY (English-identical / stale / wrong-language) is\n"
             "exist but still hold untranslated English; run step 2 (make translate)\n"

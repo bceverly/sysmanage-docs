@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en" data-i18n-title="pro_plus.fleet_jobs.page_title">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title data-i18n="pro_plus.fleet_jobs.page_title">Fleet Configuration Jobs - SysManage Professional+</title>
+    <meta name="description" content="Run one configuration profile across thousands of hosts in bounded waves, with a row per host recording what happened, reusable inventories built from hosts, tags and sites, and job templates that can run on a schedule." data-i18n-attr="content" data-i18n="pro_plus.fleet_jobs.meta_description">
+    <link rel="stylesheet" href="../../assets/css/style.css">
+    <link rel="icon" type="image/svg+xml" href="../../assets/images/favicon.svg">
+</head>
+<body data-auto-header="documentation" data-auto-footer>
+
+    <main class="docs-main">
+        <div class="container">
+            <div class="docs-breadcrumb">
+                <a href="../" data-i18n="nav.documentation">Documentation</a> &gt;
+                <a href="./" data-i18n="pro_plus.breadcrumb">Professional+</a> &gt;
+                <span data-i18n="pro_plus.fleet_jobs.breadcrumb">Fleet Configuration Jobs</span>
+            </div>
+
+            <div class="docs-header">
+                <div class="pro-plus-badge">&#11088; PRO+</div>
+                <h1 data-i18n="pro_plus.fleet_jobs.header.title">Fleet Configuration Jobs</h1>
+                <p data-i18n="pro_plus.fleet_jobs.header.description">One configuration profile across thousands of hosts, worked through in bounded waves, with a row per host so &ldquo;which twelve of the four thousand failed&rdquo; is a question you can answer.</p>
+                <figure class="docs-screenshot">
+                    <img src="/assets/images/config-fleet-jobs.png" alt="Fleet configuration jobs with per-host progress">
+                    <figcaption data-i18n="pro_plus.fleet_jobs.header.screenshot">Three jobs: one finished with a single host failing, one still releasing waves, and one where two hosts declined the command because their agents cannot run playbooks.</figcaption>
+                </figure>
+            </div>
+
+            <div class="docs-content">
+                <section class="docs-overview">
+                    <h2 data-i18n="pro_plus.fleet_jobs.overview.title">Overview</h2>
+                    <p data-i18n="pro_plus.fleet_jobs.overview.description" data-i18n-html>A profile <em>assignment</em> is standing intent &mdash; &ldquo;this profile applies here, forever, on this schedule&rdquo;. A <strong>job</strong> is one bounded execution with a beginning, an end, and a result you can point at afterwards. The two are deliberately separate: collapsing them would mean either giving standing intent a completion state it can never reach, or giving a finished run a cron expression.</p>
+                    <p data-i18n="pro_plus.fleet_jobs.overview.why" data-i18n-html>Assignments already fan out to every matched host, and that is correct for tens of hosts and wrong for thousands in two distinct ways: one database transaction holding the whole fleet, and a burst of messages that arrives all at once regardless of what the queue, the network and the agents can absorb. A job fixes both by never having more than its <strong>concurrency</strong> in flight.</p>
+                </section>
+
+                <section class="docs-section">
+                    <h2 data-i18n="pro_plus.fleet_jobs.inventories.title">Inventories</h2>
+                    <p data-i18n="pro_plus.fleet_jobs.inventories.description" data-i18n-html>An inventory is a named, reusable set of hosts built from the same three selectors assignments use &mdash; a <strong>host</strong>, a <strong>tag</strong>, or a <strong>site</strong> &mdash; or the flag that means every active host. Members union rather than intersect: an inventory of &ldquo;tag=web&rdquo; plus &ldquo;site=eu-west&rdquo; is every host in either.</p>
+                    <figure class="docs-screenshot">
+                        <img src="/assets/images/config-inventories.png" alt="Inventories with live host counts">
+                        <figcaption data-i18n="pro_plus.fleet_jobs.inventories.screenshot">Each inventory reports the number of hosts it currently resolves to. The every-host inventory is marked, because &ldquo;the entire fleet&rdquo; is a more dangerous statement than any selector and should read as one.</figcaption>
+                    </figure>
+                    <p data-i18n="pro_plus.fleet_jobs.inventories.resolution" data-i18n-html>An inventory <strong>resolves at launch</strong>; it never stores a host list. A copied list would be wrong the moment a host joined the tag &mdash; and wrong <em>silently</em>, because a job that simply misses machines looks exactly like a job that succeeded. For the same reason the host count on the page is computed on every read rather than cached, and the <em>Preview</em> button answers &ldquo;who am I about to change?&rdquo; at the moment you ask it.</p>
+                    <p data-i18n="pro_plus.fleet_jobs.inventories.empty" data-i18n-html>An inventory that resolves to nothing is refused rather than allowed, and a job launched against one that has since emptied completes immediately saying so. A job reporting a clean success over zero hosts reads as &ldquo;the fleet is converged&rdquo;, which is the most expensive way this feature could be wrong.</p>
+                </section>
+
+                <section class="docs-section">
+                    <h2 data-i18n="pro_plus.fleet_jobs.templates.title">Job templates</h2>
+                    <p data-i18n="pro_plus.fleet_jobs.templates.description" data-i18n-html>A template names a <strong>profile</strong>, an <strong>inventory</strong> and how hard to run it. Its value is that the three decisions you would otherwise re-make every time are made once and named, so the run that happens at 3am under a schedule is provably the run somebody reviewed.</p>
+                    <figure class="docs-screenshot">
+                        <img src="/assets/images/config-job-templates.png" alt="Job templates with per-template concurrency">
+                        <figcaption data-i18n="pro_plus.fleet_jobs.templates.screenshot">Concurrency is stored per template, not configured globally: the right value is a property of the work. A package-touching profile against a shared mirror wants a small number; a file-permissions sweep can saturate.</figcaption>
+                    </figure>
+                    <ul>
+                        <li data-i18n="pro_plus.fleet_jobs.templates.check_mode" data-i18n-html><strong>Dry run</strong> is the default for a new template. The first thing to do with one is find out what it <em>would</em> change; a live fleet-wide run is the one mistake here that cannot be undone.</li>
+                        <li data-i18n="pro_plus.fleet_jobs.templates.concurrency" data-i18n-html><strong>Concurrency</strong> is clamped rather than rejected. Somebody typing 10,000 means &ldquo;as fast as possible&rdquo;, so the server stores its ceiling and the page tells you what you got &mdash; refusing the whole template over it would turn a clear intention into an error message.</li>
+                        <li data-i18n="pro_plus.fleet_jobs.templates.schedule" data-i18n-html>A <strong>cron schedule</strong> makes the template a standing fleet job. Due-ness is derived from the last launch, so a server that was down overnight launches <em>once</em> on the next tick rather than replaying every occurrence it slept through.</li>
+                    </ul>
+                </section>
+
+                <section class="docs-section">
+                    <h2 data-i18n="pro_plus.fleet_jobs.execution.title">How a job runs</h2>
+                    <p data-i18n="pro_plus.fleet_jobs.execution.description" data-i18n-html>Launching materialises one <strong>target</strong> per selected host, all pending, and immediately releases the first wave. Targets are created up front rather than discovered as the job goes, which costs one insert per host and buys the thing the feature exists for: from the first second the job can say how many hosts it will touch and which ones.</p>
+                    <p data-i18n="pro_plus.fleet_jobs.execution.waves" data-i18n-html>From then on the job is paced by <em>results</em>, not by a clock. Each arriving result closes its target and immediately releases the next one, so a fleet is worked through as fast as it answers. A background tick every 60 seconds is only a safety net for jobs whose results are slow or absent.</p>
+                    <p data-i18n="pro_plus.fleet_jobs.execution.stall" data-i18n-html>A target dispatched but never answered ages out after six hours and is recorded as failed. Something must: a job stuck at &ldquo;running&rdquo; holding slots forever, with an outstanding count that never moves, reads as a broken feature rather than a failed host.</p>
+                    <p data-i18n="pro_plus.fleet_jobs.execution.guards" data-i18n-html>Dispatch goes through the same builder as a manual apply and as the assignment tick, so a fleet job cannot diverge from what a normal apply would have done &mdash; and it inherits both existing guards without re-checking either: a host that has not advertised config-management support is refused at the queue, and delivery is held for any host inside a maintenance window.</p>
+                </section>
+
+                <section class="docs-section">
+                    <h2 data-i18n="pro_plus.fleet_jobs.status.title">Reading a job's status</h2>
+                    <p data-i18n="pro_plus.fleet_jobs.status.description" data-i18n-html>A job's status answers <strong>&ldquo;did this job do its work?&rdquo;</strong> &mdash; not &ldquo;is every host happy?&rdquo;, which is what the counts answer. So a job where a handful of hosts failed is <code>completed</code>, deliberately.</p>
+                    <p data-i18n="pro_plus.fleet_jobs.status.why" data-i18n-html>The temptation is to mark a job failed the moment any target fails, and it is wrong for a reason that only shows up at scale: on a fleet of four thousand, a handful of machines are always offline, mid-reboot or newly rebuilt. A status that goes red every single time is ignored within a week, and then it is worth nothing on the day it means something.</p>
+                    <ul>
+                        <li><code>pending</code> &mdash; <span data-i18n="pro_plus.fleet_jobs.status.pending">created, nothing dispatched yet</span></li>
+                        <li><code>running</code> &mdash; <span data-i18n="pro_plus.fleet_jobs.status.running">targets are in flight or still waiting for a wave</span></li>
+                        <li><code>completed</code> &mdash; <span data-i18n="pro_plus.fleet_jobs.status.completed">every target reached a terminal state and at least one succeeded, or every host declined</span></li>
+                        <li><code>failed</code> &mdash; <span data-i18n="pro_plus.fleet_jobs.status.failed">the job achieved nothing: something failed and nothing succeeded. This is also what an undispatchable profile produces</span></li>
+                        <li><code>canceled</code> &mdash; <span data-i18n="pro_plus.fleet_jobs.status.canceled">an operator stopped it</span></li>
+                    </ul>
+                    <p data-i18n="pro_plus.fleet_jobs.status.skipped" data-i18n-html>A host that cannot take the command is <strong>skipped</strong>, never failed, and the reason is written to its row. That distinction matters on a mixed fleet: &ldquo;this agent does not advertise config-management support&rdquo; is a true and useful answer that must not be filed alongside &ldquo;the playbook blew up&rdquo;.</p>
+                    <p data-i18n="pro_plus.fleet_jobs.status.cancel" data-i18n-html>Cancelling stops further dispatch and marks the untouched targets skipped. Targets already in flight are left alone &mdash; the command is with the agent and the server cannot recall it, so claiming otherwise would be a status that lies. Their results still land and still close their targets, which is why a cancelled job's counts keep moving for a while.</p>
+                </section>
+
+                <section class="docs-section">
+                    <h2 data-i18n="pro_plus.fleet_jobs.api.title">API</h2>
+                    <ul>
+                        <li><code>GET|POST /api/v1/config-management/inventories</code> &mdash; <span data-i18n="pro_plus.fleet_jobs.api.inventories">list and create inventories</span></li>
+                        <li><code>GET|POST /api/v1/config-management/inventories/{id}/members</code> &mdash; <span data-i18n="pro_plus.fleet_jobs.api.members">the host, tag and site selectors an inventory is built from</span></li>
+                        <li><code>GET /api/v1/config-management/inventories/{id}/hosts</code> &mdash; <span data-i18n="pro_plus.fleet_jobs.api.preview">what it resolves to right now</span></li>
+                        <li><code>GET|POST /api/v1/config-management/job-templates</code> &mdash; <span data-i18n="pro_plus.fleet_jobs.api.templates">list and create templates</span></li>
+                        <li><code>POST /api/v1/config-management/job-templates/{id}/launch</code> &mdash; <span data-i18n="pro_plus.fleet_jobs.api.launch">launch now; the first wave is dispatched before the response returns</span></li>
+                        <li><code>GET /api/v1/config-management/jobs</code> &mdash; <span data-i18n="pro_plus.fleet_jobs.api.jobs">recent jobs with their counts</span></li>
+                        <li><code>GET /api/v1/config-management/jobs/{id}/targets</code> &mdash; <span data-i18n="pro_plus.fleet_jobs.api.targets">the per-host rows, failures first</span></li>
+                        <li><code>POST /api/v1/config-management/jobs/{id}/cancel</code> &mdash; <span data-i18n="pro_plus.fleet_jobs.api.cancel">stop dispatching</span></li>
+                    </ul>
+                    <p data-i18n="pro_plus.fleet_jobs.api.roles" data-i18n-html>Authoring an inventory or a template needs the <strong>Add Script</strong> / <strong>Edit Script</strong> entitlement. <em>Launching</em> one needs <strong>Run Script</strong> &mdash; the same permission as applying a profile to a single host, because it is that operation with a larger blast radius rather than a different one.</p>
+                </section>
+
+                <section class="docs-section">
+                    <h2 data-i18n="pro_plus.fleet_jobs.history.title">History outlives its parents</h2>
+                    <p data-i18n="pro_plus.fleet_jobs.history.description" data-i18n-html>Deleting a template does not erase the record that it changed four thousand hosts last Tuesday. The job keeps the template's name, the profile's name and the inventory's name alongside foreign keys that soften to null, and every target keeps its host's fully-qualified name. A job is an audit artifact; decommissioning a host or tidying up a template must leave it readable.</p>
+                </section>
+
+                <section class="docs-section">
+                    <h2 data-i18n="pro_plus.fleet_jobs.architecture.title">Architecture</h2>
+                    <p data-i18n="pro_plus.fleet_jobs.architecture.description" data-i18n-html>The tables live in the open-source schema, because the open-source server owns the database. What is licensed is the <em>behaviour</em>: how wide a wave may be, what a job's status means when some hosts failed, what an inventory selects, and when a scheduled template is due. Those rules live in the <code>config_management_engine</code> module, and without it an unlicensed install has a coherent schema, no jobs, and a runner that releases nothing rather than falling back to the unbounded behaviour jobs exist to replace.</p>
+                    <p data-i18n="pro_plus.fleet_jobs.architecture.state" data-i18n-html>A job's state lives entirely in its rows. There is no per-job task and nothing sleeps on a result, so a server restarted in the middle of a four-thousand-host run resumes by reading the rows rather than losing the loop.</p>
+                </section>
+            </div>
+        </div>
+    </main>
+
+</body>
+</html>

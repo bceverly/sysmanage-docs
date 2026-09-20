@@ -449,11 +449,26 @@ async function captureDetail(page, shot, vp) {
 // click on the visible text works — the combobox has to be opened first and the
 // option matched inside the portal.
 async function selectMuiOption(page, label, option) {
-  await page.getByLabel(label, { exact: false }).first().click({ timeout: 15000 });
-  await page
-    .getByRole('option', { name: option, exact: false })
-    .first()
-    .click({ timeout: 15000 });
+  // Both steps go through clickWithRetry rather than a plain click.  A MUI
+  // Select re-mounts its node when the field's options arrive (and again if it
+  // flips between native and non-native), so a plain click can resolve the
+  // combobox and then lose it: "element was detached from the DOM, retrying"
+  // until the timeout, which is how child-host-create-windows failed a full
+  // run while passing on either side of it.  clickWithRetry re-resolves the
+  // locator each attempt and only clicks once the same node survives a settle
+  // window -- the same treatment clickRowAction already gets.
+  await clickWithRetry(
+    page,
+    () => page.getByLabel(label, { exact: false }).first(),
+    `selectMuiOption label "${label}"`,
+  );
+  // The listbox is portal-mounted, so it arrives a frame later and can be
+  // re-keyed as the options settle -- the same race, one level down.
+  await clickWithRetry(
+    page,
+    () => page.getByRole('option', { name: option, exact: false }).first(),
+    `selectMuiOption option "${option}"`,
+  );
 }
 
 // Open a page, then optionally drive one interaction before shooting:
