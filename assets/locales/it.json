@@ -19108,7 +19108,8 @@
         "description": "L'altra forma di deriva. La deriva del profilo risponde \"questo host corrisponde al profilo che gli abbiamo assegnato?\". La deriva di base risponde \"questo host corrisponde all'host {{c1}}? — questo è ciò a cui un operatore si rivolge quando non c'è ancora un profilo e lo staging funziona mentre la produzione no.",
         "screenshot": "Confronto tra un host in drift e uno noto come 'buono'. Ogni categoria riporta cosa manca al target, cosa ha che il riferimento non ha, e cosa hanno in comune con un campo in disaccordo.",
         "stateless": "Questa comparazione non memorizza nulla. È una funzione pura di due inventari host correnti, e a differenza di una scoperta di profilo non c'è alcuna durata da tracciare: una categoria differisce ora o non differisce affatto. {{c1}} riferisce le categorie supportate, quindi l'interfaccia utente non può offrire una categoria che il server rifiuterebbe.",
-        "title": "Confronto di base Golden-host"
+        "title": "Confronto di base Golden-host",
+        "cat_files": "abbinati per percorso, confrontati su checksum, permessi e proprietà — vedi File controllati più sotto"
       },
       "breadcrumb": "Drift di configurazione",
       "dashboard": {
@@ -19175,6 +19176,42 @@
         "description": "Un'esecuzione in modalità di controllo afferma che {{c1}} cambierebbe. Ciò che non può dire è {{c2}} - ogni esecuzione conosce solo se stessa, quindi \"questo host ha avuto una deriva per nove giorni\" è una domanda senza risposta dalle righe di esecuzione senza scansionare l'intera cronologia ad ogni caricamento della pagina. Un rilevamento di deriva memorizza proprio quella durata e nulla altro; le esecuzioni rimangono la registrazione di ciò che è accaduto.",
         "identity": "Una scoperta è identificata da {{c1}}. Questa è l'unica identità che la forma generica del risultato porta con sé: l'agente riferisce un compito {{c2}}, e nulla più stabile viaggia con esso. Il costo accettato è che rinominare un compito in un profilo riavvia la sua età di deriva, perché il nuovo nome è una diversa riga. Questa è la giusta contropartita rispetto al confronto su un compito {{c3}}, che ri-attribirebbe silenziosamente la storia di un compito ad un altro non appena qualcuno inserirebbe una fase — una data sbagliata è peggiore di un reset, perché un reset è visibilmente un reset.",
         "title": "Perché i risultati esistono così come le esecuzioni"
+      },
+      "files": {
+        "agents": "I file monitorati richiedono un agente che parli la versione 2 del contratto di fatti. Un host con un agente più vecchio è segnalato come <em>non confrontato</em> con una motivazione che lo indica, anziché essere considerato identico senza confronto.",
+        "api_assign": "associa una lista a un host, a un tag o a un sito",
+        "api_lists": "le liste di controllo create da questo tenant",
+        "api_state": "ogni percorso monitorato su un host con il relativo esito, compresi quelli assenti e illeggibili, più un conteggio per stato",
+        "blind": {
+          "description": "Quando l'host non misura una via, quella via è un <strong>punto cieco</strong>: viene segnalato separatamente e contato separatamente, mai come differenza o accordo. Entrambi sarebbero sbagliati. Un file non leggibile non ha un checksum, quindi confrontarlo con uno reale creerebbe una divergenza da un errore di permesso — e confrontarlo con un altro file non leggibile segnalerebbe due host come corrispondenti quando concordano solo nel non essere stati in grado di guardare.",
+          "empty": "Due host senza lista di controllo assegnata sono riportati come <em>non confrontati</em> piuttosto che identici. Zero differenze tra due insiemi vuoti è aritmeticamente vera e operativamente una bugia.",
+          "notwatched": "Un percorso presente nell'elenco dell'host di riferimento ma non nel target è un 'punto cieco', non una cancellazione. Nessuno ha chiesto al target in merito.",
+          "title": "Non confrontato non è una corrispondenza"
+        },
+        "content": {
+          "cost": "Il costo è reale e va detto chiaramente. Il drift riporta il fatto che qualcosa è cambiato, e che i permessi di un file sono passati da <code>0440</code> a <code>0644</code>. Non può riportare quale riga sia cambiata all'interno del file.",
+          "description": "Dall'host escono soltanto un checksum SHA-256 e i metadati di stat — dimensione, permessi, proprietario, gruppo, data di modifica. <strong>Nessun contenuto dei file viene trasmesso, memorizzato, restituito dall'API, scritto nei log o incluso nei backup.</strong> È un vincolo di progetto deliberato, non una limitazione in attesa di essere rimossa: è ciò che rende sicuro monitorare <code>/etc/shadow</code>, una chiave privata o un file di licenza.",
+          "title": "I contenuti non vengono mai raccolti"
+        },
+        "description": "Le otto categorie dell'inventario confrontano i fatti che l'agente riferisce già. <strong>File controllati</strong> confronta le cose non raccolte prima: un elenco di percorsi che nomini, hashato ad ogni raccolta, in modo che due host possano essere confrontati sulla loro configurazione effettiva piuttosto che sui pacchetti che li hanno installati.",
+        "platforms": "Un percorso può specificare su quali piattaforme si applica. Questo è più importante di quanto sembri: un percorso inviato ad un host a cui non si applica restituisce <code>absent</code>, e assente significa \"dovrebbe essere qui e non lo è\" — quindi una lista che elenca <code>/etc/ssh/sshd_config</code> senza restrizioni di piattaforma segnalerebbe ogni host Windows come averlo eliminato.",
+        "setup": {
+          "title": "Impostazione di una lista di controllo"
+        },
+        "setup_assign": "Assegnalalo a un host, a una tag o a un sito, con un intervallo di raccolta (minimo cinque minuti, valore predefinito sessanta).",
+        "setup_compare": "Confronta due host come al solito; la categoria <code>files</code> compare non appena entrambi hanno riportato.",
+        "setup_create": "Crea un elenco sotto <strong>Deviazione di configurazione → File monitorati</strong>, una strada assoluta per riga. I percorsi relativi sono rifiutati: si risolvono nella directory di lavoro dell'agente, quindi la stessa lista monitorerebbe un file diverso su ogni host.",
+        "state_absent": "il percorso non esiste. Drift reale, se l'host di riferimento lo possiede.",
+        "state_notafile": "una directory, socket o dispositivo. Vengono riportati i metadati; non c'è nulla da hashare.",
+        "state_present": "letto e sottoposto ad hash. L'unico stato che porta con sé un checksum.",
+        "state_toolarge": "oltre il limite di hashing, quindi è stato saltato deliberatamente. Uno stato distinto da «non è stato possibile», perché i due portano a interventi diversi.",
+        "state_unreadable": "ogni percorso controllato su un host con il suo esito, inclusi quelli assenti e non leggibili, più un conteggio per stato",
+        "states": {
+          "description": "Una cartella osservata produce sempre un risultato, anche quando non c'è un file lì. Questa è la differenza che rende la funzionalità affidabile: uno strumento che semplicemente omette i file mancanti rende un file di configurazione eliminato indistinguibile da uno che nessuno stava osservando, quindi eliminarlo silenziosamente smette di essere deriva.",
+          "title": "Ogni percorso monitorato riporta un risultato"
+        },
+        "symlinks": "Un symlink viene segnalato come tale, con il suo bersaglio e il contenuto alla fine viene hashato anch'esso — un file di configurazione sostituito da un link a <code>/dev/null</code> è esattamente la deviazione da cogliere. Un link non valido legge come <code>absent</code> ma mantiene il suo bersaglio, quindi \"eliminato\" e \"che punta a nulla\" restano riparazioni diverse.",
+        "title": "File controllati"
       }
     },
     "config_management": {
@@ -19812,6 +19849,17 @@
           },
           "link": "Guida alla scansione delle vulnerabilità &#8594;",
           "title": "🛡️ Scansione vulnerabilità"
+        },
+        "query_packs": {
+          "description": "Insiemi di query curati e versionati su un substrato fattuale a livello di flotta, distribuiti come politica multi-inquilino, più query ad hoc in tempo reale su ogni host contemporaneamente.",
+          "features": {
+            "coverage": "Gli host dichiarano ciò che non possono rispondere, quindi vuoto non significa incontrollato",
+            "live": "Query in tempo reale limitate con risultati che arrivano mentre gli host rispondono",
+            "policy": "Catalogo condiviso con assegnazione per tenant, host, tag o sito",
+            "schema": "lo schema proprio di osquery, servito in modo nativo dove osquery non ha un port"
+          },
+          "link": "Guida ai pacchetti di query →",
+          "title": "🔍 Query Packs"
         }
       },
       "overview": {
@@ -21509,6 +21557,70 @@
           "risk": "Overall rischio punteggio e rischio livello",
           "title": "Visualizzazione dei risultati della scansione"
         }
+      }
+    },
+    "query_packs": {
+      "breadcrumb": "Pacchetti di query",
+      "consumers": {
+        "compliance": "<strong>La conformità</strong> restituisce <code>not_assessable</code> anziché un esito positivo o negativo quando un host non ha mai riportato il proprio inventario dei pacchetti. Altrimenti una regola del tipo «non deve essere installato» risulterebbe superata su un host che non ha riportato nulla.",
+        "description": "Le tabelle dei fatti non sono solo per i pacchetti che scrivi. Gli motori di conformità, vulnerabilità e flotta, e il golden host leggono tutti la stessa pubblicità di copertura — e tutti degradano onestamente piuttosto che in silenzio quando un host non può rispondere:",
+        "drift": "<strong>Rapporti di deviazione del golden host</strong> indicano una categoria come <em>non confrontata</em> invece di corrispondente quando uno qualsiasi degli host non può riportarlo. Vedi la guida sulla Deviazione della Configurazione.",
+        "fleet": "<strong>Le operazioni di flotta</strong> contrassegnano un host come <em>non risolvibile</em> quando un selettore verifica una proprietà che quell'host non ha mai riportato: non lo prendono di mira né lo escludono in silenzio, e riportano il conteggio accanto al job.",
+        "title": "Cosa legge il substrato",
+        "vuln": "<strong>La scansione delle vulnerabilità</strong> non assegna un punteggio o una valutazione a un host non misurabile, che altrimenti avrebbe ottenuto il punteggio perfetto con zero vulnerabilità note. A livello di flotta, tali host vengono contati separatamente da quelli puliti ed esclusi dalla media del rischio, quindi i punti ciechi non possono far apparire un'eredità più sicura."
+      },
+      "coverage": {
+        "description": "Questa è la proprietà su cui l'intera caratteristica si basa. Ogni agente pubblicizza, per tabella, se la serve — e se non la serve, perché no. Quattro risposte, perché richiedono quattro diverse risposte:",
+        "not_applicable": "<strong>Non applicabile</strong> — un host Windows non ha <code>mounts</code>. Non è una lacuna, non è un difetto e non è qualcosa da mostrare a un operatore come rilevazione.",
+        "partial": "Un run in cui alcune query non potevano essere risposte ha prodotto un risultato <code>partial</code>, mai <code>success</code>. Un fatto di sicurezza parziale è peggio di uno assente: 'Nessun servizio ascolta sulla porta 22' suona sicuro, e un pacchetto non può distinguere tra un vero negativo e un punto cieco.",
+        "served": "<strong>Servito</strong> — interrogalo; i dati sono reali.",
+        "title": "Un host dice ciò che non può rispondere",
+        "unknown": "<strong>Sconosciuto</strong> — l'agente è precedente al substrato e non ha ancora dichiarato nulla.",
+        "unsupported": "<strong>Non supportato</strong> — l'host potrebbe servire la tabella ma al momento non può, di norma perché l'agente non ha il privilegio necessario. È proprio questo il caso che vale la pena mostrare, perché è risolvibile.",
+        "why": "Una query viene inviata solo agli host in grado di rispondere ad essa; un host che non può farlo viene registrato come <em>non coperto</em> invece di restituire un risultato vuoto. La distinzione è fondamentale: una tabella mai misurata, riportata con zero righe, diventa \"nessun finding\" — che un operatore interpreta come conforme. <strong>Non misurato e misurato-vuoto non devono mai avere lo stesso valore.</strong>",
+        "screenshot": "<strong>Non coperto</strong> è una propria colonna, accanto a <strong>Fallito</strong> e non viene mai fusa con essa. L'host Windows valuta <em>parziale</em> invece di <em>successo</em> perché una query non poteva essere risolta — un host che non può servire una tabella non è fallito, e fondere i due creerebbe l'impressione di un guasto."
+      },
+      "header": {
+        "description": "Chiedi la stessa domanda a ogni macchina che gestisci - secondo un programma o immediatamente - e ottieni una risposta che distingue tra 'nessuno trovato' e 'questo host non può essere interrogato']}]}  <|im_end|>  (Nota: ho mantenuto i termini tecnici come richiesto, quindi ",
+        "screenshot": "I pacchetti creati da questo tenant, ciascuno con le query che contiene. I pacchetti curati, le esecuzioni che hanno prodotto e le query in tempo reale estemporanee si trovano nelle schede accanto.",
+        "title": "Pacchetti di query"
+      },
+      "live": {
+        "bounds": "Una query in tempo reale viene inviata come un pacchetto di query singola, quindi il comando dell'agente e il percorso del risultato sono quelli già utilizzati dalla raccolta programmata. Ciò che aggiunge è <strong>limite di concorrenza</strong>: un limite di concorrenza e un timeout per host, memorizzati con la richiesta in modo che ciò che una esecuzione ha effettivamente fatto rimanga rispondibile successivamente piuttosto che dipendere da qualsiasi politica del server accaduta al momento. Le onde vengono rilasciate man mano che le risposte arrivano anziché su un timer, quindi una query di quattrocento host è controllata dalla velocità con cui gli host rispondono effettivamente.",
+        "counts": "Completati, falliti e non coperti vengono conteggiati separatamente. Un host che non serve le tabelle non ha fallito, e unire le due cose farebbe sembrare guasta una macchina Windows solo perché le manca <code>mounts</code>.",
+        "description": "Un pacchetto pianificato risponde alle domande che sapevi di dover fare. Una <strong>query in tempo reale</strong> è per quelle che non hai fatto: una dichiarazione digitata su una console, diffusa attraverso la flotta, con le risposte che arrivano mentre gli host rispondono.",
+        "screenshot": "Una query in esecuzione. Host che hanno risposto, host che non sono stati in grado di servire le tabelle e host ancora in attesa sono contati separatamente.",
+        "title": "Query in tempo reale"
+      },
+      "meta_description": "Insiemi curati e versionati di query eseguite su un substrato di fatti distribuito in tutta la flotta, come politica multi-tenant, più query ad hoc in tempo reale su ogni host contemporaneamente.",
+      "overview": {
+        "description": "Ogni agente espone i suoi fatti come un insieme di tabelle interrogabili SQL utilizzando <strong>osquery's schema</strong> — gli stessi nomi di tabella e colonna, quindi una query scritta contro osquery significa la stessa cosa qui. Un <strong>pacchetto di query</strong> è un insieme nominato e versionato di tali query, assegnato ad host, tag o siti come politica e raccolto a intervalli.",
+        "oss": "Il substrato dei fatti è open source e presente su ogni edizione, perché un inventario migliore aiuta tutti. Ciò che Professional+ aggiunge è il <em>piano di gestione</em>: creazione di pacchetti, distribuzione come politica multi-tenant, regolazione della raccolta e lettura dei risultati.",
+        "title": "Panoramica"
+      },
+      "packs": {
+        "api_assign": "legare una lista a un host, tag o sito",
+        "api_catalog": "letti e hashati. Lo stato unico che porta un checksum.",
+        "api_packs": "lo schema di osquery, servito nativamente dove osquery non ha una porta",
+        "api_runs": "le liste di controllo personalizzate di questo tenant",
+        "description": "Un pacchetto trasporta le sue query, ciascuna delle quali dichiara le tabelle del contratto che legge e opzionalmente le piattaforme a cui si applica. I pacchetti curati forniti con il prodotto sono <strong>dati di riferimento globali</strong> — una copia per ogni inquilino, aggiornabile offline — mentre l'assegnazione di un pacchetto ad host, e qualsiasi pacchetto che scrivi tu stesso, sono i dati del tuo inquilino. La distribuzione dei pacchetti come politica multi-inquilino significa un catalogo condiviso più un'assegnazione per inquilino, mai copie per inquilino.",
+        "required_tables": "Ogni query dichiara quali tabelle sono necessarie, invece di lasciarle indovinare dal SQL. Il parsing sarebbe sbagliato proprio nei casi che contano - un join, una subquery, una CTE - e una risposta errata qui significa che un host riceve una domanda a cui non può rispondere, che torna come errore piuttosto che come copertura onesta.",
+        "results": "I risultati sono memorizzati come righe, non come un documento per esecuzione, perché ogni consumatore vuole \"quali host hanno restituito una riga corrispondente a questo\" — una query su righe, non uno scan di documenti. Una query posta e non risolta lascia comunque una riga che registra che è stata posta.",
+        "title": "Pacchetti, assegnazione e raccolta"
+      },
+      "page_title": "Pacchetti di query - SysManage Professional+",
+      "setup": {
+        "assign": "Assegnalalo a un host, una tag o a un sito con un intervallo di raccolta.",
+        "privilege": "Se una tabella riporta `<em>non supportato</em>` per mancanza di privilegi, concedere l'agente quel privilegio converte un punto cieco in dati. Le porte di ascolto sono quelle comuni.",
+        "read": "Leggi i risultati per esecuzione e controlla il conteggio non coperto — ti dice quanto della flotta la risposta copre effettivamente.",
+        "review": "Esamina il catalogo curato sotto <strong>Pacchetti di query</strong>, o scrivi un pacchetto personalizzato, dichiarando le tabelle consultate da ogni query.",
+        "title": "Configurazione"
+      },
+      "substrate": {
+        "description": "osquery non ha un port per OpenBSD o NetBSD, né una tabella dei pacchetti su alcun BSD. Se i fatti arrivassero solo da osquery, quegli host non riporterebbero nulla — e nulla si legge come «nessuna rilevazione», che a sua volta si legge come sano.",
+        "native": "Così ogni agente invia un <strong>fornitore nativo</strong> che materializza le tabelle del contratto dalle informazioni inventariate dall'inventario che già raccoglie, utilizzando solo la libreria standard Python. Dove osquery è presente viene utilizzato invece, per tabella, perché è più fedele. Il fornitore nativo è il pavimento ovunque; osquery è un acceleratore dove esiste.",
+        "portable": "Due tabelle sono di nostra proprietà anziché di osquery, e lo è stato fatto apposta. <code>sysmanage_packages</code> è una tabella del pacchetto installato che ogni piattaforma popola, quindi le query sui pacchetti sono portabili sui BSD dove osquery non ha una tabella dei pacchetti. <code>sysmanage_available_updates</code> copre gli aggiornamenti in sospeso, che osquery non modella.",
+        "title": "Il substrato funziona dove osquery non lo fa"
       }
     }
   },

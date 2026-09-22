@@ -18605,6 +18605,17 @@
           },
           "link": "Fleet Configuration Jobs Guide →",
           "title": "🚀 Fleet Configuration Jobs"
+        },
+        "query_packs": {
+          "description": "Curated, versioned query sets over a fleet-wide fact substrate, distributed as multi-tenant policy, plus ad-hoc live queries across every host at once.",
+          "features": {
+            "coverage": "Hosts declare what they cannot answer, so empty never means unmeasured",
+            "live": "Bounded live queries with results arriving as hosts respond",
+            "policy": "Shared catalog with per-tenant assignment by host, tag or site",
+            "schema": "osquery's own schema, served natively where osquery has no port"
+          },
+          "link": "Query Packs Guide →",
+          "title": "🔍 Query Packs"
         }
       },
       "overview": {
@@ -20412,7 +20423,8 @@
         "description": "The other kind of drift. Profile drift answers \"does this host match the profile we assigned it\". Baseline drift answers \"does this host match {{c1}} host\" — which is what an operator reaches for when there is no profile yet and staging works while production does not.",
         "stateless": "This comparison stores nothing. It is a pure function of two hosts' current inventory, and unlike a profile finding there is no lifespan to track: a category either differs right now or it does not. {{c1}} reports the supported categories, so the UI cannot offer one the server would refuse.",
         "title": "Golden-host baseline comparison",
-        "screenshot": "Comparing a drifting host against a known-good one. Each category reports what the target is missing, what it has that the reference does not, and what both have with a field that disagrees."
+        "screenshot": "Comparing a drifting host against a known-good one. Each category reports what the target is missing, what it has that the reference does not, and what both have with a field that disagrees.",
+        "cat_files": "matched by path, compared on checksum, permissions and ownership — see Watched files below"
       },
       "playbooks": {
         "api_match": "what would repair this finding, without doing it. Three distinguishable answers: nothing matched, a rule matched but its profile is retired, or here is what will run",
@@ -20430,6 +20442,42 @@
         "scope": "<strong>Scope</strong> — optionally narrow the rule to drift from one profile. Left open, a rule repairs that task wherever it drifts, which is what makes a rule library worth having across profiles.",
         "screenshot": "Rules are listed in precedence order, not alphabetically: the list IS the sequence a finding is tested against, and the ones that fire unattended are marked.",
         "title": "Remediation playbooks"
+      },
+      "files": {
+        "agents": "Watched files need an agent speaking version 2 of the fact contract. A host running an older agent is reported as <em>not compared</em> with a reason saying so, rather than being compared against nothing and declared identical.",
+        "api_assign": "bind a list to a host, tag or site",
+        "api_lists": "the watch lists this tenant has authored",
+        "api_state": "every watched path on one host with its outcome, including the absent and unreadable ones, plus a count per state",
+        "blind": {
+          "description": "When either host did not measure a path, that path is a <strong>blind spot</strong>: it is reported separately and counted separately, never as a difference and never as agreement. Both would be wrong. An unreadable file has no checksum, so comparing it against a real one would invent a divergence out of a permission error — and comparing it against another unreadable file would report two hosts as matching when they agree only in having been unable to look.",
+          "empty": "Two hosts with no watch list assigned are reported as <em>not compared</em> rather than identical. Zero differences between two empty sets is arithmetically true and operationally a lie.",
+          "notwatched": "A path on the reference host's list but not the target's is also a blind spot, not a deletion. Nobody asked the target about it.",
+          "title": "Not compared is not a match"
+        },
+        "content": {
+          "cost": "The cost is real and worth stating plainly. Drift reports the fact of a change, and that a file's mode went from <code>0440</code> to <code>0644</code>. It cannot report which line changed inside the file.",
+          "description": "Only a SHA-256 checksum and the stat metadata — size, mode, owner, group, modification time — ever leave the host. <strong>No file content is transmitted, stored, returned by the API, written to logs, or included in backups.</strong> That is a deliberate design constraint rather than a limitation waiting to be lifted: it is what makes it safe to watch <code>/etc/shadow</code>, a private key or a license file.",
+          "title": "Contents are never collected"
+        },
+        "description": "The eight inventory categories compare facts the agent already reports. <strong>Watched files</strong> compares things nothing collected before: a list of paths you nominate, hashed on every collection, so two hosts can be compared on their actual configuration files rather than on the packages that installed them.",
+        "platforms": "A path may declare which platforms it applies to. This matters more than it looks: a path sent to a host it does not apply to comes back <code>absent</code>, and absent means \"this should be here and is not\" — so a list naming <code>/etc/ssh/sshd_config</code> without a platform restriction would report every Windows host as having deleted it.",
+        "setup": {
+          "title": "Setting up a watch list"
+        },
+        "setup_assign": "Assign it to a host, a tag or a site, with a collection interval (minimum five minutes, default sixty).",
+        "setup_compare": "Compare two hosts as usual; the <code>files</code> category appears once both have reported.",
+        "setup_create": "Create a list under <strong>Configuration Drift → Watched files</strong>, one absolute path per line. Relative paths are refused: they resolve against the agent's working directory, so the same list would watch a different file on each host.",
+        "state_absent": "the path does not exist. Real drift, if the reference host has it.",
+        "state_notafile": "a directory, socket or device. Metadata is reported; there is nothing to hash.",
+        "state_present": "read and hashed. The only state that carries a checksum.",
+        "state_toolarge": "above the hash limit, so it was skipped deliberately. A separate state from \"could not\", because those send you to different places.",
+        "state_unreadable": "it exists and the agent was not permitted to read it. A fixable gap, and emphatically not \"unchanged\" — an agent that loses permission would otherwise report a file as stable forever.",
+        "states": {
+          "description": "A watched path always produces a result, including when there is no file there. This is the difference that makes the feature trustworthy: a tool that simply omits missing files makes a deleted configuration file indistinguishable from one nobody was watching, so deleting it silently stops being drift.",
+          "title": "Every watched path reports an outcome"
+        },
+        "symlinks": "A symlink is reported as one, with its target, and the content at the end of it is hashed as well — a configuration file replaced by a link to <code>/dev/null</code> is exactly the drift worth catching. A dangling link reads as <code>absent</code> but keeps its target, so \"deleted\" and \"points at nothing\" stay different repairs.",
+        "title": "Watched files"
       }
     },
     "config_management": {
@@ -20577,6 +20625,70 @@
         "schedule": "A <strong>cron schedule</strong> makes the template a standing fleet job. Due-ness is derived from the last launch, so a server that was down overnight launches <em>once</em> on the next tick rather than replaying every occurrence it slept through.",
         "screenshot": "Concurrency is stored per template, not configured globally: the right value is a property of the work. A package-touching profile against a shared mirror wants a small number; a file-permissions sweep can saturate.",
         "title": "Job templates"
+      }
+    },
+    "query_packs": {
+      "breadcrumb": "Query Packs",
+      "consumers": {
+        "compliance": "<strong>Compliance</strong> returns <code>not_assessable</code> rather than a pass or a fail when a host never reported its package inventory. A \"must not be installed\" rule would otherwise succeed on a host that reported nothing.",
+        "description": "The fact tables are not only for packs you write. The compliance, vulnerability and fleet engines, and the golden-host differ, all read the same coverage advertisement — and all of them degrade honestly rather than silently when a host cannot answer:",
+        "drift": "<strong>Golden-host drift</strong> reports a category as <em>not compared</em> rather than as matching when either host cannot report it. See the Configuration Drift guide.",
+        "fleet": "<strong>Fleet operations</strong> mark a host <em>unresolvable</em> when a selector tests a property it never reported — neither targeting it nor silently excluding it, and reporting the count alongside the job.",
+        "title": "What reads the substrate",
+        "vuln": "<strong>Vulnerability scanning</strong> gives an unmeasured host no score and no grade, instead of the perfect one that zero known vulnerabilities would otherwise produce. At fleet level such hosts are counted separately from clean ones and excluded from the risk average, so blind spots cannot make an estate look safer."
+      },
+      "coverage": {
+        "description": "This is the property the whole feature is built around. Each agent advertises, per table, whether it serves it — and if not, why not. Four answers, because they call for four different responses:",
+        "not_applicable": "<strong>Not applicable</strong> — a Windows host has no <code>mounts</code>. Not a gap, not a defect, and not something to show an operator as a finding.",
+        "partial": "A run where some queries could not be answered grades <code>partial</code>, never <code>success</code>. A partial security fact is worse than a missing one: \"nothing is listening on port 22\" reads as safe, and a pack cannot tell a true negative from a blind spot.",
+        "served": "<strong>Served</strong> — ask it; the data is real.",
+        "title": "A host says what it cannot answer",
+        "unknown": "<strong>Unknown</strong> — the agent predates the substrate and has not advertised anything.",
+        "unsupported": "<strong>Unsupported</strong> — the host could serve it and cannot right now, typically an unprivileged agent. This one is worth showing precisely because it is fixable.",
+        "why": "A query is only dispatched to hosts that can answer it, and a host that cannot is recorded as <em>not covered</em> rather than returning an empty result. The distinction is the point: a table that was never measured, reported as zero rows, becomes \"no findings\" — which an operator reads as compliant. <strong>Unmeasured and measured-empty must never share a value.</strong>",
+        "screenshot": "<strong>Not covered</strong> is its own column, beside <strong>Failed</strong> and never folded into it. The Windows host grades <em>partial</em> rather than <em>success</em> because one query could not be answered — a host that cannot serve a table has not failed, and merging the two would make it look broken."
+      },
+      "header": {
+        "description": "Ask the same question of every machine you manage — on a schedule, or right now — and get an answer that distinguishes \"nothing found\" from \"this host could not be asked\".",
+        "screenshot": "The packs this tenant has authored, each with the queries it carries. Curated packs, the runs they produced and ad-hoc live queries sit on the tabs beside it.",
+        "title": "Query Packs"
+      },
+      "live": {
+        "bounds": "A live query is dispatched as a one-query pack, so the agent command and the result path are the ones scheduled collection already uses. What it adds is <strong>bounds</strong>: a concurrency limit and a per-host timeout, stored with the request so that what a run actually did stays answerable afterwards rather than depending on whatever the server policy happened to be at the time. Waves are released as answers land rather than on a timer, so a four-hundred-host query is paced by how fast hosts actually reply.",
+        "counts": "Completed, failed and not-covered are counted separately. A host that does not serve the tables has not failed, and merging the two would make a Windows box look broken for lacking <code>mounts</code>.",
+        "description": "A scheduled pack answers questions you knew to ask. A <strong>live query</strong> is for the ones you did not: one statement, typed at a console, fanned out across the fleet, with answers arriving as hosts respond.",
+        "screenshot": "A live query in flight. Hosts that answered, hosts that could not serve the tables, and hosts still outstanding are counted separately.",
+        "title": "Live queries"
+      },
+      "meta_description": "Curated, versioned sets of queries run against a fleet-wide fact substrate, distributed as multi-tenant policy, plus ad-hoc live queries across every host at once.",
+      "overview": {
+        "description": "Every agent exposes its facts as a set of SQL-queryable tables using <strong>osquery's schema</strong> — the same table and column names, so a query written against osquery means the same thing here. A <strong>query pack</strong> is a named, versioned set of those queries, assigned to hosts, tags or sites as policy and collected on an interval.",
+        "oss": "The fact substrate itself is open source and present on every edition, because better inventory helps everyone. What Professional+ adds is the <em>management plane</em>: authoring packs, distributing them as multi-tenant policy, pacing collection and reading results.",
+        "title": "Overview"
+      },
+      "packs": {
+        "api_assign": "bind a pack to a host, tag or site with an interval",
+        "api_catalog": "the curated catalog",
+        "api_packs": "packs this tenant has authored",
+        "api_runs": "what came back, and how each run graded",
+        "description": "A pack carries its queries, each declaring the contract tables it reads and optionally the platforms it applies to. Curated packs shipped with the product are <strong>global reference data</strong> — one copy for every tenant, offline-updatable — while the assignment of a pack to hosts, and any packs you write yourself, are your own tenant's data. Distributing packs as multi-tenant policy means one shared catalog plus per-tenant assignment, never per-tenant copies.",
+        "required_tables": "Each query declares which tables it needs, rather than leaving them to be guessed from its SQL. Parsing would be wrong in exactly the cases that matter — a join, a subquery, a CTE — and a wrong answer here means a host is sent a question it cannot answer, which comes back as an error rather than as honest non-coverage.",
+        "results": "Results are stored as rows, not as one document per run, because every consumer wants \"which hosts returned a row matching this\" — a query over rows, not a scan of documents. A query that was asked and not answered still leaves a row recording that it was asked.",
+        "title": "Packs, assignment and collection"
+      },
+      "page_title": "Query Packs - SysManage Professional+",
+      "setup": {
+        "assign": "Assign it to a host, tag or site with a collection interval.",
+        "privilege": "If a table reports <em>unsupported</em> for insufficient privilege, granting the agent that privilege converts a blind spot into data. Listening ports is the common one.",
+        "read": "Read results per run, and check the not-covered count — it tells you how much of the fleet the answer actually covers.",
+        "review": "Review the curated catalog under <strong>Query Packs</strong>, or write a pack of your own, declaring the tables each query reads.",
+        "title": "Setting it up"
+      },
+      "substrate": {
+        "description": "osquery has no port for OpenBSD or NetBSD, and no package table on any BSD. If facts came only from osquery, those hosts would report nothing — and nothing reads as \"no findings\", which reads as healthy.",
+        "native": "So every agent ships a <strong>native provider</strong> that materializes the contract tables from the inventory it already collects, using nothing but the Python standard library. Where osquery is present it is used instead, per table, because it is more faithful. The native provider is the floor everywhere; osquery is an accelerator where it exists.",
+        "portable": "Two tables are ours rather than osquery's, and deliberately so. <code>sysmanage_packages</code> is one installed-package table that every platform populates, so package queries are portable to the BSDs where osquery has no package table at all. <code>sysmanage_available_updates</code> covers pending updates, which osquery does not model.",
+        "title": "The substrate works where osquery does not"
       }
     }
   },

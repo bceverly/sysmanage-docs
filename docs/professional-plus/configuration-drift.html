@@ -114,7 +114,7 @@
       ?reference_host_id=..uuid..
       &amp;categories=packages,repositories,users</code></pre>
                     </div>
-                    <p data-i18n="pro_plus.config_drift.baseline.categories">Eight categories are compared, each matched on the identity that makes two rows "the same thing" across hosts and compared on the fields that make them differ:</p>
+                    <p data-i18n="pro_plus.config_drift.baseline.categories">Nine categories are compared, each matched on the identity that makes two rows "the same thing" across hosts and compared on the fields that make them differ:</p>
                     <ul>
                         <li><code>packages</code> &mdash; <span data-i18n="pro_plus.config_drift.baseline.cat_packages">matched by name, compared on version</span></li>
                         <li><code>repositories</code> &mdash; <span data-i18n="pro_plus.config_drift.baseline.cat_repositories">matched by name, compared on URL and enabled state</span></li>
@@ -124,10 +124,50 @@
                         <li><code>storage</code> &mdash; <span data-i18n="pro_plus.config_drift.baseline.cat_storage">matched by mount point, compared on filesystem</span></li>
                         <li><code>certificates</code> &mdash; <span data-i18n="pro_plus.config_drift.baseline.cat_certificates">matched by certificate name, compared on issuer</span></li>
                         <li><code>firewall</code> &mdash; <span data-i18n="pro_plus.config_drift.baseline.cat_firewall">matched by firewall name, compared on enabled state</span></li>
+                        <li><code>files</code> &mdash; <span data-i18n="pro_plus.config_drift.baseline.cat_files">matched by path, compared on checksum, permissions and ownership &mdash; see Watched files below</span></li>
                     </ul>
                     <p data-i18n="pro_plus.config_drift.baseline.buckets" data-i18n-html>Each category returns three buckets, named from the <strong>target</strong> host's point of view because that is the host being fixed: <code>missing</code> is on the reference but not the target, <code>extra</code> is on the target but not the reference, and <code>different</code> is present on both with a compared field disagreeing. "You don't have it" and "you have the wrong one" are different fixes, so they are never merged.</p>
                     <p data-i18n="pro_plus.config_drift.baseline.counts" data-i18n-html>Per-item lists are capped so one call cannot return a megabyte of JSON, but the counts stay exact and a <code>truncated</code> flag says when a list was shortened &mdash; a summary never under-reports the size of a divergence.</p>
                     <p data-i18n="pro_plus.config_drift.baseline.stateless" data-i18n-html>This comparison stores nothing. It is a pure function of two hosts' current inventory, and unlike a profile finding there is no lifespan to track: a category either differs right now or it does not. <code>GET /api/v1/config-management/baseline-categories</code> reports the supported categories, so the UI cannot offer one the server would refuse.</p>
+                </section>
+
+                <section class="docs-section">
+                    <h2 data-i18n="pro_plus.config_drift.files.title">Watched files</h2>
+                    <p data-i18n="pro_plus.config_drift.files.description" data-i18n-html>The eight inventory categories compare facts the agent already reports. <strong>Watched files</strong> compares things nothing collected before: a list of paths you nominate, hashed on every collection, so two hosts can be compared on their actual configuration files rather than on the packages that installed them.</p>
+
+                    <h3 data-i18n="pro_plus.config_drift.files.content.title">Contents are never collected</h3>
+                    <p data-i18n="pro_plus.config_drift.files.content.description" data-i18n-html>Only a SHA-256 checksum and the stat metadata &mdash; size, mode, owner, group, modification time &mdash; ever leave the host. <strong>No file content is transmitted, stored, returned by the API, written to logs, or included in backups.</strong> That is a deliberate design constraint rather than a limitation waiting to be lifted: it is what makes it safe to watch <code>/etc/shadow</code>, a private key or a license file.</p>
+                    <p data-i18n="pro_plus.config_drift.files.content.cost" data-i18n-html>The cost is real and worth stating plainly. Drift reports the fact of a change, and that a file's mode went from <code>0440</code> to <code>0644</code>. It cannot report which line changed inside the file.</p>
+
+                    <h3 data-i18n="pro_plus.config_drift.files.states.title">Every watched path reports an outcome</h3>
+                    <p data-i18n="pro_plus.config_drift.files.states.description" data-i18n-html>A watched path always produces a result, including when there is no file there. This is the difference that makes the feature trustworthy: a tool that simply omits missing files makes a deleted configuration file indistinguishable from one nobody was watching, so deleting it silently stops being drift.</p>
+                    <ul>
+                        <li><code>present</code> &mdash; <span data-i18n="pro_plus.config_drift.files.state_present">read and hashed. The only state that carries a checksum.</span></li>
+                        <li><code>absent</code> &mdash; <span data-i18n="pro_plus.config_drift.files.state_absent">the path does not exist. Real drift, if the reference host has it.</span></li>
+                        <li><code>unreadable</code> &mdash; <span data-i18n="pro_plus.config_drift.files.state_unreadable">it exists and the agent was not permitted to read it. A fixable gap, and emphatically not "unchanged" &mdash; an agent that loses permission would otherwise report a file as stable forever.</span></li>
+                        <li><code>not_a_file</code> &mdash; <span data-i18n="pro_plus.config_drift.files.state_notafile">a directory, socket or device. Metadata is reported; there is nothing to hash.</span></li>
+                        <li><code>too_large</code> &mdash; <span data-i18n="pro_plus.config_drift.files.state_toolarge">above the hash limit, so it was skipped deliberately. A separate state from "could not", because those send you to different places.</span></li>
+                    </ul>
+                    <p data-i18n="pro_plus.config_drift.files.symlinks" data-i18n-html>A symlink is reported as one, with its target, and the content at the end of it is hashed as well &mdash; a configuration file replaced by a link to <code>/dev/null</code> is exactly the drift worth catching. A dangling link reads as <code>absent</code> but keeps its target, so "deleted" and "points at nothing" stay different repairs.</p>
+
+                    <h3 data-i18n="pro_plus.config_drift.files.blind.title">Not compared is not a match</h3>
+                    <p data-i18n="pro_plus.config_drift.files.blind.description" data-i18n-html>When either host did not measure a path, that path is a <strong>blind spot</strong>: it is reported separately and counted separately, never as a difference and never as agreement. Both would be wrong. An unreadable file has no checksum, so comparing it against a real one would invent a divergence out of a permission error &mdash; and comparing it against another unreadable file would report two hosts as matching when they agree only in having been unable to look.</p>
+                    <p data-i18n="pro_plus.config_drift.files.blind.notwatched" data-i18n-html>A path on the reference host's list but not the target's is also a blind spot, not a deletion. Nobody asked the target about it.</p>
+                    <p data-i18n="pro_plus.config_drift.files.blind.empty" data-i18n-html>Two hosts with no watch list assigned are reported as <em>not compared</em> rather than identical. Zero differences between two empty sets is arithmetically true and operationally a lie.</p>
+
+                    <h3 data-i18n="pro_plus.config_drift.files.setup.title">Setting up a watch list</h3>
+                    <ol>
+                        <li data-i18n="pro_plus.config_drift.files.setup_create" data-i18n-html>Create a list under <strong>Configuration Drift &rarr; Watched files</strong>, one absolute path per line. Relative paths are refused: they resolve against the agent's working directory, so the same list would watch a different file on each host.</li>
+                        <li data-i18n="pro_plus.config_drift.files.setup_assign" data-i18n-html>Assign it to a host, a tag or a site, with a collection interval (minimum five minutes, default sixty).</li>
+                        <li data-i18n="pro_plus.config_drift.files.setup_compare" data-i18n-html>Compare two hosts as usual; the <code>files</code> category appears once both have reported.</li>
+                    </ol>
+                    <p data-i18n="pro_plus.config_drift.files.platforms" data-i18n-html>A path may declare which platforms it applies to. This matters more than it looks: a path sent to a host it does not apply to comes back <code>absent</code>, and absent means "this should be here and is not" &mdash; so a list naming <code>/etc/ssh/sshd_config</code> without a platform restriction would report every Windows host as having deleted it.</p>
+                    <ul>
+                        <li><code>GET|POST /api/v1/file-watches</code> &mdash; <span data-i18n="pro_plus.config_drift.files.api_lists">the watch lists this tenant has authored</span></li>
+                        <li><code>POST /api/v1/file-watches/assignments</code> &mdash; <span data-i18n="pro_plus.config_drift.files.api_assign">bind a list to a host, tag or site</span></li>
+                        <li><code>GET /api/v1/file-watches/hosts/{host_id}/state</code> &mdash; <span data-i18n="pro_plus.config_drift.files.api_state">every watched path on one host with its outcome, including the absent and unreadable ones, plus a count per state</span></li>
+                    </ul>
+                    <p data-i18n="pro_plus.config_drift.files.agents" data-i18n-html>Watched files need an agent speaking version 2 of the fact contract. A host running an older agent is reported as <em>not compared</em> with a reason saying so, rather than being compared against nothing and declared identical.</p>
                 </section>
 
                 <section class="docs-section">
@@ -157,7 +197,7 @@
 
                 <section class="docs-section">
                     <h2 data-i18n="pro_plus.config_drift.scope.title">What this does and does not cover</h2>
-                    <p data-i18n="pro_plus.config_drift.scope.description" data-i18n-html>Drift here is measured <strong>against a profile</strong>: the engine itself reports what would change, so nothing extra has to be collected. Drift measured against a <em>reference host</em> is a bounded inventory comparison &mdash; packages, users and groups, network interfaces, storage, repositories, firewall state and certificates &mdash; over facts the agent already reports. Comparing arbitrary files and configuration state needs a general fact collector and arrives with the osquery substrate.</p>
+                    <p data-i18n="pro_plus.config_drift.scope.description" data-i18n-html>Drift here is measured <strong>against a profile</strong>: the engine itself reports what would change, so nothing extra has to be collected. Drift measured against a <em>reference host</em> covers two kinds of fact. The eight inventory categories &mdash; packages, users and groups, network interfaces, storage, repositories, firewall state and certificates &mdash; come from what the agent already reports. Arbitrary files and configuration state come from a watch list you nominate, collected as checksums over the fact substrate.</p>
                 </section>
 
                 <section class="docs-section">

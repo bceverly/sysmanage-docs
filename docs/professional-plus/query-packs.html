@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en" data-i18n-title="pro_plus.query_packs.page_title">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title data-i18n="pro_plus.query_packs.page_title">Query Packs - SysManage Professional+</title>
+    <meta name="description" content="Curated, versioned sets of queries run against a fleet-wide fact substrate, distributed as multi-tenant policy, plus ad-hoc live queries across every host at once." data-i18n-attr="content" data-i18n="pro_plus.query_packs.meta_description">
+    <link rel="stylesheet" href="../../assets/css/style.css">
+    <link rel="icon" type="image/svg+xml" href="../../assets/images/favicon.svg">
+</head>
+<body data-auto-header="documentation" data-auto-footer>
+
+    <main class="docs-main">
+        <div class="container">
+            <div class="docs-breadcrumb">
+                <a href="../" data-i18n="nav.documentation">Documentation</a> &gt;
+                <a href="./" data-i18n="pro_plus.breadcrumb">Professional+</a> &gt;
+                <span data-i18n="pro_plus.query_packs.breadcrumb">Query Packs</span>
+            </div>
+
+            <div class="docs-header">
+                <div class="pro-plus-badge">&#11088; PRO+</div>
+                <h1 data-i18n="pro_plus.query_packs.header.title">Query Packs</h1>
+                <p data-i18n="pro_plus.query_packs.header.description">Ask the same question of every machine you manage &mdash; on a schedule, or right now &mdash; and get an answer that distinguishes "nothing found" from "this host could not be asked".</p>
+                <figure class="docs-screenshot">
+                    <img src="/assets/images/query-packs.png" alt="The query packs this tenant has authored">
+                    <figcaption data-i18n="pro_plus.query_packs.header.screenshot">The packs this tenant has authored, each with the queries it carries. Curated packs, the runs they produced and ad-hoc live queries sit on the tabs beside it.</figcaption>
+                </figure>
+            </div>
+
+            <div class="docs-content">
+                <section class="docs-overview">
+                    <h2 data-i18n="pro_plus.query_packs.overview.title">Overview</h2>
+                    <p data-i18n="pro_plus.query_packs.overview.description" data-i18n-html>Every agent exposes its facts as a set of SQL-queryable tables using <strong>osquery's schema</strong> &mdash; the same table and column names, so a query written against osquery means the same thing here. A <strong>query pack</strong> is a named, versioned set of those queries, assigned to hosts, tags or sites as policy and collected on an interval.</p>
+                    <p data-i18n="pro_plus.query_packs.overview.oss" data-i18n-html>The fact substrate itself is open source and present on every edition, because better inventory helps everyone. What Professional+ adds is the <em>management plane</em>: authoring packs, distributing them as multi-tenant policy, pacing collection and reading results.</p>
+                </section>
+
+                <section class="docs-section">
+                    <h2 data-i18n="pro_plus.query_packs.substrate.title">The substrate works where osquery does not</h2>
+                    <p data-i18n="pro_plus.query_packs.substrate.description" data-i18n-html>osquery has no port for OpenBSD or NetBSD, and no package table on any BSD. If facts came only from osquery, those hosts would report nothing &mdash; and nothing reads as "no findings", which reads as healthy.</p>
+                    <p data-i18n="pro_plus.query_packs.substrate.native" data-i18n-html>So every agent ships a <strong>native provider</strong> that materializes the contract tables from the inventory it already collects, using nothing but the Python standard library. Where osquery is present it is used instead, per table, because it is more faithful. The native provider is the floor everywhere; osquery is an accelerator where it exists.</p>
+                    <p data-i18n="pro_plus.query_packs.substrate.portable" data-i18n-html>Two tables are ours rather than osquery's, and deliberately so. <code>sysmanage_packages</code> is one installed-package table that every platform populates, so package queries are portable to the BSDs where osquery has no package table at all. <code>sysmanage_available_updates</code> covers pending updates, which osquery does not model.</p>
+                </section>
+
+                <section class="docs-section">
+                    <h2 data-i18n="pro_plus.query_packs.coverage.title">A host says what it cannot answer</h2>
+                    <p data-i18n="pro_plus.query_packs.coverage.description" data-i18n-html>This is the property the whole feature is built around. Each agent advertises, per table, whether it serves it &mdash; and if not, why not. Four answers, because they call for four different responses:</p>
+                    <ul>
+                        <li data-i18n="pro_plus.query_packs.coverage.served" data-i18n-html><strong>Served</strong> &mdash; ask it; the data is real.</li>
+                        <li data-i18n="pro_plus.query_packs.coverage.not_applicable" data-i18n-html><strong>Not applicable</strong> &mdash; a Windows host has no <code>mounts</code>. Not a gap, not a defect, and not something to show an operator as a finding.</li>
+                        <li data-i18n="pro_plus.query_packs.coverage.unsupported" data-i18n-html><strong>Unsupported</strong> &mdash; the host could serve it and cannot right now, typically an unprivileged agent. This one is worth showing precisely because it is fixable.</li>
+                        <li data-i18n="pro_plus.query_packs.coverage.unknown" data-i18n-html><strong>Unknown</strong> &mdash; the agent predates the substrate and has not advertised anything.</li>
+                    </ul>
+                    <p data-i18n="pro_plus.query_packs.coverage.why" data-i18n-html>A query is only dispatched to hosts that can answer it, and a host that cannot is recorded as <em>not covered</em> rather than returning an empty result. The distinction is the point: a table that was never measured, reported as zero rows, becomes "no findings" &mdash; which an operator reads as compliant. <strong>Unmeasured and measured-empty must never share a value.</strong></p>
+                    <p data-i18n="pro_plus.query_packs.coverage.partial" data-i18n-html>A run where some queries could not be answered grades <code>partial</code>, never <code>success</code>. A partial security fact is worse than a missing one: "nothing is listening on port 22" reads as safe, and a pack cannot tell a true negative from a blind spot.</p>
+                    <figure class="docs-screenshot">
+                        <img src="/assets/images/query-pack-runs.png" alt="Recent query pack runs, with a separate column for queries that could not be answered">
+                        <figcaption data-i18n="pro_plus.query_packs.coverage.screenshot" data-i18n-html><strong>Not covered</strong> is its own column, beside <strong>Failed</strong> and never folded into it. The Windows host grades <em>partial</em> rather than <em>success</em> because one query could not be answered &mdash; a host that cannot serve a table has not failed, and merging the two would make it look broken.</figcaption>
+                    </figure>
+                </section>
+
+                <section class="docs-section">
+                    <h2 data-i18n="pro_plus.query_packs.packs.title">Packs, assignment and collection</h2>
+                    <p data-i18n="pro_plus.query_packs.packs.description" data-i18n-html>A pack carries its queries, each declaring the contract tables it reads and optionally the platforms it applies to. Curated packs shipped with the product are <strong>global reference data</strong> &mdash; one copy for every tenant, offline-updatable &mdash; while the assignment of a pack to hosts, and any packs you write yourself, are your own tenant's data. Distributing packs as multi-tenant policy means one shared catalog plus per-tenant assignment, never per-tenant copies.</p>
+                    <p data-i18n="pro_plus.query_packs.packs.required_tables" data-i18n-html>Each query declares which tables it needs, rather than leaving them to be guessed from its SQL. Parsing would be wrong in exactly the cases that matter &mdash; a join, a subquery, a CTE &mdash; and a wrong answer here means a host is sent a question it cannot answer, which comes back as an error rather than as honest non-coverage.</p>
+                    <ul>
+                        <li><code>GET|POST /api/v1/query-packs</code> &mdash; <span data-i18n="pro_plus.query_packs.packs.api_packs">packs this tenant has authored</span></li>
+                        <li><code>GET /api/v1/query-packs/catalog</code> &mdash; <span data-i18n="pro_plus.query_packs.packs.api_catalog">the curated catalog</span></li>
+                        <li><code>POST /api/v1/query-packs/assignments</code> &mdash; <span data-i18n="pro_plus.query_packs.packs.api_assign">bind a pack to a host, tag or site with an interval</span></li>
+                        <li><code>GET /api/v1/query-packs/runs/recent</code> &mdash; <span data-i18n="pro_plus.query_packs.packs.api_runs">what came back, and how each run graded</span></li>
+                    </ul>
+                    <p data-i18n="pro_plus.query_packs.packs.results" data-i18n-html>Results are stored as rows, not as one document per run, because every consumer wants "which hosts returned a row matching this" &mdash; a query over rows, not a scan of documents. A query that was asked and not answered still leaves a row recording that it was asked.</p>
+                </section>
+
+                <section class="docs-section">
+                    <h2 data-i18n="pro_plus.query_packs.live.title">Live queries</h2>
+                    <p data-i18n="pro_plus.query_packs.live.description" data-i18n-html>A scheduled pack answers questions you knew to ask. A <strong>live query</strong> is for the ones you did not: one statement, typed at a console, fanned out across the fleet, with answers arriving as hosts respond.</p>
+                    <p data-i18n="pro_plus.query_packs.live.bounds" data-i18n-html>A live query is dispatched as a one-query pack, so the agent command and the result path are the ones scheduled collection already uses. What it adds is <strong>bounds</strong>: a concurrency limit and a per-host timeout, stored with the request so that what a run actually did stays answerable afterwards rather than depending on whatever the server policy happened to be at the time. Waves are released as answers land rather than on a timer, so a four-hundred-host query is paced by how fast hosts actually reply.</p>
+                    <p data-i18n="pro_plus.query_packs.live.counts" data-i18n-html>Completed, failed and not-covered are counted separately. A host that does not serve the tables has not failed, and merging the two would make a Windows box look broken for lacking <code>mounts</code>.</p>
+                </section>
+
+                <section class="docs-section">
+                    <h2 data-i18n="pro_plus.query_packs.consumers.title">What reads the substrate</h2>
+                    <p data-i18n="pro_plus.query_packs.consumers.description" data-i18n-html>The fact tables are not only for packs you write. The compliance, vulnerability and fleet engines, and the golden-host differ, all read the same coverage advertisement &mdash; and all of them degrade honestly rather than silently when a host cannot answer:</p>
+                    <ul>
+                        <li data-i18n="pro_plus.query_packs.consumers.compliance" data-i18n-html><strong>Compliance</strong> returns <code>not_assessable</code> rather than a pass or a fail when a host never reported its package inventory. A "must not be installed" rule would otherwise succeed on a host that reported nothing.</li>
+                        <li data-i18n="pro_plus.query_packs.consumers.vuln" data-i18n-html><strong>Vulnerability scanning</strong> gives an unmeasured host no score and no grade, instead of the perfect one that zero known vulnerabilities would otherwise produce. At fleet level such hosts are counted separately from clean ones and excluded from the risk average, so blind spots cannot make an estate look safer.</li>
+                        <li data-i18n="pro_plus.query_packs.consumers.fleet" data-i18n-html><strong>Fleet operations</strong> mark a host <em>unresolvable</em> when a selector tests a property it never reported &mdash; neither targeting it nor silently excluding it, and reporting the count alongside the job.</li>
+                        <li data-i18n="pro_plus.query_packs.consumers.drift" data-i18n-html><strong>Golden-host drift</strong> reports a category as <em>not compared</em> rather than as matching when either host cannot report it. See the Configuration Drift guide.</li>
+                    </ul>
+                </section>
+
+                <section class="docs-section">
+                    <h2 data-i18n="pro_plus.query_packs.setup.title">Setting it up</h2>
+                    <ol>
+                        <li data-i18n="pro_plus.query_packs.setup.review" data-i18n-html>Review the curated catalog under <strong>Query Packs</strong>, or write a pack of your own, declaring the tables each query reads.</li>
+                        <li data-i18n="pro_plus.query_packs.setup.assign" data-i18n-html>Assign it to a host, tag or site with a collection interval.</li>
+                        <li data-i18n="pro_plus.query_packs.setup.read" data-i18n-html>Read results per run, and check the not-covered count &mdash; it tells you how much of the fleet the answer actually covers.</li>
+                        <li data-i18n="pro_plus.query_packs.setup.privilege" data-i18n-html>If a table reports <em>unsupported</em> for insufficient privilege, granting the agent that privilege converts a blind spot into data. Listening ports is the common one.</li>
+                    </ol>
+                </section>
+            </div>
+        </div>
+    </main>
+
+</body>
+</html>

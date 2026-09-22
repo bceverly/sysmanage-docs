@@ -133,8 +133,10 @@ help:
 	@echo "  screenshots-ent-seed   - Seed Enterprise engine demo data (in-VM ORM)"
 	@echo "  screenshots-fleet-seed - Seed fleet-engine demo data (Pro+ REST)"
 	@echo "  screenshots-cfg-seed   - Seed config profiles + drift findings (in-VM ORM)"
+	@echo "  screenshots-facts-seed - Seed query packs + watched files (in-VM ORM)"
 	@echo "  screenshots-capture    - Capture OSS-tier shots from the shotlist"
 	@echo "  screenshots-pro-capture- Capture Professional-tier shots from the shotlist"
+	@echo "  screenshots-facts-capture - Re-capture only the query-pack shots (leaves the other Pro images alone)"
 	@echo "  screenshots-ent-capture- Capture Enterprise-tier shots from the shotlist"
 	@echo "  screenshots-ent-roles  - Capture Enterprise role-gated shots (federation/air-gap role flips)"
 	@echo ""
@@ -385,7 +387,7 @@ screenshot:
 # ---- Automated documentation screenshots (screenshots/ pipeline) ------------
 # Reproducible screenshots: provision a VM, seed demo data (REST + WS), drive the
 # UI with Playwright, write PNGs into assets/images/. See screenshots/README.md.
-.PHONY: screenshots screenshots-community screenshots-enterprise screenshots-seed screenshots-capture screenshots-vm-up screenshots-vm-down screenshots-pro-build screenshots-pro-seed screenshots-pro-capture screenshots-ent-build screenshots-ent-seed screenshots-ent-capture screenshots-ent-roles screenshots-fleet-seed screenshots-cfg-seed
+.PHONY: screenshots screenshots-community screenshots-enterprise screenshots-seed screenshots-capture screenshots-vm-up screenshots-vm-down screenshots-pro-build screenshots-pro-seed screenshots-pro-capture screenshots-ent-build screenshots-ent-seed screenshots-ent-capture screenshots-ent-roles screenshots-fleet-seed screenshots-cfg-seed screenshots-facts-seed screenshots-facts-capture
 
 SHOTS_DIR := screenshots
 # Load screenshots/config.env (targets, admin + demo creds) if present.
@@ -441,6 +443,7 @@ screenshots:
 	@$(MAKE) screenshots-pro-build
 	@$(MAKE) screenshots-seed
 	@$(MAKE) screenshots-pro-seed
+	@$(MAKE) screenshots-facts-seed
 	@$(MAKE) screenshots-pro-capture
 	@echo "$(BLUE)--- [3/3] Enterprise ---$(RESET)"
 	@$(MAKE) screenshots-ent-build
@@ -448,6 +451,7 @@ screenshots:
 	@$(MAKE) screenshots-pro-seed
 	@$(MAKE) screenshots-ent-seed
 	@$(MAKE) screenshots-cfg-seed
+	@$(MAKE) screenshots-facts-seed
 	@$(MAKE) screenshots-fleet-seed
 	@$(MAKE) screenshots-ent-capture
 	@$(MAKE) screenshots-ent-roles
@@ -670,6 +674,13 @@ screenshots-cfg-seed:
 		cat seed_ent_config.py | vagrant ssh -c "cd /opt/sysmanage && sudo env PYTHONPATH=/opt/sysmanage /opt/sysmanage/.venv/bin/python - 2>&1" 2>/dev/null \
 			| sed 's/^/  /' || echo "$(YELLOW)config-management seed failed (is the Enterprise-licensed VM up and OSS-seeded?)$(RESET)"
 
+screenshots-facts-seed:
+	@cd $(SHOTS_DIR) && VMIP=$$(vagrant ssh -c 'hostname -I' 2>/dev/null | awk '{print $$1}' | tr -d '\r'); \
+		[ -n "$$VMIP" ] || { echo "$(RED)Screenshot VM not running. Run 'make screenshots-ent-build' first.$(RESET)"; exit 1; }; \
+		echo "$(BLUE)Seeding query packs + watched files (in-VM ORM)...$(RESET)"; \
+		cat seed_facts.py | vagrant ssh -c "cd /opt/sysmanage && sudo env PYTHONPATH=/opt/sysmanage /opt/sysmanage/.venv/bin/python - 2>&1" 2>/dev/null \
+			| sed 's/^/  /' || echo "$(YELLOW)fact-substrate seed failed (is the Enterprise-licensed VM up and OSS-seeded?)$(RESET)"
+
 # Capture into assets/images/. Targets SCREENSHOT_TARGET_WEB if set, else the
 # running VM's private IP (resolved via vagrant ssh).
 screenshots-capture: install-browsers
@@ -701,6 +712,15 @@ screenshots-pro-capture: install-browsers
 		SCREENSHOT_TIER=pro SCREENSHOT_TARGET="$$WEB" SCREENSHOT_USER="$(SCREENSHOT_USER)" SCREENSHOT_PW="$(SCREENSHOT_PW)" \
 		SCREENSHOT_TRACE="$(SCREENSHOT_TRACE)" \
 			$(NODE) capture.mjs
+
+# Re-capture ONLY the fact-substrate shots (query packs), against a Pro VM that
+# is already built and seeded. A full screenshots-pro-capture would also re-shoot
+# the other 21 Pro images and churn them in git for no reason, so this exists to
+# keep a two-image fix to two images. Needs: screenshots-pro-build,
+# screenshots-seed, screenshots-pro-seed, screenshots-facts-seed.
+screenshots-facts-capture:
+	@$(MAKE) screenshots-pro-capture \
+		SCREENSHOT_ONLY=pro-query-packs,pro-query-pack-runs
 
 # Capture the Enterprise-tier shots (tier=enterprise in shotlist.json) against the
 # Enterprise-licensed VM. Run AFTER: screenshots-ent-build, screenshots-seed,

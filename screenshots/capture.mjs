@@ -51,6 +51,27 @@ const inTier = (s) =>
 
 const shotlist = JSON.parse(readFileSync(join(__dir, 'shotlist.json'), 'utf8'));
 
+// Every tier a run can select. A shot tagged with anything else is captured by
+// NO run — and because it is filtered out before anything is attempted, the run
+// reports "N/N captured, 0 failed" while silently omitting it. That happened:
+// two shots were added as "professional" when the tier is spelled "pro", and
+// the only symptom was a screenshot that never appeared. So an unknown tier is
+// a hard error at startup rather than a quiet omission.
+const VALID_TIERS = new Set(['oss', 'pro', 'enterprise']);
+{
+  const bad = (shotlist.shots || [])
+    .filter((s) => !VALID_TIERS.has((s.tier || 'oss').toLowerCase()))
+    .map((s) => `${s.name || s.out}: tier=${JSON.stringify(s.tier)}`);
+  if (bad.length) {
+    console.error(
+      `ERROR: ${bad.length} shot(s) have a tier no run selects ` +
+        `(valid: ${[...VALID_TIERS].join(', ')}):`,
+    );
+    bad.forEach((b) => console.error(`  - ${b}`));
+    process.exit(1);
+  }
+}
+
 // Highlight freshly-added screenshots — a shot whose PNG did NOT exist before
 // this run is printed in green with a `[new]` tag so new images (e.g. ones added
 // for new docs) are easy to spot among the re-generated ones.
@@ -359,13 +380,59 @@ async function scrollIntoView(page, shot) {
   }
 }
 
+// How long to let a page settle before shooting. Per-shot override for the
+// handful of pages that fan out several requests on mount; the global default
+// otherwise, so raising one page's wait does not slow all 113 shots.
+function settleFor(shot) {
+  return (shot && shot.settleMs) || shotlist.settleMs || 2500;
+}
+
+// Refuse to save a screenshot of a page that is still loading.
+//
+// THE DEFECT THIS EXISTS FOR: `query-packs.png` was captured mid-spinner and
+// the run reported it as a success — a green tick on an image that documents
+// nothing but a loading indicator. A shot that is wrong in this way looks
+// captured, gets committed, and is only caught by a human opening the PNG.
+//
+// The test is deliberately a CONJUNCTION: a visible spinner alone is normal
+// (a button shows one while a scan runs), and sparse text alone is normal (an
+// empty state). Both together mean the page never finished.
+async function assertNotStillLoading(page, shot) {
+  const stillLoading = async () =>
+    page.evaluate(() => {
+      const spinner = [...document.querySelectorAll('.MuiCircularProgress-root')].some(
+        (el) => el.getClientRects().length > 0,
+      );
+      const text = (document.body.innerText || '').replace(/\s+/g, ' ').trim();
+      return { spinner, textLength: text.length };
+    });
+
+  // Give a slow fetch a few more seconds before calling it stuck, rather than
+  // failing a page that was merely a little late.
+  let state = await stillLoading();
+  for (let i = 0; i < 10 && state.spinner && state.textLength < 400; i++) {
+    await page.waitForTimeout(1000);
+    state = await stillLoading();
+  }
+  if (state.spinner && state.textLength < 400) {
+    // The caller already prints the shot name, so what this adds is the knob
+    // and its current value — the operator should not have to go and look up
+    // what settleMs this shot was already given.
+    throw new Error(
+      `page still loading after ${settleFor(shot)}ms settle (spinner visible, ` +
+        `only ${state.textLength} chars of text) — raise this shot's settleMs, ` +
+        `or its data never arrived`,
+    );
+  }
+}
+
 async function captureRoute(page, shot, vp) {
   await page.setViewportSize(shot.viewport || vp);
   await gotoWithRetry(page, `${TARGET}${shot.route}`, {
     waitUntil: 'domcontentloaded',
     timeout: 60000,
   });
-  await page.waitForTimeout(shotlist.settleMs || 2500);
+  await page.waitForTimeout(settleFor(shot));
   // Settings groups content into a left-rail (formerly MUI tabs); switch first.
   if (shot.tab) {
     await selectTab(page, shot.tab);
@@ -398,6 +465,7 @@ async function captureRoute(page, shot, vp) {
   if (!(await scrollIntoView(page, shot))) return 'skipped';
   const out = join(OUT_DIR, shot.out);
   const isNew = !existsSync(out);
+  await assertNotStillLoading(page, shot);
   await page.screenshot({ path: out, fullPage: false });
   logShot(shot, isNew, `${shot.route}${shot.tab ? ' #' + shot.tab : ''}`);
 }
@@ -413,13 +481,13 @@ async function captureDetail(page, shot, vp) {
   if (!id) throw new Error(`no host id for ${shot.rowText} (run seed first so host_ids.json exists)`);
   const url = `${TARGET}${shot.base || '/hosts'}/${id}${shot.tabHash ? '#' + shot.tabHash : ''}`;
   await gotoWithRetry(page, url, { waitUntil: 'domcontentloaded', timeout: 60000 });
-  await page.waitForTimeout((shotlist.settleMs || 2500) + 1500);
+  await page.waitForTimeout(settleFor(shot) + 1500);
   // Plugin-injected host-detail tabs (Health, Vulnerabilities, ...) that aren't
   // addressable by URL hash are clicked by visible name — now left-rail buttons
   // after the nav redesign (selectTab falls back to a real tab if needed).
   if (shot.tab) {
     await selectTab(page, shot.tab);
-    await page.waitForTimeout((shotlist.settleMs || 2500));
+    await page.waitForTimeout((settleFor(shot)));
   }
   // Optional interaction ON a detail tab.  captureClick can only drive a
   // top-level route, but some dialogs only exist inside a host-detail tab —
@@ -431,15 +499,16 @@ async function captureDetail(page, shot, vp) {
       .getByRole('button', { name: shot.clickButton, exact: false })
       .first()
       .click({ timeout: 15000 });
-    await page.waitForTimeout(shotlist.settleMs || 2500);
+    await page.waitForTimeout(settleFor(shot));
   }
   if (shot.selectOption) {
     await selectMuiOption(page, shot.selectOption.label, shot.selectOption.option);
-    await page.waitForTimeout(shotlist.settleMs || 2500);
+    await page.waitForTimeout(settleFor(shot));
   }
   if (!(await scrollIntoView(page, shot))) return 'skipped';
   const out = join(OUT_DIR, shot.out);
   const isNew = !existsSync(out);
+  await assertNotStillLoading(page, shot);
   await page.screenshot({ path: out, fullPage: false });
   logShot(shot, isNew, `detail: ${shot.rowText}${shot.tabHash ? ' #' + shot.tabHash : shot.tab ? ' tab:' + shot.tab : ''}`);
 }
@@ -491,7 +560,7 @@ async function captureClick(page, shot, vp) {
     waitUntil: 'domcontentloaded',
     timeout: 60000,
   });
-  await page.waitForTimeout(shotlist.settleMs || 2500);
+  await page.waitForTimeout(settleFor(shot));
   let detail = shot.route;
   // Select the tab BEFORE clicking anything: a panel on a non-default tab is
   // not in the DOM yet, so a click targeted at it would miss and the shot would
@@ -540,9 +609,10 @@ async function captureClick(page, shot, vp) {
     detail += ` » "${shot.thenClickButton}"`;
   }
   // Let the dialog animate in / the sub-view load its data (samples, assignments).
-  await page.waitForTimeout(shot.clickSettleMs || (shotlist.settleMs || 2500) + 1500);
+  await page.waitForTimeout(shot.clickSettleMs || settleFor(shot) + 1500);
   const out = join(OUT_DIR, shot.out);
   const isNew = !existsSync(out);
+  await assertNotStillLoading(page, shot);
   await page.screenshot({ path: out, fullPage: false });
   logShot(shot, isNew, detail);
 }
@@ -572,6 +642,7 @@ async function captureReport(page, shot, vp) {
   await page.waitForTimeout(shotlist.settleMs || 3000);
   const out = join(OUT_DIR, shot.out);
   const isNew = !existsSync(out);
+  await assertNotStillLoading(page, shot);
   await page.screenshot({ path: out, fullPage: false });
   logShot(shot, isNew, `report: ${shot.reportName}`);
 }
@@ -608,9 +679,10 @@ async function main() {
     try {
       await page.setViewportSize(shot.viewport || vp);
       await page.goto(`${TARGET}${shot.route}`, { waitUntil: 'domcontentloaded', timeout: 60000 });
-      await page.waitForTimeout(shotlist.settleMs || 2500);
+      await page.waitForTimeout(settleFor(shot));
       const out = join(OUT_DIR, shot.out);
       const isNew = !existsSync(out);
+      await assertNotStillLoading(page, shot);
       await page.screenshot({ path: out, fullPage: false });
       logShot(shot, isNew, `${shot.route}, pre-auth`);
       ok++;

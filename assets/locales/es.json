@@ -19108,7 +19108,8 @@
         "description": "El otro tipo de desfasamiento. El hallazgo de desfasamiento responde \"¿esta máquina coincide con el perfil que le asignamos?\". El desfasamiento de base responde \"¿coincide esta máquina con la máquina {{c1}}?\" — eso es lo que un operador busca cuando no hay un perfil aún y el entorno de prueba funciona mientras el entorno de producción no.",
         "screenshot": "Comparando un host que se desvía contra uno conocido bueno. Cada categoría informa qué le falta al objetivo, qué tiene que la referencia no y qué ambos tienen con un campo en desacuerdo.",
         "stateless": "Esta comparación no almacena nada. Es una función pura de dos inventarios de máquinas actuales, y a diferencia de un hallazgo de perfil, no hay ninguna duración que rastrear: una categoría o bien difiere ahora o no lo hace. {{c1}} informa las categorías admitidas, por lo que la UI no puede ofrecer una que el servidor rechazaría.",
-        "title": "Comparación de línea base Golden-host"
+        "title": "Comparación de línea base Golden-host",
+        "cat_files": "coincidido por ruta, comparado por checksum, permisos y propiedad — ver Archivos vigilados más abajo"
       },
       "breadcrumb": "Desviación de configuración",
       "dashboard": {
@@ -19175,6 +19176,42 @@
         "description": "Una ejecución en modo de verificación dice {{c1}} cambiaría. Lo que no puede decir es {{c2}} — cada ejecución solo sabe de sí misma, por lo que \"este host ha estado drifteando durante nueve días\" es una pregunta sin respuesta a partir de las filas de ejecución sin escanear todo el historial en cada carga de página. Un hallazgo de deriva almacena exactamente esa duración y nada más; las ejecuciones siguen siendo el registro de lo que sucedió.",
         "identity": "Un hallazgo se identifica por {{c1}}. Esa es la única identidad que lleva la forma de resultado genérica: el agente informa una tarea {{c2}}, y nada más estable viaja con ella. El costo aceptado es que renombrar una tarea en un perfil reinicia su edad de desfasamiento, porque el nuevo nombre es una fila diferente. Eso es el equilibrio adecuado contra coincidir en la tarea {{c3}}, lo cual reatribuiría silenciosamente la historia de una tarea a otra en el momento en que alguien insertara un paso — un error de fecha es peor que un reinicio de fecha, porque un reinicio es visiblemente un reinicio.",
         "title": "Por qué existen hallazgos además de las ejecuciones"
+      },
+      "files": {
+        "agents": "Los archivos vigilados necesitan un agente que hable la versión 2 del contrato de hechos. Un host que ejecute una versión anterior del agente se informa como <em>no comparado</em> con una razón que así lo indique, en lugar de ser comparado contra nada y declarado idéntico.",
+        "api_assign": "asignar una lista a un host, etiqueta o sitio",
+        "api_lists": "las listas de vigilancia que este inquilino ha creado",
+        "api_state": "cada ruta monitoreada en un host con su resultado, incluyendo las ausentes e ilegibles, más un recuento por estado",
+        "blind": {
+          "description": "Cuando cualquiera de los hosts no midió una ruta, esa ruta es un <strong>punto ciego</strong>: se informa por separado y se cuenta por separado, nunca como una diferencia ni como acuerdo. Ambos serían incorrectos. Un archivo ilegible no tiene suma de verificación, por lo que compararlo con uno real inventaría una divergencia a partir de un error de permiso — y compararlo con otro archivo ilegible informaría que dos hosts coinciden cuando solo acuerdan haber sido incapaces de mirar.",
+          "empty": "Dos hosts sin una lista de vigilancia asignada se informan como <em>no comparados</em> en lugar de idénticos. Cero diferencias entre dos conjuntos vacíos es verdaderamente aritmético y falsamente operativo.",
+          "notwatched": "Una ruta en la lista de referencia del host pero no del objetivo también es un punto ciego, no una eliminación. Nadie preguntó al objetivo sobre eso.",
+          "title": "No comparado no es igual a coincidente"
+        },
+        "content": {
+          "cost": "El costo es real y vale la pena expresarlo claramente. Los informes de desviación indican que ha habido un cambio, y que el permiso de archivo pasó de <code>0440</code> a <code>0644</code>. No pueden informar qué línea cambió dentro del archivo.",
+          "description": "Del host solo salen una suma de verificación SHA-256 y los metadatos de stat: tamaño, permisos, propietario, grupo y hora de modificación. <strong>No se transmite, almacena, devuelve por la API, escribe en registros ni incluye en copias de seguridad ningún contenido de archivo.</strong> Es una restricción de diseño deliberada, no una limitación pendiente de levantarse: es lo que hace seguro vigilar <code>/etc/shadow</code>, una clave privada o un archivo de licencia.",
+          "title": "Nunca se recopilan contenidos"
+        },
+        "description": "Las ocho categorías de inventario comparan hechos que el agente ya informa. <strong>Archivos vigilados</strong> comparan cosas que no se han recolectado antes: una lista de rutas que usted designa, hash en cada recolección, para que dos hosts puedan compararse en sus archivos de configuración reales en lugar de en los paquetes que los instalaron.",
+        "platforms": "Un camino puede declarar para qué plataformas se aplica. Esto importa más de lo que parece: un camino enviado a un host al que no se aplica regresa <code>absent</code>, y ausente significa \"debería estar aquí y no está\". Por lo tanto, una lista que nombre <code>/etc/ssh/sshd_config</code> sin restricciones de plataforma informaría que todos los hosts Windows han eliminado este archivo.",
+        "setup": {
+          "title": "Configuración de una lista de vigilancia"
+        },
+        "setup_assign": "Asignarlo a un host, una etiqueta o un sitio, con un intervalo de recolección (mínimo cinco minutos, predeterminado sesenta).",
+        "setup_compare": "Compara dos hosts como de costumbre; la categoría <code>files</code> aparece en cuanto ambos hayan informado.",
+        "setup_create": "Crear una lista bajo <strong>Desviación de configuración → Archivos supervisados</strong>, un camino absoluto por línea. Se rechazan los caminos relativos: se resuelven contra el directorio de trabajo del agente, por lo que la misma lista supervisaría un archivo diferente en cada host.",
+        "state_absent": "la ruta no existe. Desviación real, si el host de referencia la tiene.",
+        "state_notafile": "un directorio, un socket o un dispositivo. Se informa metadato; no hay nada que hashear.",
+        "state_present": "leído y hashado. El único estado que lleva un sumario de verificación.",
+        "state_toolarge": "por encima del límite de hash, por lo que se omitió a propósito. Un estado separado de \"no se pudo\", porque esos te llevan a lugares diferentes.",
+        "state_unreadable": "existe y el agente no tenía permiso para leerlo. Una brecha solucionable, y definitivamente no 'inmutable' — un agente que pierde permiso informaría de un archivo como estable para siempre.",
+        "states": {
+          "description": "Una ruta observada siempre produce un resultado, incluso cuando no hay ningún archivo allí. Esta es la diferencia que hace confiable la característica: una herramienta que simplemente omite archivos faltantes hace que una configuración eliminada sea indistinguible de una que nadie estaba observando, por lo que eliminarla silenciosamente deja de ser un problema.",
+          "title": "Cada camino observado informa un resultado"
+        },
+        "symlinks": "Un enlace simbólico se informa como tal, con su objetivo y el contenido al final también se hash — un archivo de configuración reemplazado por un enlace a <code>/dev/null</code> es exactamente la desviación que vale la pena atrapar. Un enlace roto lee como <code>absent</code> pero mantiene su objetivo, por lo que \"eliminado\" y \"apunta a nada\" son reparaciones diferentes.",
+        "title": "archivos supervisados"
       }
     },
     "config_management": {
@@ -19812,6 +19849,17 @@
           },
           "link": "Guía de escaneo de vulnerabilidades &#8594;",
           "title": "🛡️ Escaneo de vulnerabilidades"
+        },
+        "query_packs": {
+          "description": "Conjuntos curados, versionados de consultas ejecutadas contra un sustrato de hechos de flota-ancho, distribuidos como política multi-inquilino, más consultas en vivo a través de cada host a la vez.",
+          "features": {
+            "coverage": "Los hosts declaran lo que no pueden responder, así que vacío nunca significa sin medir",
+            "live": "Consultas en vivo limitadas y resultados llegando a medida que los hosts responden",
+            "policy": "Catálogo compartido con asignación por inquilino basada en host, etiqueta o sitio",
+            "schema": "el esquema propio de osquery, servido nativamente donde osquery no tiene puerto"
+          },
+          "link": "Guía de Paquetes de Consultas →",
+          "title": "🔍 Query Packs"
         }
       },
       "overview": {
@@ -21509,6 +21557,70 @@
           "risk": "Puntuación de riesgo general y nivel de riesgo",
           "title": "Visualización de los resultados del análisis"
         }
+      }
+    },
+    "query_packs": {
+      "breadcrumb": "Paquetes de consultas",
+      "consumers": {
+        "compliance": "<strong>Cumplimiento</strong> devuelve <code>not_assessable</code> en lugar de una aprobación o un rechazo cuando un host nunca informó su inventario de paquetes. Una regla de \"no debe instalarse\" tendría éxito de otro modo en un host que reportó nada.",
+        "description": "Los tablas de hechos no solo se utilizan para los paquetes que usted escribe. Los motores de cumplimiento, vulnerabilidades y flota, y el host dorado difieren, todos leen la misma publicidad de cobertura — y todos degradan honestamente en lugar de en silencio cuando un host no puede responder:",
+        "drift": "<strong>Informes de desviación del host de referencia</strong> indican una categoría como <em>no comparada</em> en lugar de coincidente cuando alguno de los hosts no puede reportarlo. Consulte la guía de Desviación de Configuración.",
+        "fleet": "<strong>Las operaciones de flota</strong> marcan un host como <em>no resoluble</em> cuando un selector evalúa una propiedad que ese host nunca informó: ni lo toman como objetivo ni lo excluyen en silencio, y muestran el recuento junto al trabajo.",
+        "title": "¿Qué lee el sustrato?",
+        "vuln": "<strong>La escaneo de vulnerabilidades</strong> le da a un host sin medir ninguna puntuación ni calificación, en lugar del perfecto que produciría cero vulnerabilidades conocidas. A nivel de flota, estos hosts se cuentan por separado de los limpios y se excluyen del promedio de riesgo, por lo que los puntos ciegos no pueden hacer que una propiedad parezca más segura."
+      },
+      "coverage": {
+        "description": "Esta es la propiedad en torno a la que se construye toda la característica. Cada agente anuncia, por tabla, si sirve a ella —y si no lo hace, por qué no. Cuatro respuestas, porque requieren cuatro respuestas diferentes:",
+        "not_applicable": "<strong>No aplicable</strong> — un host Windows no tiene <code>mounts</code>. No es una laguna, no es un defecto y no es algo que deba mostrarse a un operador como hallazgo.",
+        "partial": "Una ejecución donde algunas consultas no pudieron ser respondidas obtuvo un resultado <code>partial</code>, nunca <code>success</code>. Un hecho de seguridad parcial es peor que uno ausente: 'no hay nada escuchando en el puerto 22' suena seguro, y un paquete no puede distinguir entre una verdadera negación y un punto ciego.",
+        "served": "<strong>Servido</strong> — pregúntalo; los datos son reales.",
+        "title": "Un host dice lo que no puede responder",
+        "unknown": "<strong>Desconocido</strong> — el agente es anterior al sustrato y todavía no ha declarado nada.",
+        "unsupported": "<strong>No admitido</strong> — el host podría servir la tabla y ahora mismo no puede, normalmente porque el agente carece del privilegio. Este caso concreto merece mostrarse precisamente porque tiene arreglo.",
+        "why": "Una consulta solo se envía a los hosts que pueden responderla, y un host que no puede es registrado como <em>no cubierto</em> en lugar de devolver un resultado vacío. La distinción es la clave: una tabla que nunca fue medida, reportada con cero filas, se convierte en \"no hallazgos\" — lo que un operador interpreta como conforme. <strong>No medido y medido-vacío nunca deben compartir un valor.</strong>",
+        "screenshot": "<strong>No cubierto</strong> es una columna propia, junto a <strong>Fallido</strong> y nunca fundida con ella. El host Windows se califica como <em>parcial</em> y no como <em>éxito</em> porque una consulta no pudo responderse: un host que no puede servir una tabla no ha fallado, y mezclar ambas cosas lo haría parecer averiado."
+      },
+      "header": {
+        "description": "Pregunte lo mismo a cada máquina que administra — en una programación o justo ahora — y obtendrá una respuesta que distingue 'nada encontrado' de 'este host no pudo ser preguntado'.",
+        "screenshot": "Los paquetes que ha creado este inquilino, cada uno con las consultas que contiene. Los paquetes curados, las ejecuciones que produjeron y las consultas en vivo puntuales están en las pestañas contiguas.",
+        "title": "Paquetes de consultas"
+      },
+      "live": {
+        "bounds": "Una consulta en vivo se envía como un paquete de consultas único, por lo que el comando del agente y la ruta de resultados son los que ya utiliza la recolección programada. Lo que añade es <strong>límite de concurrencia</strong>: un límite de tiempo por host y un límite de tiempo global, almacenados con la solicitud para que lo que realmente hizo una ejecución se mantenga respondible después, en lugar de depender de la política del servidor en ese momento. Las oleadas se liberan a medida que llegan las respuestas, por lo que una consulta de cuatrocientos hosts se controla por la velocidad real de respuesta de los hosts.",
+        "counts": "Completado, fallido y no cubierto se cuentan por separado. Un host que no sirve las tablas no ha fallado, y fusionar los dos haría que una caja de Windows pareciera rota por carecer de <code>mounts</code>.",
+        "description": "Un paquete programado responde a las preguntas que sabías que debías hacer. Una <strong>consulta en vivo</strong> es para las que no: una sola sentencia, escrita en una consola, difundida por toda la flota, con las respuestas llegando a medida que los hosts contestan.",
+        "screenshot": "Una consulta en vuelo. Los hosts que respondieron, los que no pudieron servir las tablas, y los aún pendientes se cuentan por separado.",
+        "title": "Consultas en vivo"
+      },
+      "meta_description": "Conjuntos curados, versionados de consultas ejecutadas contra un sustrato de hechos de flota-ancho, distribuidos como política multi-inquilino, más consultas en vivo a través de cada host a la vez.",
+      "overview": {
+        "description": "Cada agente expone sus hechos como un conjunto de tablas consultables con SQL usando <strong>el esquema de osquery</strong>: los mismos nombres de tabla y de columna, de modo que una consulta escrita para osquery significa aquí lo mismo. Un <strong>paquete de consultas</strong> es un conjunto de esas consultas, con nombre y versión, asignado a hosts, etiquetas o sitios como política y recopilado en un intervalo.",
+        "oss": "El hecho en sí mismo del sustrato es de código abierto y está presente en todas las ediciones, porque un mejor inventario ayuda a todos. Lo que añade Professional+ es el <em>plan de gestión</em>: paquetes de autoría, su distribución como política multi-inquilino, la planificación de la recopilación y la lectura de resultados.",
+        "title": "Resumen"
+      },
+      "packs": {
+        "api_assign": "asignar un paquete a un host, etiqueta o sitio con un intervalo",
+        "api_catalog": "el catálogo curado",
+        "api_packs": "paquetes que este inquilino ha creado",
+        "api_runs": "Lo que regresó, y cómo cada ejecución calificó",
+        "description": "Un paquete lleva sus consultas, cada una declarando las tablas de contrato que lee y opcionalmente las plataformas a las que se aplica. Los paquetes curados suministrados con el producto son <strong>datos de referencia global</strong> — una copia para cada inquilino, actualizable sin conexión — mientras que la asignación de un paquete a hosts, y cualquier paquete que usted mismo escriba, son los datos de su propio inquilino. Distribuir paquetes como política multi-inquilino significa un catálogo compartido más una asignación por inquilino, nunca copias por inquilino.",
+        "required_tables": "Cada consulta declara las tablas que necesita, en lugar de dejarlas adivinarse a partir de su SQL. La interpretación sería incorrecta exactamente en los casos que importan — una unión, una subconsulta, una CTE — y una respuesta equivocada aquí significa que un host recibe una pregunta que no puede responder, lo que regresa como un error en lugar de una cobertura honesta.",
+        "results": "Los resultados se almacenan como filas, no como un documento por ejecución, porque cada consumidor quiere saber \"qué hosts devolvieron una fila que coincide con esto\" — una consulta sobre filas, no un escaneo de documentos. Una consulta que se hizo y no se respondió aún deja una fila registrando que se preguntó.",
+        "title": "Paquetes, asignación y recolección"
+      },
+      "page_title": "Paquetes de consultas - SysManage Profesional+",
+      "setup": {
+        "assign": "Asignarlo a un host, una etiqueta o un sitio con un intervalo de recolección.",
+        "privilege": "Si una tabla informa <em>desapoyado</em> por privilegio insuficiente, otorgar ese privilegio al agente convierte un punto ciego en datos. Los puertos de escucha son el común.",
+        "read": "Lea los resultados por ejecución y compruebe el recuento de no cubierto — le indica cuánto de la flota la respuesta cubre realmente.",
+        "review": "Revise el catálogo curado bajo <strong>Paquetes de Consultas</strong>, o escriba un paquete propio, declarando las tablas que cada consulta lee.",
+        "title": "Configurarlo"
+      },
+      "substrate": {
+        "description": "osquery no tiene puerto para OpenBSD ni NetBSD, y ninguna tabla de paquetes en ningún BSD. Si los hechos solo vinieran de osquery, esos hosts informarían nada; y nada lee como 'no hallazgos', lo cual lee como saludable.",
+        "native": "Así que cada agente envía un <strong>proveedor nativo</strong> que materializa las tablas de contrato desde el inventario que ya recopila, utilizando solo la biblioteca estándar de Python. Donde osquery está presente se utiliza en su lugar, por tabla, porque es más fiel. El proveedor nativo es la base en todas partes; osquery es un acelerador donde existe.",
+        "portable": "Dos tablas son nuestras en lugar de las de osquery, y eso es intencional. <code>sysmanage_packages</code> es una tabla de paquetes instalados que cada plataforma popula, por lo que las consultas de paquetes son portátiles a los BSDs donde osquery no tiene una tabla de paquetes en absoluto. <code>sysmanage_available_updates</code> cubre las actualizaciones pendientes, algo que osquery no modela.",
+        "title": "El sustrato funciona donde osquery no lo hace"
       }
     }
   },

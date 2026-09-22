@@ -19108,7 +19108,8 @@
         "description": "L'autre type de dérive. La dérive de profil répond à la question « Ce hôte correspond-il au profil que nous lui avons attribué ? ». La dérive de référence répond à la question « Ce hôte correspond-il à l'hôte {{c1}} — ce à quoi un opérateur se réfère lorsque aucun profil n'est encore défini et que le staging fonctionne tandis que la production ne le fait pas. »]} */ ```json  { ",
         "screenshot": "Comparaison d'un hôte en dérive avec un référent connu. Chaque catégorie indique ce que la cible manque, ce qu'elle possède que la référence ne fait pas, et ce qu'elles ont toutes les deux avec un champ qui diffère.",
         "stateless": "Cette comparaison ne stocke rien. C'est une fonction pure de deux inventaires hôtes actuels, et contrairement à une recherche de profil, il n'y a pas de durée de vie à suivre : une catégorie est soit différente maintenant, soit elle ne l'est pas. {{c1}} rapporte les catégories prises en charge, donc l'interface utilisateur ne peut pas offrir une option que le serveur refuserait.",
-        "title": "Comparaison de base du serveur d'or"
+        "title": "Comparaison de base du serveur d'or",
+        "cat_files": "correspondant par chemin, comparé par somme de contrôle, permissions et propriété — voir Fichiers surveillés ci-dessous"
       },
       "breadcrumb": "Drift de configuration",
       "dashboard": {
@@ -19175,6 +19176,42 @@
         "description": "Une exécution en mode vérification indique que {{c1}} changerait. Ce qu'elle ne peut pas dire, c'est {{c2}} — chaque exécution ne connaît que d'elle-même, donc « ce hôte a dérivé pendant neuf jours » est impossible à déduire des lignes d'exécution sans balayer l'ensemble de l'historique à chaque chargement de page. Une détection de dérive stocke exactement cette durée de vie et rien d'autre ; les exécutions restent le registre de ce qui s'est passé.",
         "identity": "Une découverte est identifiée par {{c1}}. C'est la seule identité que la forme de résultat générique conserve : l'agent signale une tâche {{c2}}, et rien d'autre ne voyage avec elle. Le coût accepté est que renommer une tâche dans un profil réinitialise son âge de dérive, car le nouveau nom est une ligne différente. C'est le bon compromis contre la correspondance sur la tâche {{c3}}, qui réattribuerait silencieusement l'historique d'une tâche à une autre dès qu'un pas serait inséré - une date erronée est pire qu'une réinitialisation, car une réinitialisation est visiblement une réinitialisation.",
         "title": "Pourquoi les résultats existent-ils ainsi que les exécutions"
+      },
+      "files": {
+        "agents": "Les fichiers surveillés nécessitent un agent parlant la version 2 du contrat de faits. Un hôte exécutant une version plus ancienne de l'agent est signalé comme <em>non comparé</em> avec une raison indiquant cela, plutôt que d'être comparé à rien et déclaré identique.",
+        "api_assign": "lier une liste à un hôte, un tag ou un site",
+        "api_lists": "les listes de surveillance que ce locataire a créées",
+        "api_state": "tous les chemins surveillés sur un hôte avec leurs résultats, y compris ceux absents ou non lisibles, ainsi qu'un décompte par état",
+        "blind": {
+          "description": "Lorsque l'un ou l'autre hôte n'a pas mesuré un chemin, ce chemin est un <strong>angle mort</strong> : il est signalé séparément et compté séparément, jamais comme une différence ni comme une concordance. Les deux seraient erronés. Un fichier non lisible n'a pas de somme de contrôle, donc le comparer à un réel en inventerait une divergence à partir d'une erreur de permission — et le comparer à un autre fichier non lisible signalerait deux hôtes comme correspondants alors qu'ils ne concordent que pour avoir été incapables de lire.",
+          "empty": "Deux hôtes sans liste de surveillance affectée sont signalés comme <em>non comparés</em> au lieu d'identiques. Zéro différence entre deux ensembles vides est mathématiquement vraie et opérationnellement fausse.",
+          "notwatched": "Un chemin présent sur la liste de l'hôte de référence mais absent de l'hôte cible est également un angle mort, pas une suppression. Personne n'a interrogé l'hôte cible à ce sujet.",
+          "title": "Non comparé n'est pas une correspondance"
+        },
+        "content": {
+          "cost": "Le coût est réel et mérite d'être clairement énoncé. Les rapports de dérive signalent un changement, et le fait que les permissions d'un fichier sont passées de <code>0440</code> à <code>0644</code>. Ils ne peuvent pas signaler quelle ligne a changé à l'intérieur du fichier.",
+          "description": "Seul un checksum SHA-256 et les métadonnées de stat — taille, mode, propriétaire, groupe, heure de modification — quittent jamais l'hôte. <strong>Aucun contenu de fichier n'est transmis, stocké, retourné par l'API, écrit dans les journaux ou inclus dans les sauvegardes.</strong> C'est une contrainte de conception délibérée plutôt qu'une limitation en attente d'être levée : c'est ce qui rend sûr de surveiller <code>/etc/shadow</code>, une clé privée ou un fichier de licence.",
+          "title": "Le contenu n'est jamais collecté"
+        },
+        "description": "Les huit catégories d'inventaire comparent des faits que l'agent signale déjà. <strong>Fichiers surveillés</strong> comparent des éléments non collectés auparavant : une liste de chemins que vous nommez, hachée à chaque collecte, afin que deux hôtes puissent être comparés sur leurs fichiers de configuration réels plutôt que sur les packages qui les ont installés.",
+        "platforms": "Un chemin peut spécifier à quelles plateformes il s'applique. Cela compte plus qu'il n'y paraît : un chemin envoyé à un hôte auquel il ne s'applique pas revient <code>absent</code>, et absent signifie « ceci devrait être ici et ne l'est pas » — donc une liste citant <code>/etc/ssh/sshd_config</code> sans restriction de plateforme signalerait chaque hôte Windows comme ayant supprimé ce fichier.",
+        "setup": {
+          "title": "Configuration d'une liste de surveillance"
+        },
+        "setup_assign": "Attribuez-le à un hôte, une étiquette ou un site, avec un intervalle de collecte (minimum cinq minutes, valeur par défaut soixante).",
+        "setup_compare": "Comparez deux hôtes comme d'habitude ; la catégorie <code>files</code> apparaît dès que les deux ont transmis leur rapport.",
+        "setup_create": "Créer une liste sous <strong>Dérive de configuration → Fichiers surveillés</strong>, un chemin absolu par ligne. Les chemins relatifs sont refusés : ils se résolvent contre le répertoire de travail de l'agent, donc la même liste surveillerait un fichier différent sur chaque hôte.",
+        "state_absent": "le chemin n'existe pas. Dérive réelle, si l'hôte de référence l'a.",
+        "state_notafile": "un répertoire, un socket ou un périphérique. Les métadonnées sont signalées ; il n'y a rien à hacher.",
+        "state_present": "lu et haché. L'unique état qui transporte un contrôle de somme.",
+        "state_toolarge": "au-dessus de la limite de hachage, il a donc été omis délibérément. Un état séparé de «ne peut pas», car ceux-ci vous dirigent vers des endroits différents.",
+        "state_unreadable": "Il existe et l'agent n'avait pas la permission de le lire. Une lacune réparable, et absolument pas 'inchangée' - un agent qui perd ses permissions signalerait un fichier comme stable pour toujours.",
+        "states": {
+          "description": "Un chemin surveillé produit toujours un résultat, même s'il n'y a pas de fichier. C'est la différence qui rend la fonctionnalité fiable : un outil qui omet simplement les fichiers manquants rend un fichier de configuration supprimé indiscernable d'un fichier que personne ne surveille, donc le supprimer silencieusement cesse d'être une dérive.",
+          "title": "Chaque chemin surveillé rapporte un résultat"
+        },
+        "symlinks": "Un lien symbolique est signalé avec sa cible et son contenu est haché également — un fichier de configuration remplacé par un lien vers <code>/dev/null</code> est exactement la dérive à attraper. Un lien invalide indique <code>absent</code> mais conserve sa cible, donc « supprimé » et « pointe vers rien » restent des réparations différentes.",
+        "title": "fichiers surveillés"
       }
     },
     "config_management": {
@@ -19812,6 +19849,17 @@
           },
           "link": "Guide d'analyse de vulnérabilités &#8594;",
           "title": "🛡️ Analyse des vulnérabilités"
+        },
+        "query_packs": {
+          "description": "Ensembles de requêtes curatées et versionnées sur un substrat de faits à l'échelle de la flotte, distribués selon une politique multi-locataires, plus des requêtes en direct ad hoc sur chaque hôte simultanément.",
+          "features": {
+            "coverage": "Les hôtes déclarent ce qu'ils ne peuvent pas répondre, donc vide ne signifie jamais non mesuré",
+            "live": "Requêtes en direct limitées avec les résultats arrivant à mesure que les hôtes répondent",
+            "policy": "Catalogue partagé avec affectation par locataire au niveau de l'hôte, du tag ou du site",
+            "schema": "le schéma propre d'osquery, servi nativement là où osquery ne possède pas de port"
+          },
+          "link": "Guide des packs de requêtes →",
+          "title": "🔍 Query Packs"
         }
       },
       "overview": {
@@ -21509,6 +21557,70 @@
           "risk": "Overall risque score et risque niveau",
           "title": "Affichage des résultats de l'analyse"
         }
+      }
+    },
+    "query_packs": {
+      "breadcrumb": "packs de requêtes",
+      "consumers": {
+        "compliance": "<strong>Conformité</strong> retourne <code>not_assessable</code> au lieu d'un passage ou d'un échec lorsqu'un hôte n'a jamais signalé son inventaire de packages. Une règle « ne doit pas être installée » réussirait autrement sur un hôte qui a déclaré ne rien avoir.",
+        "description": "Les tables de faits ne servent pas uniquement aux packs que vous écrivez. Les moteurs de conformité, de vulnérabilité et de flotte, ainsi que l'hôte doré, diffèrent tous, mais ils lisent tous la même publicité de couverture — et chacun d'eux se dégrade honnêtement plutôt que de façon silencieuse lorsque qu'un hôte ne peut pas répondre.",
+        "drift": "<strong>Rapports de dérive du hôte doré</strong> indiquent une catégorie comme <em>non comparée</em> plutôt que correspondante lorsque l'un ou l'autre hôte ne peut pas le faire. Consultez le guide sur la dérive de configuration.",
+        "fleet": "<strong>Les opérations de flotte</strong> marquent un hôte comme <em>non résoluble</em> lorsqu'un sélecteur teste une propriété qu'il n'a jamais signalée : elles ne le ciblent pas et ne l'excluent pas non plus en silence, et le décompte est affiché à côté de la tâche.",
+        "title": "Qu'est-ce qui lit le substrat",
+        "vuln": "<strong>La balayage des vulnérabilités</strong> ne fournit pas de note ni de classification à un hôte non mesuré, au lieu du score parfait qu'aucun point faible connu ne produirait normalement. Au niveau de la flotte, ces hôtes sont comptés séparément des hôtes propres et exclus de la moyenne de risque, de sorte que les angles morts ne peuvent pas faire paraître un patrimoine plus sûr."
+      },
+      "coverage": {
+        "description": "C'est la propriété autour de laquelle l'ensemble de la fonctionnalité est construit. Chaque agent annonce, par table, s'il la sert ou non - et si ce n'est pas le cas, pourquoi. Quatre réponses, car elles appellent à quatre réponses différentes :",
+        "not_applicable": "<strong>Non applicable</strong> — un hôte Windows n'a pas de <code>mounts</code>. Ce n'est ni une lacune, ni un défaut, ni quelque chose à présenter à un opérateur comme une constatation.",
+        "partial": "Une exécution où certaines requêtes n'ont pas pu être répondues obtient une note <code>partial</code>, jamais <code>success</code>. Un fait de sécurité partiel est pire qu'un fait manquant : « aucune application n'écoute sur le port 22 » indique un état sûr, et un pack ne peut distinguer un vrai négatif d'un angle mort. ",
+        "served": "<strong>Servi</strong> — interrogez-le ; les données sont réelles.",
+        "title": "Un hôte dit ce qu'il ne peut pas répondre",
+        "unknown": "<strong>Inconnu</strong> — l'agent est antérieur au substrat et n'a encore rien déclaré.",
+        "unsupported": "<strong>Non pris en charge</strong> — l'hôte pourrait servir la table mais ne le peut pas pour l'instant, généralement parce que l'agent n'a pas le privilège requis. C'est précisément ce cas qui mérite d'être affiché, parce qu'il se corrige.",
+        "why": "Une requête n'est envoyée qu'aux hôtes capables d'y répondre, et un hôte qui ne peut pas le faire est enregistré comme <em>non couvert</em> plutôt que de retourner un résultat vide. La distinction est cruciale : une table jamais mesurée, rapportée avec zéro lignes, devient \"aucune constatation\" — ce qu'un opérateur interprète comme conforme. <strong>Non mesuré et mesuré-vide ne doivent jamais partager la même valeur.</strong>",
+        "screenshot": "<strong>Non couvert</strong> est sa propre colonne, à côté de <strong>Échoué</strong> et ne doit jamais y être intégré. Le hôte Windows note <em>partiel</em> plutôt que <em>réussi</em> car une requête n'a pas pu être répondu — un hôte qui ne peut pas servir une table n'a pas échoué, et la fusion des deux donnerait l'impression qu'il est cassé."
+      },
+      "header": {
+        "description": "Posez la même question à chaque machine que vous gérez - selon un calendrier ou immédiatement - et obtenez une réponse qui distingue 'rien trouvé' de 'ce hôte ne pouvait pas être interrogé']}```json```  (Note: The translation follows the domain-specific rules provided, using ",
+        "screenshot": "Les packs créés par ce locataire, chacun avec les requêtes qu'il contient. Les packs organisés, les exécutions qu'ils ont produites et les requêtes en direct ponctuelles se trouvent dans les onglets voisins.",
+        "title": "packs de requêtes"
+      },
+      "live": {
+        "bounds": "Une requête en direct est envoyée sous forme de pack de requêtes unique, donc la commande d'agent et le chemin de résultat sont ceux que la collecte planifiée utilise déjà. Ce qui est ajouté, c'est <strong>bornes</strong> : une limite de concurrence et un délai par hôte, stockés avec la requête afin que ce qu'une exécution a réellement fait reste traçable après coup plutôt que de dépendre de la politique du serveur en vigueur à l'époque. Les vagues sont libérées au fur et à mesure que les réponses arrivent plutôt que selon un minuteur, donc une requête de quatre cents hôtes est régulée par la vitesse à laquelle les hôtes répondent réellement.",
+        "counts": "Les opérations terminées, échouées et non couvertes sont comptées séparément. Un hôte qui ne sert pas les tables n'a pas échoué, et la fusion des deux ferait qu'une machine Windows semble défectueuse pour manque de <code>mounts</code>.",
+        "description": "Une tâche planifiée répond aux questions que vous auriez pu poser. Une <strong>requête en direct</strong> est pour celles auxquelles vous n'avez pas pensé : une seule instruction saisie dans une console, diffusée à l'ensemble de la flotte, avec les réponses qui arrivent au fur et à mesure que les hôtes répondent.",
+        "screenshot": "Une requête en direct en cours. Les hôtes qui ont répondu, les hôtes qui n'ont pas pu servir les tables et les hôtes toujours en attente sont comptés séparément.",
+        "title": "Requêtes en direct"
+      },
+      "meta_description": "Ensembles soignés et versionnés de requêtes exécutées contre une base de faits à l'échelle du parc, distribués sous forme de politiques multi-locataires, ainsi que des requêtes ad hoc en direct sur tous les hôtes simultanément.",
+      "overview": {
+        "description": "Chaque agent expose ses faits sous forme d'un ensemble de tables interrogeables SQL en utilisant <strong>osquery's schéma</strong> — les mêmes noms de table et de colonne, donc une requête écrite contre osquery signifie la même chose ici. Un <strong>pack de requêtes</strong> est un ensemble nommé, versionné de ces requêtes, attribué à des hôtes, des balises ou des sites comme politique et collecté à intervalles réguliers.",
+        "oss": "Le fait que la base de données elle-même soit open source et présente dans toutes les éditions, car un meilleur inventaire aide tout le monde. Ce que Professional+ ajoute est le <em>plan de gestion</em> : création de packs d'auteur, distribution de ceux-ci selon une politique multi-locataires, planification de la collecte et lecture des résultats.",
+        "title": "Présentation générale"
+      },
+      "packs": {
+        "api_assign": "lier un paquet à un hôte, un tag ou un site avec un intervalle",
+        "api_catalog": "le catalogue curaté",
+        "api_packs": "paquets que ce locataire a créés",
+        "api_runs": "qu'est-ce qui est revenu et comment chaque exécution a été notée",
+        "description": "Un paquet transporte ses requêtes, chacune déclarant les tables de contrat qu'il lit et éventuellement les plateformes auxquelles il s'applique. Les paquets compilés livrés avec le produit sont des <strong>données de référence globales</strong> — une copie pour chaque locataire, mise à jour hors ligne — tandis que l'attribution d'un paquet à des hôtes, et tout paquet que vous écrivez vous-même, est votre propre données de locataire. La distribution de paquets selon la politique multi-locataires signifie un catalogue partagé unique plus une attribution par locataire, jamais des copies par locataire.",
+        "required_tables": "Chaque requête déclare les tables dont elle a besoin, plutôt que de les laisser deviner à partir de sa requête SQL. Le parsing serait incorrect exactement dans les cas qui comptent - un jointure, une sous-requête, une CTE - et une mauvaise réponse ici signifie qu'un hôte reçoit une question qu'il ne peut pas répondre, ce qui revient comme une erreur plutôt que comme une absence honnête de couverture.",
+        "results": "Les résultats sont stockés sous forme de lignes, et non comme un document par exécution, car chaque consommateur souhaite savoir \"quels hôtes ont retourné une ligne correspondant à ceci\" — une requête sur les lignes, et non un balayage de documents. Une requête posée mais non résolue laisse toujours une ligne enregistrant qu'elle a été posée.",
+        "title": "Paquets, affectation et collecte"
+      },
+      "page_title": "Packs de requêtes - SysManage Professional+",
+      "setup": {
+        "assign": "Attribuez-le à un hôte, une étiquette ou un site avec un intervalle de collecte.",
+        "privilege": "Si une table signale <em>non pris en charge</em> pour un privilège insuffisant, accorder ce privilège à l'agent convertit un angle mort en données. L'écoute des ports est la plus courante.",
+        "read": "Lisez les résultats par exécution et vérifiez le compte non couvert — il vous indique à quel point de la flotte la réponse couvre réellement.",
+        "review": "Révisez le catalogue sélectionné sous <strong>Packs de requêtes</strong>, ou créez un pack personnalisé en spécifiant les tables lues par chaque requête.",
+        "title": "Le configurer"
+      },
+      "substrate": {
+        "description": "osquery n'a pas de port pour OpenBSD ou NetBSD, et aucune table de paquets sur n'importe quel BSD. Si les faits provenaient uniquement d'osquery, ces hôtes signaleraient rien du tout — et rien ne lit comme « pas de résultats », ce qui se lit comme sain.",
+        "native": "Ainsi, chaque agent expédie un <strong>fournisseur natif</strong> qui matérialise les tables de contrat à partir de l'inventaire qu'il collecte déjà, en utilisant uniquement la bibliothèque standard Python. Où osquery est présent, il est utilisé à la place, par table, car il est plus fidèle. Le fournisseur natif est la base partout ; osquery est un accélérateur là où il existe.",
+        "portable": "Deux tables sont à nous plutôt qu'à osquery, et ce délibérément. <code>sysmanage_packages</code> est une table de paquets installés que chaque plateforme remplit, donc les requêtes sur les paquets sont portables vers les BSD où osquery n'a pas de table de paquets du tout. <code>sysmanage_available_updates</code> couvre les mises à jour en attente, ce qu'osquery ne modélise pas.",
+        "title": "Le substrat fonctionne là où osquery ne le fait pas"
       }
     }
   },
