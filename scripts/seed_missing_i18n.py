@@ -49,6 +49,46 @@ def collapse(text: str) -> str:
     return _WS.sub(" ", text).strip()
 
 
+#: english_source() results that are not a value.
+SKIP_NESTED = "nested"
+SKIP_EMPTY_ATTR = "empty-attr"
+
+
+def english_source(el) -> "tuple[str, bool] | str":
+    """The English an element's markup carries, as the runtime would place it.
+
+    Returns ``(value, is_html)``, or SKIP_NESTED / SKIP_EMPTY_ATTR.  The one
+    reader of HTML English: the seeder and the HTML/en.json sync gate
+    (i18n_check_html_sync.py) both ask it, so they cannot disagree about what
+    a page says.
+    """
+    # ATTRIBUTE-VALUED KEYS FIRST.  ``data-i18n-attr="content"`` tells
+    # the runtime to write the translation into that ATTRIBUTE rather
+    # than into the element, and the canonical English therefore lives
+    # in the attribute too.  <meta> is a void element, so both
+    # decode_contents() and get_text() return "" for it -- which is
+    # exactly what got written: 21 meta descriptions sat empty in
+    # en.json, invisible to every gate (an empty string is not
+    # [MISSING:], not [TODO] and not English-identical), so no page's
+    # description was ever translated in any locale.
+    i18n_attr = el.get("data-i18n-attr")
+    if i18n_attr:
+        source = collapse(el.get(i18n_attr) or "")
+        if not source:
+            return SKIP_EMPTY_ATTR
+        # An attribute value is plain text by definition -- it cannot
+        # carry markup for innerHTML, so it never gets data-i18n-html.
+        return (source, False)
+
+    inner = collapse(el.decode_contents())
+    # Refuse to swallow a nested translation scope.
+    if "data-i18n" in inner:
+        return SKIP_NESTED
+    if "<" in inner:  # element carries inline markup
+        return (inner, True)
+    return (collapse(el.get_text(" ")), False)
+
+
 def walk(obj, prefix=""):
     if isinstance(obj, dict):
         for key, value in obj.items():
@@ -122,37 +162,15 @@ def main() -> int:
             key = el.get("data-i18n")
             if key not in missing or key in extracted:
                 continue
-            # ATTRIBUTE-VALUED KEYS FIRST.  ``data-i18n-attr="content"`` tells
-            # the runtime to write the translation into that ATTRIBUTE rather
-            # than into the element, and the canonical English therefore lives
-            # in the attribute too.  <meta> is a void element, so both
-            # decode_contents() and get_text() return "" for it -- which is
-            # exactly what got written: 21 meta descriptions sat empty in
-            # en.json, invisible to every gate (an empty string is not
-            # [MISSING:], not [TODO] and not English-identical), so no page's
-            # description was ever translated in any locale.
-            i18n_attr = el.get("data-i18n-attr")
-            if i18n_attr:
-                source = collapse(el.get(i18n_attr) or "")
-                if not source:
-                    skipped_empty_attr.append((key, i18n_attr))
-                    continue
-                # An attribute value is plain text by definition -- it cannot
-                # carry markup for innerHTML, so it never gets data-i18n-html.
-                extracted[key] = (source, False)
-                continue
-
-            inner = collapse(el.decode_contents())
-            # Refuse to swallow a nested translation scope.
-            if "data-i18n" in inner:
+            source = english_source(el)
+            if source == SKIP_NESTED:
                 skipped_nested.append(key)
-                continue
-            if "<" in inner:  # element carries inline markup
-                extracted[key] = (inner, True)
-                if not el.has_attr("data-i18n-html"):
-                    add_attr.append(key)
+            elif source == SKIP_EMPTY_ATTR:
+                skipped_empty_attr.append((key, el.get("data-i18n-attr")))
             else:
-                extracted[key] = (collapse(el.get_text(" ")), False)
+                extracted[key] = source
+                if source[1] and not el.has_attr("data-i18n-html"):
+                    add_attr.append(key)
         # Surgically add data-i18n-html to markup-bearing elements.
         if add_attr:
             for key in add_attr:
