@@ -100,15 +100,16 @@ apt-get install -y postgresql postgresql-contrib python3 python3-venv python3-pi
     gettext build-essential libpq-dev git rsync curl jq ca-certificates gnupg
 # The web UI is React + Vite, which needs Node 18+. Ubuntu's default 'nodejs' is
 # Node 12 -- Vite crashes on its optional-chaining call syntax (enableCompileCache?.()).
-# Pull Node 20 LTS from NodeSource (provides a matching npm) unless it's already current.
-if ! node --version 2>/dev/null | grep -qE '^v(1[89]|2[0-9])\.'; then
-    echo "Installing Node 20 LTS from NodeSource..."
+# Pull Node 22 LTS from NodeSource (provides a matching npm) unless it's already
+# current. 22.22+ specifically: react-router 8 declares engines node >=22.22.0.
+if ! node -e 'const [a,b]=process.versions.node.split(".").map(Number);process.exit(a>22||(a===22&&b>=22)?0:1)' 2>/dev/null; then
+    echo "Installing Node 22 LTS from NodeSource..."
     # Purge the distro Node 12 stack first: its libnode-dev ships headers
     # (/usr/include/node/common.gypi) that collide with NodeSource's nodejs
     # package and abort the dpkg unpack with an "overwrite" error.
     apt-get purge -y libnode-dev libnode72 nodejs npm >/dev/null 2>&1 || true
     apt-get autoremove -y >/dev/null 2>&1 || true
-    curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
+    curl -fsSL https://deb.nodesource.com/setup_22.x | bash -
     # --force-overwrite is a belt-and-suspenders guard against any remaining
     # distro-vs-NodeSource file collisions.
     apt-get install -y -o Dpkg::Options::="--force-overwrite" nodejs
