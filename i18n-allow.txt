@@ -46,7 +46,20 @@ re:journald / syslog / Windows Event Log, auto-selected
 re:firewalld — .+
 re:do-release-upgrade / dnf / zypper / freebsd-update
 re:Apple Silicon \(ARM64\) native
-re:<strong>[A-Za-z /]+</strong> — [\d.,  a-z()]+
+# Version enumerations behind a platform label, named by KEY rather than by a
+# value regex.  Both earlier attempts at this were value regexes whose tail
+# ("digits, dots, commas, parens, word chars, spaces") also fullmatches an
+# ordinary English SENTENCE -- so "<strong>Scope</strong> - optionally narrow
+# the rule to drift from one profile..." was exempt in all 13 locales, and so
+# were 11 other prose keys, 109 values in total.  The file's own header warns
+# about broad rules swallowing the prose next to them; these were that.
+# Named keys cannot do it again.  ``platforms.bsd`` is deliberately NOT here:
+# its value ends "(current release)", which is real prose and is translated.
+docs.proplus.airgap.platforms.rhel
+docs.proplus.airgap.platforms.opensuse
+docs.proplus.airgap.platforms.fedora
+docs.proplus.airgap.platforms.debian
+docs.proplus.airgap.platforms.ubuntu
 
 # --- section labels that are a single proper noun plus a category word -------
 re:(Registry / bootstrap|Multi-Tenant SaaS|Email OTP|LaunchDaemon|Satellite)
@@ -175,7 +188,6 @@ re:[a-z0-9][a-z0-9-]*\.(com|org|net|io|rs|dev|gov|edu)
 re:\w*_\*
 re:[A-Z]{2,6}
 re:(i18n|l10n)
-re:<strong>[^<]+</strong>\s*[—-]\s*[\d.,()\w ]*
 re:(MacPorts|Firewalld|DragonFly|Material-UI|Visual Studio|Google|Microsoft|Amazon|Pylint|Mypy|Sphinx)[\w .:/+-]*
 
 # --- per-locale COGNATES: words correctly identical to English in this locale
@@ -192,7 +204,13 @@ re:[\d,]+\+?\s?(GB|MB|KB|TB|GHz|MHz|TPS|RPS|QPS|ms|servers?|agents?|cores?)
 re:\d+\s?[-–]\s?\d+\+?\s?(servers?|agents?|GB|MB)
 
 # --- product tiers / editions / planes (global brand labels) ----------------
-re:(Enterprise|Community Edition|Professional\+?|Open[- ]?[Ss]ource|Self-hosted|Single-tenant|Multi-tenant|Control[- ]Plane|Data[- ]Plane)[\w .:/+-]*
+# Guarded with a negative lookahead: a label ("Enterprise SaaS Tier",
+# "Ansible Playbooks - Deployment automation") never contains two lowercase
+# words in a row, while a SENTENCE almost always does.  Without it the tail of
+# these two rules fullmatched ordinary prose -- "Open-source core you can
+# audit" and "SysManage agent reporting software inventory" were exempt in
+# every locale.  Same failure the two <strong>-label rules had.
+re:(?!.*\b[a-z]{2,}\s+[a-z]{2,}\b)(Enterprise|Community Edition|Professional\+?|Open[- ]?[Ss]ource|Self-hosted|Single-tenant|Multi-tenant|Control[- ]Plane|Data[- ]Plane)[\w .:/+-]*
 
 # --- protocols / libs / standards kept English everywhere (global) ----------
 re:(← )?Mutual TLS[\w ]*
@@ -461,7 +479,13 @@ re:<code>(url|ca_bundle|proxy|hostname|port|use_https|verify_ssl)</code>
 # above, which exempted 663 and 360 keys -- 239 of them real prose, because a
 # sentence STARTING with "Prometheus" or "SysManage" matched the whole value).
 # A label may carry a version or a short qualifier; a sentence may not.
-re:(Unix|Linux|BSD|GNU|Ubuntu|Debian|RHEL|CentOS|Fedora|Rocky|AlmaLinux|Oracle Linux|openSUSE|SLES|Alpine|Arch|Gentoo|NixOS|macOS|Windows|FreeBSD|OpenBSD|NetBSD|PostgreSQL|SQLite|MySQL|MariaDB|Redis|Homebrew|Chocolatey|Scoop|winget|Snap|Flatpak|systemd|OpenRC|launchd|rc\.d|Grafana|Prometheus|OpenTelemetry|Graylog|Docker|Podman|Kubernetes|Helm|Ansible|Terraform|Vagrant|libvirt|KVM|QEMU|bhyve|VMM|WSL|LXD|LXC|OpenBAO|Vault|Keycloak|Okta|Entra|NGINX|Apache|PowerShell|WebSocket|OAuth|OpenID|GraphQL|gRPC|Bandit|SonarQube|SaltStack|SysManage|Enterprise SaaS|TypeScript|JavaScript|React|Node\.js|WebSockets?|REST|JSON|YAML|GitHub|GitLab|Bitbucket|ServiceNow|PagerDuty|Jira|Slack|WireGuard|OpenVPN|Cloudflare|AWS|Azure|GCP|LDAP|SAML|SCIM|JWT|TOTP|Trivy|Snyk|Semgrep|ESLint|Prettier|Pytest|Playwright|Vitest|FastAPI|SQLAlchemy|Alembic|Pydantic|Uvicorn|Gunicorn|Vite|IPv4|IPv6)(?:\s*[/,+-]?\s*(Unix|Linux|BSD|GNU|Ubuntu|Debian|RHEL|CentOS|Fedora|Rocky|AlmaLinux|Oracle Linux|openSUSE|SLES|Alpine|Arch|Gentoo|NixOS|macOS|Windows|FreeBSD|OpenBSD|NetBSD|PostgreSQL|SQLite|MySQL|MariaDB|Redis|Homebrew|Chocolatey|Scoop|winget|Snap|Flatpak|systemd|OpenRC|launchd|rc\.d|Grafana|Prometheus|OpenTelemetry|Graylog|Docker|Podman|Kubernetes|Helm|Ansible|Terraform|Vagrant|libvirt|KVM|QEMU|bhyve|VMM|WSL|LXD|LXC|OpenBAO|Vault|Keycloak|Okta|Entra|NGINX|Apache|PowerShell|WebSocket|OAuth|OpenID|GraphQL|gRPC|Bandit|SonarQube|SaltStack|SysManage|Enterprise SaaS|TypeScript|JavaScript|React|Node\.js|WebSockets?|REST|JSON|YAML|GitHub|GitLab|Bitbucket|ServiceNow|PagerDuty|Jira|Slack|WireGuard|OpenVPN|Cloudflare|AWS|Azure|GCP|LDAP|SAML|SCIM|JWT|TOTP|Trivy|Snyk|Semgrep|ESLint|Prettier|Pytest|Playwright|Vitest|FastAPI|SQLAlchemy|Alembic|Pydantic|Uvicorn|Gunicorn|Vite|IPv4|IPv6)|\s+[\w.+:#-]+){0,4}:?
+# Guarded with a negative lookahead: a label ("Enterprise SaaS Tier",
+# "Ansible Playbooks - Deployment automation") never contains two lowercase
+# words in a row, while a SENTENCE almost always does.  Without it the tail of
+# these two rules fullmatched ordinary prose -- "Open-source core you can
+# audit" and "SysManage agent reporting software inventory" were exempt in
+# every locale.  Same failure the two <strong>-label rules had.
+re:(?!.*\b[a-z]{2,}\s+[a-z]{2,}\b)(Unix|Linux|BSD|GNU|Ubuntu|Debian|RHEL|CentOS|Fedora|Rocky|AlmaLinux|Oracle Linux|openSUSE|SLES|Alpine|Arch|Gentoo|NixOS|macOS|Windows|FreeBSD|OpenBSD|NetBSD|PostgreSQL|SQLite|MySQL|MariaDB|Redis|Homebrew|Chocolatey|Scoop|winget|Snap|Flatpak|systemd|OpenRC|launchd|rc\.d|Grafana|Prometheus|OpenTelemetry|Graylog|Docker|Podman|Kubernetes|Helm|Ansible|Terraform|Vagrant|libvirt|KVM|QEMU|bhyve|VMM|WSL|LXD|LXC|OpenBAO|Vault|Keycloak|Okta|Entra|NGINX|Apache|PowerShell|WebSocket|OAuth|OpenID|GraphQL|gRPC|Bandit|SonarQube|SaltStack|SysManage|Enterprise SaaS|TypeScript|JavaScript|React|Node\.js|WebSockets?|REST|JSON|YAML|GitHub|GitLab|Bitbucket|ServiceNow|PagerDuty|Jira|Slack|WireGuard|OpenVPN|Cloudflare|AWS|Azure|GCP|LDAP|SAML|SCIM|JWT|TOTP|Trivy|Snyk|Semgrep|ESLint|Prettier|Pytest|Playwright|Vitest|FastAPI|SQLAlchemy|Alembic|Pydantic|Uvicorn|Gunicorn|Vite|IPv4|IPv6)(?:\s*[/,+-]?\s*(Unix|Linux|BSD|GNU|Ubuntu|Debian|RHEL|CentOS|Fedora|Rocky|AlmaLinux|Oracle Linux|openSUSE|SLES|Alpine|Arch|Gentoo|NixOS|macOS|Windows|FreeBSD|OpenBSD|NetBSD|PostgreSQL|SQLite|MySQL|MariaDB|Redis|Homebrew|Chocolatey|Scoop|winget|Snap|Flatpak|systemd|OpenRC|launchd|rc\.d|Grafana|Prometheus|OpenTelemetry|Graylog|Docker|Podman|Kubernetes|Helm|Ansible|Terraform|Vagrant|libvirt|KVM|QEMU|bhyve|VMM|WSL|LXD|LXC|OpenBAO|Vault|Keycloak|Okta|Entra|NGINX|Apache|PowerShell|WebSocket|OAuth|OpenID|GraphQL|gRPC|Bandit|SonarQube|SaltStack|SysManage|Enterprise SaaS|TypeScript|JavaScript|React|Node\.js|WebSockets?|REST|JSON|YAML|GitHub|GitLab|Bitbucket|ServiceNow|PagerDuty|Jira|Slack|WireGuard|OpenVPN|Cloudflare|AWS|Azure|GCP|LDAP|SAML|SCIM|JWT|TOTP|Trivy|Snyk|Semgrep|ESLint|Prettier|Pytest|Playwright|Vitest|FastAPI|SQLAlchemy|Alembic|Pydantic|Uvicorn|Gunicorn|Vite|IPv4|IPv6)|\s+[\w.+:#-]+){0,4}:?
 
 # --- product/tech NAME LISTS, with optional nav arrows.  A value that is only
 # product names joined by / , or + is untranslatable however many there are
