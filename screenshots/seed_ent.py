@@ -7,7 +7,7 @@
 
 Runs INSIDE the screenshot VM (imports the sysmanage ORM models, the authoritative
 schema) and writes deterministic COMPLETED-STATE rows straight into the engine
-result tables — same direct-to-DB philosophy as seed_pro.py, so every Enterprise
+result tables -- same direct-to-DB philosophy as seed_pro.py, so every Enterprise
 page looks populated without real topology (no live VMs / federated sites / ISOs).
 
 Run AFTER make screenshots-seed (demo hosts) and make screenshots-pro-seed (the Pro
@@ -19,7 +19,7 @@ Covers the Enterprise-only engines:
   automation           -> upgrade_profiles + saved_scripts + script_execution_log
   repository_mirroring -> mirror_repository + mirror_snapshot
   access_groups        -> access_groups + registration_keys
-  virtualization       -> host_child (VM types: kvm/bhyve — leaves seed_pro's lxd/wsl alone)
+  virtualization       -> host_child (VM types: kvm/bhyve -- leaves seed_pro's lxd/wsl alone)
   observability        -> grafana_integration_settings + graylog_integration_settings
   external_idp         -> external_idp_provider + idp_role_mapping + external_idp_settings
   federation           -> federation_sites + federation_host_directory
@@ -27,7 +27,7 @@ Covers the Enterprise-only engines:
                           + airgap_local_repository + airgap_agent_channel_mirror
 
 Idempotent: clears the rows it manages (FK-safe order) then re-inserts.
-NOTE: fleet_engine has NO OSS model (engine-owned tables) — its host-detail tab is
+NOTE: fleet_engine has NO OSS model (engine-owned tables) -- its host-detail tab is
 not seeded here.
 """
 import json
@@ -74,7 +74,7 @@ from backend.persistence.models import (
     UpgradeProfile,
     User,
 )
-# Content-lifecycle models (Phase 16) — re-exported via models/__init__.
+# Content-lifecycle models (Phase 16) -- re-exported via models/__init__.
 from backend.persistence.models import (
     ContentPromotionAudit,
     ContentViewExportRun,
@@ -86,7 +86,7 @@ from backend.persistence.models import (
     SharedContentViewVersion,
     SharedLifecycleEnvironment,
 )
-# Air-gap models aren't re-exported from the package __init__ — import directly.
+# Air-gap models aren't re-exported from the package __init__ -- import directly.
 from backend.persistence.models.airgap import (
     AirgapAgentChannelMirror,
     AirgapCollectionRun,
@@ -116,7 +116,7 @@ AV_DEFAULTS = [  # (os_name, antivirus_package)
     ("Ubuntu", "clamav"), ("Debian", "clamav"), ("Fedora", "clamav"),
     ("FreeBSD", "clamav"), ("macOS", "clamav"), ("Windows", "windows-defender"),
 ]
-# per host: (software_name, version, enabled) — linux/bsd/mac use ClamAV
+# per host: (software_name, version, enabled) -- linux/bsd/mac use ClamAV
 AV_STATUS = {
     "ubuntu-web-01.corp.northstar.io": ("ClamAV", "1.0.5", True),
     "rhel-db-01.corp.northstar.io": ("ClamAV", "1.0.5", True),
@@ -165,9 +165,9 @@ SCRIPT_RUNS = [
 
 # ---- upgrade profiles ------------------------------------------------------
 UPGRADE_PROFILES = [  # (name, description, cron, security_only, last_status, mgrs)
-    ("Weekly security — Sat 02:00", "Security-only updates every Saturday at 02:00.",
+    ("Weekly security -- Sat 02:00", "Security-only updates every Saturday at 02:00.",
      "0 2 * * 6", True, "SUCCESS", "apt,dnf"),
-    ("Monthly full — 1st 03:00", "All pending updates on the first of the month.",
+    ("Monthly full -- 1st 03:00", "All pending updates on the first of the month.",
      "0 3 1 * *", False, "SUCCESS", None),
     ("Nightly desktops", "Nightly updates for workstation hosts.",
      "0 1 * * *", False, "SKIPPED", "apt"),
@@ -272,7 +272,7 @@ WINDOWS_VM = {
 
 # The create dialog only offers what is in child_host_distribution, so these
 # must exist for the Windows path to appear.  install_identifier is the token
-# the engine dispatches on — load-bearing, not display text.
+# the engine dispatches on -- load-bearing, not display text.
 WINDOWS_DISTRIBUTIONS = [
     ("2022", "Windows Server 2022 LTSC", "windows-server-2022"),
     ("2025", "Windows Server 2025", "windows-server-2025"),
@@ -294,7 +294,7 @@ PROVISIONING_RESOURCES = [
 
 # ---- bare-metal provisioning (Phase 18.2) ----------------------------------
 # The install-source catalog: what a machine can be netbooted INTO.  template_type
-# is derived from os_family (preseed/autoinstall/kickstart/autoyast/bsdinstall) —
+# is derived from os_family (preseed/autoinstall/kickstart/autoyast/bsdinstall) --
 # picking it wrongly is what leaves an install sitting at an interactive prompt.
 INSTALL_SOURCES = [
     # (name, os_family, version, arch, tree, kernel, initrd, template_type)
@@ -365,9 +365,9 @@ AIRGAP_REPOS = [  # (distro, version, repo_url, package_count, age_hours)
 # package is built on the target and there is nothing to mirror.
 AGENT_CHANNEL_MIRRORS = [  # (channel, mirror_url, notes)
     ("ppa", "https://mirror.corp.internal/sysmanage/apt",
-     "Ubuntu — replaces the Launchpad PPA"),
+     "Ubuntu -- replaces the Launchpad PPA"),
     ("sysmanage-apt", "https://mirror.corp.internal/sysmanage/apt-debian",
-     "Debian — the PPA publishes Ubuntu series only"),
+     "Debian -- the PPA publishes Ubuntu series only"),
     ("copr", "https://mirror.corp.internal/sysmanage/rpm",
      "Covers Fedora, RHEL, Rocky and Alma"),
     ("obs", "https://mirror.corp.internal/sysmanage/suse",
@@ -393,13 +393,13 @@ def main():
             for h in session.query(Host).filter(Host.fqdn.in_(DEMO_FQDNS)).all()
         }
         if not hosts:
-            print("  no demo hosts present — run make screenshots-seed first")
+            print("  no demo hosts present -- run make screenshots-seed first")
             return
         missing = [f for f in DEMO_FQDNS if f not in hosts]
         if missing:
             print(f"  WARNING: demo hosts not found: {missing}")
 
-        # UUID of the admin user — for GUID created_by columns that are FKs to
+        # UUID of the admin user -- for GUID created_by columns that are FKs to
         # `user` (FirewallRole, HostFirewallRole, AirgapCollectionRun). String
         # created_by columns (SavedScript, ScriptExecutionLog) keep the email.
         admin = (
@@ -423,15 +423,15 @@ def main():
             GrafanaIntegrationSettings, GraylogIntegrationSettings,
             AirgapMediaManifest, AirgapCollectionTarget, AirgapCollectionRun,
             AirgapLocalRepository, AirgapAgentChannelMirror,
-            # Content lifecycle (Phase 16) — children before parents.
+            # Content lifecycle (Phase 16) -- children before parents.
             ContentPromotionAudit, EnvironmentContentBinding,
             EnvironmentSiteSubscription, ContentViewExportRun,
             SharedContentViewVersion, SharedContentViewFilter,
             SharedContentViewRepo, SharedContentView, SharedLifecycleEnvironment,
             MirrorSettings,
-            # Provisioning (Phase 18) — jobs before compute_resource (FK).
+            # Provisioning (Phase 18) -- jobs before compute_resource (FK).
             ProvisioningJob, ComputeResource,
-            # Bare metal (18.2) — assignments reference install_source (FK).
+            # Bare metal (18.2) -- assignments reference install_source (FK).
             HostInstallAssignment, InstallSource, DiscoveredHost,
         ):
             session.query(model).delete()
@@ -444,7 +444,7 @@ def main():
         # --- antivirus ---
         # Configure a default AV package for EVERY OS that already has an
         # antivirus_default row (migration-seeded) rather than wiping the set and
-        # inserting a few — otherwise most OSes render "None". ClamAV is the
+        # inserting a few -- otherwise most OSes render "None". ClamAV is the
         # cross-platform default; Windows (if present) keeps its own default.
         for d in session.query(AntivirusDefault).all():
             if (d.os_name or "").lower().startswith("windows"):
@@ -541,7 +541,7 @@ def main():
         # Phase 10.4.2: every mirror hangs off a per-platform config (the host that
         # runs that platform's mirror plans).  WITHOUT it the Repository Mirroring
         # UI shows the empty "Configure {platform} mirroring" form and never the
-        # mirror list — so its per-row Tracked snaps / Tracked images expanders
+        # mirror list -- so its per-row Tracked snaps / Tracked images expanders
         # (and their screenshots) never appear.  One config per package manager.
         platform_configs = {}
         for name, mgr, upstream, suite, comps, arch, size, files in MIRRORS:
@@ -593,8 +593,8 @@ def main():
 
         # The Repository Mirroring card sits behind a setup-probe gate: until a
         # MirrorSetupStatus row reports the required tools "present" for the tab's
-        # package manager, PlatformPanel greys the whole card with
-        # pointer-events:none — the per-row "Tracked snaps"/"Tracked images"
+        # package manager, PlatformPanel grays the whole card with
+        # pointer-events:none -- the per-row "Tracked snaps"/"Tracked images"
         # toggles are in the DOM but UNCLICKABLE, so the screenshot capture times
         # out and skips.  Seed a ready probe for the mirror host (all PMs' tools
         # present) so every platform sub-tab's card is interactive.
@@ -715,7 +715,7 @@ def main():
         # --- virtualization VMs (KVM/bhyve child hosts) ---
         # Create buttons are disabled unless the parent reports privileged
         # mode; is_agent_privileged defaults to False and nothing else seeds it,
-        # so every demo host showed a greyed-out "Create VM".
+        # so every demo host showed a grayed-out "Create VM".
         for parent_fqdn in {v[0] for v in VMS} | {WINDOWS_VM["parent_fqdn"]}:
             if parent_fqdn in hosts:
                 hosts[parent_fqdn].is_agent_privileged = True
@@ -771,7 +771,7 @@ def main():
         session.add(run)
         session.flush()
         for i, (distro, ver, repos, byts, files) in enumerate(AIRGAP_TARGETS):
-            # mirror_id must be a non-empty mirror id — the runs API serializes it
+            # mirror_id must be a non-empty mirror id -- the runs API serializes it
             # into RunTargetSpec (min_length=1) and 500s on an empty string.
             session.add(AirgapCollectionTarget(
                 run_id=run.id, distro=distro, version=ver, repos=repos,

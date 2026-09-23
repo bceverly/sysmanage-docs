@@ -6,7 +6,7 @@
 """REST seeder for the SysManage documentation screenshots.
 
 Injects the deterministic demo data from ``fixtures.json`` into a *running*
-SysManage instance through the REST API only — host records, available updates,
+SysManage instance through the REST API only -- host records, available updates,
 tags + assignments, and users. Per-host OS/inventory (which has no REST ingestion
 path) is reported separately by ``fixture_agent.py`` over the agent WebSocket.
 
@@ -22,7 +22,7 @@ Grounded in the live API:
   POST /tags  /  POST /hosts/{id}/tags/{tag_id}
   POST /user
 
-Idempotency: re-running is safe-ish — it tolerates "already exists" responses and
+Idempotency: re-running is safe-ish -- it tolerates "already exists" responses and
 matches existing hosts/tags/users by their natural keys.
 
 Usage:
@@ -114,7 +114,7 @@ def register_and_approve_hosts(token: str, hosts: list[dict]) -> dict[str, str]:
             print(f"  host exists: {h['fqdn']}")
             continue
         # ``agent_capabilities`` rides the real registration payload, exactly as
-        # a live agent sends it — so the host-detail Capabilities card and the
+        # a live agent sends it -- so the host-detail Capabilities card and the
         # hosts-list Limited badge are populated through the same ingestion path
         # users exercise, not by writing the columns directly.  The per-platform
         # profiles in fixtures.json mirror what the agent's runtime probes
@@ -136,7 +136,7 @@ def register_and_approve_hosts(token: str, hosts: list[dict]) -> dict[str, str]:
             host_id = next((str(x["id"]) for x in (lst or []) if x.get("fqdn") == h["fqdn"]), "")
         if host_id:
             fqdn_to_id[h["fqdn"]] = host_id
-            # A host with "approve": false stays pending — it demonstrates the
+            # A host with "approve": false stays pending -- it demonstrates the
             # agent-approval queue on the Hosts page.
             if h.get("approve", True) is False:
                 print(f"  registered (PENDING approval): {h['fqdn']} ({host_id})")

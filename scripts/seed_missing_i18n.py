@@ -9,7 +9,7 @@ When a page is written with ``data-i18n="..."`` attributes already in place,
 ``i18n_autotag.py`` treats every element as already-tagged and never seeds the
 locale store, so ``i18n_validate.py --seed`` fills each key with a
 ``[MISSING:<key>]`` placeholder in all 14 locales.  ``translate_i18n.py`` only
-fills ``[TODO]`` gaps, so those pages can never be translated — they render the
+fills ``[TODO]`` gaps, so those pages can never be translated -- they render the
 HTML English everywhere.
 
 This script fixes that by, for every key whose en.json value is a
@@ -24,7 +24,7 @@ This script fixes that by, for every key whose en.json value is a
     uses ``innerHTML``); otherwise storing plain text (``textContent``),
   * writing en.json = English and the 13 other locales = ``[TODO] <English>``.
 
-Idempotent: only ``[MISSING:...]`` / absent leaves are touched — real
+Idempotent: only ``[MISSING:...]`` / absent leaves are touched -- real
 translations and existing ``[TODO]`` gaps are left alone.  After running,
 ``make translate`` fills the fresh ``[TODO]`` gaps on the GPU service.
 """

@@ -57,7 +57,7 @@ HTML
 
 # to_jpg <in.png> <out.jpg>
 # LinkedIn re-encodes uploads and advises a high-resolution JPEG over a PNG for
-# cover images. 4:4:4 sampling keeps the coloured OS-list text from smearing.
+# cover images. 4:4:4 sampling keeps the colored OS-list text from smearing.
 to_jpg() {
     magick "$1" -quality 92 -sampling-factor 4:4:4 -strip "$2"
     echo "  $2 ($(magick identify -format '%wx%h, %b' "$2"))"

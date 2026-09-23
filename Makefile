@@ -3,7 +3,7 @@
 
 # Pin the shell FIRST, before any $(shell ...) below runs.  This repo's recipes
 # are POSIX sh (unlike the sibling sysmanage repos, whose Windows recipes are cmd
-# batch), so Windows needs Git Bash — named explicitly so the shell is
+# batch), so Windows needs Git Bash -- named explicitly so the shell is
 # deterministic and independent of PATH.  Override if Git is elsewhere:
 #   make SHELL=C:/path/to/bash.exe <target>
 # Kept above the UNAME_S/UNAME_M probes on purpose: those are immediate ($(shell)
@@ -27,7 +27,7 @@ ifeq ($(OS),Windows_NT)
     NPX := npx.cmd
     NODE := node.exe
     # On Windows, bare `python3` hits the Microsoft Store app-execution-alias stub
-    # ("Python was not found") — use the py launcher instead.
+    # ("Python was not found") -- use the py launcher instead.
     PYTHON := py
 else ifeq ($(UNAME_S),Darwin)
     PLATFORM := macos
@@ -60,9 +60,9 @@ endif
 # ``python3``; on systems that only ship a versioned binary (e.g. NetBSD, where the
 # interpreter is ``python3.13`` with no ``python3`` symlink) fall back to the newest
 # versioned one. ``?=`` leaves the Windows ``py`` untouched, and where ``python3``
-# exists (Linux/macOS/*BSD) this resolves to it — so nothing else changes.
+# exists (Linux/macOS/*BSD) this resolves to it -- so nothing else changes.
 # Prefer this repo's own ./.venv when it exists, so the interpreter is
-# deterministic rather than "whatever an activated venv put on PATH" — working
+# deterministic rather than "whatever an activated venv put on PATH" -- working
 # in one repo with another repo's venv active otherwise silently changes which
 # Python runs these scripts.
 PYTHON ?= $(shell if [ -x ./.venv/bin/python3 ]; then echo ./.venv/bin/python3; else for p in python3 python3.14 python3.13 python3.12 python3.11; do command -v $$p >/dev/null 2>&1 && { echo $$p; exit 0; }; done; echo python3; fi)
@@ -70,13 +70,13 @@ PYTHON ?= $(shell if [ -x ./.venv/bin/python3 ]; then echo ./.venv/bin/python3; 
 # Colours for output.  The recipes print these with `echo`, so the values must be
 # REAL escape bytes, not the two-character text "\033": not every /bin/sh expands
 # that.  FreeBSD's and NetBSD's ash take octal only as \0ddd, so "\033[33m" came
-# out verbatim there — while OpenBSD ksh, Linux dash and macOS sh do expand it,
+# out verbatim there -- while OpenBSD ksh, Linux dash and macOS sh do expand it,
 # which is why only those two BSDs showed the raw codes.  $(shell printf ...)
 # settles it once, at parse time, for every shell.
 #
-# Windows MUST be tested first and must never reach the $(shell) — it does not
+# Windows MUST be tested first and must never reach the $(shell) -- it does not
 # degrade gracefully there.  Measured on the X13s: with SHELL pinned to Git Bash
-# it dies noisily once per colour ("process_begin: CreateProcess(NULL, printf
+# it dies noisily once per color ("process_begin: CreateProcess(NULL, printf
 # ..., ...) failed" + "pipe: Bad file descriptor"), and without the pin it
 # silently mangles the value to the literal "033[32m".  Git Bash's echo wouldn't
 # expand \033 anyway, so Windows takes the monochrome branch by design.
@@ -236,28 +236,28 @@ install-dev: check-deps
 		echo "$(YELLOW)(npm prefix $$NPM_PREFIX is not user-writable; using sudo)$(RESET)"; \
 	fi; \
 	command -v markdownlint-cli2 >/dev/null 2>&1 && echo "$(GREEN)✓ markdownlint-cli2 already installed$(RESET)" || $$SUDO $(NPM) install -g markdownlint-cli2; \
-	command -v pa11y >/dev/null 2>&1 && echo "$(GREEN)✓ pa11y already installed$(RESET)" || $$SUDO $(NPM) install -g pa11y || echo "$(YELLOW)⊘ pa11y unavailable (no OpenBSD Chrome) — skipping$(RESET)"; \
+	command -v pa11y >/dev/null 2>&1 && echo "$(GREEN)✓ pa11y already installed$(RESET)" || $$SUDO $(NPM) install -g pa11y || echo "$(YELLOW)⊘ pa11y unavailable (no OpenBSD Chrome) -- skipping$(RESET)"; \
 	command -v http-server >/dev/null 2>&1 && echo "$(GREEN)✓ http-server already installed$(RESET)" || $$SUDO $(NPM) install -g http-server
 	@echo "$(GREEN)✓ npm global tools installed$(RESET)"
 	@echo ""
 	@# pa11y bundles puppeteer-core, which needs a Chrome binary downloaded
 	@# separately into ~/.cache/puppeteer.  Without this, `make test-accessibility`
-	@# fails with "Could not find Chrome (ver. ...)" — the Playwright chromium
+	@# fails with "Could not find Chrome (ver. ...)" -- the Playwright chromium
 	@# from `make install-browsers` lives in a different cache dir and isn't
 	@# discoverable by puppeteer-core.
 	@echo "$(YELLOW)Installing puppeteer Chrome for pa11y...$(RESET)"
 	@if ! command -v pa11y >/dev/null 2>&1; then \
-		echo "$(YELLOW)⊘ pa11y not installed (no OpenBSD Chrome) — skipping puppeteer Chrome$(RESET)"; \
+		echo "$(YELLOW)⊘ pa11y not installed (no OpenBSD Chrome) -- skipping puppeteer Chrome$(RESET)"; \
 	elif [ -d "$$HOME/.cache/puppeteer/chrome" ] && [ -n "$$(ls -A $$HOME/.cache/puppeteer/chrome 2>/dev/null)" ]; then \
 		echo "$(GREEN)✓ puppeteer Chrome already installed in ~/.cache/puppeteer$(RESET)"; \
 	else \
-		$(NPX) puppeteer browsers install chrome || echo "$(YELLOW)⊘ puppeteer Chrome install failed — skipping (accessibility tests will skip)$(RESET)"; \
+		$(NPX) puppeteer browsers install chrome || echo "$(YELLOW)⊘ puppeteer Chrome install failed -- skipping (accessibility tests will skip)$(RESET)"; \
 	fi
 	@echo ""
 	@# --- Cargo tools (typos, lychee) ---
 	@echo "$(YELLOW)Installing cargo tools (typos-cli, lychee)...$(RESET)"
 	@if ! command -v cargo >/dev/null 2>&1; then \
-		echo "$(YELLOW)⊘ cargo not installed — skipping typos/lychee (Rust tools; unavailable on OpenBSD). Their checks will be skipped by 'make test'.$(RESET)"; \
+		echo "$(YELLOW)⊘ cargo not installed -- skipping typos/lychee (Rust tools; unavailable on OpenBSD). Their checks will be skipped by 'make test'.$(RESET)"; \
 	else \
 		command -v typos >/dev/null 2>&1 && echo "$(GREEN)✓ typos already installed$(RESET)" || cargo install typos-cli@1.42.3 --locked; \
 		command -v lychee >/dev/null 2>&1 && echo "$(GREEN)✓ lychee already installed$(RESET)" || cargo install lychee; \
@@ -274,7 +274,7 @@ install-dev: check-deps
 			echo "Installing vale via snap..."; \
 			sudo snap install vale; \
 		else \
-			echo "$(YELLOW)⊘ vale not auto-installable on this platform (no OpenBSD build) — skipping. Manual: https://vale.sh/docs/install$(RESET)"; \
+			echo "$(YELLOW)⊘ vale not auto-installable on this platform (no OpenBSD build) -- skipping. Manual: https://vale.sh/docs/install$(RESET)"; \
 		fi; \
 	}
 	@echo "$(GREEN)✓ Vale step complete$(RESET)"
@@ -282,7 +282,7 @@ install-dev: check-deps
 	@# --- Python lint tooling (pylint + bandit) for ``make lint`` ---
 	@echo "$(YELLOW)Installing Python lint tools (pylint, bandit) into $(LINT_VENV)...$(RESET)"
 	@$(MAKE) --no-print-directory ensure-lint-tools \
-		|| echo "$(YELLOW)⊘ lint venv bootstrap failed — see requirements-dev.txt for 'make lint'$(RESET)"
+		|| echo "$(YELLOW)⊘ lint venv bootstrap failed -- see requirements-dev.txt for 'make lint'$(RESET)"
 	@echo "$(GREEN)✓ Python lint tools step complete$(RESET)"
 	@echo ""
 	@# --- JS lint tooling (eslint flat config) for ``make lint`` ---
@@ -315,17 +315,17 @@ install-hooks:
 		echo "Active hooks:"; \
 		ls -1 .githooks/ 2>/dev/null | grep -v '^README' | sed 's/^/  /' || true; \
 	else \
-		echo "$(YELLOW)[INFO] Not in a git working tree — skipping hook install.$(RESET)"; \
+		echo "$(YELLOW)[INFO] Not in a git working tree -- skipping hook install.$(RESET)"; \
 	fi
 
 # Screenshot-pipeline VM prerequisites: Vagrant + libvirt/KVM + the vagrant-libvirt
-# plugin. Idempotent (skips what's already present). apt/Linux only — on other
+# plugin. Idempotent (skips what's already present). apt/Linux only -- on other
 # platforms it prints manual guidance (see screenshots/README.md) without failing.
 # Called by install-dev; also runnable standalone.
 install-vm-deps:
 	@echo "$(YELLOW)Installing screenshot VM prerequisites (Vagrant + libvirt)...$(RESET)"
 	@if ! command -v apt-get >/dev/null 2>&1; then \
-		echo "$(YELLOW)Not an apt-based system — install Vagrant + a VM provider manually:$(RESET)"; \
+		echo "$(YELLOW)Not an apt-based system -- install Vagrant + a VM provider manually:$(RESET)"; \
 		echo "  see screenshots/README.md -> Prerequisites"; \
 	else \
 		if command -v vagrant >/dev/null 2>&1; then \
@@ -343,7 +343,7 @@ install-vm-deps:
 			echo "$(GREEN)✓ already in libvirt group$(RESET)"; \
 		else \
 			sudo usermod -aG libvirt "$$USER"; \
-			echo "$(YELLOW)Added $$USER to 'libvirt' — log out/in (or 'newgrp libvirt') before 'make screenshots'.$(RESET)"; \
+			echo "$(YELLOW)Added $$USER to 'libvirt' -- log out/in (or 'newgrp libvirt') before 'make screenshots'.$(RESET)"; \
 		fi; \
 		if vagrant plugin list 2>/dev/null | grep -q vagrant-libvirt; then \
 			echo "$(GREEN)✓ vagrant-libvirt plugin already installed$(RESET)"; \
@@ -362,7 +362,7 @@ install-browsers:
 		exit 1; \
 	fi
 	@if [ "$$(uname -s)" = "OpenBSD" ] || [ "$$(uname -s)" = "NetBSD" ] || [ "$$(uname -s)" = "FreeBSD" ]; then \
-		echo "$(YELLOW)⊘ Playwright has no $$(uname -s) browser build — skipping Chromium install. Screenshots run on Linux/macOS/Windows.$(RESET)"; \
+		echo "$(YELLOW)⊘ Playwright has no $$(uname -s) browser build -- skipping Chromium install. Screenshots run on Linux/macOS/Windows.$(RESET)"; \
 	else \
 		echo "$(YELLOW)Installing Chromium browser...$(RESET)"; \
 		$(NPX) playwright install chromium; \
@@ -411,18 +411,18 @@ SCREENSHOT_ADMIN_PW ?= ChangeMe-Dev-Only!
 SCREENSHOT_PW ?= ChangeMe-Dev-Only!
 
 # Lifecycle toggle:
-#   FRESH=0 (default, while we get it working) — reuse/keep the VM. Idempotent:
+#   FRESH=0 (default, while we get it working) -- reuse/keep the VM. Idempotent:
 #       re-running just re-seeds + re-captures against the running VM, and leaves
 #       it up so you can inspect it. `vagrant up` won't re-provision a live VM.
-#   FRESH=1 (once a full end-to-end run works) — destroy any existing VM first for
+#   FRESH=1 (once a full end-to-end run works) -- destroy any existing VM first for
 #       a clean slate, then tear it down again at the end. This is the intended
 #       steady state (run at the end of a feature phase); flip the default below
 #       to 1 when you're ready, or run `make screenshots FRESH=1`.
 FRESH ?= 0
 
 # Full pass: (optional clean) -> VM up -> seed -> capture into assets/images/.
-# Capture EVERY tier in sequence — Community Edition (OSS) -> Professional ->
-# Enterprise — re-provisioning + re-licensing the VM between each, then DESTROY the
+# Capture EVERY tier in sequence -- Community Edition (OSS) -> Professional ->
+# Enterprise -- re-provisioning + re-licensing the VM between each, then DESTROY the
 # VM at the end on success. Long run: each tier re-provisions the box and
 # Cython-builds the engines. A failure stops the chain and LEAVES the VM up for
 # debugging (teardown only runs on full success). For quick single-tier iteration
@@ -455,14 +455,14 @@ screenshots:
 	@$(MAKE) screenshots-fleet-seed
 	@$(MAKE) screenshots-ent-capture
 	@$(MAKE) screenshots-ent-roles
-	@echo "$(BLUE)All tiers captured — destroying the VM...$(RESET)"
+	@echo "$(BLUE)All tiers captured -- destroying the VM...$(RESET)"
 	@$(MAKE) screenshots-vm-down
 	@echo "$(GREEN)✓ All-tier screenshots refreshed in assets/images/; VM destroyed.$(RESET)"
 
-# Community Edition (OSS) tier only — quick single-tier iteration. The VM is left
+# Community Edition (OSS) tier only -- quick single-tier iteration. The VM is left
 # running for fast re-runs; FRESH=1 destroys + reprovisions first and tears down
 # after. (This was the old behavior of `make screenshots`.)
-# Enterprise tier only — the same chain `screenshots` runs for [3/3], as a
+# Enterprise tier only -- the same chain `screenshots` runs for [3/3], as a
 # single resumable target.  `screenshots` builds all three tiers in sequence, so
 # a failure in the Enterprise stage (e.g. the first-boot apt-lock race) otherwise
 # means re-running the OSS and Professional VMs from scratch to get back to it.
@@ -508,7 +508,7 @@ screenshots-community:
 screenshots-vm-up:
 	@command -v vagrant >/dev/null 2>&1 || { \
 		echo "$(RED)Vagrant is not installed.$(RESET)"; \
-		echo "Install Vagrant + a VM provider (libvirt recommended on Linux) —"; \
+		echo "Install Vagrant + a VM provider (libvirt recommended on Linux) --"; \
 		echo "see screenshots/README.md → Prerequisites. Quick version:"; \
 		echo "  wget -O- https://apt.releases.hashicorp.com/gpg | sudo gpg --dearmor -o /usr/share/keyrings/hashicorp-archive-keyring.gpg"; \
 		echo "  echo \"deb [signed-by=/usr/share/keyrings/hashicorp-archive-keyring.gpg] https://apt.releases.hashicorp.com $$(lsb_release -cs) main\" | sudo tee /etc/apt/sources.list.d/hashicorp.list"; \
@@ -551,7 +551,7 @@ screenshots-pro-build:
 # Vagrant snapshots each synced folder's config into
 # .vagrant/machines/<name>/<provider>/synced_folders at `vagrant up` and REUSES
 # that snapshot on every later `vagrant rsync` / `vagrant up --provision`.
-# Editing the Vagrantfile therefore does nothing to a VM that already exists —
+# Editing the Vagrantfile therefore does nothing to a VM that already exists --
 # which is how an excluded 12 GB agent.db kept being copied into the guest long
 # after it was excluded, filling the disk with an error that named the file and
 # not the reason.  Detect the drift and say exactly what to do about it.
@@ -606,8 +606,8 @@ screenshots-ent-build: screenshots-check-vm-config
 # Seed fleet_engine demo data (groups / bulk / rolling) via the licensed Pro+ fleet
 # REST API so the host-detail Fleet tab isn't empty. fleet_engine owns its tables
 # internally (no ORM model / no migration in source), so unlike the other seeders this
-# MUST go through the engine's own endpoints. seed_fleet.py is defensive — it skips on
-# 402/errors and never fails — so this is safe to call in the Enterprise pass only.
+# MUST go through the engine's own endpoints. seed_fleet.py is defensive -- it skips on
+# 402/errors and never fails -- so this is safe to call in the Enterprise pass only.
 screenshots-fleet-seed:
 	@cd $(SHOTS_DIR) && API="$(SCREENSHOT_TARGET_API)"; \
 		if [ -z "$$API" ]; then \
@@ -635,13 +635,13 @@ screenshots-seed:
 			cat seed_inventory.sql seed_geo.sql | vagrant ssh -c "sudo -u postgres psql -d sysmanage -v ON_ERROR_STOP=1 -q" 2>/dev/null \
 				| sed 's/^/  /' || echo "$(YELLOW)direct seed skipped (could not reach VM psql)$(RESET)"; \
 		else \
-			echo "$(YELLOW)External target set — skipping direct SQL seed (VM-only).$(RESET)"; \
+			echo "$(YELLOW)External target set -- skipping direct SQL seed (VM-only).$(RESET)"; \
 		fi
 
 # Seed Professional-tier engine demo data (vulnerabilities, compliance, health,
 # alerts, containers, secrets) straight into the engine result tables via the
 # ORM, run INSIDE the Pro VM. Requires a Pro-licensed VM (make screenshots-pro-build)
-# AND the OSS hosts seeded first (make screenshots-seed) — engine data attaches to
+# AND the OSS hosts seeded first (make screenshots-seed) -- engine data attaches to
 # those demo hosts. VM-only (needs the in-VM DB + models).
 screenshots-pro-seed:
 	@cd $(SHOTS_DIR) && VMIP=$$(vagrant ssh -c 'hostname -I' 2>/dev/null | awk '{print $$1}' | tr -d '\r'); \
@@ -793,7 +793,7 @@ prune-repo-dry:
 
 prune-repo:
 	@aws s3 sync s3://$(R2_BUCKET)/ repo/ $(_R2_ARGS)
-	@test "$$(find repo -type f 2>/dev/null | wc -l)" -gt 50 || { echo "ERROR: R2 pull returned <50 files — refusing to prune + --delete (a bad/empty pull could wipe the bucket)"; exit 1; }
+	@test "$$(find repo -type f 2>/dev/null | wc -l)" -gt 50 || { echo "ERROR: R2 pull returned <50 files -- refusing to prune + --delete (a bad/empty pull could wipe the bucket)"; exit 1; }
 	@KEEP=5 DRY_RUN=0 ./scripts/prune-package-repo.sh
 	@aws s3 sync repo/ s3://$(R2_BUCKET)/ $(_R2_ARGS) --size-only --delete
 	@# --size-only above is right for package FILES (large, immutable, and a
@@ -828,15 +828,15 @@ check-test-deps:
 	command -v http-server >/dev/null 2>&1 && echo "$(GREEN)✓ http-server found$(RESET)" || { echo "$(RED)✗ http-server not found (install: npm install -g http-server)$(RESET)"; MISSING=1; }; \
 	for t in typos vale pa11y lychee; do \
 		if command -v $$t >/dev/null 2>&1; then echo "$(GREEN)✓ $$t found$(RESET)"; \
-		else echo "$(YELLOW)○ $$t not found — its checks will be skipped (no build for this platform, e.g. OpenBSD)$(RESET)"; fi; \
+		else echo "$(YELLOW)○ $$t not found -- its checks will be skipped (no build for this platform, e.g. OpenBSD)$(RESET)"; fi; \
 	done; \
-	if [ $$MISSING -ne 0 ]; then echo ""; echo "$(YELLOW)Required tools (markdownlint-cli2, http-server) missing — install them before 'make test'.$(RESET)"; exit 1; fi
+	if [ $$MISSING -ne 0 ]; then echo ""; echo "$(YELLOW)Required tools (markdownlint-cli2, http-server) missing -- install them before 'make test'.$(RESET)"; exit 1; fi
 	@echo "$(GREEN)Testing dependency check complete (browser/Rust tools optional)$(RESET)"
 
 # Spell checking (mirrors .github/workflows/spellcheck.yml)
 test-spelling:
 	@echo "$(BLUE)=== Spell Check ===$(RESET)"
-	@command -v typos >/dev/null 2>&1 || { echo "$(YELLOW)⊘ typos not installed — skipping (no OpenBSD/BSD build)$(RESET)"; exit 0; }; \
+	@command -v typos >/dev/null 2>&1 || { echo "$(YELLOW)⊘ typos not installed -- skipping (no OpenBSD/BSD build)$(RESET)"; exit 0; }; \
 	typos && echo "$(GREEN)✓ Spell check passed$(RESET)"
 
 # Markdown linting (mirrors .github/workflows/markdown-lint.yml)
@@ -851,11 +851,11 @@ test-vale:
 	@# Vale's exit code only reflects ERRORS; warnings (MinAlertLevel=warning in
 	@# .vale.ini) are displayed but don't fail the build, so they can scroll past
 	@# unnoticed. Capture the run and fail if the summary reports any warnings or
-	@# errors — no warning hides.
-	@command -v vale >/dev/null 2>&1 || { echo "$(YELLOW)⊘ vale not installed — skipping (no OpenBSD build)$(RESET)"; exit 0; }; \
+	@# errors -- no warning hides.
+	@command -v vale >/dev/null 2>&1 || { echo "$(YELLOW)⊘ vale not installed -- skipping (no OpenBSD build)$(RESET)"; exit 0; }; \
 	out=$$(vale docs 2>&1); echo "$$out"; \
 		if echo "$$out" | grep -qE '[1-9][0-9]* (error|warning)'; then \
-			echo "$(RED)✗ Vale reported warnings/errors (failing — warnings are not allowed to hide)$(RESET)"; \
+			echo "$(RED)✗ Vale reported warnings/errors (failing -- warnings are not allowed to hide)$(RESET)"; \
 			exit 1; \
 		fi; \
 	echo "$(GREEN)✓ Vale style check passed$(RESET)"
@@ -871,9 +871,9 @@ test-vale:
 #      and trap cleanup so this run never leaves a zombie either.
 test-accessibility:
 	@echo "$(BLUE)=== Accessibility Check ===$(RESET)"
-	@command -v pa11y >/dev/null 2>&1 || { echo "$(YELLOW)⊘ pa11y/Chrome not available — skipping accessibility (no OpenBSD browser)$(RESET)"; exit 0; }; \
+	@command -v pa11y >/dev/null 2>&1 || { echo "$(YELLOW)⊘ pa11y/Chrome not available -- skipping accessibility (no OpenBSD browser)$(RESET)"; exit 0; }; \
 	if [ ! -d "$$HOME/.cache/puppeteer/chrome" ] || [ -z "$$(ls -A $$HOME/.cache/puppeteer/chrome 2>/dev/null)" ]; then \
-		echo "$(YELLOW)puppeteer Chrome missing — installing...$(RESET)"; \
+		echo "$(YELLOW)puppeteer Chrome missing -- installing...$(RESET)"; \
 		$(NPX) puppeteer browsers install chrome; \
 	fi; \
 	PORT_HOLDER=$$(lsof -ti :8087 2>/dev/null); \
@@ -909,7 +909,7 @@ test-accessibility:
 # Link checking (mirrors .github/workflows/link-check.yml)
 test-links:
 	@echo "$(BLUE)=== Link Check ===$(RESET)"
-	@command -v lychee >/dev/null 2>&1 || { echo "$(YELLOW)⊘ lychee not installed — skipping (no OpenBSD/BSD build)$(RESET)"; exit 0; }; \
+	@command -v lychee >/dev/null 2>&1 || { echo "$(YELLOW)⊘ lychee not installed -- skipping (no OpenBSD/BSD build)$(RESET)"; exit 0; }; \
 	lychee --verbose --no-progress --root-dir . --max-retries 3 --retry-wait-time 2 --exclude-path node_modules --exclude-path .git --exclude-path SignPath --exclude 'http://localhost:*' '**/*.md' '**/*.html' && echo "$(GREEN)✓ Link check passed$(RESET)"
 
 # Run all tests (mirrors full CI/CD test suite).
@@ -922,12 +922,12 @@ test: check-test-deps test-spelling test-markdown-lint test-vale test-accessibil
 	@echo "$(GREEN)========================================$(RESET)"
 
 # Lightweight gate the shared pre-push hook runs (it invokes ``make lint`` in
-# every repo with a ``lint:`` target).  Keeps the i18n checks — key existence
-# AND offline translation completeness — out of the heavy ``test`` target so an
+# every repo with a ``lint:`` target).  Keeps the i18n checks -- key existence
+# AND offline translation completeness -- out of the heavy ``test`` target so an
 # untranslated string is caught before a push, with no translation service.
 # File-length gate: no source file may exceed 1000 lines (scripts/ exempt).
 # Keyed on code extensions only, so docs content (.html/.md/.json/.css) is
-# inherently exempt — only actual code (.py/.ts/.js) is subject to the limit.
+# inherently exempt -- only actual code (.py/.ts/.js) is subject to the limit.
 lint-file-length:
 	@echo "Checking file lengths (max 1000 lines; scripts/ + generated i18n exempt)..."
 	@bad=$$(git ls-files '*.py' '*.pyx' '*.pxi' '*.ts' '*.tsx' '*.js' '*.jsx' \
@@ -958,7 +958,7 @@ LINT_PY := add_test_user.py scripts/ screenshots/seed.py screenshots/seed_pro.py
 # ``pip install`` outright, so the sibling repos all run their linters from a
 # venv and docs now does too.  bandit already excludes */.venv/* from scanning.
 LINT_VENV := .venv
-# Windows venvs put the interpreter in Scripts\, not bin/ — with the POSIX path
+# Windows venvs put the interpreter in Scripts\, not bin/ -- with the POSIX path
 # hardcoded, every $(LINT_PY_BIN)/python here missed a perfectly good venv, so
 # the bootstrap re-ran `venv` over it (noisily failing to overwrite python.exe)
 # and then died on "No such file or directory".
@@ -970,17 +970,17 @@ endif
 
 # Ensure the lint venv exists and has pylint+bandit before the gating targets
 # run, so ``make lint`` just works on a fresh checkout without a separate
-# ``make install-dev`` — matching the sibling repos' on-demand bootstrap.
+# ``make install-dev`` -- matching the sibling repos' on-demand bootstrap.
 ensure-lint-tools:
 	@$(LINT_PY_BIN)/python -c "import pylint, bandit" 2>/dev/null || { \
 		echo "Bootstrapping lint venv (pylint, bandit) from requirements-dev.txt..."; \
 		test -x $(LINT_PY_BIN)/python || $(PYTHON) -m venv $(LINT_VENV); \
 		$(LINT_PY_BIN)/python -m pip install --quiet --upgrade pip >/dev/null 2>&1 || true; \
 		$(LINT_PY_BIN)/python -m pip install --quiet -r requirements-dev.txt \
-			|| { echo "$(RED)lint venv bootstrap failed — see requirements-dev.txt$(RESET)"; exit 1; }; \
+			|| { echo "$(RED)lint venv bootstrap failed -- see requirements-dev.txt$(RESET)"; exit 1; }; \
 	}
 
-# Python lint — pylint against the first-party utility code, using .pylintrc
+# Python lint -- pylint against the first-party utility code, using .pylintrc
 # (baseline consistent with the sibling sysmanage repos: cosmetic/complexity
 # rules off, real-bug rules like used-before-assignment kept on).  Gates.
 lint-python: ensure-lint-tools
@@ -988,7 +988,7 @@ lint-python: ensure-lint-tools
 	@$(LINT_PY_BIN)/python -m pylint --rcfile=.pylintrc $(LINT_PY)
 	@echo "[OK] pylint passed"
 
-# Python security — bandit over the same first-party Python, gating on
+# Python security -- bandit over the same first-party Python, gating on
 # Medium+High (Low findings, e.g. the trusted-LAN urllib seeder calls, are
 # informational).  Skips B101/B404/B608 to match the sibling sysmanage-agent
 # baseline (assert / import-subprocess / generated-SQL-from-trusted-fixtures
@@ -1000,29 +1000,29 @@ lint-security: ensure-lint-tools
 	@echo "[OK] bandit passed"
 
 # Ensure the local eslint devDependency exists before lint-js, mirroring what
-# ensure-lint-tools does for pylint/bandit — lint-js used to have no such
+# ensure-lint-tools does for pylint/bandit -- lint-js used to have no such
 # prerequisite, and the consequences on a box that never ran `install-dev` were
 # ugly: `npx eslint` silently DOWNLOADS the newest eslint (10.x), which cannot
 # read this repo's eslint@9 flat config, so the real error surfaced as the
 # baffling "Cannot find module '@eslint/js'".  Worse, npx prompts "Ok to
 # proceed? (y)" for that download, which would hang the pre-push hook or CI.
 # Plain `npm install` (not `--save-dev <pkg>@range`) so package.json/lock are
-# honoured rather than rewritten.
+# honored rather than rewritten.
 # --ignore-scripts keeps this safe on the BSDs: a plain `npm install` would also
 # fire playwright's postinstall browser download, which has no BSD support and
 # would fail the lint gate for a reason that has nothing to do with linting.
 # eslint itself has no install scripts.
 ensure-js-lint-tools:
 	@test -x node_modules/.bin/eslint || { \
-		echo "$(YELLOW)eslint devDependency missing — installing...$(RESET)"; \
+		echo "$(YELLOW)eslint devDependency missing -- installing...$(RESET)"; \
 		$(NPM) install --ignore-scripts || true; \
 	}
 	@test -x node_modules/.bin/eslint || { \
-		echo "$(RED)eslint is not installed — run 'make install-dev' (gmake on the BSDs).$(RESET)"; \
+		echo "$(RED)eslint is not installed -- run 'make install-dev' (gmake on the BSDs).$(RESET)"; \
 		exit 1; \
 	}
 
-# JS lint — eslint (flat config, recommended rules + max-lines: 1000) over the
+# JS lint -- eslint (flat config, recommended rules + max-lines: 1000) over the
 # first-party browser bundle and the Node screenshot scripts.  Gates.
 # Invokes the pinned local binary directly, never npx: npx would fall back to
 # downloading a different major version instead of failing loudly.
@@ -1033,11 +1033,11 @@ lint-js: ensure-js-lint-tools
 
 ensure-css-lint-tools:
 	@test -x node_modules/.bin/stylelint || { \
-		echo "$(YELLOW)stylelint devDependency missing — installing...$(RESET)"; \
+		echo "$(YELLOW)stylelint devDependency missing -- installing...$(RESET)"; \
 		$(NPM) install --ignore-scripts || true; \
 	}
 	@test -x node_modules/.bin/stylelint || { \
-		echo "$(RED)stylelint is not installed — run 'make install-dev' (gmake on the BSDs).$(RESET)"; \
+		echo "$(RED)stylelint is not installed -- run 'make install-dev' (gmake on the BSDs).$(RESET)"; \
 		exit 1; \
 	}
 
@@ -1055,7 +1055,7 @@ lint: lint-file-length lint-python lint-security lint-js lint-css i18n-validate 
 	@echo "[OK] docs lint (python + security + js + i18n) passed"
 
 # Structure gate. i18n-validate asks "is the key there?", translate-check asks
-# "is it non-[TODO]?", i18n-strict asks "is it English or stale?" — none of them
+# "is it non-[TODO]?", i18n-strict asks "is it English or stale?" -- none of them
 # looks at the MARKUP, so a translation that dropped its <code>/<strong> tags
 # passes all three and renders wrongly only for readers of that language.
 # Ships with a baseline of the 660 pre-existing cases (2026-08-14) and fails on
@@ -1072,7 +1072,7 @@ i18n-markup:
 # because the English was edited after it was translated.  Neither is visible
 # to i18n-validate (key present) or translate-check (not [TODO]).  Staleness is
 # tracked by a sha256 sidecar of the English, since a docs key is stable while
-# its prose is edited constantly.  Escape hatch: i18n-allow.txt — the SAME
+# its prose is edited constantly.  Escape hatch: i18n-allow.txt -- the SAME
 # file the translation pipeline reads (merged 2026-08-05), so one list, one
 # meaning: whole-value match.
 i18n-strict:
@@ -1115,7 +1115,7 @@ translate:
 translate-dry:
 	@$(PYTHON) scripts/translate_i18n.py --dry-run
 
-# Offline completeness GATE — no service, no writes, no network.  Fails loudly
+# Offline completeness GATE -- no service, no writes, no network.  Fails loudly
 # (non-zero) if any locale string is still untranslated.  Safe for CI / release.
 translate-check:
 	@$(PYTHON) scripts/translate_i18n.py --check

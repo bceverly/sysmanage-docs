@@ -2,7 +2,7 @@
 
 Automated, reproducible screenshots for the SysManage docs. `make screenshots`
 brings up a clean instance, seeds deterministic demo data, drives the web UI with
-Playwright, and writes PNGs into `../assets/images/` — the exact paths the docs
+Playwright, and writes PNGs into `../assets/images/` -- the exact paths the docs
 already embed.
 
 ## Pipeline (decoupled stages)
@@ -22,12 +22,12 @@ seeding/capture in seconds without rebuilding the VM (this mirrors the old
 
 ## Why two seed steps
 
-The REST API can create **hosts, available updates, tags, and users** — but host
+The REST API can create **hosts, available updates, tags, and users** -- but host
 **OS/hardware/software inventory has no REST path**; it only arrives over the agent
 WebSocket (`os_version_update`). So:
 
-- `seed.py` — REST for everything REST supports.
-- `fixture_agent.py` — a tiny WebSocket client that reports a realistic OS per host
+- `seed.py` -- REST for everything REST supports.
+- `fixture_agent.py` -- a tiny WebSocket client that reports a realistic OS per host
   (so the dashboard OS-distribution tile and platform columns aren't blank).
 - The VM's **own agent** also registers and reports one genuinely-real host for free.
 
@@ -43,7 +43,7 @@ echo "deb [signed-by=/usr/share/keyrings/hashicorp-archive-keyring.gpg] https://
 sudo apt update && sudo apt install -y vagrant
 ```
 
-**Provider — option A: libvirt/KVM (recommended on Linux):**
+**Provider -- option A: libvirt/KVM (recommended on Linux):**
 ```bash
 # Newer Ubuntu: use qemu-system-x86 (the qemu-kvm meta-package is gone).
 sudo apt install -y qemu-system-x86 libvirt-daemon-system libvirt-clients libvirt-dev ebtables dnsmasq-base build-essential
@@ -51,7 +51,7 @@ sudo usermod -aG libvirt $USER          # then log out/in, or: newgrp libvirt
 vagrant plugin install vagrant-libvirt
 ```
 
-**Provider — option B: VirtualBox (simpler, but conflicts with running KVM VMs):**
+**Provider -- option B: VirtualBox (simpler, but conflicts with running KVM VMs):**
 ```bash
 sudo apt install -y virtualbox
 ```
@@ -60,7 +60,7 @@ Install exactly **one** provider and Vagrant auto-selects it (no flag needed). A
 of the above is also installed by **`make install-dev`** (target `install-vm-deps`).
 
 **Box:** the default is `generic/ubuntu2204` (the `generic/` namespace has no 24.04
-image — `generic/ubuntu2404` 404s). The guest OS version doesn't matter; sysmanage
+image -- `generic/ubuntu2404` 404s). The guest OS version doesn't matter; sysmanage
 installs its deps via apt either way. Override with `SCREENSHOT_BOX=<box>` if you
 prefer another libvirt image (e.g. `generic/ubuntu2304`, `alvistack/ubuntu-24.04`).
 Node + Playwright (for capture) come via `make install-dev && make install-browsers`.
@@ -76,12 +76,12 @@ make screenshots                      # vagrant up → install → seed → capt
 
 `make screenshots` has two modes, controlled by `FRESH` (default `0`):
 
-- **`FRESH=0` (default — while we get it working):** idempotent and non-destructive.
+- **`FRESH=0` (default -- while we get it working):** idempotent and non-destructive.
   Reuses the VM if it exists, re-seeds + re-captures, and **leaves the VM running**
   so you can inspect it. Re-run `make screenshots` to iterate fast. `vagrant up`
   won't re-provision a live VM, so re-runs are quick. (If you `vagrant halt` the VM,
   bring services back with `cd screenshots && vagrant up --provision`.)
-- **`FRESH=1` (steady state — once a full run works):** **destroys any existing VM
+- **`FRESH=1` (steady state -- once a full run works):** **destroys any existing VM
   for a clean slate, then tears it down again at the end.** This is the intended way
   to run it at the end of a feature phase. Use `make screenshots FRESH=1`, or flip
   the `FRESH ?= 0` default to `1` in the root `Makefile` once you're confident.
@@ -116,13 +116,13 @@ All OSS-tier, so **no license/tier juggling in pass one.**
 
 1. Add an entry to `shotlist.json` (`type: "route"` or `"report"`, viewport, `out`).
 2. If it needs new demo data, extend `fixtures.json`.
-3. `make screenshots-capture`. Done — no code change.
+3. `make screenshots-capture`. Done -- no code change.
 
 ## Pass two (deferred): tiers
 
 Pro/Enterprise/SaaS screenshots will add a tier loop: inject a license key (kept in
 a gitignored file, see `config.example.env`), restart the backend, capture that
-tier's shots. Not built yet — pass one is OSS-only by design.
+tier's shots. Not built yet -- pass one is OSS-only by design.
 
 ## Known first-run iteration points
 

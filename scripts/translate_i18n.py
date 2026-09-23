@@ -4,11 +4,11 @@
 # See the LICENSE file in the project root for the full terms.
 
 """
-translate_i18n.py — idempotent i18n translation backfill for THIS project,
+translate_i18n.py -- idempotent i18n translation backfill for THIS project,
 via the SysManage GPU translation service.
 
 Finds the untranslated strings in this repo's locale store, batch-translates the
-gaps through the service, and writes them back — only ever sending strings that
+gaps through the service, and writes them back -- only ever sending strings that
 are NOT yet translated, so re-running is cheap and resumable.  The service lives
 in the sysmanage repo at ``scripts/translation-service/`` (run it on the GPU box).
 
@@ -69,7 +69,7 @@ TARGET_LANGS = [
 # English because it couldn't translate safely".
 _HAS_LETTER = re.compile(r"[^\W\d_]", re.UNICODE)
 
-# Placeholder/markup tokens — used to distinguish a placeholder-fallback
+# Placeholder/markup tokens -- used to distinguish a placeholder-fallback
 # (identical output because the service couldn't translate a {{…}}/%s/<tag>
 # safely) from a legitimately-identical term (acronyms like URL/IPv4 or words
 # the model keeps as-is, e.g. "Details"). Only the former is held back to retry.
@@ -215,7 +215,7 @@ def _resolve_translations(
     """``{source: translation}`` for what the service actually translated.
 
     NO retry passes.  The service retries a bad reply itself, next to the
-    model, and reports the outcome per string via ``status`` — so re-sending
+    model, and reports the outcome per string via ``status`` -- so re-sending
     from here was a LAN round-trip to ask the same model the same question,
     driven by a guess ("identical output means it failed") that is wrong for
     every term whose correct translation IS the English.
@@ -264,7 +264,7 @@ def _is_json_gap(value: Optional[str]) -> bool:
 
 def _is_passthrough(en_src: str, value: Optional[str]) -> bool:
     """A non-en leaf left identical to the English source is an untranslated
-    passthrough.  Treat it as a gap so the service gets a chance at it —
+    passthrough.  Treat it as a gap so the service gets a chance at it --
     autotagged ``docs.auto.*`` keys land as raw English with no ``[TODO]``
     prefix, so they are otherwise invisible to this pass.
 
@@ -303,12 +303,12 @@ def run_json(
     for lang in langs:
         path = base / template.format(lang=lang)
         if not path.exists():
-            print(f"  {lang}: file missing ({path}) — skipped", flush=True)
+            print(f"  {lang}: file missing ({path}) -- skipped", flush=True)
             continue
         doc = json.loads(path.read_text(encoding="utf-8"))
         lang_flat = _flatten(doc)
         # Self-heal the intentionally-English [TODO] trap.  A leaf flagged
-        # intentionally-English (``is_no_translate`` — a proper noun, a brand/
+        # intentionally-English (``is_no_translate`` -- a proper noun, a brand/
         # tier label, an arrow-suffixed CTA, a per-language cognate, etc.) is
         # deliberately EXCLUDED from translation below, so if it was seeded with
         # a ``[TODO] <English>`` placeholder that placeholder would linger as a
@@ -334,7 +334,7 @@ def run_json(
                     f"  {lang}: resolved {healed} intentionally-English leaf/leaves",
                     flush=True,
                 )
-        # Every per-pass number below is counted in UNIQUE SOURCE STRINGS — the
+        # Every per-pass number below is counted in UNIQUE SOURCE STRINGS -- the
         # same thing the service is sent (it dedupes identical English like
         # "OpenBSD" that appears under many keys) and what the "…N/N" progress
         # counts.  Keeping one denominator makes the numbers add up:
@@ -362,7 +362,7 @@ def run_json(
         n_retry = len(uniq) - n_gap
         extra = f" (+{n_retry} English-identical)" if n_retry else ""
         print(
-            f"  {lang}: {n_gap} gap(s){extra} — {len(uniq)} string(s) to translate",
+            f"  {lang}: {n_gap} gap(s){extra} -- {len(uniq)} string(s) to translate",
             flush=True,
         )
         if not todo or service is None:
@@ -373,7 +373,7 @@ def run_json(
             cand = translations.get(en_src)
             # Write ONLY what the service actually translated.  Writing the
             # English source as a fallback (which this used to do) turned a
-            # [TODO] gap into an English-identical value — so gaps hit zero
+            # [TODO] gap into an English-identical value -- so gaps hit zero
             # while the untranslated count GREW, and each run manufactured more
             # of the very thing it was meant to fix.  Leave it untouched
             # instead: a gap stays a gap, and stays visible.
@@ -385,7 +385,7 @@ def run_json(
         path.write_text(
             json.dumps(doc, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
         )
-        # Count what the pass ACTUALLY leaves untranslated — gaps AND values
+        # Count what the pass ACTUALLY leaves untranslated -- gaps AND values
         # still equal to their English source.  Counting only [TODO] here is
         # how the run could report "0 gap(s) remaining" while dozens of strings
         # in that same locale were still English.
@@ -433,11 +433,11 @@ def run_po(
     try:
         import polib  # noqa: PLC0415
     except ImportError:
-        sys.exit("ERROR: the .po driver needs polib — run: pip install polib")
+        sys.exit("ERROR: the .po driver needs polib -- run: pip install polib")
     for lang in langs:
         path = base / template.format(lang=lang)
         if not path.exists():
-            print(f"  {lang}: file missing ({path}) — skipped", flush=True)
+            print(f"  {lang}: file missing ({path}) -- skipped", flush=True)
             continue
         po = polib.pofile(str(path))
         gap_entries = [e for e in po if e.msgid and not e.obsolete and not e.msgstr]
@@ -470,7 +470,7 @@ def scan_gaps(
 ) -> Dict[str, List[str]]:
     """Re-read the locale files on disk and return {lang: [untranslated keys]}.
 
-    Authoritative — reads what was actually written, so it reflects strings the
+    Authoritative -- reads what was actually written, so it reflects strings the
     service held back (placeholder fallbacks) as well as any never filled."""
     result: Dict[str, List[str]] = {}
     if fmt == "json":
@@ -483,7 +483,7 @@ def scan_gaps(
                 result[lang] = ["<file missing>"]
                 continue
             lf = _flatten(json.loads(path.read_text(encoding="utf-8")))
-            # Same definition the pass uses — see the note in the app clients.
+            # Same definition the pass uses -- see the note in the app clients.
             result[lang] = [
                 k
                 for k, en_src in en_flat.items()
@@ -514,12 +514,12 @@ def enforce_no_gaps(base: Path, template: str, langs: List[str], fmt: str) -> No
     """Exit NON-ZERO, loudly, if any locale still has untranslated strings.
 
     Wired into ``make translate`` so an incomplete locale set fails the build
-    instead of quietly sliding through — translations must be 100%."""
+    instead of quietly sliding through -- translations must be 100%."""
     offenders = {l: ks for l, ks in scan_gaps(base, template, langs, fmt).items() if ks}
     if not offenders:
         print(
             f"[OK] {PROJECT}: 0 untranslated gaps in {len(langs)} locale(s).\n"
-            "  (Gaps only — this does NOT check translation QUALITY.  Run\n"
+            "  (Gaps only -- this does NOT check translation QUALITY.  Run\n"
             "   `make i18n-strict` for English-identical / stale / wrong-language.)",
             flush=True,
         )
@@ -529,7 +529,7 @@ def enforce_no_gaps(base: Path, template: str, langs: List[str], fmt: str) -> No
     lines = [
         "",
         sep_bar,
-        f"  ✗✗✗  TRANSLATION INCOMPLETE — {PROJECT}: {total} untranslated string(s) "
+        f"  ✗✗✗  TRANSLATION INCOMPLETE -- {PROJECT}: {total} untranslated string(s) "
         f"in {len(offenders)} locale(s)  ✗✗✗",
         sep_bar,
     ]
@@ -575,7 +575,7 @@ def main() -> None:
         "--check",
         action="store_true",
         help="offline completeness gate: scan locales and exit non-zero if any gap "
-        "remains. NO service calls, NO writes — safe for CI / release hooks.",
+        "remains. NO service calls, NO writes -- safe for CI / release hooks.",
     )
     args = ap.parse_args()
 
@@ -592,10 +592,10 @@ def main() -> None:
 
     print(f"project={PROJECT} format={FORMAT} base={base}", flush=True)
 
-    # Offline completeness gate — no service, no writes.  Scans the files on
+    # Offline completeness gate -- no service, no writes.  Scans the files on
     # disk and exits non-zero (loudly) if anything is still untranslated.
     if args.check:
-        print("mode=check (offline — no service calls, no writes)", flush=True)
+        print("mode=check (offline -- no service calls, no writes)", flush=True)
         enforce_no_gaps(base, FILE_TEMPLATE, langs, FORMAT)
         return
 

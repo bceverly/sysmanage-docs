@@ -10,11 +10,11 @@ ECDSA P-521 keypair, inject it into the Pro+ license signer, and sign a license
 for ``TIER`` (default 'professional'). The modules + features granted are DERIVED
 from the canonical signing-side tier definitions
 (backend.licensing.features.get_modules_for_tier / get_features_for_tier) so the
-demo license always matches what a real license of that tier would grant — no
+demo license always matches what a real license of that tier would grant -- no
 hand-maintained lists to drift. The matching public key is written so the VM's
 server trusts it: it reads its verification key from
 /var/lib/sysmanage/license/public_key.pem (cache-file-first), so dropping our
-public key there makes the VM — and ONLY the VM — trust this demo license.
+public key there makes the VM -- and ONLY the VM -- trust this demo license.
 
 Run with the Pro+ repo on sys.path (it has the signer + features + cryptography).
 Outputs (both gitignored, demo-only):
@@ -51,7 +51,7 @@ def main() -> int:
 
     # Canonical tier -> modules/features (the same source the real signer uses),
     # so a 'professional' license grants exactly the Pro engines and an
-    # 'enterprise' license grants the full Enterprise engine set — never
+    # 'enterprise' license grants the full Enterprise engine set -- never
     # multitenancy (that's the multitenant_saas tier only).
     from backend.licensing.features import (  # noqa: PLC0415
         get_features_for_tier,
@@ -62,7 +62,7 @@ def main() -> int:
     modules = get_modules_for_tier(TIER)
     features = get_features_for_tier(TIER)
     if not modules:
-        print(f"ERROR: unknown/empty tier '{TIER}' — no modules to grant")
+        print(f"ERROR: unknown/empty tier '{TIER}' -- no modules to grant")
         return 1
 
     now = datetime.now(timezone.utc)

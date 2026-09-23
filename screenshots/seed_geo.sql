@@ -3,7 +3,7 @@
 -- There is no REST/agent path to set map coordinates directly (the server only
 -- derives them from GeoIP on a reported public IP), and GeoIP is disabled on the
 -- screenshot VM for privacy. So we write FAKE, plausible data-center coordinates
--- straight into the host rows — the /map view shows worldwide markers and NEVER
+-- straight into the host rows -- the /map view shows worldwide markers and NEVER
 -- the operator's real location.
 --
 -- We also bump last_access to now so each host renders as "up" (the UI marks a

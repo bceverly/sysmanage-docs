@@ -12,7 +12,7 @@ make i18n-strict      # gate: no English-identical, stale, or wrong-language val
 
 `make translate` also records each translated key's English source hash in
 `assets/locales/.i18n-source-hashes.json`, which is how `i18n-strict` tells a
-later English edit from a current translation. That happens automatically —
+later English edit from a current translation. That happens automatically --
 `--baseline` is only a rescue hatch.
 
 Two one-shot injectors (`add_proplus_translations.py`,

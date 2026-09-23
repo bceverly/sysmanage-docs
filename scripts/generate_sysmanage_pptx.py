@@ -418,7 +418,7 @@ def slide_04_what_is(prs):
 
 
 def slide_05_who_bryan(prs):
-    """Who is SysManage? — Bryan Everly slide."""
+    """Who is SysManage? -- Bryan Everly slide."""
     slide = prs.slides.add_slide(prs.slide_layouts[6])
     add_light_bg(slide)
     add_top_bar(slide)
@@ -470,7 +470,7 @@ def slide_05_who_bryan(prs):
 
 
 def slide_06_who_fedor(prs):
-    """Who is SysManage? — Fedor Dikarev slide."""
+    """Who is SysManage? -- Fedor Dikarev slide."""
     slide = prs.slides.add_slide(prs.slide_layouts[6])
     add_light_bg(slide)
     add_top_bar(slide)
@@ -519,7 +519,7 @@ def slide_06_who_fedor(prs):
 
 
 def slide_07_growth_strategy(prs):
-    """Growth Strategy — VC & Advisors slide."""
+    """Growth Strategy -- VC & Advisors slide."""
     slide = prs.slides.add_slide(prs.slide_layouts[6])
     add_light_bg(slide)
     add_top_bar(slide)
@@ -819,7 +819,7 @@ def slide_17_ecosystem(prs):
     add_bottom_bar(slide)
     add_footer_text(slide)
 
-    # Categories with integrations — two-column layout to fit vertically
+    # Categories with integrations -- two-column layout to fit vertically
     left_categories = [
         ("Secrets & Key Mgmt", [
             ("OpenBAO / Vault", "Encrypted secrets, API keys"),
@@ -870,7 +870,7 @@ def slide_17_ecosystem(prs):
             row_height = max(len(items) * 0.32, 0.36)
             y += row_height + 0.08
 
-    # Bottom note — centered, larger font
+    # Bottom note -- centered, larger font
     txBox = slide.shapes.add_textbox(Inches(0.8), Inches(6.3), Inches(11.5), Inches(0.5))
     tf = txBox.text_frame
     p = tf.paragraphs[0]
@@ -990,7 +990,7 @@ def slide_21_sbom(prs):
 
 
 def slide_22_demo_sequence(prs):
-    """Demo Sequence slide — numbered walkthrough of the demo."""
+    """Demo Sequence slide -- numbered walkthrough of the demo."""
     slide = prs.slides.add_slide(prs.slide_layouts[6])
     add_light_bg(slide)
     add_top_bar(slide)
@@ -1034,7 +1034,7 @@ def slide_22_demo_sequence(prs):
         for i, (num, title, desc) in enumerate(items):
             y = 1.55 + i * 0.68
 
-            # Step number circle — larger for double-digit numbers
+            # Step number circle -- larger for double-digit numbers
             circ_size = 0.45 if len(num) > 1 else 0.38
             circ = slide.shapes.add_shape(
                 MSO_SHAPE.OVAL,
@@ -1199,7 +1199,7 @@ def slide_26_roadmap_overview(prs):
     add_bottom_bar(slide)
     add_footer_text(slide)
 
-    # Historical releases (row 1) — compact
+    # Historical releases (row 1) -- compact
     history = [
         ("v0.9.0", "Foundation\n+ Core Platform"),
         ("v0.9.1", "CI/CD\n& Quality"),

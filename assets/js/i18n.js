@@ -77,7 +77,7 @@ class I18n {
 
         try {
             // Determine the relative path back to the site root, for ANY page
-            // depth — not just /docs/. (The old code only handled /docs/, so
+            // depth -- not just /docs/. (The old code only handled /docs/, so
             // pages like /roadmap/ fetched /roadmap/assets/locales/*.json → 404
             // → every string fell back to its raw key.)
             //

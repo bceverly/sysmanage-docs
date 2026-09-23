@@ -21,7 +21,7 @@ Design choice: keys are stable IDs, not content hashes.  Re-runs of this
 script produce the same key for the same source element provided the
 structural order is unchanged.  Elements that already carry a
 ``data-i18n`` attribute are preserved untouched, and the counter only
-allocates new IDs for newly-tagged elements — so existing tagged content
+allocates new IDs for newly-tagged elements -- so existing tagged content
 keeps its key even if surrounding untagged text moves.  If you reorder
 HTML across re-runs, expect the IDs assigned to NEW elements to shift;
 this is intentional (content-hash keys would churn every typo fix).
@@ -30,7 +30,7 @@ The script also seeds the 14 locale JSONs under ``assets/locales/`` with:
   - en.json: verbatim English source text (whitespace-collapsed)
   - 13 others: ``[TODO] <English text>`` placeholder
 
-Translation is explicitly NOT performed here — Phase 12 owns that pass.
+Translation is explicitly NOT performed here -- Phase 12 owns that pass.
 
 This script is idempotent: a second run on already-tagged files is a
 no-op.
@@ -63,7 +63,7 @@ TAGGABLE = {
     "summary", "figcaption", "caption", "dt", "dd", "blockquote",
 }
 
-# Walking into any of these halts traversal — text inside them is content,
+# Walking into any of these halts traversal -- text inside them is content,
 # not prose.
 SKIP_DESCENDANTS_OF = {"script", "style", "pre", "code"}
 
@@ -71,7 +71,7 @@ LOCALES = ("ar", "de", "en", "es", "fr", "hi", "it", "ja",
            "ko", "nl", "pt", "ru", "zh_CN", "zh_TW")
 
 # Open-tag regex, anchored at start.  Captures the tag's own attrs region.
-# We deliberately match a single open tag like ``<p class="foo">`` —
+# We deliberately match a single open tag like ``<p class="foo">`` --
 # this is applied at a known offset, not a free scan.
 _OPEN_TAG_RE = re.compile(
     r"<([A-Za-z][A-Za-z0-9]*)([^>]*?)(/?)>",
@@ -107,7 +107,7 @@ def relpath_to_key_prefix(html_path: Path) -> str:
     if parts and parts[0] == "docs":
         parts = parts[1:]
     elif parts and parts[0] not in ("repo",):
-        # Top-level (sibling-of-docs) pages — namespace them under ``home``
+        # Top-level (sibling-of-docs) pages -- namespace them under ``home``
         # so they don't collide with subdir names at the same depth.
         parts = ["home"] + parts
     return "docs.auto." + ".".join(parts)
@@ -154,7 +154,7 @@ def ancestor_in_skip(tag) -> bool:
 def visible_text(tag) -> str:
     """Get the tag's visible text, ignoring text inside <script>/<style>.
 
-    BS4's ``get_text()`` already concatenates descendant strings — we just
+    BS4's ``get_text()`` already concatenates descendant strings -- we just
     collapse whitespace.  For our eligibility check this is sufficient.
     """
     return collapse_ws(tag.get_text(separator=" "))
@@ -257,7 +257,7 @@ def process_file(
         next_id += 1
 
     # Plan edits: list of (offset, key).  Offset points at the ``>`` of
-    # the open tag — we insert ``\x20data-i18n="<key>"`` just before it.
+    # the open tag -- we insert ``\x20data-i18n="<key>"`` just before it.
     edits: list[tuple[int, str]] = []
     added = 0
     skipped = 0
@@ -277,7 +277,7 @@ def process_file(
             # Parent will be tagged; don't double-tag inline descendants.
             continue
         if descendant_has_i18n(tag):
-            # A child (or deeper) already has its own translation key —
+            # A child (or deeper) already has its own translation key --
             # tagging this ancestor would create an overlapping scope.
             continue
         text = visible_text(tag)
@@ -300,7 +300,7 @@ def process_file(
             continue
         _tag_start, tag_end, parsed_name, _attrs_text = located
         if parsed_name != tag.name:
-            # Source/parse mismatch — bail out on this element.
+            # Source/parse mismatch -- bail out on this element.
             skipped += 1
             continue
 
@@ -312,7 +312,7 @@ def process_file(
         key = f"{key_prefix}.{key_id}"
 
         edits.append((tag_end - 1, key))
-        # Mutate the tree too — so descendant traversal sees this tag as
+        # Mutate the tree too -- so descendant traversal sees this tag as
         # tagged and skips its inline children.
         tag["data-i18n"] = key
         en_translations[key] = text
@@ -353,7 +353,7 @@ def insert_dotted(target: dict, dotted_key: str, value) -> bool:
     written; False if a leaf was already present (no overwrite) or if
     insertion would clobber a non-dict ancestor.
 
-    NB: refuses to promote an existing string leaf into a dict — that
+    NB: refuses to promote an existing string leaf into a dict -- that
     would silently lose the original value.  Auto-tagged keys all live
     under the dedicated ``docs.auto.*`` namespace specifically to avoid
     such collisions.
@@ -377,7 +377,7 @@ def insert_dotted(target: dict, dotted_key: str, value) -> bool:
     if leaf in target and not isinstance(target[leaf], dict):
         return False
     if leaf in target and isinstance(target[leaf], dict):
-        # Existing subtree at the leaf position — can't write a string.
+        # Existing subtree at the leaf position -- can't write a string.
         sys.stderr.write(
             f"WARN: leaf position {dotted_key!r} already holds a subtree; "
             f"skipping\n"

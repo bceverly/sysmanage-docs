@@ -8,7 +8,7 @@
 #
 # This wraps the project's OWN install mechanism rather than reinventing it, so it
 # tracks the real installer over time. The stages marked [VERIFY] are the ones to
-# confirm against the current install flow on the first real run — they invoke
+# confirm against the current install flow on the first real run -- they invoke
 # project scripts whose exact names/flags may evolve.
 #
 # Env in:  SYSMANAGE_ADMIN_PW  (admin password for the seeded instance)
@@ -27,7 +27,7 @@ export DEBIAN_FRONTEND=noninteractive
 # races this script for the apt locks and kills the whole provision run:
 #     E: Could not get lock /var/lib/apt/lists/lock. It is held by process N (apt)
 # Hit on the Enterprise VM 2026-08-04, after the OSS and Professional VMs had
-# already built — i.e. it is a timing race, so it fails intermittently and
+# already built -- i.e. it is a timing race, so it fails intermittently and
 # re-running "fixes" it, which is exactly why it needs handling rather than luck.
 #
 # Three layers, because each covers a case the others miss: stop the timers so
@@ -49,7 +49,7 @@ wait_for_apt() {
        || pgrep -x dpkg >/dev/null 2>&1 \
        || pgrep -f unattended-upgrade >/dev/null 2>&1; do
         if [ "$waited" -ge 300 ]; then
-            echo "  WARNING: apt still busy after ${waited}s — continuing anyway"
+            echo "  WARNING: apt still busy after ${waited}s -- continuing anyway"
             break
         fi
         if [ $((waited % 30)) -eq 0 ]; then
@@ -61,7 +61,7 @@ wait_for_apt() {
 }
 wait_for_apt
 
-# apt 2.4 (Ubuntu 22.04) honours this: block on a held lock instead of erroring.
+# apt 2.4 (Ubuntu 22.04) honors this: block on a held lock instead of erroring.
 echo 'DPkg::Lock::Timeout "600";' > /etc/apt/apt.conf.d/99-sysmanage-lock-timeout
 
 # Point apt at the canonical archive before updating.
@@ -84,7 +84,7 @@ fi
 # explicitly: continuing with stale lists is what produced the 404 storm.
 apt-get update -y 2>&1 | tee /tmp/apt-update.log
 if grep -qE '^(Ign|Err)' /tmp/apt-update.log; then
-    echo "  apt index refresh was incomplete — retrying once:"
+    echo "  apt index refresh was incomplete -- retrying once:"
     grep -E '^(Ign|Err)' /tmp/apt-update.log | head -5
     apt-get update -y 2>&1 | tee /tmp/apt-update.log
     if grep -qE '^Err' /tmp/apt-update.log; then
@@ -99,7 +99,7 @@ fi
 apt-get install -y postgresql postgresql-contrib python3 python3-venv python3-pip \
     gettext build-essential libpq-dev git rsync curl jq ca-certificates gnupg
 # The web UI is React + Vite, which needs Node 18+. Ubuntu's default 'nodejs' is
-# Node 12 — Vite crashes on its optional-chaining call syntax (enableCompileCache?.()).
+# Node 12 -- Vite crashes on its optional-chaining call syntax (enableCompileCache?.()).
 # Pull Node 20 LTS from NodeSource (provides a matching npm) unless it's already current.
 if ! node --version 2>/dev/null | grep -qE '^v(1[89]|2[0-9])\.'; then
     echo "Installing Node 20 LTS from NodeSource..."
@@ -143,10 +143,10 @@ echo "=== [4/7] server config (/etc/sysmanage.yaml) ==="
 #
 # Two deliberate choices to avoid the red "Configuration Security Warning" banner
 # (backend/api/security.py checks for these):
-#   * NO security.admin_userid / admin_password — leaving default admin creds in the
+#   * NO security.admin_userid / admin_password -- leaving default admin creds in the
 #     YAML trips the banner. The admin user is instead created directly in stage [5]
 #     via create_admin_user(), so the YAML creds aren't needed.
-#   * email.enabled: true with smtp.host=localhost — the email service treats
+#   * email.enabled: true with smtp.host=localhost -- the email service treats
 #     "localhost" as configured without credentials, so email is "on" for the UI
 #     (it doesn't need to actually send for screenshots).
 cat > /etc/sysmanage.yaml <<YAML
@@ -207,13 +207,13 @@ echo "Installing Python dependencies (a few minutes)..."
 # [VERIFY] OpenBAO bring-up + DB migration. `make migrate` runs the migration
 # chain; on a multitenancy-enabled build this also needs OpenBAO running. For the
 # OSS/collapsed screenshot build, the default single-DB path applies.
-make migrate || { echo "migrate failed — check deps / OpenBAO / DB config"; exit 1; }
+make migrate || { echo "migrate failed -- check deps / OpenBAO / DB config"; exit 1; }
 
 # Initial admin user. The secure installer (scripts/_sysmanage_secure_installation.py)
 # only creates this interactively, so we call its create_admin_user() directly with
 # the four keys it actually reads (email/password/first_name/last_name); 'email'
 # becomes the login userid. On a re-provision the user already exists and the insert
-# fails the unique constraint — harmless, the '|| echo' swallows it.
+# fails the unique constraint -- harmless, the '|| echo' swallows it.
 .venv/bin/python - <<PY || echo "NOTE: admin user already exists (re-provision) or create-admin hook changed"
 import sys
 sys.path.insert(0, ".")
@@ -265,13 +265,13 @@ if [ "${SYSMANAGE_PRO:-0}" = "1" ]; then
     SVPY=/opt/sysmanage/.venv/bin/python
     MODDIR=/var/lib/sysmanage/modules
     LICDIR=/var/lib/sysmanage/license
-    # The server venv's Python ABI — the ONLY version we install engines for.
+    # The server venv's Python ABI -- the ONLY version we install engines for.
     PYVER="$("$SVPY" -c 'import sys; print(f"{sys.version_info.major}.{sys.version_info.minor}")')"
     PLAT=linux; ARCH=x86_64
     # License tier to grant: professional | enterprise (default professional).
     TIER="${SYSMANAGE_TIER:-professional}"
     if [ ! -d "$PRO" ]; then
-        echo "PRO: $PRO not synced — run with SYSMANAGE_PRO=1 set before 'vagrant up'"; exit 1
+        echo "PRO: $PRO not synced -- run with SYSMANAGE_PRO=1 set before 'vagrant up'"; exit 1
     fi
     # Engines to install = exactly the modules this tier's license grants (derived
     # from the canonical signing-side definitions, minus proplus_core which is a
@@ -289,7 +289,7 @@ if [ "${SYSMANAGE_PRO:-0}" = "1" ]; then
         # Highest version that has a bundle for THIS Python ABI (sort -V on the
         # version dir, which is the 3rd path component under the module).
         # Prefer an exact CPython-ABI build (<py>, e.g. 3.10); fall back to the
-        # abi3 (limited-API) build — this mirrors the server's module_loader,
+        # abi3 (limited-API) build -- this mirrors the server's module_loader,
         # which loads a single abi3 .so on any CPython >= 3.10. Engines migrated
         # to abi3 (one .so per platform/arch), so the exact-<py> path usually no
         # longer exists and only linux/x86_64/abi3/<code>.tar.gz is present.
@@ -302,7 +302,7 @@ if [ "${SYSMANAGE_PRO:-0}" = "1" ]; then
             [ -n "$tb" ] && break
         done
         if [ -z "$tb" ]; then
-            echo "  WARN: no $PLAT/$ARCH/$PYVER (or abi3) bundle for $code — skipping (engine will not load)"
+            echo "  WARN: no $PLAT/$ARCH/$PYVER (or abi3) bundle for $code -- skipping (engine will not load)"
             continue
         fi
         # Extract into the same per-version layout module_loader produces, so the
@@ -317,13 +317,13 @@ if [ "${SYSMANAGE_PRO:-0}" = "1" ]; then
 
     # Frontend plugin bundles (IIFE JS): the Pro+ UI pages render from these. The
     # plugin loader / serving endpoint (backend/api/plugin_bundle.py) is a pure
-    # filesystem glob of <modules_path>/*-plugin.iife.js — no DB row, no download,
-    # no per-file license check — so we just drop the highest-version bundle for
+    # filesystem glob of <modules_path>/*-plugin.iife.js -- no DB row, no download,
+    # no per-file license check -- so we just drop the highest-version bundle for
     # each licensed module (engines + proplus_core) plus the top-level proplus
     # bootstrap into place. Architecture/Python-independent (it's browser JS).
     # NOTE: several Enterprise engines (virtualization, observability,
     # repository_mirroring, external_idp, both air-gap, federation_site) ship NO
-    # frontend plugin bundle — their UI is OSS-native (host-detail tabs / Settings
+    # frontend plugin bundle -- their UI is OSS-native (host-detail tabs / Settings
     # tabs gated on the engine being licensed), so a missing plugin here is normal.
     echo "  + frontend plugin bundles:"
     for code in $ENGINES proplus_core; do
@@ -331,7 +331,7 @@ if [ "${SYSMANAGE_PRO:-0}" = "1" ]; then
         pj="$(ls -1 "$PRO"/storage/modules/"$code"/*/"$code"-plugin.iife.js 2>/dev/null \
               | sort -V | tail -1 || true)"
         if [ -z "$pj" ]; then
-            echo "    (no plugin bundle for $code — OSS-native UI or none)"
+            echo "    (no plugin bundle for $code -- OSS-native UI or none)"
             continue
         fi
         cp -f "$pj" "$MODDIR/${code}-plugin.iife.js"
@@ -350,7 +350,7 @@ if [ "${SYSMANAGE_PRO:-0}" = "1" ]; then
     # The loader resolves each licensed engine through the proplus_module_cache
     # table; with no row it would try to download from the license server (which
     # this box has no URL for). Upsert one row per extracted engine .so so the
-    # loader finds them locally on startup — the same trick the air-gap overlay
+    # loader finds them locally on startup -- the same trick the air-gap overlay
     # installer uses.
     cd /opt/sysmanage && PYTHONPATH=/opt/sysmanage "$SVPY" - <<'PY'
 import hashlib, json, platform
@@ -430,7 +430,7 @@ cfg = yaml.safe_load(open('/etc/sysmanage.yaml'))
 # license.sysmanage.org, and get_public_key_pem() fetches the PRODUCTION public key
 # (overwriting our self-signed public_key.pem) so this demo license fails signature
 # verification and the server drops to Community. Blanking it makes fetch fail fast,
-# falling back to our cached self-signed key — and disables the download/phone-home
+# falling back to our cached self-signed key -- and disables the download/phone-home
 # background tasks (they all guard on a truthy phone_home_url). Validation is purely
 # local, so the engines activate offline.
 cfg['license'] = {
@@ -448,7 +448,7 @@ PY
     echo "  server-info:"
     curl -fsS http://localhost:8080/api/v1/server-info 2>/dev/null \
         | "$SVPY" -c "import sys,json; d=json.load(sys.stdin); print('    tier:', d.get('license_tier'), '| loaded_engines:', d.get('loaded_engines'))" \
-        2>/dev/null || echo "    (server-info unavailable — check /var/log/sysmanage-start.log)"
+        2>/dev/null || echo "    (server-info unavailable -- check /var/log/sysmanage-start.log)"
 fi
 
 echo

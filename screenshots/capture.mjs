@@ -32,7 +32,7 @@ const USER = process.env.SCREENSHOT_USER || process.env.SCREENSHOT_ADMIN || 'adm
 const PW = process.env.SCREENSHOT_PW || process.env.SCREENSHOT_ADMIN_PW || '';
 const OUT_DIR = join(__dir, '..', 'assets', 'images');
 // Which tier to capture. OSS shots come from the unlicensed box, Pro shots from
-// the Professional-licensed box — one shotlist, two runs, never mixed. A shot
+// the Professional-licensed box -- one shotlist, two runs, never mixed. A shot
 // with no `tier` counts as oss (back-compat with the original OSS-only list).
 const TIER = (process.env.SCREENSHOT_TIER || 'oss').toLowerCase();
 // Where a failing shot leaves its evidence.  Off the images tree so a failure
@@ -52,7 +52,7 @@ const inTier = (s) =>
 const shotlist = JSON.parse(readFileSync(join(__dir, 'shotlist.json'), 'utf8'));
 
 // Every tier a run can select. A shot tagged with anything else is captured by
-// NO run — and because it is filtered out before anything is attempted, the run
+// NO run -- and because it is filtered out before anything is attempted, the run
 // reports "N/N captured, 0 failed" while silently omitting it. That happened:
 // two shots were added as "professional" when the tier is spelled "pro", and
 // the only symptom was a screenshot that never appeared. So an unknown tier is
@@ -72,7 +72,7 @@ const VALID_TIERS = new Set(['oss', 'pro', 'enterprise']);
   }
 }
 
-// Highlight freshly-added screenshots — a shot whose PNG did NOT exist before
+// Highlight freshly-added screenshots -- a shot whose PNG did NOT exist before
 // this run is printed in green with a `[new]` tag so new images (e.g. ones added
 // for new docs) are easy to spot among the re-generated ones.
 const GREEN = '\x1b[32m';
@@ -102,10 +102,10 @@ async function login(page) {
     await page.click('button[type="submit"]');
     await page.waitForTimeout(5000); // let the SPA route to the dashboard
   } else {
-    console.warn('  [login] no login form found — assuming already authenticated');
+    console.warn('  [login] no login form found -- assuming already authenticated');
   }
   if (await page.$('input[name="password"]')) {
-    throw new Error('login appears to have failed (still on login page) — check SCREENSHOT_USER/PW');
+    throw new Error('login appears to have failed (still on login page) -- check SCREENSHOT_USER/PW');
   }
 }
 
@@ -178,7 +178,7 @@ async function selectTab(page, name) {
   //   2. `waitFor` REJECTS EARLY when a late client-side redirect destroys the
   //      execution context (see gotoWithRetry).  Racing waitFor therefore ends
   //      the wait on a *failure* as readily as on success, which is why two
-  //      shots could fail while byte-identical neighbours passed.
+  //      shots could fail while byte-identical neighbors passed.
   // Polling count() is immune to both: it never waits on a context that may
   // vanish, and a transient error just costs one 500ms tick.
   const deadline = Date.now() + 30000;
@@ -333,7 +333,7 @@ async function diagnose(page, shot, err) {
 
 // A freshly-rendered SPA page can fire a late client-side redirect that aborts
 // the NEXT shot's navigation ("net::ERR_ABORTED" / "interrupted by another
-// navigation to <prev route>"). That's a timing flake, not a broken page — the
+// navigation to <prev route>"). That's a timing flake, not a broken page -- the
 // stray redirect has settled by the next attempt. Retry the goto a couple of
 // times on exactly those transient errors so one abort doesn't fail the whole
 // (expensive, multi-tier, VM-rebuilding) screenshot run.
@@ -356,11 +356,11 @@ async function gotoWithRetry(page, url, opts, attempts = 3) {
 // Bring an element into view before shooting.  Several cards worth documenting
 // (the host-detail Capabilities card, for one) sit well below the fold on a
 // long page, and every shot here is a viewport screenshot rather than a
-// full-page one — so without this they simply are not in the image.  Scrolling
+// full-page one -- so without this they simply are not in the image.  Scrolling
 // rather than element-clipping keeps the surrounding page context, which is
 // what makes a documentation screenshot legible.
 //
-// `scrollTo` is a visible-text string; the element containing it is centred.
+// `scrollTo` is a visible-text string; the element containing it is centered.
 // A miss is a SKIP with a clear reason, never a silently wrong image: a shot
 // that captures the top of the page while claiming to show a card further down
 // is worse than no shot at all.
@@ -374,7 +374,7 @@ async function scrollIntoView(page, shot) {
   } catch {
     console.log(
       `  ${YELLOW}⊘ ${shot.out}: could not find "${shot.scrollTo}" to scroll to` +
-      ` — the section may be gated, or the seed did not populate it. Skipping.${RESET}`
+      ` -- the section may be gated, or the seed did not populate it. Skipping.${RESET}`
     );
     return false;
   }
@@ -390,7 +390,7 @@ function settleFor(shot) {
 // Refuse to save a screenshot of a page that is still loading.
 //
 // THE DEFECT THIS EXISTS FOR: `query-packs.png` was captured mid-spinner and
-// the run reported it as a success — a green tick on an image that documents
+// the run reported it as a success -- a green tick on an image that documents
 // nothing but a loading indicator. A shot that is wrong in this way looks
 // captured, gets committed, and is only caught by a human opening the PNG.
 //
@@ -416,11 +416,11 @@ async function assertNotStillLoading(page, shot) {
   }
   if (state.spinner && state.textLength < 400) {
     // The caller already prints the shot name, so what this adds is the knob
-    // and its current value — the operator should not have to go and look up
+    // and its current value -- the operator should not have to go and look up
     // what settleMs this shot was already given.
     throw new Error(
       `page still loading after ${settleFor(shot)}ms settle (spinner visible, ` +
-        `only ${state.textLength} chars of text) — raise this shot's settleMs, ` +
+        `only ${state.textLength} chars of text) -- raise this shot's settleMs, ` +
         `or its data never arrived`,
     );
   }
@@ -456,7 +456,7 @@ async function captureRoute(page, shot, vp) {
     } catch {
       console.log(
         `  ${YELLOW}⊘ ${shot.out}: "${shot.expandButton}" toggle not found` +
-        ` — the mirror snap/image panels need snap_proxy_engine /` +
+        ` -- the mirror snap/image panels need snap_proxy_engine /` +
         ` oci_proxy_engine loaded + licensed on this VM. Skipping.${RESET}`
       );
       return 'skipped';
@@ -472,7 +472,7 @@ async function captureRoute(page, shot, vp) {
 
 // Open a host detail view by deep-linking to /hosts/<id> (id resolved from the
 // seed-written host_ids.json by the row's FQDN). The detail page reads its active
-// tab from the URL hash, so `#<tabHash>` lands directly on a tab — far more robust
+// tab from the URL hash, so `#<tabHash>` lands directly on a tab -- far more robust
 // than clicking a role-gated row icon or a scrollable MUI tab. Requires logging in
 // as a user that can view host details (the admin has the VIEW_HOST_DETAILS role).
 async function captureDetail(page, shot, vp) {
@@ -483,14 +483,14 @@ async function captureDetail(page, shot, vp) {
   await gotoWithRetry(page, url, { waitUntil: 'domcontentloaded', timeout: 60000 });
   await page.waitForTimeout(settleFor(shot) + 1500);
   // Plugin-injected host-detail tabs (Health, Vulnerabilities, ...) that aren't
-  // addressable by URL hash are clicked by visible name — now left-rail buttons
+  // addressable by URL hash are clicked by visible name -- now left-rail buttons
   // after the nav redesign (selectTab falls back to a real tab if needed).
   if (shot.tab) {
     await selectTab(page, shot.tab);
     await page.waitForTimeout((settleFor(shot)));
   }
   // Optional interaction ON a detail tab.  captureClick can only drive a
-  // top-level route, but some dialogs only exist inside a host-detail tab —
+  // top-level route, but some dialogs only exist inside a host-detail tab --
   // Create Child Host lives on the Child Hosts tab, and its Windows fields do
   // not render until a Windows distribution is picked, so the shot needs a
   // click AND a select before it is worth taking.
@@ -515,7 +515,7 @@ async function captureDetail(page, shot, vp) {
 
 // Pick an option from a MUI Select.  MUI renders a hidden <input> plus a div
 // that opens a portal-mounted listbox, so neither selectOption() nor a plain
-// click on the visible text works — the combobox has to be opened first and the
+// click on the visible text works -- the combobox has to be opened first and the
 // option matched inside the portal.
 async function selectMuiOption(page, label, option) {
   // Both steps go through clickWithRetry rather than a plain click.  A MUI
@@ -564,7 +564,7 @@ async function captureClick(page, shot, vp) {
   let detail = shot.route;
   // Select the tab BEFORE clicking anything: a panel on a non-default tab is
   // not in the DOM yet, so a click targeted at it would miss and the shot would
-  // silently capture the default tab instead — a screenshot that looks fine and
+  // silently capture the default tab instead -- a screenshot that looks fine and
   // documents the wrong thing.
   if (shot.tab) {
     // selectTab, not getByRole('tab'): pages reached this way may use the nav
@@ -673,7 +673,7 @@ async function main() {
   console.log(`Capturing from ${TARGET} as ${USER} -> ${OUT_DIR}`);
 
   let ok = 0, fail = 0, skipped = 0;
-  // Pre-auth shots (e.g. the login page) — captured before we authenticate, on
+  // Pre-auth shots (e.g. the login page) -- captured before we authenticate, on
   // the fresh unauthenticated page (after login the app redirects away from /login).
   for (const shot of shotlist.shots.filter((s) => s.type === 'login' && inTier(s))) {
     try {

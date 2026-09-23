@@ -15,7 +15,7 @@
 #
 # Pages serves the CURRENT commit's files (not history), so committing the
 # pruned tree shrinks the deployed artifact immediately.  This does NOT shrink
-# .git (~9.5 GB of old binaries remain in history) — clone size is unchanged
+# .git (~9.5 GB of old binaries remain in history) -- clone size is unchanged
 # until history is rewritten separately (git filter-repo / BFG).
 #
 # Usage:
@@ -51,7 +51,7 @@ to_remove() { local -a a; mapfile -t a < <(sort -V); local n=${#a[@]}
 start_bytes=$(du -sb "$REPO" | cut -f1)
 echo "Starting repo/ size: $(du -sh "$REPO" | cut -f1)"
 
-# Pass 1 — version-DIRECTORY layouts (immediate children are version dirs that
+# Pass 1 -- version-DIRECTORY layouts (immediate children are version dirs that
 # hold package files): apt pool/main, server/rpm/centos, the BSD/win/mac dirs.
 find "$REPO" -type d | while IFS= read -r d; do
   for sub in "$d"/*/; do
@@ -65,7 +65,7 @@ done | sort -u | while IFS= read -r parent; do
     | while IFS= read -r v; do [ -n "$v" ] && echo "$parent/$v" >> "$REMOVE"; done
 done
 
-# Pass 2 — FLAT layouts (version-named package files directly in a dir): rpm
+# Pass 2 -- FLAT layouts (version-named package files directly in a dir): rpm
 # <distro>/<arch>, alpine indexes, etc. Keep latest N per package name.
 find "$REPO" -type d | while IFS= read -r d; do
   ls "$d"/*.* 2>/dev/null | grep -qE "$PKG_RE" && echo "$d"
@@ -106,7 +106,7 @@ if [ "$DRY_RUN" = "0" ]; then
     # back with --delete, so whatever it writes is what the world sees.  It
     # used to run a bare `apt-ftparchive release . > Release`, which emits a
     # Release with NO Suite/Codename/Components/Architectures and checksums
-    # its own output file — apt then refuses the repo entirely:
+    # its own output file -- apt then refuses the repo entirely:
     #   W: Conflicting distribution: ... (expected stable but got )
     #   E: ... Hash Sum mismatch
     # It also regenerated amd64 only, leaving arm64's index stale.  Delegated
@@ -158,7 +158,7 @@ if [ "$DRY_RUN" = "0" ]; then
     # run curls this file; if a layout change stopped it being written, the
     # signature would still verify here and every new install would break.
     if [ "$kr_count" -eq 0 ]; then
-      echo "ERROR: no apt keyring published — found no */pool/main under $REPO" >&2
+      echo "ERROR: no apt keyring published -- found no */pool/main under $REPO" >&2
       exit 1
     fi
   fi
@@ -186,7 +186,7 @@ if [ "$DRY_RUN" = "0" ]; then
     done < <(find "$REPO" -type d -name rpm | sort -u)
     # gpgcheck=1 is unusable without this key at the documented gpgkey= URL.
     if [ "$rk_count" -eq 0 ]; then
-      echo "ERROR: no RPM public key published — found no rpm/ holding *.rpm" >&2
+      echo "ERROR: no RPM public key published -- found no rpm/ holding *.rpm" >&2
       exit 1
     fi
   fi
@@ -202,12 +202,12 @@ if [ "$DRY_RUN" = "0" ]; then
   # rpm
   find "$REPO" -type d -name repodata | while IFS= read -r rd; do d="$(dirname "$rd")"
     if command -v createrepo_c >/dev/null; then ( cd "$d" && createrepo_c . >/dev/null ); echo "  regen rpm: $(rel "$d")"
-    else echo "  !! createrepo_c missing — $(rel "$d") repodata STALE"; fi
+    else echo "  !! createrepo_c missing -- $(rel "$d") repodata STALE"; fi
   done
   # alpine
   find "$REPO" -name 'APKINDEX.tar.gz' | while IFS= read -r idx; do d="$(dirname "$idx")"
     if command -v apk >/dev/null; then ( cd "$d" && apk index -o APKINDEX.tar.gz ./*.apk >/dev/null 2>&1 ); echo "  regen apk: $(rel "$d")"
-    else echo "  !! apk missing — $(rel "$d") APKINDEX STALE"; fi
+    else echo "  !! apk missing -- $(rel "$d") APKINDEX STALE"; fi
   done
 fi
 
@@ -215,7 +215,7 @@ echo ""
 echo "Would remove: $((removed_bytes / 1048576)) MB"
 echo "Projected repo/ size: ${projected} MB$([ "$DRY_RUN" = 1 ] && echo '  (dry run)')"
 # repo/ is served from Cloudflare R2 (10 GB free tier, free egress), not GitHub
-# Pages, so there's no hard 1 GB cap — this policy just bounds how many old
+# Pages, so there's no hard 1 GB cap -- this policy just bounds how many old
 # versions accumulate.  10 GB is the free-tier storage ceiling to watch.
 [ "$projected" -lt 10240 ] && echo "  ✓ within the R2 free-tier storage (10 GB)" \
-                           || echo "  ! over 10 GB — R2 storage now bills (~\$0.015/GB-mo); lower KEEP"
+                           || echo "  ! over 10 GB -- R2 storage now bills (~\$0.015/GB-mo); lower KEEP"

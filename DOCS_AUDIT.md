@@ -5,10 +5,10 @@ report, menu item) against the documentation under `docs/`. Goal: identify
 every genuine gap so we can close them one at a time.
 
 **Regenerated 2026-06-22** (supersedes the 2026-05-02 inventory, which went stale
-after a large fill-pass — 118 of 120 doc pages changed in the interim, and every
+after a large fill-pass -- 118 of 120 doc pages changed in the interim, and every
 priority gap it listed had since been closed). This pass enumerates each page's
 surface from the actual frontend `.tsx` JSX and confirms coverage by grepping the
-current rendered docs. Not a substitute for in-product help — this is a gap
+current rendered docs. Not a substitute for in-product help -- this is a gap
 inventory for the docs maintainers.
 
 Legend: ✅ documented · ⚠️ partial / generic / Pro+-engine-only (OSS UI how-to thin)
@@ -22,7 +22,7 @@ Legend: ✅ documented · ⚠️ partial / generic / Pro+-engine-only (OSS UI ho
 
 | Element | Docs status |
 |---|---|
-| Dashboard page (overview, auto-refresh) | ⚠️ generic only — `getting-started/webui-overview.html` has a high-level "Dashboard Overview", no walkthrough of the gauge cards |
+| Dashboard page (overview, auto-refresh) | ⚠️ generic only -- `getting-started/webui-overview.html` has a high-level "Dashboard Overview", no walkthrough of the gauge cards |
 | Hosts / Updates / Security-Updates / Reboot-Required gauge cards (click-through) | ❌ the individual gauge cards and their navigation are undocumented |
 | Antivirus Coverage card | ❌ (AV *deployment* is in `administration/antivirus-management.html`, but not the dashboard card) |
 | OpenTelemetry Coverage card | ❌ |
@@ -68,7 +68,7 @@ Action-Menu table). Remaining gaps only:
 | "Security Updates Only" toggle | ✅ `getting-started/basic-management.html` |
 | System-only / Application-only toggles, package-manager filter, package search, pagination | ❌ |
 | Per-host filter dropdown / stats cards | ⚠️ generic mention only |
-| **Doc drift**: `basic-management.html` references "Settings → Update Policy" and "Updates → Schedule" — neither control exists in this page's JSX | ⚠️ fix the doc |
+| **Doc drift**: `basic-management.html` references "Settings → Update Policy" and "Updates → Schedule" -- neither control exists in this page's JSX | ⚠️ fix the doc |
 
 ### OS Upgrades (`Pages/OSUpgrades.tsx`)
 
@@ -95,7 +95,7 @@ Action-Menu table). Remaining gaps only:
 The OSS Scripts UI = 3 tabs (Library, Execute single-host, Executions history).
 `professional-plus/automation-engine.html` documents the **Pro+ engine**, whose
 version-history / approval / typed-parameters / cron / multi-host features are
-**not in the OSS JSX** — a doc-vs-UI mismatch to reconcile.
+**not in the OSS JSX** -- a doc-vs-UI mismatch to reconcile.
 
 | Element | Docs status |
 |---|---|
@@ -103,7 +103,7 @@ version-history / approval / typed-parameters / cron / multi-host features are
 | Execute tab (single host, live stdout/stderr/exit-code) | ⚠️ engine doc covers ad-hoc runs conceptually; no UI walkthrough |
 | Script Executions tab (history, details, 30s refresh) | ❌ |
 | Add/Edit dialog (shell + platform dropdowns, code editor) | ❌ |
-| Multi-host / version history / approval / typed params / cron | ⚠️ **Pro+ engine concepts; absent from the OSS Scripts JSX** — clarify OSS-vs-Pro+ boundary |
+| Multi-host / version history / approval / typed params / cron | ⚠️ **Pro+ engine concepts; absent from the OSS Scripts JSX** -- clarify OSS-vs-Pro+ boundary |
 
 ### Secrets (`Pages/Secrets.tsx`)
 
@@ -111,13 +111,13 @@ version-history / approval / typed-parameters / cron / multi-host features are
 |---|---|
 | Saved-secrets grid + Add/Edit Secret dialog (CRUD) | ❌ `professional-plus/secrets.html` covers the engine/types, not this OSS CRUD UI |
 | Secret types / subtypes | ✅ `professional-plus/secrets.html`, `security/secrets-management.html` |
-| Vault status / unseal / rotate | ❌/❌/⚠️ — **no such controls in this page's JSX** (vault status lives in Settings → Integrations); rotation is engine-doc only |
+| Vault status / unseal / rotate | ❌/❌/⚠️ -- **no such controls in this page's JSX** (vault status lives in Settings → Integrations); rotation is engine-doc only |
 
 ### Settings (`Pages/Settings.tsx`)
 
 | Element | Docs status |
 |---|---|
-| Email/SMTP, OpenTelemetry, Graylog, Grafana, AV defaults, Firewall defaults, Branding, Auto-Approve Tokens, Access Groups, Registration Keys, Upgrade Profiles, Package Compliance, Repo Mirroring, Authentication (LDAP/AD/OIDC) | ✅ `administration/settings-guide.html` (+ `grafana-setup`, `antivirus-management`, `firewall-management`, `compliance`, `repository-mirroring`, `external-idp`) — strong, page-aligned coverage |
+| Email/SMTP, OpenTelemetry, Graylog, Grafana, AV defaults, Firewall defaults, Branding, Auto-Approve Tokens, Access Groups, Registration Keys, Upgrade Profiles, Package Compliance, Repo Mirroring, Authentication (LDAP/AD/OIDC) | ✅ `administration/settings-guide.html` (+ `grafana-setup`, `antivirus-management`, `firewall-management`, `compliance`, `repository-mirroring`, `external-idp`) -- strong, page-aligned coverage |
 | OpenBAO / Prometheus status cards | ⚠️ OpenBAO via `security/secrets-management.html`; Prometheus card not described |
 | Tags / Ubuntu Pro / Distributions / Report Templates tabs | ❌ |
 | Queues / Available Packages / Server Role / Host Defaults / Air-Gap Bundles tabs | ⚠️ concept covered elsewhere; tab not described |
@@ -139,7 +139,7 @@ version-history / approval / typed-parameters / cron / multi-host features are
 | Users grid (search / column visibility) | ⚠️ broad coverage; grid UI not walked through |
 | UserDetail: Reset Password button/flow | ⚠️ reset-email exists; the admin button/flow not documented |
 | UserDetail: Security Roles editor (grouped checkboxes, check-all/clear, save) | ⚠️ RBAC roles in `security/rbac.html`; the per-user editor UI not walked through |
-| (UserDetail "profile audit log") | n/a — no such element in the JSX |
+| (UserDetail "profile audit log") | n/a -- no such element in the JSX |
 
 ### AuditLogViewer (`Pages/AuditLogViewer.tsx`)
 
@@ -207,7 +207,7 @@ The Pro+ index (`professional-plus/index.html`) has a module-card grid (every
 engine has a card) and a separate Professional / Enterprise / Enterprise-SaaS
 tier block. Findings:
 
-- **`multitenancy_engine`** is the only engine **without a module card** — surfaced
+- **`multitenancy_engine`** is the only engine **without a module card** -- surfaced
   only via the "Enterprise SaaS Tier" block. ⚠️
 - The module cards are **not individually tier-tagged**; per-engine Professional-vs-
   Enterprise placement is prose-only in the tier block, not encoded on each card. ⚠️
@@ -230,7 +230,7 @@ phrases + the 5 fluffiest-page rewrites). Process for new doc content:
 
 ---
 
-## 6. Doc-vs-UI drift (fix these — docs describe controls that don't exist)
+## 6. Doc-vs-UI drift (fix these -- docs describe controls that don't exist)
 
 1. `getting-started/basic-management.html` → "Settings → Update Policy" and
    "Updates → Schedule": **no such controls** in `Updates.tsx`.
@@ -250,7 +250,7 @@ phrases + the 5 fluffiest-page rewrites). Process for new doc content:
 
 All ten priority items were closed in a fix-pass on 2026-06-22. New strings were
 externalized through `i18n_autotag.py` (every key seeded into all 14 locales as
-verbatim English in `en.json` and `[TODO] <English>` elsewhere — translation NOT
+verbatim English in `en.json` and `[TODO] <English>` elsewhere -- translation NOT
 performed; run `make translate` to fill). The §1 tables above record the original
 as-found state; this log records closure.
 

@@ -12,7 +12,7 @@ English and are excluded from BOTH:
   * the translation pass (``translate_i18n.py`` never sends them to the service), and
   * the passthrough validator (``i18n_validate.py`` never counts them).
 
-Rules live in ``i18n-allow.txt`` (repo root — same filename as the other three
+Rules live in ``i18n-allow.txt`` (repo root -- same filename as the other three
 projects).  The format, including the ``<lang>:`` scope prefix used for
 cognates, is documented on ``scripts/i18n_strict.py``'s ``Allow`` class, which
 is now the ONE implementation.  This module is a thin compatibility shim over
@@ -22,11 +22,11 @@ WHY A SHIM AND NOT A SECOND PARSER (2026-08-05)
 -----------------------------------------------
 There used to be a full second parser here, and it disagreed with the gate's.
 Its ``_known_locales()`` discovered locale names by globbing ``*.json`` next to
-the rules file — but the rules file sits at the repo ROOT while the locales
+the rules file -- but the rules file sits at the repo ROOT while the locales
 live in ``assets/locales/``, so it "found" ``package.json``,
 ``package-lock.json`` and ``.pa11yrc.json``.  With no real locale names every
 locale-scoped rule failed its validity check and fell through to the global
-bucket where — still carrying its ``de:`` prefix — it was filed as a *key glob*
+bucket where -- still carrying its ``de:`` prefix -- it was filed as a *key glob*
 that could never match any key.
 
 The visible symptom was a translation pass that could never finish: German kept
@@ -54,12 +54,12 @@ def _allow():
 
     Degrading to "nothing is suppressed" would silently re-send every proper
     noun to the translation service on every run and report each one as an
-    unfixable gap — loud failure is cheaper than that.
+    unfixable gap -- loud failure is cheaper than that.
     """
     cand = _HERE / "i18n_strict.py"
     if not cand.exists():
         raise SystemExit(
-            f"FATAL: {cand} is missing — it owns the i18n-allow.txt format.\n"
+            f"FATAL: {cand} is missing -- it owns the i18n-allow.txt format.\n"
             "  Without it every intentionally-English value is re-translated on\n"
             "  every run and reported as an unfixable gap.  Run from a full checkout."
         )

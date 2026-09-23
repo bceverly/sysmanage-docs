@@ -16,7 +16,7 @@ Modes (one required):
              whose value equals the en authoritative value verbatim).
   --seed     Like ``--validate``, but missing keys in locale JSONs are
              populated with the English value prefixed by ``[TODO] ``.
-             Idempotent — existing values are not overwritten.
+             Idempotent -- existing values are not overwritten.
 
 The 14 supported locales are auto-discovered from
 ``assets/locales/<lang>.json``.
@@ -38,7 +38,7 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 LOCALES_DIR = REPO_ROOT / "assets" / "locales"
 
 # NOTE: the English-passthrough BUDGET was removed 2026-08-05.  It allowed up
-# to N English leaves per locale, which is a quota rather than a rule — and it
+# to N English leaves per locale, which is a quota rather than a rule -- and it
 # measured the same thing as scripts/i18n_strict.py, by different rules, so the
 # two disagreed.  i18n_strict supersedes it: zero tolerance, with an explicit
 # per-locale allow-list (i18n-allow.txt) instead of a fuzzy ceiling.  This
@@ -47,7 +47,7 @@ LOCALES_DIR = REPO_ROOT / "assets" / "locales"
 DATA_I18N = re.compile(r'data-i18n\s*=\s*"([^"]+)"')
 
 
-# Canonical locale set — anything else under ``assets/locales/`` (e.g.
+# Canonical locale set -- anything else under ``assets/locales/`` (e.g.
 # leftover ``missing_keys_analysis.json`` from a translation-pass script)
 # is ignored.  Matches the 14 supported sysmanage locales.
 _CANONICAL_LOCALES = frozenset({
@@ -129,7 +129,7 @@ def cmd_validate(seed: bool) -> int:
     keys = extract_html_keys()
     locales = list_locales()
     if "en" not in locales:
-        print("FAIL: en.json is missing — can't validate without it", file=sys.stderr)
+        print("FAIL: en.json is missing -- can't validate without it", file=sys.stderr)
         return 1
     en_data = load_locale("en")
     failures = 0
@@ -153,7 +153,7 @@ def cmd_validate(seed: bool) -> int:
     if blank:
         print(
             f"en: {len(blank)} key(s) referenced in HTML hold an EMPTY English "
-            f"value — they can never be translated",
+            f"value -- they can never be translated",
             file=sys.stderr,
         )
         for key in blank[:5]:
@@ -190,7 +190,7 @@ def cmd_validate(seed: bool) -> int:
                     if isinstance(en_value, str):
                         seeded = en_value if lang == "en" else f"[TODO] {en_value}"
                     else:
-                        # Key isn't in en either — use the dotted key as a
+                        # Key isn't in en either -- use the dotted key as a
                         # placeholder so the JSON has *something*.  The
                         # docs site renderer falls back to the key string
                         # when the lookup fails today; this just makes that
@@ -220,11 +220,11 @@ def cmd_validate(seed: bool) -> int:
             "  2. make translate SERVICE=http://<host>:8765\n"
             "       Replaces the [TODO] placeholders with real translations via\n"
             "       the GPU translation service. Only untranslated strings are\n"
-            "       sent, so it is idempotent — safe to re-run. Omit SERVICE to\n"
+            "       sent, so it is idempotent -- safe to re-run. Omit SERVICE to\n"
             "       use $TRANSLATION_SERVICE_URL (falls back to localhost:8765).\n"
             "\n"
             "  3. make i18n-validate\n"
-            "       Re-run this check — it should now pass.\n"
+            "       Re-run this check -- it should now pass.\n"
             "\n"
             "'holds an EMPTY English value' is different: the key exists but\n"
             "en.json has \"\" for it, so there is nothing to translate. That\n"
@@ -244,7 +244,7 @@ def cmd_validate(seed: bool) -> int:
         return 1
     # stdout, deliberately.  Failures and their remediation go to stderr, but a
     # SUCCESS report on stderr makes "passing" and "produced no output at all"
-    # look identical — which is exactly how this target got mistaken for a dead
+    # look identical -- which is exactly how this target got mistaken for a dead
     # one (2026-08-05: `make i18n-validate` appeared to print nothing because
     # its only output was on the other stream).
     print(
@@ -256,7 +256,7 @@ def cmd_validate(seed: bool) -> int:
 def _count_passthrough(
     en_data: dict, locale_data: dict, keys: set[str], lang: str
 ) -> int:
-    """Count keys whose locale value equals the en value verbatim — a
+    """Count keys whose locale value equals the en value verbatim -- a
     proxy for "translator hasn't touched this key yet".  Leaves flagged in
     i18n-allow.txt (globally or for ``lang``) are excluded."""
     count = 0

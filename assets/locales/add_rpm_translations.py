@@ -80,7 +80,7 @@ TRANSLATIONS = {
         "version_management": "🔄 Gestion des Versions",
         "uninstall": "🗑️ Désinstallation",
         "security_note": "🔒 Note de Sécurité",
-        "security_text": "Le dépôt utilise actuellement gpgcheck=0 car les paquets ne sont pas signés GPG. Pour les environnements de production, la signature GPG sera ajoutée dans une version future. Les paquets sont servis via HTTPS depuis GitHub Pages, fournissant une sécurité au niveau du transport."
+        "security_text": "Le dépôt utilize actuellement gpgcheck=0 car les paquets ne sont pas signés GPG. Pour les environnements de production, la signature GPG sera ajoutée dans une version future. Les paquets sont servis via HTTPS depuis GitHub Pages, fournissant une sécurité au niveau du transport."
     },
     "de": {  # German
         "title": "📦 RPM-Methode: YUM/DNF-Repository (RHEL/CentOS/Fedora/Rocky/AlmaLinux - Empfohlen)",

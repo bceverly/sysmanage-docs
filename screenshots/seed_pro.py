@@ -7,7 +7,7 @@
 
 Runs INSIDE the screenshot VM (it imports the sysmanage ORM models, which are the
 authoritative schema) and writes deterministic, fully-populated demo data straight
-into the engine result tables — the same direct-to-DB philosophy as the OSS
+into the engine result tables -- the same direct-to-DB philosophy as the OSS
 seed_inventory.sql, so the numbers on every Professional page are stable and
 controllable rather than dependent on a live scan.
 
@@ -16,8 +16,8 @@ Covers all seven Professional engines:
   compliance -> compliance_profile + host_compliance_scan
   health     -> host_health_analysis
   alerting   -> notification_channel + alert_rule + alert_rule_notification_channel + alert
-  audit      -> (none — /audit-analytics aggregates the already-seeded audit_log)
-  container  -> host_child (LXD/WSL only — VM types are Enterprise virtualization)
+  audit      -> (none -- /audit-analytics aggregates the already-seeded audit_log)
+  container  -> host_child (LXD/WSL only -- VM types are Enterprise virtualization)
   secrets    -> secrets (metadata only; the analytics page reads metadata, so the
                 dummy vault_token/path never need to resolve against OpenBAO)
                 + gpg_key/gpg_key_assignment (the /gpg-keys list + assignments
@@ -88,7 +88,7 @@ DEMO_FQDNS = [
     "macos-studio-01.corp.northstar.io",
 ]
 
-# ---- shared CVE catalogue (real-ish ids) ----------------------------------
+# ---- shared CVE catalog (real-ish ids) ----------------------------------
 CVES = [
     # cve_id, severity, cvss, description, pkg, fixed_version
     ("CVE-2024-3094", "CRITICAL", "10.0", "Backdoor in xz/liblzma compression library.", "xz-utils", "5.6.2"),
@@ -101,7 +101,7 @@ CVES = [
     ("CVE-2024-2961", "LOW", "3.7", "glibc iconv ISO-2022-CN-EXT out-of-bounds write.", "libc6", "2.39-1"),
 ]
 
-# ---- shared advisory catalogue (Phase 14.1) -------------------------------
+# ---- shared advisory catalog (Phase 14.1) -------------------------------
 # advisory_id, source, type, severity, title, [cve_ids], [(pkg, fixed_version, release)]
 ADVISORIES = [
     ("USN-6700-1", "ubuntu", "security", "HIGH", "OpenSSL vulnerabilities",
@@ -212,7 +212,7 @@ COMPLIANCE_RULE_RESULTS = [
     _rule("6.1.3", "Ensure permissions on /etc/shadow are configured", "Filesystem", "critical", "fail",
           "/etc/shadow is world-readable.", "chmod 0640 /etc/shadow; chown root:shadow."),
     _rule("1.3.1", "Ensure AIDE is installed", "Integrity", "high", "fail",
-          "AIDE is not installed.", "Install aide and initialise the database."),
+          "AIDE is not installed.", "Install aide and initialize the database."),
     _rule("2.1.1", "Ensure xinetd is not installed", "Services", "medium", "fail",
           "xinetd is present.", "Remove the xinetd package."),
     _rule("3.5.1.1", "Ensure a firewall package is installed", "Network", "low", "fail",
@@ -273,7 +273,7 @@ PKG_STATUS = {
 # health: (score, grade, issues[], recommendations[])
 HEALTH = {
     "ubuntu-web-01.corp.northstar.io": (82, "B",
-        ["CPU utilisation sustained at 87%", "12 packages out of date", "Reboot required after kernel update"],
+        ["CPU utilization sustained at 87%", "12 packages out of date", "Reboot required after kernel update"],
         ["Investigate the nginx worker load", "Apply pending package updates", "Schedule a maintenance reboot"]),
     "rhel-db-01.corp.northstar.io": (91, "A",
         ["3 packages out of date", "Last backup completed 26h ago"],
@@ -292,7 +292,7 @@ HEALTH = {
         ["Apply the pending App Store updates"]),
 }
 
-# Map each host's findings to a slice of the CVE catalogue (for the drill-down page).
+# Map each host's findings to a slice of the CVE catalog (for the drill-down page).
 FINDINGS = {
     "ubuntu-web-01.corp.northstar.io": [0, 1, 2, 3, 5, 6],
     "rhel-db-01.corp.northstar.io": [1, 3, 4, 6],
@@ -307,7 +307,7 @@ INSTALLED = {  # plausible installed (vulnerable) version per CVE index
     4: "2.35-0", 5: "6.5.0", 6: "8.2.1", 7: "2.38-1",
 }
 
-# Container children — ONLY container types (lxd/wsl); VM types are Enterprise.
+# Container children -- ONLY container types (lxd/wsl); VM types are Enterprise.
 # (parent_fqdn, child_name, child_type, distribution, status)
 CONTAINERS = [
     ("ubuntu-web-01.corp.northstar.io", "web-app-01", "lxd", "ubuntu-22.04", "running"),
@@ -318,7 +318,7 @@ CONTAINERS = [
     ("win11-ws-01.corp.northstar.io", "wsl-debian", "wsl", "Debian", "running"),
 ]
 
-# Secrets metadata (vault_token/path are demo placeholders — the analytics page
+# Secrets metadata (vault_token/path are demo placeholders -- the analytics page
 # reads metadata only, so they never resolve against OpenBAO).
 # Dynamic-secret leases for the Settings → Dynamic Secrets panel (reads
 # dynamic_secret_lease where status=ACTIVE; OpenBAO not needed to DISPLAY them).
@@ -344,7 +344,7 @@ SECRETS = [
 
 # Alert rules: (name, condition_type, params, severity)
 ALERT_RULES = [
-    ("Host Down — Production", "host_down", {"minutes_threshold": 10}, "critical"),
+    ("Host Down -- Production", "host_down", {"minutes_threshold": 10}, "critical"),
     ("Reboot Required", "reboot_required", {}, "high"),
     ("Disk Usage High", "disk_usage", {"threshold_percent": 85}, "high"),
     ("Critical CVE Detected", "cve_severity", {"min_severity": "critical"}, "critical"),
@@ -363,11 +363,11 @@ ALERTS = [
      "Updates available on app-02", "23 package updates are pending.", 480, "active"),
     ("ubuntu-web-01.corp.northstar.io", "Critical CVE Detected", "critical",
      "Critical CVE on web-01", "CVE-2024-1086 (CVSS 7.8) detected in linux-image.", 15, "active"),
-    ("freebsd-build-01.corp.northstar.io", "Host Down — Production", "critical",
+    ("freebsd-build-01.corp.northstar.io", "Host Down -- Production", "critical",
      "Host down: build-bsd", "No agent check-in for 12 minutes.", 720, "resolved"),
 ]
 
-# ---- GPG keys (secrets_engine — /gpg-keys) --------------------------------
+# ---- GPG keys (secrets_engine -- /gpg-keys) --------------------------------
 # Metadata only: the LIST/assignments UI reads gpg_key/gpg_key_assignment; the
 # armored material lives in OpenBAO, so openbao_secret_id is a placeholder vault
 # path that never needs to resolve for these read-only screenshots.
@@ -396,12 +396,12 @@ GPG_ASSIGNMENTS = [
     ("Ops Team Public Key", "ubuntu-web-01.corp.northstar.io", "deploy", "pending"),
 ]
 
-# ---- Custom metrics (observability_engine — /custom-metrics) --------------
+# ---- Custom metrics (observability_engine -- /custom-metrics) --------------
 # Each metric = a small script emitting ONE number, targeted by host tag, sampled
 # on a cadence. We seed a real time-series (one sample every ~5 min for a few
 # hours) per metric+host so the inline SVG graph draws an actual line.
 # (name, description, interpreter, unit, cadence_seconds, script, [target_tags],
-#  base_value, amplitude)  — base/amplitude shape the synthetic series.
+#  base_value, amplitude)  -- base/amplitude shape the synthetic series.
 CUSTOM_METRICS = [
     ("queue-depth", "Depth of the app job queue (pending messages).", "sh",
      "msgs", 300,
@@ -432,7 +432,7 @@ def main():
         if missing:
             print(f"  WARNING: demo hosts not found (run OSS seed first?): {missing}")
         if not hosts:
-            print("  no demo hosts present — nothing to seed")
+            print("  no demo hosts present -- nothing to seed")
             return
 
         # --- idempotent reset (FK-safe order) ---
@@ -567,7 +567,7 @@ def main():
                 not_applicable_rules=na, compliance_score=sc, compliance_grade=gr,
                 critical_failures=c, high_failures=hi, medium_failures=m, low_failures=lo,
                 scanner_version="1.0.3", results=COMPLIANCE_RULE_RESULTS,
-                summary=f"{pa}/{tr} rules passed — grade {gr} ({sc}%).",
+                summary=f"{pa}/{tr} rules passed -- grade {gr} ({sc}%).",
             ))
 
         # --- package-compliance (OSS host-detail Compliance tab) ---
@@ -695,7 +695,7 @@ def main():
         # --- grant the demo admin the two Pro+ RBAC roles these pages gate on ---
         # The secrets_engine /gpg-keys endpoints 403 unless the caller holds
         # MANAGE_GPG_KEYS, and the observability /custom-metrics endpoints gate on
-        # MANAGE_CUSTOM_METRICS — is_admin is NOT honored. The initial admin only
+        # MANAGE_CUSTOM_METRICS -- is_admin is NOT honored. The initial admin only
         # gets the roles that existed WHEN it was created (create_admin_user snapshots
         # `SecurityRole.all()`), so on a VM whose admin predates the m1gpgkeys /
         # n1custmetric migrations these two roles are missing and the pages render
@@ -705,7 +705,7 @@ def main():
         admin = session.query(User).filter(User.userid == admin_userid).first()
         granted_role_count = 0
         if admin is None:
-            print(f"  WARNING: demo admin {admin_userid} not found — cannot grant "
+            print(f"  WARNING: demo admin {admin_userid} not found -- cannot grant "
                   "MANAGE_GPG_KEYS / MANAGE_CUSTOM_METRICS")
         else:
             for role_name in ("Manage GPG Keys", "Manage Custom Metrics"):
@@ -771,7 +771,7 @@ def main():
             for hi, (fqdn, h) in enumerate(sorted(target_hosts.items())):
                 for step in range(n_steps + 1):
                     minutes_ago = (n_steps - step) * METRIC_INTERVAL_MIN
-                    # triangular wave in [0,1], phase-shifted per host — no math import
+                    # triangular wave in [0,1], phase-shifted per host -- no math import
                     phase = (step + hi * 7) % 24
                     wave = phase / 12.0 if phase <= 12 else (24 - phase) / 12.0
                     value = round(base + amp * (wave - 0.5) * 2 + (hi * amp * 0.15), 1)

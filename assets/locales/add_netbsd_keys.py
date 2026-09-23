@@ -30,7 +30,7 @@ TRANSLATIONS = {
         "gcc14_required": "GCC 14 est requis :",
         "gcc14_reason": "Le GCC 10.5 du système de base de NetBSD ne prend pas correctement en charge les fonctionnalités C++17 nécessaires pour grpcio et d'autres packages. L'installation de GCC 14 assure une prise en charge appropriée de C++17.",
         "rust_required": "Rust est requis :",
-        "rust_reason": "L'agent utilise une authentification basée sur des certificats qui nécessite un support cryptographique pour la sécurité.",
+        "rust_reason": "L'agent utilize une authentification basée sur des certificats qui nécessite un support cryptographique pour la sécurité.",
         "profile_note": "Remarque :",
         "profile_note_text": "Sur les systèmes BSD, utilisez <code>. ~/.profile</code> au lieu de <code>source ~/.profile</code> pour recharger l'environnement du shell."
     },

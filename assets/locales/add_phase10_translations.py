@@ -25,7 +25,7 @@ from pathlib import Path
 LOCALES_DIR = Path(__file__).resolve().parent
 
 # ---------------------------------------------------------------------------
-# Short-key translations — applied directly.  Each row is the dot-path key
+# Short-key translations -- applied directly.  Each row is the dot-path key
 # and a 13-tuple of translations in the order:
 # (de, es, fr, it, pt, nl, ja, ko, zh_CN, zh_TW, ar, hi, ru)
 # English is the canonical, kept in en.json as-is.
@@ -341,7 +341,7 @@ SHORT_TRANSLATIONS: dict = {
 
 
 # ---------------------------------------------------------------------------
-# Long descriptive paragraphs — leave English value, but mark for follow-up
+# Long descriptive paragraphs -- leave English value, but mark for follow-up
 # translation.  These accompany the *.description, *_desc, *.intro.description,
 # *.header.description, *.meta_description keys.  We add a sibling
 # `__needs_translation__` field at the section level so a translation pass

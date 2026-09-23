@@ -6,7 +6,7 @@
 """Set the server_configuration singleton's air-gap + federation roles (in-VM).
 
 The air-gap (collections/repositories) and federation (Sites) UIs only render
-real content when the server's role matches — the route mounting happens at
+real content when the server's role matches -- the route mounting happens at
 backend startup, so the server must be restarted after changing a role. Used by
 `make screenshots-ent-roles` to flip roles between capture passes.
 

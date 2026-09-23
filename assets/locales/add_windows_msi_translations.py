@@ -8,7 +8,7 @@
 # duplicate-key: each per-language dict below defines ``service_desc`` twice
 # (once under the "benefits" section, once in the "what's installed" table); the
 # second silently overrides the first.  This is a latent CONTENT bug in the
-# already-emitted locale JSON, not a lint issue — flagged for human review rather
+# already-emitted locale JSON, not a lint issue -- flagged for human review rather
 # than silently rewritten here (see the task report).  Suppress so the linter
 # gates on real code issues.
 # pylint: disable=duplicate-key

@@ -9,7 +9,7 @@ Scope:
     Default Package Mirrors).  Each gets a title, intro, and several
     body paragraphs with inline <code> snippets.
   - The PM-specific bullet list under defaults.applymech (apt/dnf/
-    zypper/pkg) — body stays English everywhere because every line
+    zypper/pkg) -- body stays English everywhere because every line
     is dominated by file paths and shell commands.
 
 Pattern: titles + sentence-form prose translated for major locales;
@@ -24,14 +24,14 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 EN = {
     "docs.proplus.mirror.versions.title": "Version dropdown + known-version catalog (Phase 10.4.4)",
     "docs.proplus.mirror.versions.intro": "The Add Mirror dialog's version field is sourced from a pre-populated <code>mirror_known_version</code> catalog instead of free-text. Selecting a row auto-fills the upstream URL and the per-PM identifier (suite for apt, repoid for dnf, repo_alias for zypper, release for pkg) so an operator can't fat-finger <code>noblee</code> and silently produce a broken mirror. The catalog ships seeded with the canonical Ubuntu/Debian/RHEL-family/openSUSE/FreeBSD versions; future versions land via dedicated migrations rather than auto-discovery, keeping the supported set reviewable in code.",
-    "docs.proplus.mirror.versions.crossfamily": "One physical host can mirror multiple OS families that share a package manager. RHEL/Rocky/Alma/Fedora all use <code>dnf</code> with different upstream URLs, so they appear as separate <code>mirror_repository</code> rows under the same RHEL/Fedora tab — each row carries its own <code>known_version_id</code> referencing a different catalog entry. The Default Package Mirrors card has independent rows for each, so an admin can assign different defaults to RHEL 9 hosts vs Rocky 9 hosts even when both pull from the same physical mirror server.",
+    "docs.proplus.mirror.versions.crossfamily": "One physical host can mirror multiple OS families that share a package manager. RHEL/Rocky/Alma/Fedora all use <code>dnf</code> with different upstream URLs, so they appear as separate <code>mirror_repository</code> rows under the same RHEL/Fedora tab -- each row carries its own <code>known_version_id</code> referencing a different catalog entry. The Default Package Mirrors card has independent rows for each, so an admin can assign different defaults to RHEL 9 hosts vs Rocky 9 hosts even when both pull from the same physical mirror server.",
     "docs.proplus.mirror.defaults.title": "Default Package Mirrors (Phase 10.4.4)",
     "docs.proplus.mirror.defaults.intro": 'Settings → Host Defaults gains a "Default Package Mirrors" card that drives an apply/revert workflow against active hosts. One row per (platform, version_key, os_family) tuple drawn from the catalog; each row\'s dropdown lists the eligible mirrors (right PM + at least one successful sync) plus a "Cloud (upstream default)" option.',
-    "docs.proplus.mirror.defaults.flow": 'Saving a non-cloud choice queues an apply plan to every active host whose <code>platform_release</code> matches the catalog row\'s regex — simultaneous rollout, no staggered windows. Choosing "Cloud" queues a revert plan to the same matching hosts. New host registrations and approvals invoke the same hook automatically, so a freshly-enrolled host of a covered family gets pointed at the mirror without operator action.',
+    "docs.proplus.mirror.defaults.flow": 'Saving a non-cloud choice queues an apply plan to every active host whose <code>platform_release</code> matches the catalog row\'s regex -- simultaneous rollout, no staggered windows. Choosing "Cloud" queues a revert plan to the same matching hosts. New host registrations and approvals invoke the same hook automatically, so a freshly-enrolled host of a covered family gets pointed at the mirror without operator action.',
     "docs.proplus.mirror.defaults.hardblock": "The API hard-blocks (HTTP 409) any attempt to assign a mirror that hasn't completed a successful sync. This prevents pointing live clients at an empty or partially-built mirror tree where <code>apt update</code> would fail. Re-attempt once the mirror's <code>last_sync_status</code> reaches <code>SUCCESS</code>.",
     "docs.proplus.mirror.defaults.applymech": "The apply mechanism is additive only. Each PM gets a single override file the agent drops into a directory the package manager scans alongside operator-edited config:",
     "docs.proplus.mirror.defaults.apt": "<strong>apt:</strong> <code>/etc/apt/sources.list.d/zzz-sysmanage-mirror.list</code> + <code>apt-get update</code>",
-    "docs.proplus.mirror.defaults.dnf": "<strong>dnf:</strong> <code>/etc/yum.repos.d/zzz-sysmanage-&lt;repoid&gt;.repo</code> with the same <code>[section]</code> header as the upstream — dnf reads files in lex order and the last definition wins, so our <code>zzz-</code> prefix overrides whatever shipped + <code>dnf clean all</code>",
+    "docs.proplus.mirror.defaults.dnf": "<strong>dnf:</strong> <code>/etc/yum.repos.d/zzz-sysmanage-&lt;repoid&gt;.repo</code> with the same <code>[section]</code> header as the upstream -- dnf reads files in lex order and the last definition wins, so our <code>zzz-</code> prefix overrides whatever shipped + <code>dnf clean all</code>",
     "docs.proplus.mirror.defaults.zypper": "<strong>zypper:</strong> <code>/etc/zypp/repos.d/zzz-sysmanage-&lt;alias&gt;.repo</code> + <code>zypper refresh</code>",
     "docs.proplus.mirror.defaults.pkg": "<strong>pkg:</strong> <code>/usr/local/etc/pkg/repos/sysmanage-mirror.conf</code> overriding the FreeBSD repo + <code>pkg update -f</code>",
     "docs.proplus.mirror.defaults.revert": "Revert is symmetric: each plan deletes the override file and refreshes the package manager's metadata cache. Operator-edited config (the original <code>sources.list</code>, vendor-shipped <code>.repo</code> files) is never modified, so a manual edit between apply and revert is preserved.",
@@ -53,7 +53,7 @@ EN = {
 VERSIONS_TITLE_BY_LOCALE = {
     "de": "Versions-Dropdown + bekannte-Versionen-Katalog (Phase 10.4.4)",
     "es": "Menú desplegable de versiones + catálogo de versiones conocidas (Fase 10.4.4)",
-    "fr": "Liste déroulante des versions + catalogue de versions connues (Phase 10.4.4)",
+    "fr": "Liste déroulante des versions + catalog de versions connues (Phase 10.4.4)",
     "it": "Menu a discesa delle versioni + catalogo delle versioni note (Fase 10.4.4)",
     "pt": "Menu suspenso de versões + catálogo de versões conhecidas (Fase 10.4.4)",
     "nl": "Versie-vervolgkeuzelijst + catalogus van bekende versies (Fase 10.4.4)",
@@ -82,7 +82,7 @@ DEFAULTS_TITLE_BY_LOCALE = {
     "hi": "डिफ़ॉल्ट पैकेज मिरर (चरण 10.4.4)",
 }
 
-# Frontend i18n — the card title/subtitle/columns shown to operators.
+# Frontend i18n -- the card title/subtitle/columns shown to operators.
 HD_TITLE_BY_LOCALE = {
     "de": "Standard-Paket-Spiegel",
     "es": "Espejos de paquetes predeterminados",
@@ -102,7 +102,7 @@ HD_TITLE_BY_LOCALE = {
 HD_SUBTITLE_BY_LOCALE = {
     "de": "Wählen Sie für jedes unterstützte (Plattform, Version)-Paar aus, welchen Spiegel neue und vorhandene Hosts dieser Familie als Standard verwenden. Cloud bedeutet, dass Hosts direkt das öffentliche Upstream ansprechen. Nur Spiegel, die eine erfolgreiche Synchronisation abgeschlossen haben, sind verfügbar.",
     "es": "Para cada par (plataforma, versión) compatible, elija qué espejo usan los hosts nuevos y existentes de esa familia como predeterminado. Cloud significa que los hosts contactan directamente el upstream público. Solo están disponibles los espejos que han completado una sincronización exitosa.",
-    "fr": "Pour chaque paire (plateforme, version) prise en charge, choisissez le miroir que les nouveaux hôtes et les hôtes existants de cette famille utilisent par défaut. Cloud signifie que les hôtes contactent directement l'upstream public. Seuls les miroirs ayant terminé une synchronisation réussie sont éligibles.",
+    "fr": "Pour chaque paire (plateforme, version) prise en charge, choisissez le miroir que les nouveaux hôtes et les hôtes existants de cette famille utilisent par défaut. Cloud signifie que les hôtes contactent directement l'upstream public. Seuls les miroirs ayant terminé une synchronization réussie sont éligibles.",
     "it": "Per ogni coppia (piattaforma, versione) supportata, scegli quale mirror gli host nuovi ed esistenti di quella famiglia usano come predefinito. Cloud significa che gli host raggiungono direttamente l'upstream pubblico. Sono ammessi solo mirror che hanno completato una sincronizzazione riuscita.",
     "pt": "Para cada par (plataforma, versão) suportado, escolha qual espelho os hosts novos e existentes dessa família usam como padrão. Cloud significa que os hosts acessam diretamente o upstream público. Apenas espelhos que concluíram uma sincronização bem-sucedida são elegíveis.",
     "nl": "Kies voor elk ondersteund (platform, versie)-paar welke spiegel nieuwe en bestaande hosts van die familie als standaard gebruiken. Cloud betekent dat hosts rechtstreeks naar de publieke upstream gaan. Alleen spiegels die een succesvolle synchronisatie hebben voltooid komen in aanmerking.",

@@ -5,7 +5,7 @@
 
 """WebSocket fixture-agent for the documentation screenshots.
 
-OS/platform/hardware inventory has no REST ingestion path in SysManage — it only
+OS/platform/hardware inventory has no REST ingestion path in SysManage -- it only
 arrives through the agent's WebSocket protocol (``handle_system_info`` /
 ``os_version_update``). This script impersonates that protocol just enough to give
 each seeded demo host a realistic OS so the dashboard OS-distribution tile and any
@@ -21,7 +21,7 @@ is a TWO-STAGE handshake, mirrored here per host:
   2. ws(s)://<target>/api/agent/connect?token=<connection_token>
      The server reads the hostname from the (signed) token and sets it on the
      connection. handle_os_version_update then finds the host by
-     ``Host.fqdn == connection.hostname`` — so the token's x-agent-hostname MUST
+     ``Host.fqdn == connection.hostname`` -- so the token's x-agent-hostname MUST
      be the host's FQDN. The hostname in the message data is not used for lookup.
 
   Envelope:     {"message_type","message_id","timestamp","data"}  (messages.py to_dict)
@@ -85,7 +85,7 @@ def messages_for(host: dict) -> list[dict]:
     persists for the dashboard OS-distribution tile). Hardware/storage/network/
     software inventory is seeded directly by seed_inventory.sql, OS-upgrade
     candidates by the REST updates report (seed.py), and map coordinates +
-    last_access by seed_geo.sql — those WS handlers depend on a queue-worker
+    last_access by seed_geo.sql -- those WS handlers depend on a queue-worker
     host association that isn't reliable from a throwaway fixture.
     """
     return [

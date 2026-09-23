@@ -354,7 +354,7 @@ def main():
             for h in session.query(Host).filter(Host.fqdn.in_(DEMO_FQDNS)).all()
         }
         if not hosts:
-            print("  no demo hosts present — run make screenshots-seed first")
+            print("  no demo hosts present -- run make screenshots-seed first")
             return
 
         awake = _wake_demo_hosts(session, hosts, now)

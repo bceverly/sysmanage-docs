@@ -14,7 +14,7 @@ import os
 from typing import Dict, Any
 
 # duplicate-key: ``LANGUAGE_TRANSLATIONS`` defines the ``'es.json'`` mapping
-# TWICE — the second block (Host Account Management keys) wholesale replaces the
+# TWICE -- the second block (Host Account Management keys) wholesale replaces the
 # first (server_docs.configuration keys), so this seeder never emitted the
 # Spanish server_docs.configuration.* strings.  This is a latent CONTENT bug in
 # the seeder, flagged for human review rather than silently merged here (see the

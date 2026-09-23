@@ -38,7 +38,7 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 REPO="$ROOT/repo"
-[ -d "$REPO" ] || { echo "ERROR: no repo/ at $REPO — pull from R2 first" >&2; exit 1; }
+[ -d "$REPO" ] || { echo "ERROR: no repo/ at $REPO -- pull from R2 first" >&2; exit 1; }
 
 KEY="${APT_SIGNING_KEY_ID:-}"
 [ -n "$KEY" ] || { echo "ERROR: APT_SIGNING_KEY_ID is not set" >&2; exit 1; }
@@ -101,7 +101,7 @@ if command -v createrepo_c >/dev/null 2>&1; then
         echo "  regen rpm: ${d#"$REPO"/}"
     done < <(find "$REPO" -type d -name repodata)
 else
-    echo "ERROR: createrepo_c missing — rpm indices would describe pre-signature bytes" >&2
+    echo "ERROR: createrepo_c missing -- rpm indices would describe pre-signature bytes" >&2
     exit 1
 fi
 

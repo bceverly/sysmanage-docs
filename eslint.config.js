@@ -9,7 +9,7 @@
 // (require/process/__dirname).
 //
 // Authored as CommonJS (require/module.exports) so it loads cleanly whether or
-// not package.json declares a module type — the repo's two Node CLI scripts
+// not package.json declares a module type -- the repo's two Node CLI scripts
 // (screenshot-generator.js, real-screenshot.js) use CommonJS `require`, so the
 // package intentionally stays CommonJS.
 const js = require('@eslint/js');

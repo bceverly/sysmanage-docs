@@ -6,7 +6,7 @@
 """Seed fleet_engine demo data (groups + a bulk op + a rolling deployment) via the
 Pro+ fleet API so the host-detail Fleet tab isn't empty in the screenshots.
 
-Why REST and not SQL: ``fleet_engine`` owns its storage internally — there is no ORM
+Why REST and not SQL: ``fleet_engine`` owns its storage internally -- there is no ORM
 model and no migration in the source tree (the schema is compiled into the engine),
 so gen_seed_sql.py / seed_ent.py CANNOT touch it. The only safe way to populate it is
 to POST through the engine's own validated endpoints (``/api/v1/fleet/*``).
@@ -14,7 +14,7 @@ to POST through the engine's own validated endpoints (``/api/v1/fleet/*``).
 Runs from the host against the licensed Enterprise VM (after ent-build / ent-seed).
 DEFENSIVE BY DESIGN: every call is wrapped; an unlicensed engine (HTTP 402), an
 endpoint-shape drift, or a network error is logged and skipped. This script never
-exits non-zero, so it can never break the screenshot pipeline — worst case the Fleet
+exits non-zero, so it can never break the screenshot pipeline -- worst case the Fleet
 tab stays as it was.
 
 Membership is pinned with ``explicit_host_ids`` (read from host_ids.json, written by
@@ -37,14 +37,14 @@ def _host_ids() -> dict:
     try:
         with open(os.path.join(HERE, "host_ids.json"), encoding="utf-8") as fh:
             return json.load(fh)
-    except Exception:  # noqa: BLE001 — optional; absence just means no explicit ids
+    except Exception:  # noqa: BLE001 -- optional; absence just means no explicit ids
         return {}
 
 
 def _post(path: str, token: str, body: dict, label: str) -> None:
     try:
         status, _ = _req("POST", path, token=token, body=body)
-    except Exception as exc:  # noqa: BLE001 — network/connection; never fatal
+    except Exception as exc:  # noqa: BLE001 -- network/connection; never fatal
         print(f"  - skip {label}: {exc}")
         return
     if status in (200, 201):
@@ -79,7 +79,7 @@ def main() -> int:
 
     print("Seeding fleet (groups / bulk / rolling) via /api/v1/fleet ...")
 
-    # Groups — ubuntu-web-01 (the Fleet-tab screenshot host) is in BOTH so its tab fills.
+    # Groups -- ubuntu-web-01 (the Fleet-tab screenshot host) is in BOTH so its tab fills.
     _post("/v1/fleet/groups", token, {
         "name": "Production Linux",
         "description": "All production Linux servers.",
