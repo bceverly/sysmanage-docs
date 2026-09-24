@@ -102,7 +102,7 @@ endif
 
 .PHONY: release help install-dev install-hooks install-vm-deps install-browsers screenshot clean check-deps platform-info ensure-lint-tools \
        test test-spelling test-markdown-lint test-vale test-accessibility test-links \
-       check-test-deps website-package i18n-validate i18n-markup i18n-html-sync i18n-markup-fix i18n-seed i18n-extract i18n-fix \
+       check-test-deps website-package i18n-validate i18n-markup i18n-code i18n-html-sync i18n-markup-fix i18n-seed i18n-extract i18n-fix \
        translate translate-dry translate-check lint lint-file-length lint-python lint-security lint-js lint-css lint-css-fix ensure-css-lint-tools
 
 # Default target
@@ -144,6 +144,7 @@ help:
 	@echo "  i18n-validate          - Verify every data-i18n key in the HTML exists in every locale"
 	@echo "  i18n-markup            - Verify translations keep the <code>/<strong> tags their English has"
 	@echo "  i18n-markup-fix        - Re-translate values whose markup was lost (needs SERVICE=)"
+	@echo "  i18n-code              - Verify translations keep their English <code> text verbatim; no en/em dashes"
 	@echo "  i18n-html-sync         - Verify each page's English says what en.json says (readers see en.json)"
 	@echo "  i18n-seed              - Fill missing locale keys with '[TODO] <English>' placeholders"
 	@echo "  i18n-extract           - Print every data-i18n key referenced in the HTML"
@@ -1052,7 +1053,7 @@ lint-css-fix: ensure-css-lint-tools
 	@./node_modules/.bin/stylelint "assets/css/**/*.css" --fix
 	@echo "[OK] CSS auto-fix completed"
 
-lint: lint-file-length lint-python lint-security lint-js lint-css i18n-validate i18n-strict i18n-markup i18n-html-sync translate-check
+lint: lint-file-length lint-python lint-security lint-js lint-css i18n-validate i18n-strict i18n-markup i18n-code i18n-html-sync translate-check
 	@echo "[OK] docs lint (python + security + js + i18n) passed"
 
 # Structure gate. i18n-validate asks "is the key there?", translate-check asks
@@ -1065,6 +1066,14 @@ i18n-markup:
 	@echo "=== i18n markup (tags preserved from English) ==="
 	@python3 scripts/i18n_check_markup.py
 	@echo "[OK] i18n markup gate passed"
+
+# i18n-markup counts tags; this one reads inside them. A translated <code>
+# (a command, route or permission name) renders fine and is wrong -- 1,765
+# values across 13 locales on 2026-09-24. Also fails on en/em dashes.
+i18n-code:
+	@echo "=== i18n code (English <code> text kept verbatim) ==="
+	@$(PYTHON) scripts/i18n_check_code.py
+	@echo "[OK] i18n code gate passed"
 
 # Source gate. The runtime renders every data-i18n element from en.json, for
 # English readers too, so English edited only in the HTML never reaches anyone
