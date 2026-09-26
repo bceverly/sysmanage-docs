@@ -389,7 +389,7 @@ screenshot:
 # ---- Automated documentation screenshots (screenshots/ pipeline) ------------
 # Reproducible screenshots: provision a VM, seed demo data (REST + WS), drive the
 # UI with Playwright, write PNGs into assets/images/. See screenshots/README.md.
-.PHONY: screenshots screenshots-community screenshots-enterprise screenshots-seed screenshots-capture screenshots-vm-up screenshots-vm-down screenshots-pro-build screenshots-pro-seed screenshots-pro-capture screenshots-ent-build screenshots-ent-seed screenshots-ent-capture screenshots-ent-roles screenshots-fleet-seed screenshots-cfg-seed screenshots-facts-seed screenshots-facts-capture
+.PHONY: screenshots screenshots-community screenshots-enterprise screenshots-seed screenshots-capture screenshots-vm-up screenshots-vm-down screenshots-pro-build screenshots-pro-seed screenshots-pro-capture screenshots-ent-build screenshots-ent-seed screenshots-ent-capture screenshots-ent-roles screenshots-fleet-seed screenshots-cfg-seed screenshots-facts-seed screenshots-facts-capture screenshots-advisor-seed screenshots-advisor-capture
 
 SHOTS_DIR := screenshots
 # Load screenshots/config.env (targets, admin + demo creds) if present.
@@ -455,6 +455,7 @@ screenshots:
 	@$(MAKE) screenshots-cfg-seed
 	@$(MAKE) screenshots-facts-seed
 	@$(MAKE) screenshots-fleet-seed
+	@$(MAKE) screenshots-advisor-seed
 	@$(MAKE) screenshots-ent-capture
 	@$(MAKE) screenshots-ent-roles
 	@echo "$(BLUE)All tiers captured -- destroying the VM...$(RESET)"
@@ -481,6 +482,7 @@ screenshots-enterprise:
 	@$(MAKE) screenshots-ent-seed
 	@$(MAKE) screenshots-cfg-seed
 	@$(MAKE) screenshots-fleet-seed
+	@$(MAKE) screenshots-advisor-seed
 	@$(MAKE) screenshots-ent-capture
 	@$(MAKE) screenshots-ent-roles
 	@echo "$(GREEN)✓ Enterprise screenshots refreshed in assets/images/$(RESET)"
@@ -683,6 +685,17 @@ screenshots-facts-seed:
 		cat seed_facts.py | vagrant ssh -c "cd /opt/sysmanage && sudo env PYTHONPATH=/opt/sysmanage /opt/sysmanage/.venv/bin/python - 2>&1" 2>/dev/null \
 			| sed 's/^/  /' || echo "$(YELLOW)fact-substrate seed failed (is the Enterprise-licensed VM up and OSS-seeded?)$(RESET)"
 
+# Advisor demo data (Phase 21.2 S8). Evaluates with the REAL advisor over
+# seeded evidence, so every outcome in the shots is one the product computed --
+# including the hosts it could NOT assess, which is what the feature is for.
+# Run after screenshots-seed, screenshots-pro-seed and screenshots-ent-seed.
+screenshots-advisor-seed:
+	@cd $(SHOTS_DIR) && VMIP=$$(vagrant ssh -c 'hostname -I' 2>/dev/null | awk '{print $$1}' | tr -d '\r'); \
+		[ -n "$$VMIP" ] || { echo "$(RED)Screenshot VM not running. Run 'make screenshots-ent-build' first.$(RESET)"; exit 1; }; \
+		echo "$(BLUE)Seeding advisor evidence + evaluating (in-VM ORM)...$(RESET)"; \
+		cat seed_advisor.py | vagrant ssh -c "cd /opt/sysmanage && sudo env PYTHONPATH=/opt/sysmanage /opt/sysmanage/.venv/bin/python - 2>&1" 2>/dev/null \
+			| sed 's/^/  /' || echo "$(YELLOW)advisor seed failed (is the Enterprise-licensed VM up and seeded?)$(RESET)"
+
 # Capture into assets/images/. Targets SCREENSHOT_TARGET_WEB if set, else the
 # running VM's private IP (resolved via vagrant ssh).
 screenshots-capture: install-browsers
@@ -723,6 +736,13 @@ screenshots-pro-capture: install-browsers
 screenshots-facts-capture:
 	@$(MAKE) screenshots-pro-capture \
 		SCREENSHOT_ONLY=pro-query-packs,pro-query-pack-runs
+
+# Re-capture ONLY the advisor shots, against an Enterprise VM that is built and
+# seeded (screenshots-ent-build, -seed, -pro-seed, -ent-seed, -advisor-seed), so
+# a four-image change stays four images.
+screenshots-advisor-capture:
+	@$(MAKE) screenshots-ent-capture \
+		SCREENSHOT_ONLY=ent-advisor,ent-advisor-proposals,ent-advisor-packs,ent-host-advisor
 
 # Capture the Enterprise-tier shots (tier=enterprise in shotlist.json) against the
 # Enterprise-licensed VM. Run AFTER: screenshots-ent-build, screenshots-seed,
@@ -951,7 +971,7 @@ lint-file-length:
 # .js seeders (real-screenshot.js etc.) are covered by eslint below, not here.
 LINT_PY := add_test_user.py scripts/ screenshots/seed.py screenshots/seed_pro.py \
 	screenshots/seed_ent.py screenshots/seed_ent_config.py \
-	screenshots/seed_fleet.py screenshots/set_roles.py \
+	screenshots/seed_fleet.py screenshots/seed_advisor.py screenshots/set_roles.py \
 	screenshots/pro_keygen.py screenshots/fixture_agent.py screenshots/gen_seed_sql.py \
 	assets/locales/
 

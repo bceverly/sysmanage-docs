@@ -166,9 +166,14 @@ async function clickWithRetry(page, factory, what, opts = {}) {
   );
 }
 
-async function selectTab(page, name) {
-  const rail = () => page.getByRole('button', { name, exact: false });
-  const tab = () => page.getByRole('tab', { name, exact: false });
+// ``exact``: a substring match is the default (tab labels carry counts, e.g.
+// "Proposed fixes (1)"), but a label that is a PREFIX of another needs an
+// exact one -- "Advisor" also matches "Advisories" on the host-detail rail,
+// and which one first() picks would depend on rail order (shotlist:
+// ``"tabExact": true``).
+async function selectTab(page, name, exact = false) {
+  const rail = () => page.getByRole('button', { name, exact });
+  const tab = () => page.getByRole('tab', { name, exact });
   // POLL rather than wait-then-choose.  Two traps live here, both hit in real
   // runs:
   //   1. `count()` does not wait.  The host-detail rail is a plugin-fed subtree
@@ -435,7 +440,7 @@ async function captureRoute(page, shot, vp) {
   await page.waitForTimeout(settleFor(shot));
   // Settings groups content into a left-rail (formerly MUI tabs); switch first.
   if (shot.tab) {
-    await selectTab(page, shot.tab);
+    await selectTab(page, shot.tab, Boolean(shot.tabExact));
     await page.waitForTimeout(1200);
   }
   // Optional: expand an inline panel by clicking a toggle button by its
@@ -486,7 +491,7 @@ async function captureDetail(page, shot, vp) {
   // addressable by URL hash are clicked by visible name -- now left-rail buttons
   // after the nav redesign (selectTab falls back to a real tab if needed).
   if (shot.tab) {
-    await selectTab(page, shot.tab);
+    await selectTab(page, shot.tab, Boolean(shot.tabExact));
     await page.waitForTimeout((settleFor(shot)));
   }
   // Optional interaction ON a detail tab.  captureClick can only drive a
@@ -570,7 +575,7 @@ async function captureClick(page, shot, vp) {
     // selectTab, not getByRole('tab'): pages reached this way may use the nav
     // rail (buttons) rather than real tabs, and it already polls for a late
     // subtree instead of asking once.
-    await selectTab(page, shot.tab);
+    await selectTab(page, shot.tab, Boolean(shot.tabExact));
     await page.waitForTimeout(1000);
     detail += ` » tab "${shot.tab}"`;
   }
