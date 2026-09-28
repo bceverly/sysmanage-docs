@@ -739,10 +739,11 @@ screenshots-facts-capture:
 
 # Re-capture ONLY the advisor shots, against an Enterprise VM that is built and
 # seeded (screenshots-ent-build, -seed, -pro-seed, -ent-seed, -advisor-seed), so
-# a four-image change stays four images.
+# an advisor-only change stays advisor-only (the four 21.2 shots and the
+# four 21.4 posture shots).
 screenshots-advisor-capture:
 	@$(MAKE) screenshots-ent-capture \
-		SCREENSHOT_ONLY=ent-advisor,ent-advisor-proposals,ent-advisor-packs,ent-host-advisor
+		SCREENSHOT_ONLY=ent-advisor,ent-advisor-proposals,ent-advisor-packs,ent-host-advisor,ent-advisor-posture,ent-advisor-threat-model,ent-advisor-threat-model-diff,ent-advisor-posture-remedy
 
 # Capture the Enterprise-tier shots (tier=enterprise in shotlist.json) against the
 # Enterprise-licensed VM. Run AFTER: screenshots-ent-build, screenshots-seed,

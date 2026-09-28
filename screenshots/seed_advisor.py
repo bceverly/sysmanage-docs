@@ -31,10 +31,18 @@ answers would document the feature without showing the thing it is for:
                   update detection never reported -> "never reported";
                   their fact tables were never collected
 
+It then does the same for the 21.4 POSTURE punch list: two threat-model
+versions saved through the real service (a home lab, then a small business
+handling personal data), each followed by a real evaluation -- so the
+version diff has something to say -- and one open item waived through the
+real waiver path, so all four states are on screen and none of them was
+typed in by hand.
+
 Run AFTER screenshots-seed, screenshots-pro-seed and screenshots-ent-seed
 (demo hosts, vulnerability and compliance scans).  Idempotent: clears the
 advisor's own rows and the evidence it adds, then re-evaluates.
 """
+
 import asyncio
 import json
 import uuid
@@ -48,6 +56,11 @@ from backend.persistence.models import (
     AdvisorResult,
     Host,
     PackageUpdate,
+    PostureItem,
+    PostureItemEvent,
+    PostureWaiver,
+    ThreatModel,
+    User,
     QueryPackResultRow,
     QueryPackRun,
 )
@@ -67,19 +80,81 @@ SECURITY_UPDATES = [
 
 MOUNT_COLUMNS = ["device", "path", "type", "blocks", "blocks_available"]
 MOUNTS = [
-    {"device": "/dev/sda2", "path": "/", "type": "ext4", "blocks": 25600000, "blocks_available": 13800000},
-    {"device": "/dev/sdb1", "path": "/var", "type": "xfs", "blocks": 51200000, "blocks_available": 2900000},
-    {"device": "/dev/loop3", "path": "/snap/core22/1380", "type": "squashfs", "blocks": 18000, "blocks_available": 0},
+    {
+        "device": "/dev/sda2",
+        "path": "/",
+        "type": "ext4",
+        "blocks": 25600000,
+        "blocks_available": 13800000,
+    },
+    {
+        "device": "/dev/sdb1",
+        "path": "/var",
+        "type": "xfs",
+        "blocks": 51200000,
+        "blocks_available": 2900000,
+    },
+    {
+        "device": "/dev/loop3",
+        "path": "/snap/core22/1380",
+        "type": "squashfs",
+        "blocks": 18000,
+        "blocks_available": 0,
+    },
 ]
 USER_COLUMNS = ["uid", "username"]
 USERS = [{"uid": "0", "username": "root"}, {"uid": "1000", "username": "deploy"}]
 
+# Two threat-model versions: the second widens the model (personal data under
+# GDPR, several admins, low tolerance for downtime and data loss), so the
+# version diff shows checks the MODEL added to the punch list.
+MODEL_V1 = {
+    "org": "homelab",
+    "data": ["none_sensitive"],
+    "adversary": ["opportunistic"],
+    "exposure": "internal_only",
+    "third_party": "no",
+    "admins": "one",
+    "downtime": "days",
+    "data_loss": "a_week",
+    "risk": "high",
+}
+MODEL_V2 = {
+    "org": "small_business",
+    "data": ["personal"],
+    "regs": ["gdpr"],
+    "adversary": ["opportunistic", "targeted_criminal"],
+    "exposure": "some_exposed",
+    "third_party": "yes",
+    "admins": "few",
+    "downtime": "hours",
+    "data_loss": "a_day",
+    "risk": "medium",
+}
+# The first of these that evaluates OPEN is waived, with a reason an operator
+# would actually write.
+WAIVE_PREFERENCE = [
+    "PM-AUDIT-RETENTION",
+    "PM-MAINT-WINDOWS",
+    "PM-API-KEY-EXPIRY",
+    "PM-ALERTING",
+    "PM-LOG-FORWARD",
+]
+# Never the fallback: waiving an unpatched critical CVE is not a demo anyone
+# should copy.
+NEVER_WAIVE = {"PM-CRITICAL-VULNS"}
+WAIVE_REASON = "Accepted until the Q4 change-management rollout; reviewed monthly."
+
 
 def _clear(session, hosts):
     ids = [h.id for h in hosts.values()]
+    for table in (PostureWaiver, PostureItemEvent, PostureItem, ThreatModel):
+        session.query(table).delete(synchronize_session=False)
     session.query(AdvisorProposal).delete(synchronize_session=False)
     session.query(AdvisorResult).delete(synchronize_session=False)
-    for run in session.query(QueryPackRun).filter(QueryPackRun.pack_name == ADVISOR_PACK).all():
+    for run in (
+        session.query(QueryPackRun).filter(QueryPackRun.pack_name == ADVISOR_PACK).all()
+    ):
         session.delete(run)
     session.query(PackageUpdate).filter(
         PackageUpdate.host_id.in_(ids), PackageUpdate.description == "advisor-demo"
@@ -94,7 +169,9 @@ def _advertise_facts(host):
     "limited agent" chip), and those shots are not this seeder's business."""
     report = json.loads(host.agent_capabilities) if host.agent_capabilities else None
     if not isinstance(report, dict) or not report.get("commands"):
-        print(f"  note: {host.fqdn} has no capability report; its fact rules stay not assessable")
+        print(
+            f"  note: {host.fqdn} has no capability report; its fact rules stay not assessable"
+        )
         return
     report["facts"] = {
         "contract_version": 3,
@@ -109,17 +186,29 @@ def _advertise_facts(host):
 def _collected(session, host, table, rows):
     """An ``advisor.<table>`` collection that came back, as the agent sends it."""
     run = QueryPackRun(
-        id=uuid.uuid4(), host_id=host.id, pack_name=ADVISOR_PACK, status="success",
-        queries_total=1, queries_ok=1, contract_version=3,
-        started_at=NOW - timedelta(minutes=20), completed_at=NOW - timedelta(minutes=19),
+        id=uuid.uuid4(),
+        host_id=host.id,
+        pack_name=ADVISOR_PACK,
+        status="success",
+        queries_total=1,
+        queries_ok=1,
+        contract_version=3,
+        started_at=NOW - timedelta(minutes=20),
+        completed_at=NOW - timedelta(minutes=19),
     )
     session.add(run)
     session.flush()
     for row in rows:
-        session.add(QueryPackResultRow(
-            id=uuid.uuid4(), run_id=run.id, query_name="advisor." + table,
-            status="ok", columns=row, collected_at=NOW - timedelta(minutes=19),
-        ))
+        session.add(
+            QueryPackResultRow(
+                id=uuid.uuid4(),
+                run_id=run.id,
+                query_name="advisor." + table,
+                status="ok",
+                columns=row,
+                collected_at=NOW - timedelta(minutes=19),
+            )
+        )
 
 
 def _evidence(session, hosts):
@@ -133,12 +222,21 @@ def _evidence(session, hosts):
     dbh.reboot_required = False
     stale.updates_updated_at = NOW - timedelta(days=5)
     for name, current, available in SECURITY_UPDATES:
-        session.add(PackageUpdate(
-            host_id=web.id, package_name=name, current_version=current,
-            available_version=available, package_manager="apt", update_type="security",
-            status="available", description="advisor-demo", discovered_at=NOW,
-            created_at=NOW, updated_at=NOW,
-        ))
+        session.add(
+            PackageUpdate(
+                host_id=web.id,
+                package_name=name,
+                current_version=current,
+                available_version=available,
+                package_manager="apt",
+                update_type="security",
+                status="available",
+                description="advisor-demo",
+                discovered_at=NOW,
+                created_at=NOW,
+                updated_at=NOW,
+            )
+        )
     _advertise_facts(web)
     _collected(session, web, "mounts", MOUNTS)
     _collected(session, web, "users", USERS)
@@ -151,7 +249,81 @@ async def _boot_engines():
     await license_service.initialize()
     module_loader.initialize()
     if not await module_loader.ensure_module_available("advisor_engine"):
-        raise SystemExit("advisor_engine is not available -- is this the Enterprise VM?")
+        raise SystemExit(
+            "advisor_engine is not available -- is this the Enterprise VM?"
+        )
+
+
+def _admin(session):
+    admin = session.query(User).filter(User.is_admin.is_(True)).first()
+    if admin is None:
+        raise SystemExit(
+            "no administrator in the demo database -- run screenshots-seed first"
+        )
+    return admin
+
+
+def _save_model(answers):
+    """One threat-model version through the real service, as the wizard saves it."""
+    from backend.licensing.module_loader import module_loader  # noqa: PLC0415
+    from backend.services import posture_service  # noqa: PLC0415
+
+    engine = module_loader.get_module("advisor_engine")
+    session = sessionmaker(bind=db.get_engine())()
+    try:
+        row, _diff = posture_service.save_threat_model(
+            engine, session, answers, _admin(session).userid
+        )
+        session.commit()
+        print(
+            f"posture: threat model v{row.model_version} saved (complete={row.complete})"
+        )
+    finally:
+        session.close()
+
+
+def _waive_one():
+    """Waive the first preferred item that is open, through the real path."""
+    from backend.services import posture_service, posture_waivers  # noqa: PLC0415
+
+    session = sessionmaker(bind=db.get_engine())()
+    try:
+        items = {i.rule_key: i for i in session.query(PostureItem).all()}
+        is_open = [k for k in sorted(items) if items[k].state == "open"]
+        key = next((k for k in WAIVE_PREFERENCE if k in is_open), None)
+        # The screenshots must show all four states, so fall back to any open
+        # item rather than silently shooting a punch list with no waiver.
+        key = key or next((k for k in is_open if k not in NEVER_WAIVE), None)
+        if key is None:
+            print("  note: no posture item is open; no waiver shown")
+            return
+        item = items[key]
+        rule = posture_service.rule_definition(session, item.rule_source, key) or {}
+        model = posture_service.current_threat_model(session)
+        posture_waivers.grant(
+            session,
+            posture_service.SCOPE,
+            item,
+            rule,
+            model,
+            _admin(session),
+            WAIVE_REASON,
+        )
+        session.commit()
+        print(f"posture: {key} waived")
+    finally:
+        session.close()
+
+
+def _posture_counts():
+    session = sessionmaker(bind=db.get_engine())()
+    try:
+        states = {}
+        for item in session.query(PostureItem).all():
+            states[item.state] = states.get(item.state, 0) + 1
+        return states
+    finally:
+        session.close()
 
 
 def main():
@@ -160,7 +332,9 @@ def main():
         hosts = {h.fqdn: h for h in session.query(Host).all()}
         missing = [f for f in (WEB, DB_HOST, STALE) if f not in hosts]
         if missing:
-            raise SystemExit(f"demo hosts missing ({missing}) -- run screenshots-seed first")
+            raise SystemExit(
+                f"demo hosts missing ({missing}) -- run screenshots-seed first"
+            )
         _clear(session, hosts)
         _evidence(session, hosts)
         session.commit()
@@ -170,7 +344,17 @@ def main():
     asyncio.run(_boot_engines())
     from backend.services import advisor_tick  # noqa: PLC0415
 
+    # The first tick also syncs the curated questionnaire, which saving a
+    # threat model needs; then one evaluation per model version.
+    advisor_tick.run_one_tick()
+    _save_model(MODEL_V1)
+    advisor_tick.run_one_tick()
+    _save_model(MODEL_V2)
     summary = advisor_tick.run_one_tick()
+    _waive_one()
+    print(
+        f"posture: evaluated states {_posture_counts()} (waived is an overlay on open)"
+    )
     print(
         f"advisor: {summary['hosts']} hosts evaluated, {summary['results']} results, "
         f"{summary['proposals_opened']} fix(es) proposed, "
