@@ -19491,7 +19491,7 @@
       "prometheus": {
         "description": "要將自定義指標在 Grafana 中繪製圖表，SysManage 將其暴露到現有的 Prometheus &rarr; Grafana 管道中。以下步驟會將一個 Prometheus 儀器抓取工作連接到伺服器，限制對該端點的訪問權限，並驗證數據是否已傳送到 Grafana。",
         "endpoint": {
-          "description": "SysManage 伺服器會在 <code>GET /metrics/custom-metrics</code> 使用 Prometheus 文本展示格式發布每個自定義指標的最新值。每個指標都會以帶有 <code>sysmanage_custom_metric_value</code> 標籤的計量器形式發送，這些標籤包括 <code>metric</code>、<code>host</code> 和 <code>unit</code>（在伺服器處於多租戶模式時還會包含一個 <code>tenant</code> 標籤）。此端點未進行身份驗證，遵循常見的 Prometheus 爬取慣例。",
+          "description": "SysManage 伺服器以 Prometheus 文字公開格式，在 <code>GET /metrics/custom-metrics</code> 發布每個自訂指標的最新值。每個指標會以名為 <code>sysmanage_custom_metric_value</code> 的 gauge 輸出，並帶有 <code>metric</code>、<code>host</code>、<code>unit</code> 和 <code>builtin</code> 標籤（伺服器以多租戶模式執行時，還會帶有 <code>tenant</code> 標籤）。<code>builtin=\"true\"</code> 用於標示<a href=\"host-metrics.html\">內建主機序列</a>。依照 Prometheus 抓取的一般慣例，此端點不需要驗證。",
           "title": "端點"
         },
         "restrict": {
@@ -19532,6 +19532,10 @@
           "desc": "按標簽選擇主機",
           "title": "目標"
         }
+      },
+      "builtin": {
+        "description": "除了您自己的指標之外，清單還會顯示五個內建主機序列 -- CPU、記憶體、置換空間、負載和磁碟 -- 標示為<strong>內建</strong>，並以所有主機為目標。它們不需要腳本；可以啟用或停用，但無法編輯或刪除。請參閱<a href=\"host-metrics.html\">內建主機指標</a>。",
+        "title": "內建主機序列"
       }
     },
     "docs": {
@@ -19879,6 +19883,17 @@
           },
           "link": "威脅模型與安全態勢指南 →",
           "title": "🛡 威脅模型與安全態勢"
+        },
+        "host_metrics": {
+          "description": "每部主機的 CPU、記憶體、置換空間、負載和磁碟歷史記錄，無需撰寫腳本，可依主機及跨主機群繪製圖表。",
+          "features": {
+            "fleet": "依序列列出最忙碌的主機，並如實呈現涵蓋數量",
+            "prometheus": "透過現有的 Prometheus 端點匯出，供 Grafana 使用",
+            "retention": "以 15 分鐘解析度保存，受自訂指標保留期間約束",
+            "tab": "每部主機都有「指標」分頁，圖表卡片由您選擇"
+          },
+          "link": "內建主機指標指南 →",
+          "title": "📊 內建主機指標"
         }
       },
       "overview": {
@@ -21846,6 +21861,62 @@
         "stale": "豁免涵蓋的是授予當時的風險狀況。當風險升高、檢查本身變更，或其所依據的威脅模型答案變更時，豁免會<strong>失效</strong>，該項目會再次顯示為未解決，並標示為<em>豁免已失效</em>。重新檢視後再次確認，即可恢復該豁免。",
         "title": "豁免"
       }
+    },
+    "host_metrics": {
+      "breadcrumb": "內建主機指標",
+      "fleet": {
+        "coverage": "圖表上方，頁面會說明在此時間範圍內，整個主機群中有多少部主機回報了該序列。若有部分主機未回報，頁面會註明這些主機未納入圖表 -- 僅由有回應的主機繪製而成的主機群圖表，不應被解讀為整個主機群的狀況。",
+        "description": "主導覽中的<strong>主機指標</strong>頁面會跨主機群繪製單一序列：最忙碌的五部或十部主機，依其在該範圍內的平均值排序，圖表下方的表格則列出它們的平均值與峰值。",
+        "screenshot_caption": "主機群檢視會針對單一序列排列最忙碌的主機，並說明有多少部主機回報了該序列。",
+        "title": "主機群檢視"
+      },
+      "header": {
+        "description": "每部主機都會取得其代理程式已回報數值的歷史記錄 -- CPU、記憶體、置換空間、負載和磁碟 -- 無需任何人撰寫腳本。您可以在主機的「指標」分頁上繪製圖表，在「主機指標」頁面比較最忙碌的主機，並透過與自訂指標相同的 Prometheus 端點將它們抓取到 Grafana。",
+        "screenshot_caption": "主機的「指標」分頁會在所選範圍內繪製內建序列，每個序列一張卡片。",
+        "title": "內建主機指標"
+      },
+      "host_tab": {
+        "description": "開啟一部主機並選擇<strong>指標</strong>分頁。選擇一個時間範圍（過去 24 小時、7 天、30 天或 90 天），然後點選序列標籤以選擇要顯示的卡片；您的選擇會記錄在瀏覽器中。百分比序列以固定的 0-100% 刻度繪製，因此兩部主機的圖表可以一目了然地比較。",
+        "gaps": "<strong>中斷</strong> -- 當主機停機或無法連線超過 45 分鐘時，線條會斷開，而不會在中斷期間畫出一段斜線。",
+        "not_reported": "<strong>未回報</strong> -- 該主機在此範圍內未傳送該序列的任何樣本。卡片會留在畫面上並說明此情況，而不會消失。",
+        "title": "主機「指標」分頁",
+        "turned_off": "<strong>已關閉</strong> -- 管理員已停用該序列的收集。"
+      },
+      "manage": {
+        "description": "內建序列會顯示在「自訂指標」頁面上，帶有<strong>內建</strong>標籤，並以所有主機為目標。您可以在該頁面啟用或停用它們，停用後伺服器就會停止儲存該序列。它們無法編輯或刪除，且其名稱已保留：無法以 <code>host.cpu_percent</code> 或任何其他內建名稱建立自訂指標，也無法將自訂指標重新命名為這些名稱。",
+        "title": "管理內建序列"
+      },
+      "meta_description": "為每部主機提供 CPU、記憶體、置換空間、負載和磁碟的內建圖表，無需撰寫腳本即可收集，以 15 分鐘解析度保存並匯出至 Prometheus。",
+      "overview": {
+        "description": "自訂指標回答只有您才會提出的問題；內建主機指標則回答每位維運人員都會提出的問題。代理程式在每次定期執行時回報五個主機層級的數值，伺服器將其保存為時間序列，您可以繪製圖表、在主機群間比較並據以設定警示。它們以系統定義的自訂指標形式儲存，因此保留期間、樣本 API、Prometheus 端點和警示條件對它們的運作方式，與您自行定義的指標完全相同。",
+        "title": "概觀"
+      },
+      "page_title": "內建主機指標 - SysManage Professional+",
+      "prometheus": {
+        "description": "內建序列與自訂指標發布在同一個 <code>GET /metrics/custom-metrics</code> 端點上，形式為 <code>sysmanage_custom_metric_value</code> gauge，序列名稱位於 <code>metric</code> 標籤中。<code>builtin</code> 標籤（<code>true</code> 或 <code>false</code>）可將它們與您自己的指標區分開來。此端點會回報每部主機的最新樣本，並略過最後一個樣本過舊、已不足以代表目前狀態的主機。如果您已在抓取自訂指標，就不需要新的抓取工作；關於抓取工作以及如何限制對此端點的存取，請參閱自訂指標指南。",
+        "link": "自訂指標：Grafana & Prometheus 設定 →",
+        "title": "Prometheus 與 Grafana"
+      },
+      "requirements": {
+        "agent": "支援回報內建主機指標的代理程式版本。舊版代理程式仍可繼續運作；其主機會顯示為未回報。",
+        "license": "含可觀測性引擎的 Professional 或 Enterprise 授權。",
+        "role": "檢視圖表需要 View Host Details 角色。",
+        "title": "需求"
+      },
+      "resolution": {
+        "description": "代理程式大約每五分鐘回報一次。伺服器每 15 分鐘為每部主機的每個序列保存一個樣本，這足以看出趨勢或事件，同時資料表的成長速度也不會超出主機群所能負擔的程度。在此解析度下，每 1,000 部主機的五個序列每天約佔用 124 MB：保留 30 天約為 3.7 GB，保留 90 天約為 11.2 GB。",
+        "retention": "內建樣本與自訂指標樣本採用相同的保留期間 <code>custom_metrics.retention_days</code>（預設 90 天）到期。只有在可觀測性引擎已取得授權並已載入時才會儲存樣本，因此未授權的伺服器絕不會悄悄累積無人能檢視的資料列。",
+        "title": "解析度與儲存空間"
+      },
+      "series": {
+        "absent": "代理程式無法讀取的值會被略過，絕不會以零傳送。圖表顯示為零，就代表主機確實回報了零。",
+        "cpu": "<strong>CPU 使用率</strong> (<code>host.cpu_percent</code>) -- 自上次回報以來的平均 CPU 使用率，而非瞬間讀數。",
+        "disk": "<strong>磁碟使用率（最滿的檔案系統）</strong> (<code>host.disk_used_percent_max</code>) -- 最滿的本機、可寫入、永久性檔案系統。唯讀映像、snap 掛載點和以記憶體為基礎的檔案系統會被忽略，因為它們在設計上就會顯示 100% 已滿。",
+        "load": "<strong>平均負載（1 分鐘）</strong> (<code>host.load_1m</code>) -- 一分鐘平均負載（若平台有提供）。",
+        "memory": "<strong>記憶體使用率</strong> (<code>host.memory_used_percent</code>) -- 使用中的實體記憶體百分比。",
+        "swap": "<strong>置換空間使用率</strong> (<code>host.swap_used_percent</code>) -- 使用中的置換空間百分比。沒有置換空間的主機完全不會回報此序列。",
+        "title": "五個序列"
+      }
     }
   },
   "quick_start": {
@@ -22065,7 +22136,7 @@
     "breadcrumb": "路線圖",
     "coming": {
       "advisor": {
-        "body": "顧問現已推出：依據所收集的事實、CVE、合規結果和組態狀態，提供附風險評分的建議，並搭配精選規則包和建議的修正，另有引導式威脅模型精靈，將您的答案轉化為依優先順序排列、附經稽核豁免的安全態勢改善清單。後續規劃：以簽章和 YARA 偵測惡意軟體。除非另有註明，皆屬 Enterprise 版。同一個事實存放區也為根據保留樣本繪製的內建指標圖表提供資料，這些資料會流向現有的 Prometheus 端點，供 Grafana 使用（Professional+）。",
+        "body": "顧問功能現已推出：根據您收集的事實、CVE、合規結果和組態狀態提供依風險評分的建議，附帶精選規則套件和建議的修正方式，以及引導式威脅模型精靈，可將您的回答轉換為依優先順序排列的安全態勢待辦清單，並附有經過稽核的豁免。內建主機指標圖表也已推出：每部主機的 CPU、記憶體、置換空間、負載和磁碟歷史記錄，可依主機及跨主機群繪製圖表，並透過現有的 Prometheus 端點提供給 Grafana（Professional+）。即將推出：以特徵碼和 YARA 為基礎的惡意軟體偵測。除非另有註明，皆為 Enterprise 版。",
         "title": "主動運維及顧問"
       },
       "arch": {

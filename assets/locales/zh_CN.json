@@ -19491,7 +19491,7 @@
       "prometheus": {
         "description": "要在 Grafana 中绘制自定义指标，请将它们暴露给现有的 Prometheus &rarr; Grafana 管道。以下步骤将 Prometheus 抓取任务连接到服务器、限制对该端点的访问，并验证数据是否到达 Grafana。",
         "endpoint": {
-          "description": "SysManage服务器以Prometheus文本暴露格式在<code>GET /metrics/custom-metrics</code>发布每个自定义度量的最新值。每个度量作为带有<code>metric</code>、<code>host</code>和<code>unit</code>标签（当服务器运行于多租户模式时，还包括一个<code>tenant</code>标签）的gauge <code>sysmanage_custom_metric_value</code>发出。该端点未经过身份验证，遵循Prometheus抓取惯例。",
+          "description": "SysManage 服务器以 Prometheus 文本暴露格式在 <code>GET /metrics/custom-metrics</code> 发布每个自定义指标的最新值。每个指标以名为 <code>sysmanage_custom_metric_value</code> 的 gauge 输出，带有 <code>metric</code>、<code>host</code>、<code>unit</code> 和 <code>builtin</code> 标签（服务器以多租户模式运行时还带有 <code>tenant</code> 标签）。<code>builtin=\"true\"</code> 用于标记<a href=\"host-metrics.html\">内置主机序列</a>。按照常见的 Prometheus 抓取惯例，该端点无需身份验证。",
           "title": "端点"
         },
         "restrict": {
@@ -19532,6 +19532,10 @@
           "desc": "通过标签选择主机",
           "title": "目标"
         }
+      },
+      "builtin": {
+        "description": "除你自己的指标外，列表还显示五个内置主机序列 -- CPU、内存、交换空间、负载和磁盘 -- 标记为<strong>内置</strong>，并以所有主机为目标。它们不需要脚本；可以启用或禁用，但不能编辑或删除。请参阅<a href=\"host-metrics.html\">内置主机指标</a>。",
+        "title": "内置主机序列"
       }
     },
     "docs": {
@@ -19879,6 +19883,17 @@
           },
           "link": "威胁模型与安全态势指南 →",
           "title": "🛡 威胁模型与安全态势"
+        },
+        "host_metrics": {
+          "description": "每台主机的 CPU、内存、交换空间、负载和磁盘历史记录，无需编写脚本，可按主机和跨主机群绘制图表。",
+          "features": {
+            "fleet": "按序列列出最繁忙的主机，并如实给出覆盖数量",
+            "prometheus": "通过现有的 Prometheus 端点导出，供 Grafana 使用",
+            "retention": "以 15 分钟分辨率保存，受自定义指标保留窗口约束",
+            "tab": "每台主机都有指标选项卡，图表卡片由你选择"
+          },
+          "link": "内置主机指标指南 →",
+          "title": "📊 内置主机指标"
         }
       },
       "overview": {
@@ -21846,6 +21861,62 @@
         "stale": "豁免涵盖的是授予时的风险状况。当风险上升、检查本身发生变化，或其所依据的威胁模型回答发生变化时，豁免会<strong>失效</strong>，该项目会再次显示为未解决，并标记为<em>豁免已失效</em>。重新审视后重新确认，即可恢复该豁免。",
         "title": "豁免"
       }
+    },
+    "host_metrics": {
+      "breadcrumb": "内置主机指标",
+      "fleet": {
+        "coverage": "图表上方，页面会说明在该时间范围内整个主机群中有多少台主机报告了该序列。当部分主机未报告时，页面会说明这些主机未绘制在图表中 -- 仅由已响应主机构建的主机群图表不能被视为整个主机群的情况。",
+        "description": "主导航中的<strong>主机指标</strong>页面跨主机群绘制一个序列：最繁忙的五台或十台主机，按其在该范围内的平均值排序，图表下方的表格列出它们的平均值和峰值。",
+        "screenshot_caption": "主机群视图对某个序列最繁忙的主机进行排名，并说明有多少台主机报告了该序列。",
+        "title": "主机群视图"
+      },
+      "header": {
+        "description": "每台主机都会获得其代理已报告数值的历史记录 -- CPU、内存、交换空间、负载和磁盘 -- 无需任何人编写脚本。在主机的指标选项卡上绘制图表，在主机指标页面上比较最繁忙的主机，并通过与自定义指标相同的 Prometheus 端点将它们抓取到 Grafana 中。",
+        "screenshot_caption": "主机的指标选项卡在所选范围内绘制内置序列，每个序列一张卡片。",
+        "title": "内置主机指标"
+      },
+      "host_tab": {
+        "description": "打开一台主机并选择<strong>指标</strong>选项卡。选择一个时间范围（最近 24 小时、7 天、30 天或 90 天），然后点击序列标签选择要显示的卡片；你的选择会保存在浏览器中。百分比序列使用固定的 0-100% 刻度绘制，因此可以一眼比较两台主机的图表。",
+        "gaps": "<strong>间断</strong> -- 当主机停机或无法访问超过 45 分钟时，曲线会断开，而不是在中断期间画出一段斜线。",
+        "not_reported": "<strong>未报告</strong> -- 该主机在此范围内没有发送该序列的任何样本。卡片会保留在屏幕上并说明这一点，而不是消失。",
+        "title": "主机指标选项卡",
+        "turned_off": "<strong>已关闭</strong> -- 管理员已禁用该序列的采集。"
+      },
+      "manage": {
+        "description": "内置序列显示在自定义指标页面上，带有<strong>内置</strong>标签，并以所有主机为目标。可以在该页面启用或禁用它们，禁用后服务器将停止存储该序列。它们不能被编辑或删除，且其名称已被保留：不能以 <code>host.cpu_percent</code> 或任何其他内置名称创建自定义指标，也不能将自定义指标重命名为这些名称。",
+        "title": "管理内置序列"
+      },
+      "meta_description": "为每台主机提供 CPU、内存、交换空间、负载和磁盘的内置图表，无需编写脚本即可采集，以 15 分钟分辨率保存并导出到 Prometheus。",
+      "overview": {
+        "description": "自定义指标回答只有你才会提出的问题；内置主机指标回答每位运维人员都会提出的问题。代理在每次定期运行时报告五个主机级数值，服务器将其保存为时间序列，你可以绘制图表、在主机群中比较并据此设置告警。它们以系统定义的自定义指标形式存储，因此保留策略、样本 API、Prometheus 端点和告警条件对它们的作用与对你自己定义的指标完全相同。",
+        "title": "概述"
+      },
+      "page_title": "内置主机指标 - SysManage Professional+",
+      "prometheus": {
+        "description": "内置序列与自定义指标发布在同一个 <code>GET /metrics/custom-metrics</code> 端点上，形式为 <code>sysmanage_custom_metric_value</code> gauge，序列名称位于 <code>metric</code> 标签中。<code>builtin</code> 标签（<code>true</code> 或 <code>false</code>）将它们与你自己的指标区分开。该端点报告每台主机的最新样本，并省略最后一个样本过旧、已不能代表当前状态的主机。如果你已经在抓取自定义指标，则无需新的抓取任务；有关抓取任务以及如何限制对该端点的访问，请参阅自定义指标指南。",
+        "link": "自定义指标：Grafana & Prometheus 设置 →",
+        "title": "Prometheus 与 Grafana"
+      },
+      "requirements": {
+        "agent": "支持报告内置主机指标的代理版本。旧版代理仍可继续工作；其主机显示为未报告。",
+        "license": "带有可观察性引擎的 Professional 或 Enterprise 许可证。",
+        "role": "查看图表需要 View Host Details 角色。",
+        "title": "要求"
+      },
+      "resolution": {
+        "description": "代理大约每五分钟报告一次。服务器每 15 分钟为每台主机的每个序列保存一个样本，这足以看出趋势或事件，同时数据表的增长速度不会超出主机群的承受能力。在此分辨率下，每 1,000 台主机的五个序列每天约占用 124 MB：保留 30 天约为 3.7 GB，保留 90 天约为 11.2 GB。",
+        "retention": "内置样本与自定义指标样本使用相同的保留窗口 <code>custom_metrics.retention_days</code>（默认 90 天）过期。只有在可观察性引擎已获许可并已加载时才会存储样本，因此未获许可的服务器绝不会悄悄累积无人能查看的数据行。",
+        "title": "分辨率与存储"
+      },
+      "series": {
+        "absent": "代理无法读取的值会被省略，绝不会作为零发送。图表显示为零，就表示主机确实报告了零。",
+        "cpu": "<strong>CPU 使用率</strong> (<code>host.cpu_percent</code>) -- 自上次报告以来的平均 CPU 使用率，而非瞬时读数。",
+        "disk": "<strong>磁盘使用率（最满的文件系统）</strong> (<code>host.disk_used_percent_max</code>) -- 最满的本地、可写、持久文件系统。只读镜像、snap 挂载和基于内存的文件系统会被忽略，因为它们按设计总是显示 100% 已满。",
+        "load": "<strong>平均负载（1 分钟）</strong> (<code>host.load_1m</code>) -- 一分钟平均负载（如果平台提供）。",
+        "memory": "<strong>内存使用率</strong> (<code>host.memory_used_percent</code>) -- 正在使用的物理内存百分比。",
+        "swap": "<strong>交换空间使用率</strong> (<code>host.swap_used_percent</code>) -- 正在使用的交换空间百分比。没有交换空间的主机根本不会报告此序列。",
+        "title": "五个序列"
+      }
     }
   },
   "quick_start": {
@@ -22065,7 +22136,7 @@
     "breadcrumb": "路线图",
     "coming": {
       "advisor": {
-        "body": "顾问现已推出：基于所收集的事实、CVE、合规结果和配置状态，提供带风险评分的建议，配有精选规则包和拟议修复，并提供引导式威胁模型向导，将您的回答转化为按优先级排列、附带经审计豁免的安全态势整改清单。后续计划：基于签名和 YARA 的恶意软件检测。除非另有说明，均属 Enterprise 版。同一事实存储还为基于保留样本的内置指标图表提供数据，这些数据会流向现有的 Prometheus 端点，供 Grafana 使用（Professional+）。",
+        "body": "顾问功能现已推出：基于你收集的事实、CVE、合规结果和配置状态给出按风险评分的建议，附带精选规则包和建议的修复方案，以及一个引导式威胁建模向导，可将你的回答转化为按优先级排列的安全态势待办清单，并附带经过审计的豁免。内置主机指标图表也已推出：每台主机的 CPU、内存、交换空间、负载和磁盘历史记录，可按主机和跨主机群绘制图表，并通过现有的 Prometheus 端点提供给 Grafana（Professional+）。即将推出：基于特征码和 YARA 的恶意软件检测。除非另有说明，均为 Enterprise 版。",
         "title": "主动操作与顾问"
       },
       "arch": {

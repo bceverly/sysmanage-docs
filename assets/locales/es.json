@@ -19491,7 +19491,7 @@
       "prometheus": {
         "description": "Para graficar métricas personalizadas en Grafana, SysManage las expone al flujo existente Prometheus &rarr; Grafana. Los pasos a continuación conectan un trabajo de recopilación de Prometheus con el servidor, restringen el acceso a ese punto final y verifican que los datos lleguen a Grafana.",
         "endpoint": {
-          "description": "El servidor SysManage publica el valor más reciente de cada métrica personalizada en <code>GET /metrics/custom-metrics</code> en formato de texto de exposición Prometheus. Cada métrica se emite como un indicador llamado <code>sysmanage_custom_metric_value</code> que lleva etiquetas <code>metric</code>, <code>host</code> y <code>unit</code> (más una etiqueta <code>tenant</code> cuando el servidor opera en modo multiinquilino). El endpoint no requiere autenticación, siguiendo la convención usual de Prometheus.",
+          "description": "El servidor de SysManage publica el valor más reciente de cada métrica personalizada en <code>GET /metrics/custom-metrics</code> en el formato de exposición de texto de Prometheus. Cada métrica se emite como un gauge llamado <code>sysmanage_custom_metric_value</code> con las etiquetas <code>metric</code>, <code>host</code>, <code>unit</code> y <code>builtin</code> (además de una etiqueta <code>tenant</code> cuando el servidor se ejecuta en modo multi-tenant). <code>builtin=\"true\"</code> identifica las <a href=\"host-metrics.html\">series de host integradas</a>. El endpoint no requiere autenticación, según la convención habitual de recopilación (scrape) de Prometheus.",
           "title": "El Endpoint"
         },
         "restrict": {
@@ -19532,6 +19532,10 @@
           "desc": "Seleccionar hosts por etiqueta",
           "title": "Objetivo"
         }
+      },
+      "builtin": {
+        "description": "Junto a sus propias métricas, la lista muestra cinco series de host integradas (CPU, memoria, swap, carga y disco), marcadas como <strong>Integrada</strong> y dirigidas a todos los hosts. No necesitan ningún script; se pueden habilitar o deshabilitar, pero no editar ni eliminar. Consulte <a href=\"host-metrics.html\">Métricas de host integradas</a>.",
+        "title": "Series de host integradas"
       }
     },
     "docs": {
@@ -19879,6 +19883,17 @@
           },
           "link": "Guía de modelo de amenazas y postura →",
           "title": "🛡 Modelo de amenazas y postura"
+        },
+        "host_metrics": {
+          "description": "Historial de CPU, memoria, swap, carga y disco en cada host, sin escribir ningún script, representado por host y en toda la flota.",
+          "features": {
+            "fleet": "Los hosts más cargados por serie, con un recuento de cobertura honesto",
+            "prometheus": "Exportadas en el endpoint de Prometheus existente para Grafana",
+            "retention": "Conservadas con una resolución de 15 minutos dentro del período de retención de las métricas personalizadas",
+            "tab": "Una pestaña Métricas en cada host, con las tarjetas de gráfico que usted elija"
+          },
+          "link": "Guía de métricas de host integradas →",
+          "title": "📊 Métricas de host integradas"
         }
       },
       "overview": {
@@ -21846,6 +21861,62 @@
         "stale": "Una exención cubre el riesgo tal como estaba cuando se concedió. <strong>Caduca</strong> -- y el punto vuelve a mostrarse como abierto, marcado como <em>Exención caducada</em> -- cuando el riesgo aumenta, cuando cambia la propia comprobación o cuando cambian las respuestas del modelo de amenazas en las que se basaba. Reafirmarla, tras volver a examinarla, la restablece.",
         "title": "Exenciones"
       }
+    },
+    "host_metrics": {
+      "breadcrumb": "Métricas de host integradas",
+      "fleet": {
+        "coverage": "Sobre el gráfico, la página indica cuántos hosts de toda la flota informaron la serie en el rango. Cuando algunos hosts no la informaron, la página señala que no están representados: un gráfico de flota construido solo con los hosts que respondieron no debe interpretarse como si fuera toda la flota.",
+        "description": "La página <strong>Métricas de hosts</strong> de la navegación principal representa una serie en toda la flota: los cinco o diez hosts más cargados, ordenados por su promedio en el rango, con sus valores promedio y máximo en una tabla debajo del gráfico.",
+        "screenshot_caption": "La vista de flota ordena los hosts más cargados para una serie e indica cuántos hosts la informaron.",
+        "title": "La vista de flota"
+      },
+      "header": {
+        "description": "Cada host obtiene un historial de los valores que su agente ya informa (CPU, memoria, swap, carga y disco) sin que nadie tenga que escribir un script. Represéntelos en la pestaña Métricas del host, compare los hosts más cargados en la página Métricas de hosts y recopílelos en Grafana a través del mismo endpoint de Prometheus que sus métricas personalizadas.",
+        "screenshot_caption": "La pestaña Métricas del host representa las series integradas en el rango elegido, con una tarjeta por serie.",
+        "title": "Métricas de host integradas"
+      },
+      "host_tab": {
+        "description": "Abra un host y elija la pestaña <strong>Métricas</strong>. Seleccione un rango (las últimas 24 horas, 7 días, 30 días o 90 días) y haga clic en los chips de serie para elegir qué tarjetas mostrar; la selección se recuerda en su navegador. Las series de porcentaje se dibujan en una escala fija de 0-100% para que los gráficos de dos hosts se puedan comparar de un vistazo.",
+        "gaps": "<strong>Huecos</strong>: cuando un host estuvo caído o inaccesible durante más de 45 minutos, la línea se interrumpe en lugar de dibujar una rampa a través de la interrupción.",
+        "not_reported": "<strong>No informado</strong>: el host no envió muestras de esa serie en el rango. La tarjeta permanece en pantalla y lo indica en lugar de desaparecer.",
+        "title": "La pestaña Métricas del host",
+        "turned_off": "<strong>Desactivada</strong>: un administrador deshabilitó la recopilación de esa serie."
+      },
+      "manage": {
+        "description": "Las series integradas aparecen en la página Métricas personalizadas con un chip <strong>Integrada</strong>, dirigidas a todos los hosts. Allí se pueden habilitar o deshabilitar, y al deshabilitar una el servidor deja de almacenarla. No se pueden editar ni eliminar, y sus nombres están reservados: no se puede crear una métrica personalizada ni cambiarle el nombre a <code>host.cpu_percent</code> ni a ningún otro nombre integrado.",
+        "title": "Gestión de las series integradas"
+      },
+      "meta_description": "Gráficos integrados de CPU, memoria, swap, carga y disco para cada host, recopilados sin escribir ningún script, conservados con una resolución de 15 minutos y exportados a Prometheus.",
+      "overview": {
+        "description": "Las métricas personalizadas responden a las preguntas que solo usted puede plantear; las métricas de host integradas responden a las que se plantea cualquier operador. El agente informa cinco valores a nivel de host en cada ejecución periódica, y el servidor los conserva como series temporales que puede representar en gráficos, comparar en toda la flota y usar para alertas. Se almacenan como métricas personalizadas definidas por el sistema, de modo que la retención, la API de muestras, el endpoint de Prometheus y las condiciones de alerta funcionan con ellas exactamente igual que con una métrica que usted define.",
+        "title": "Visión general"
+      },
+      "page_title": "Métricas de host integradas - SysManage Professional+",
+      "prometheus": {
+        "description": "Las series integradas se publican en el mismo endpoint <code>GET /metrics/custom-metrics</code> que las métricas personalizadas, como el gauge <code>sysmanage_custom_metric_value</code> con el nombre de la serie en la etiqueta <code>metric</code>. Una etiqueta <code>builtin</code> (<code>true</code> o <code>false</code>) las distingue de sus propias métricas. El endpoint informa la muestra más reciente de cada host y omite un host cuya última muestra es demasiado antigua para ser actual. No se necesita una nueva tarea de recopilación si ya recopila las métricas personalizadas; consulte la guía de métricas personalizadas para la tarea de recopilación y cómo restringir el acceso al endpoint.",
+        "link": "Métricas personalizadas: configuración de Grafana & Prometheus →",
+        "title": "Prometheus y Grafana"
+      },
+      "requirements": {
+        "agent": "Una versión del agente que informe las métricas de host integradas. Los agentes anteriores siguen funcionando; sus hosts aparecen como no informados.",
+        "license": "Licencia Professional o Enterprise con el motor de observabilidad.",
+        "role": "El rol View Host Details para ver los gráficos.",
+        "title": "Requisitos"
+      },
+      "resolution": {
+        "description": "El agente informa aproximadamente cada cinco minutos. El servidor conserva una muestra por serie y por host cada 15 minutos, lo que basta para ver una tendencia o un incidente sin que la tabla crezca más rápido de lo que una flota puede permitirse. Con esa resolución, las cinco series ocupan aproximadamente 124 MB por día por cada 1.000 hosts: unos 3,7 GB con 30 días de retención y 11,2 GB con 90.",
+        "retention": "Las muestras integradas caducan con el mismo período de retención que las muestras de métricas personalizadas, <code>custom_metrics.retention_days</code> (90 días de forma predeterminada). Las muestras solo se almacenan mientras el motor de observabilidad está licenciado y cargado, de modo que un servidor sin licencia nunca acumula en silencio filas que nadie puede ver.",
+        "title": "Resolución y almacenamiento"
+      },
+      "series": {
+        "absent": "Un valor que el agente no puede leer se omite, nunca se envía como cero. Un gráfico que muestra cero significa que el host realmente informó cero.",
+        "cpu": "<strong>Uso de CPU</strong> (<code>host.cpu_percent</code>): uso medio de CPU desde el informe anterior, no una lectura instantánea.",
+        "disk": "<strong>Disco usado (sistema de archivos más lleno)</strong> (<code>host.disk_used_percent_max</code>): el sistema de archivos local, grabable y persistente más lleno. Se ignoran las imágenes de solo lectura, los montajes snap y los sistemas de archivos en memoria, ya que por diseño aparecen llenos al 100%.",
+        "load": "<strong>Carga media (1 minuto)</strong> (<code>host.load_1m</code>): la carga media de un minuto, cuando la plataforma la proporciona.",
+        "memory": "<strong>Memoria usada</strong> (<code>host.memory_used_percent</code>): el porcentaje de memoria física en uso.",
+        "swap": "<strong>Swap usado</strong> (<code>host.swap_used_percent</code>): el porcentaje de swap en uso. Un host sin swap no informa esta serie en absoluto.",
+        "title": "Las cinco series"
+      }
     }
   },
   "quick_start": {
@@ -22065,7 +22136,7 @@
     "breadcrumb": "Cronograma",
     "coming": {
       "advisor": {
-        "body": "El asesor ya está disponible: recomendaciones con puntuación de riesgo a partir de los datos recopilados, las CVE, los resultados de cumplimiento y el estado de configuración, con paquetes de reglas seleccionados y correcciones propuestas, y un asistente guiado de modelo de amenazas que convierte sus respuestas en una lista de pendientes de postura priorizada con exenciones auditadas. Próximamente: detección de malware por firmas y con YARA. Enterprise salvo que se indique lo contrario. El mismo almacén de datos también alimenta gráficos de métricas integrados sobre las muestras conservadas, que se transmiten al endpoint de Prometheus existente para Grafana (Professional+).",
+        "body": "El asesor ya está disponible: recomendaciones puntuadas por riesgo a partir de sus datos recopilados, CVE, resultados de cumplimiento y estado de configuración, con paquetes de reglas seleccionados y correcciones propuestas, y un asistente guiado de modelo de amenazas que convierte sus respuestas en una lista priorizada de acciones de postura con excepciones auditadas. También están disponibles los gráficos de métricas de host integradas: historial de CPU, memoria, swap, carga y disco para cada host, representado por host y en toda la flota, y enviado al endpoint de Prometheus existente para Grafana (Professional+). Pendiente: detección de malware por firmas y con YARA. Enterprise salvo que se indique lo contrario.",
         "title": "Operaciones proactivas y asesoramiento"
       },
       "arch": {

@@ -19491,7 +19491,7 @@
       "prometheus": {
         "description": "Pour chartifier des métriques personnalisées dans Grafana, SysManage les expose au flux de travail Prometheus &rarr; Grafana existant. Les étapes ci-dessous connectent un job d'agrégation Prometheus à le serveur, restreignent l'accès à cet endpoint et vérifient que les données atteignent Grafana.",
         "endpoint": {
-          "description": "Le serveur SysManage publie la valeur la plus récente de chaque métrique personnalisée au point de terminaison <code>GET /metrics/custom-metrics</code> dans le format texte d'exposition Prometheus. Chaque métrique est émise sous la forme d'un compteur nommé <code>sysmanage_custom_metric_value</code>, portant des balises <code>metric</code>, <code>host</code> et <code>unit</code> (plus une balise <code>tenant</code> lorsque le serveur fonctionne en mode multi-locataire). Le point de terminaison n'est pas authentifié, conformément à la convention habituelle d'extraction Prometheus.",
+          "description": "Le serveur SysManage publie la dernière valeur de chaque métrique personnalisée sur <code>GET /metrics/custom-metrics</code> au format d'exposition texte de Prometheus. Chaque métrique est émise sous forme de jauge nommée <code>sysmanage_custom_metric_value</code> portant les étiquettes <code>metric</code>, <code>host</code>, <code>unit</code> et <code>builtin</code> (plus une étiquette <code>tenant</code> lorsque le serveur fonctionne en mode multi-tenant). <code>builtin=\"true\"</code> signale les <a href=\"host-metrics.html\">séries d'hôte intégrées</a>. Le point de terminaison n'est pas authentifié, conformément à la convention habituelle de collecte (scrape) Prometheus.",
           "title": "Le point de terminaison"
         },
         "restrict": {
@@ -19532,6 +19532,10 @@
           "desc": "Sélectionner les hôtes par balise",
           "title": "Cible"
         }
+      },
+      "builtin": {
+        "description": "En plus de vos propres métriques, la liste affiche cinq séries d'hôte intégrées (CPU, mémoire, swap, charge et disque), marquées <strong>Intégrée</strong> et ciblant tous les hôtes. Elles ne nécessitent aucun script ; elles peuvent être activées ou désactivées, mais pas modifiées ni supprimées. Voir <a href=\"host-metrics.html\">Métriques d'hôte intégrées</a>.",
+        "title": "Séries d'hôte intégrées"
       }
     },
     "docs": {
@@ -19879,6 +19883,17 @@
           },
           "link": "Guide Modèle de menaces et posture de sécurité →",
           "title": "🛡 Modèle de menaces et posture de sécurité"
+        },
+        "host_metrics": {
+          "description": "Historique du CPU, de la mémoire, du swap, de la charge et du disque sur chaque hôte, sans script à écrire, représenté par hôte et à l'échelle du parc.",
+          "features": {
+            "fleet": "Les hôtes les plus sollicités par série, avec un décompte de couverture honnête",
+            "prometheus": "Exportées sur le point de terminaison Prometheus existant pour Grafana",
+            "retention": "Conservées à une résolution de 15 minutes selon la fenêtre de rétention des métriques personnalisées",
+            "tab": "Un onglet Métriques sur chaque hôte, avec les cartes de graphique de votre choix"
+          },
+          "link": "Guide des métriques d'hôte intégrées →",
+          "title": "📊 Métriques d'hôte intégrées"
         }
       },
       "overview": {
@@ -21846,6 +21861,62 @@
         "stale": "Une dérogation couvre le risque tel qu'il se présentait lorsqu'elle a été accordée. Elle <strong>devient caduque</strong> -- et l'élément apparaît de nouveau comme ouvert, signalé <em>Dérogation caduque</em> -- lorsque le risque augmente, lorsque le contrôle lui-même change, ou lorsque les réponses du modèle de menaces sur lesquelles elle reposait changent. La reconfirmer, après un nouvel examen, la rétablit.",
         "title": "Dérogations"
       }
+    },
+    "host_metrics": {
+      "breadcrumb": "Métriques d'hôte intégrées",
+      "fleet": {
+        "coverage": "Au-dessus du graphique, la page indique combien d'hôtes, sur l'ensemble du parc, ont remonté la série sur la plage choisie. Lorsque certains hôtes ne l'ont pas remontée, la page précise qu'ils ne sont pas représentés : un graphique de parc construit uniquement à partir des hôtes qui ont répondu ne doit pas être lu comme représentant tout le parc.",
+        "description": "La page <strong>Métriques des hôtes</strong> de la navigation principale représente une série à l'échelle du parc : les cinq ou dix hôtes les plus sollicités, classés selon leur moyenne sur la plage, avec leurs valeurs moyenne et maximale dans un tableau sous le graphique.",
+        "screenshot_caption": "La vue du parc classe les hôtes les plus sollicités pour une série et indique combien d'hôtes l'ont remontée.",
+        "title": "La vue du parc"
+      },
+      "header": {
+        "description": "Chaque hôte dispose d'un historique des valeurs que son agent remonte déjà (CPU, mémoire, swap, charge et disque) sans que personne n'ait à écrire de script. Affichez-les dans l'onglet Métriques de l'hôte, comparez les hôtes les plus sollicités sur la page Métriques des hôtes et collectez-les dans Grafana via le même point de terminaison Prometheus que vos métriques personnalisées.",
+        "screenshot_caption": "L'onglet Métriques de l'hôte représente les séries intégrées sur la plage choisie, avec une carte par série.",
+        "title": "Métriques d'hôte intégrées"
+      },
+      "host_tab": {
+        "description": "Ouvrez un hôte et choisissez l'onglet <strong>Métriques</strong>. Sélectionnez une plage (les dernières 24 heures, 7 jours, 30 jours ou 90 jours) et cliquez sur les puces de série pour choisir les cartes à afficher ; ce choix est mémorisé dans votre navigateur. Les séries en pourcentage sont tracées sur une échelle fixe de 0-100% afin de pouvoir comparer d'un coup d'œil les graphiques de deux hôtes.",
+        "gaps": "<strong>Interruptions</strong> : lorsqu'un hôte a été arrêté ou injoignable pendant plus de 45 minutes, la ligne s'interrompt au lieu de tracer une rampe à travers la panne.",
+        "not_reported": "<strong>Non signalé</strong> : l'hôte n'a envoyé aucun échantillon pour cette série sur la plage. La carte reste affichée et l'indique au lieu de disparaître.",
+        "title": "L'onglet Métriques de l'hôte",
+        "turned_off": "<strong>Désactivée</strong> : un administrateur a désactivé la collecte de cette série."
+      },
+      "manage": {
+        "description": "Les séries intégrées apparaissent sur la page Métriques personnalisées avec une puce <strong>Intégrée</strong>, ciblant tous les hôtes. Elles peuvent y être activées ou désactivées, et la désactivation d'une série empêche le serveur de la stocker. Elles ne peuvent être ni modifiées ni supprimées, et leurs noms sont réservés : une métrique personnalisée ne peut pas être créée ni renommée en <code>host.cpu_percent</code> ou tout autre nom intégré.",
+        "title": "Gestion des séries intégrées"
+      },
+      "meta_description": "Graphiques intégrés du CPU, de la mémoire, du swap, de la charge et du disque pour chaque hôte, collectés sans écrire de script, conservés à une résolution de 15 minutes et exportés vers Prometheus.",
+      "overview": {
+        "description": "Les métriques personnalisées répondent aux questions que vous seul pouvez poser ; les métriques d'hôte intégrées répondent à celles que se pose tout opérateur. L'agent remonte cinq valeurs au niveau de l'hôte à chaque exécution périodique, et le serveur les conserve sous forme de séries temporelles que vous pouvez représenter, comparer à l'échelle du parc et utiliser pour vos alertes. Elles sont stockées comme des métriques personnalisées définies par le système, de sorte que la rétention, l'API des échantillons, le point de terminaison Prometheus et les conditions d'alerte fonctionnent exactement comme pour une métrique que vous définissez vous-même.",
+        "title": "Aperçu"
+      },
+      "page_title": "Métriques d'hôte intégrées - SysManage Professional+",
+      "prometheus": {
+        "description": "Les séries intégrées sont publiées sur le même point de terminaison <code>GET /metrics/custom-metrics</code> que les métriques personnalisées, sous forme de jauge <code>sysmanage_custom_metric_value</code> avec le nom de la série dans l'étiquette <code>metric</code>. Une étiquette <code>builtin</code> (<code>true</code> ou <code>false</code>) les distingue de vos propres métriques. Le point de terminaison renvoie le dernier échantillon de chaque hôte et omet un hôte dont le dernier échantillon est trop ancien pour être actuel. Aucune nouvelle tâche de collecte n'est nécessaire si vous collectez déjà les métriques personnalisées ; consultez le guide des métriques personnalisées pour la tâche de collecte et la façon de restreindre l'accès au point de terminaison.",
+        "link": "Métriques personnalisées : configuration de Grafana & Prometheus →",
+        "title": "Prometheus et Grafana"
+      },
+      "requirements": {
+        "agent": "Une version de l'agent qui remonte les métriques d'hôte intégrées. Les agents plus anciens continuent de fonctionner ; leurs hôtes apparaissent comme non signalés.",
+        "license": "Licence Professional ou Enterprise avec le moteur d'observabilité.",
+        "role": "Le rôle View Host Details pour afficher les graphiques.",
+        "title": "Conditions préalables"
+      },
+      "resolution": {
+        "description": "L'agent effectue un rapport environ toutes les cinq minutes. Le serveur conserve un échantillon par série et par hôte toutes les 15 minutes, ce qui suffit pour repérer une tendance ou un incident sans que la table grossisse plus vite qu'un parc ne peut se le permettre. À cette résolution, les cinq séries occupent environ 124 MB par jour pour 1 000 hôtes : environ 3,7 GB avec 30 jours de rétention et 11,2 GB avec 90.",
+        "retention": "Les échantillons intégrés expirent selon la même fenêtre de rétention que les échantillons des métriques personnalisées, <code>custom_metrics.retention_days</code> (90 jours par défaut). Les échantillons ne sont stockés que tant que le moteur d'observabilité est sous licence et chargé, de sorte qu'un serveur sans licence n'accumule jamais en silence des lignes que personne ne peut consulter.",
+        "title": "Résolution et stockage"
+      },
+      "series": {
+        "absent": "Une valeur que l'agent ne peut pas lire est omise, jamais envoyée comme zéro. Un graphique qui affiche zéro signifie que l'hôte a réellement remonté zéro.",
+        "cpu": "<strong>Utilisation du CPU</strong> (<code>host.cpu_percent</code>) : utilisation moyenne du CPU depuis le rapport précédent, et non une mesure instantanée.",
+        "disk": "<strong>Disque utilisé (système de fichiers le plus plein)</strong> (<code>host.disk_used_percent_max</code>) : le système de fichiers local, accessible en écriture et persistant le plus plein. Les images en lecture seule, les montages snap et les systèmes de fichiers en mémoire sont ignorés, car ils apparaissent pleins à 100% par conception.",
+        "load": "<strong>Charge moyenne (1 minute)</strong> (<code>host.load_1m</code>) : la charge moyenne sur une minute, lorsque la plateforme en fournit une.",
+        "memory": "<strong>Mémoire utilisée</strong> (<code>host.memory_used_percent</code>) : le pourcentage de mémoire physique utilisée.",
+        "swap": "<strong>Swap utilisé</strong> (<code>host.swap_used_percent</code>) : le pourcentage de swap utilisé. Un hôte sans swap ne remonte pas du tout cette série.",
+        "title": "Les cinq séries"
+      }
     }
   },
   "quick_start": {
@@ -22065,7 +22136,7 @@
     "breadcrumb": "Plan directeur",
     "coming": {
       "advisor": {
-        "body": "Le conseiller est déjà disponible : des recommandations assorties d'un score de risque couvrant vos faits collectés, vos CVE, vos résultats de conformité et l'état de votre configuration, avec des packs de règles sélectionnés et des correctifs proposés, ainsi qu'un assistant guidé de modèle de menaces qui transforme vos réponses en une liste des points à traiter de posture de sécurité, classée par priorité et assortie de dérogations auditées. Encore à venir : la détection de logiciels malveillants par signatures et par YARA. Enterprise sauf mention contraire. Le même magasin de faits alimente aussi des graphiques de métriques intégrés sur les échantillons conservés, qui sont transmis au point de terminaison Prometheus existant pour Grafana (Professional+).",
+        "body": "Le conseiller est disponible dès aujourd'hui : des recommandations notées par niveau de risque à partir de vos faits collectés, CVE, résultats de conformité et états de configuration, avec des ensembles de règles sélectionnés et des correctifs proposés, ainsi qu'un assistant guidé de modèle de menaces qui transforme vos réponses en une liste d'actions de posture priorisée avec des dérogations auditées. Les graphiques de métriques d'hôte intégrées sont également disponibles : historique du CPU, de la mémoire, du swap, de la charge et du disque pour chaque hôte, représenté par hôte et à l'échelle du parc, et transmis au point de terminaison Prometheus existant pour Grafana (Professional+). À venir : détection des logiciels malveillants par signatures et par YARA. Enterprise sauf mention contraire.",
         "title": "Opérations préventives & conseil"
       },
       "arch": {

@@ -25,6 +25,8 @@ Covers all seven Professional engines:
                 placeholder path)
   metrics    -> custom_metric/custom_metric_tag/custom_metric_sample (the
                 /custom-metrics list, define dialog + time-series graph)
+                + the five BUILT-IN host series (Phase 21.5) at the server's
+                15-minute resolution, for the host Metrics tab + /host-metrics
 
 Idempotent: it clears the rows it manages (FK-safe order) and re-inserts, so it can
 be run repeatedly. Apply via:  make screenshots-pro-seed
@@ -420,6 +422,68 @@ CUSTOM_METRICS = [
 METRIC_HISTORY_HOURS = 4
 METRIC_INTERVAL_MIN = 5
 
+# Built-in host series (Phase 21.5): per demo host, (base, swing) for cpu,
+# memory, swap, load and fullest-disk.  24 h at the server's 15-minute
+# resolution -- the host tab's default range.  swap None = host has no swap
+# (the agent reports it ABSENT, so the card says "not reported").
+BUILTIN_HISTORY_HOURS = 24
+BUILTIN_INTERVAL_MIN = 15
+BUILTIN_PROFILE = {
+    "ubuntu-web-01.corp.northstar.io": (38, 20, 62, 6, 4, 0.9, 0.5, 71),
+    "rhel-db-01.corp.northstar.io": (64, 18, 81, 4, 22, 2.4, 1.1, 86),
+    "debian-app-01.corp.northstar.io": (27, 12, 55, 8, None, 0.6, 0.3, 48),
+}
+BUILTIN_DEFAULT = (12, 6, 40, 5, 2, 0.2, 0.1, 35)
+# One host was powered off for three hours overnight: the chart must break
+# the line there rather than draw a ramp across the outage.
+BUILTIN_OUTAGE = ("debian-app-01.corp.northstar.io", 9, 12)  # hours ago: from, to
+
+
+def _wave(step, offset):
+    """Triangular wave in [-1, 1], one cycle per 24 steps, phase-shifted."""
+    phase = (step + offset) % 24
+    return (phase / 6.0 - 1.0) if phase <= 12 else ((24 - phase) / 6.0 - 1.0)
+
+
+def seed_builtin_host_metrics(session, hosts):
+    """Samples for the built-in host series; returns how many were added."""
+    from backend.services.host_metrics import ensure_builtin_metrics
+
+    builtins = ensure_builtin_metrics(session)
+    session.flush()
+    n_steps = (BUILTIN_HISTORY_HOURS * 60) // BUILTIN_INTERVAL_MIN
+    count = 0
+    for hi, (fqdn, h) in enumerate(sorted(hosts.items())):
+        cpu, cpu_sw, mem, mem_sw, swap, load, load_sw, disk = BUILTIN_PROFILE.get(
+            fqdn, BUILTIN_DEFAULT
+        )
+        for step in range(n_steps + 1):
+            minutes_ago = (n_steps - step) * BUILTIN_INTERVAL_MIN
+            if fqdn == BUILTIN_OUTAGE[0] and (
+                BUILTIN_OUTAGE[1] * 60 <= minutes_ago <= BUILTIN_OUTAGE[2] * 60
+            ):
+                continue
+            wave = _wave(step, hi * 5)
+            values = {
+                "host.cpu_percent": cpu + cpu_sw * wave,
+                "host.memory_used_percent": mem + mem_sw * wave,
+                "host.swap_used_percent": None if swap is None else swap + wave,
+                "host.load_1m": max(load + load_sw * wave, 0.0),
+                # Disks fill slowly: a gentle climb over the day.
+                "host.disk_used_percent_max": disk + step * 0.02,
+            }
+            for key, value in values.items():
+                metric = builtins.get(key)
+                if metric is None or value is None:
+                    continue
+                session.add(CustomMetricSample(
+                    custom_metric_id=metric.id, host_id=h.id,
+                    value=round(value, 2), status="ok",
+                    collected_at=NOW - timedelta(minutes=minutes_ago),
+                ))
+                count += 1
+    return count
+
 
 def main():
     session = sessionmaker(bind=db.get_engine())()
@@ -782,6 +846,8 @@ def main():
                     ))
                     metric_sample_count += 1
 
+        builtin_sample_count = seed_builtin_host_metrics(session, hosts)
+
         session.commit()
 
         print(f"  hosts seeded: {len(hosts)}")
@@ -798,6 +864,7 @@ def main():
         print(f"  gpg keys: {len(GPG_KEYS)} keys, {gpg_assign_count} assignments")
         print(f"  custom metrics: {len(CUSTOM_METRICS)} metrics, "
               f"{metric_sample_count} samples")
+        print(f"  built-in host metrics: {builtin_sample_count} samples")
         print(f"  admin RBAC roles granted: {granted_role_count} "
               "(MANAGE_GPG_KEYS / MANAGE_CUSTOM_METRICS)")
     except Exception:
