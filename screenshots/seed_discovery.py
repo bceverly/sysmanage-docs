@@ -59,6 +59,7 @@ LAN = "10.20.0"
 WEB = "ubuntu-web-01.corp.northstar.io"
 DB_HOST = "rhel-db-01.corp.northstar.io"
 WIN = "win11-ws-01.corp.northstar.io"
+REPORT_INTERVAL = 3600
 DISCOVERY_COMMANDS = ("configure_network_discovery", "run_network_sweep")
 
 # Real IEEE prefixes, so the shipped OUI table resolves each vendor.
@@ -118,7 +119,7 @@ def _reports(hosts):
     web_report = {
         "interfaces": _interfaces(web),
         "methods": LINUX_METHODS,
-        "window_seconds": 300,
+        "window_seconds": REPORT_INTERVAL,
         "observations": neighbors + [
             _obs(*PRINTER, ["arp_listen", "mdns"], 12, ["NPI4E19A0.local"],
                  mdns=["_ipp._tcp", "_printer._tcp", "_pdl-datastream._tcp"]),
@@ -134,7 +135,7 @@ def _reports(hosts):
     db_report = {
         "interfaces": _interfaces(dbh),
         "methods": LINUX_METHODS,
-        "window_seconds": 300,
+        "window_seconds": REPORT_INTERVAL,
         "observations": [
             _obs(web.interface_mac, web.ipv4, ["arp_listen", "cache"], 57),
             _obs(*PRINTER, ["arp_listen"], 4),
@@ -146,7 +147,7 @@ def _reports(hosts):
     win_report = {
         "interfaces": _interfaces(win, "Ethernet"),
         "methods": WINDOWS_METHODS,
-        "window_seconds": 300,
+        "window_seconds": REPORT_INTERVAL,
         "observations": [
             _obs(*STREAMER, ["ssdp"], 2, iface="Ethernet",
                  ssdp=["ST: roku:ecp", "SERVER: Roku/12.5.0 UPnP/1.0"]),
@@ -274,7 +275,13 @@ def main():
 
     try:
         actor = _admin(session)
-        policy.set_policy(session, True, 300, actor, sweep_enabled=True, retention_days=30)
+        # Hourly reports: an observer counts as stale after 3 missed intervals,
+        # and the demo hosts never report again, so at 5 minutes every agent
+        # read "has stopped reporting" by the time the Enterprise capture got
+        # to these shots (15 minutes).  An hour gives the whole run 3 hours.
+        policy.set_policy(
+            session, True, REPORT_INTERVAL, actor, sweep_enabled=True, retention_days=30
+        )
         for host, report in _reports(hosts):
             outcome = svc.record_report(session, host.id, report)
             print(f"  report from {host.fqdn}: {outcome}")
