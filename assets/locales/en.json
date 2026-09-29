@@ -18646,6 +18646,17 @@
           },
           "link": "Built-in Host Metrics Guide →",
           "title": "📊 Built-in Host Metrics"
+        },
+        "network_discovery": {
+          "description": "The devices on your networks that SysManage does not manage, found by the agents already there and reviewed once.",
+          "features": {
+            "blind_spots": "Vendor and device type shown, blind spots stated",
+            "correlation": "Managed hosts filtered out by MAC address",
+            "exclusions": "Permanent exclusions with a reason and an owner",
+            "passive": "Passive listening first; active sweeps opt-in and audited"
+          },
+          "link": "Network Discovery Guide →",
+          "title": "📡 Network Discovery"
         }
       },
       "overview": {
@@ -20985,6 +20996,78 @@
         "swap": "<strong>Swap used</strong> (<code>host.swap_used_percent</code>) -- the percentage of swap in use. A host with no swap does not report this series at all.",
         "title": "The Five Series"
       }
+    },
+    "network_discovery": {
+      "blind_spots": {
+        "description": "An empty list must not read as a clean network. Beside the list, the page states what discovery could not see: agents that cannot listen for ARP (Windows, or an agent not running as root), agents that have stopped reporting, networks that have never been swept -- so a silent device there would not have been found -- and hosts whose agents cannot do discovery at all. Listening agents also leave out hypervisor and container bridges, so a host's own virtual machines on an internal bridge are not reported as devices on your network.",
+        "title": "Blind Spots Are Stated"
+      },
+      "breadcrumb": "Network Discovery",
+      "correlation": {
+        "description": "Each device is matched against the fleet by its hardware (MAC) address, whichever way the host reported it, so a managed host never appears as unmanaged. Enrolled child hosts (virtual machines and containers) match through their own interfaces, and a hypervisor's per-guest port is attributed to the guest behind it. A device that is managed always shows as managed, even if someone once excluded its address. Managed devices are listed on their own tab with the host each one matched.",
+        "title": "Managed Devices Stay Out of the Queue"
+      },
+      "exclusions": {
+        "description": "Marking a device as known records what it is (a printer, an IoT device, network equipment, an appliance, a personal device, a virtual machine, a virtual address or other), why, and who decided. Exclusions are kept as audit records rather than a setting, so \"who decided this was fine\" survives. They are keyed by the device's MAC address, so a device that gets a new address from DHCP stays excluded instead of reappearing as new on every lease. Revoking an exclusion puts the device back in the queue and keeps the withdrawn decision visible as history.",
+        "screenshot_caption": "Each exclusion carries its category, its reason and who decided.",
+        "static": "<strong>Register a static address</strong> covers an address rather than a device: a virtual IP, a load balancer or a virtual router address shared by several machines. Use it only for addresses that never change -- it covers whatever device holds the address, so an ordinary DHCP device registered this way reappears after its next lease. Virtual router addresses (VRRP, HSRP, CARP) are recognized and suggested as virtual addresses.",
+        "static_caption": "Registering a static address, with the warning shown before anything is saved.",
+        "title": "Known and Fine: Permanent Exclusions"
+      },
+      "header": {
+        "description": "What is on my network that SysManage does not manage? Your agents already sit on every segment you care about, so they do the looking: they listen for the devices around them, report what they hear, and the server turns those reports into a review queue. Devices your fleet already covers are left out; everything else is yours to identify, once.",
+        "screenshot_caption": "Unmanaged devices with their vendor, what each looks like and what it announces, with the blind spots stated beside the list.",
+        "title": "Network Discovery"
+      },
+      "limits": {
+        "randomized": "Phones and tablets that change their MAC address periodically can appear more than once.",
+        "segments": "Only segments where an agent sits. A VLAN with no managed host on it is invisible.",
+        "switching": "Switch features such as port isolation, Wi-Fi client isolation and multicast snooping can hide devices from an agent on the same network.",
+        "title": "What It Cannot See"
+      },
+      "meta_description": "Find the devices on your networks that SysManage does not manage, using the agents already there: passive listening first, opt-in audited sweeps second, and a review queue with permanent, reasoned exclusions.",
+      "methods": {
+        "announce": "<strong>mDNS and SSDP</strong> -- printers, NAS boxes, TVs and streaming devices announce what they are. This is where the evidence for \"what is it\" comes from.",
+        "arp": "<strong>ARP and IPv6 neighbor listening</strong> -- every device that talks on the segment announces its hardware address. This finds the most devices, and needs the agent to run as root (raw capture on Linux, BPF on macOS and the BSDs).",
+        "cache": "<strong>The neighbor cache</strong> -- the table every operating system keeps of the devices it has exchanged traffic with. Available everywhere, including Windows and agents not running as root.",
+        "description": "Listening comes first, because it sends nothing and cannot trip an intrusion detector. Each agent reports what it heard on a regular interval:",
+        "sweep": "<strong>Active sweep</strong> (opt-in) -- the only way to find a device that never speaks on its own. See below.",
+        "title": "How Devices Are Found"
+      },
+      "overview": {
+        "description": "Network Discovery detects; it does not enroll. Enrolling a machine SysManage has never seen would need SSH or WinRM access and credentials for it, which is exactly the inbound reachability SysManage's agent-to-server design avoids. So the result is a list to review -- the addresses answering on your networks that are not in your fleet -- and a decision for each: enroll it yourself, or mark it as known and fine. Because the looking is done by agents inside each segment, it needs no scanning server, no new listener and no route from the server into your networks, and it works per segment in routed networks where a central scanner would only see its own.",
+        "title": "Overview"
+      },
+      "page_title": "Network Discovery - SysManage Professional+",
+      "posture": {
+        "description": "Unmanaged devices feed the posture punch list: one check asks whether discovery is running at all, another counts the unmanaged devices and the networks they are on, and the advisor scores both. See <a href=\"threat-model-posture.html\">Threat Model and Posture</a>.",
+        "title": "Posture and the Advisor"
+      },
+      "requirements": {
+        "agent": "An agent version that advertises network discovery. ARP listening needs the agent to run as root; without root it still reports the neighbor cache and mDNS/SSDP.",
+        "license": "Enterprise license with the asset discovery engine. Without it nothing is stored, so an unlicensed server never collects devices no one can review.",
+        "roles": "The View Host Details role to view the page, and the Manage Network Discovery role to change settings, mark devices as known and start sweeps.",
+        "title": "Requirements"
+      },
+      "review": {
+        "description": "Each unmanaged device shows its address, the <strong>vendor</strong> from its MAC prefix (the IEEE registry ships with the server; no lookup leaves your network), what it <strong>looks like</strong> -- a printer, a phone, a media device -- with the reasons on hover, the names and services it announces, which agents saw it and when. A guess made on weak evidence is labeled <strong>Maybe</strong>.",
+        "filters": "Filter by network or search by MAC or IP address, and select devices in bulk to mark them as known.",
+        "local_mac": "<strong>Address may change</strong> -- the device uses a locally administered MAC, as phones and tablets do for privacy. It may reappear under a new one.",
+        "no_mac": "<strong>No MAC seen</strong> -- the device was heard only by its IP address, from an agent that cannot see hardware addresses. It is identified by that address until an agent sees its MAC.",
+        "title": "Reviewing Devices"
+      },
+      "settings": {
+        "description": "Discovery is off until an administrator turns it on, per tenant, on the Network Discovery page. The settings choose how often agents report (every 1 to 60 minutes, 5 by default), whether active sweeps are allowed, and how long a device that is no longer seen is kept: 7, 30 (the default), 90 or 365 days. Turning discovery on or off reaches every capable agent within about a minute.",
+        "title": "Settings"
+      },
+      "sweeps": {
+        "audit": "Every sweep is recorded -- the range, the rate, who asked, which agent ran it, how many addresses it probed and how many devices answered -- and written to the audit log.",
+        "description": "A sweep sends traffic to every address in a range, which can trip intrusion detection, looks hostile on a segment you may not own and is forbidden on some networks. So sweeps are a second, separate opt-in on top of discovery, and every limit is enforced both by the server and by the agent that sends the traffic:",
+        "onlink": "Only an IPv4 network an agent is directly attached to, and only by an agent on it. A routed range is refused.",
+        "screenshot_caption": "The Sweeps tab keeps the record of every sweep and what it found.",
+        "size": "At most 4,096 addresses per sweep, at 1 to 200 addresses per second (50 by default), one sweep per agent at a time.",
+        "title": "Active Sweeps"
+      }
     }
   },
   "quick_start": {
@@ -22843,7 +22926,7 @@
       },
       "discovery": {
         "title": "Unmanaged asset visibility",
-        "body": "What is on your network that SysManage does not manage. Agents already sit inside each segment, so they report the neighbors they can see -- passively by default, with active sweeps opt-in, scoped and audited -- and anything already covered by a managed host is filtered out. The result is a review page, not an onboarding pipeline: we detect unenrolled machines, we do not force-enroll them, because that would need credentials on the target and reintroduce the inbound access the architecture deliberately avoids. Devices you would never manage -- an IoT sensor, a printer, a switch -- get allow-listed away for good, with a reason and an owner recorded. Enterprise."
+        "body": "Network Discovery ships today: agents already sit inside each segment, so they report the neighbors they hear -- ARP and neighbor listening, mDNS and SSDP, with active sweeps opt-in, on-link only, rate-limited and audited -- and anything already covered by a managed host is filtered out. The result is a review page, not an onboarding pipeline: we detect unenrolled machines, we do not force-enroll them, because that would need credentials on the target and reintroduce the inbound access the architecture deliberately avoids. Each device shows its vendor and what it looks like, the page states its own blind spots, and devices you would never manage -- a printer, a switch, a virtual router address -- are marked as known for good, with a reason and an owner recorded. Enterprise."
       },
       "ha": {
         "title": "High availability & disaster recovery",

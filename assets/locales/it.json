@@ -19894,6 +19894,17 @@
           },
           "link": "Guida alle metriche degli host integrate →",
           "title": "📊 Metriche degli host integrate"
+        },
+        "network_discovery": {
+          "description": "I dispositivi presenti nelle reti che SysManage non gestisce, individuati dagli agenti già presenti ed esaminati una sola volta.",
+          "features": {
+            "blind_spots": "Produttore e tipo di dispositivo mostrati, punti ciechi dichiarati",
+            "correlation": "Host gestiti esclusi tramite indirizzo MAC",
+            "exclusions": "Esclusioni permanenti con un motivo e un responsabile",
+            "passive": "Prima l'ascolto passivo; scansioni attive solo su attivazione esplicita e sottoposte ad audit"
+          },
+          "link": "Guida al rilevamento di rete →",
+          "title": "📡 Rilevamento di rete"
         }
       },
       "overview": {
@@ -21917,6 +21928,78 @@
         "swap": "<strong>Swap utilizzato</strong> (<code>host.swap_used_percent</code>) -- la percentuale di swap in uso. Un host senza swap non riporta affatto questa serie.",
         "title": "Le cinque serie"
       }
+    },
+    "network_discovery": {
+      "blind_spots": {
+        "description": "Un elenco vuoto non deve essere interpretato come il segno di una rete in ordine. Accanto all'elenco, la pagina indica ciò che il rilevamento non ha potuto vedere: gli agenti che non possono ascoltare il traffico ARP (Windows, oppure un agente non eseguito come root), gli agenti che hanno smesso di inviare dati, le reti mai sottoposte a scansione -- per cui un dispositivo silenzioso in quelle reti non sarebbe stato trovato -- e gli host i cui agenti non possono eseguire alcun rilevamento. Gli agenti in ascolto escludono inoltre i bridge dell'hypervisor e dei container, così che le macchine virtuali di un host su un bridge interno non vengano segnalate come dispositivi della rete.",
+        "title": "I punti ciechi sono dichiarati"
+      },
+      "breadcrumb": "Rilevamento di rete",
+      "correlation": {
+        "description": "Ogni dispositivo viene confrontato con il parco macchine tramite il suo indirizzo hardware (MAC), in qualunque modo l'host lo abbia comunicato, così che un host gestito non compaia mai come non gestito. Gli host figli registrati (macchine virtuali e container) vengono riconosciuti tramite le proprie interfacce, e la porta per guest di un hypervisor viene attribuita al guest che si trova dietro di essa. Un dispositivo gestito risulta sempre gestito, anche se in passato qualcuno ne ha escluso l'indirizzo. I dispositivi gestiti sono elencati in una scheda dedicata, insieme all'host a cui ciascuno corrisponde.",
+        "title": "I dispositivi gestiti restano fuori dalla coda"
+      },
+      "exclusions": {
+        "description": "Contrassegnare un dispositivo come noto registra che cosa è (una stampante, un dispositivo o sensore IoT, un'apparecchiatura di rete, un apparecchio dedicato, un dispositivo personale, una macchina virtuale, un indirizzo virtuale o altro), il motivo e chi ha preso la decisione. Le esclusioni vengono conservate come record di audit anziché come impostazione, in modo che l'informazione su \"chi ha deciso che andava bene\" non vada persa. Sono associate all'indirizzo MAC del dispositivo, quindi un dispositivo che riceve un nuovo indirizzo tramite DHCP resta escluso invece di ricomparire come nuovo a ogni lease. La revoca di un'esclusione riporta il dispositivo nella coda e mantiene visibile nella cronologia la decisione ritirata.",
+        "screenshot_caption": "Ogni esclusione riporta la categoria, il motivo e chi ha preso la decisione.",
+        "static": "<strong>Registra un indirizzo statico</strong> riguarda un indirizzo anziché un dispositivo: un IP virtuale, un bilanciatore di carico o un indirizzo di router virtuale condiviso da più macchine. Va usato solo per indirizzi che non cambiano mai -- copre qualsiasi dispositivo detenga l'indirizzo, per cui un normale dispositivo DHCP registrato in questo modo ricompare dopo il lease successivo. Gli indirizzi di router virtuale (VRRP, HSRP, CARP) vengono riconosciuti e proposti come indirizzi virtuali.",
+        "static_caption": "Registrazione di un indirizzo statico, con l'avviso mostrato prima che venga salvato qualsiasi dato.",
+        "title": "Noti e accettati: esclusioni permanenti"
+      },
+      "header": {
+        "description": "Che cosa c'è nella rete che SysManage non gestisce? Gli agenti si trovano già su ogni segmento di interesse, quindi sono loro a osservare: ascoltano i dispositivi circostanti, riportano ciò che rilevano e il server trasforma questi rapporti in una coda di revisione. I dispositivi già coperti dal parco macchine vengono esclusi; tutto il resto va identificato, una sola volta.",
+        "screenshot_caption": "Dispositivi non gestiti con il relativo produttore, l'aspetto di ciascuno e ciò che annuncia, con i punti ciechi dichiarati accanto all'elenco.",
+        "title": "Rilevamento di rete"
+      },
+      "limits": {
+        "randomized": "Telefoni e tablet che cambiano periodicamente il proprio indirizzo MAC possono comparire più di una volta.",
+        "segments": "Solo i segmenti in cui si trova un agente. Una VLAN priva di host gestiti è invisibile.",
+        "switching": "Funzionalità degli switch come l'isolamento delle porte, l'isolamento dei client Wi-Fi e il multicast snooping possono nascondere dispositivi a un agente presente sulla stessa rete.",
+        "title": "Che cosa non può vedere"
+      },
+      "meta_description": "Individuare i dispositivi nelle reti che SysManage non gestisce, tramite gli agenti già presenti: prima l'ascolto passivo, poi scansioni sottoposte ad audit su attivazione esplicita, e una coda di revisione con esclusioni permanenti e motivate.",
+      "methods": {
+        "announce": "<strong>mDNS e SSDP</strong> -- stampanti, NAS, TV e dispositivi di streaming annunciano che cosa sono. Da qui provengono gli elementi per stabilire \"che cos'è\".",
+        "arp": "<strong>Ascolto ARP e dei vicini IPv6</strong> -- ogni dispositivo che comunica sul segmento annuncia il proprio indirizzo hardware. È il metodo che trova più dispositivi e richiede che l'agente sia eseguito come root (acquisizione raw su Linux, BPF su macOS e sui sistemi BSD).",
+        "cache": "<strong>La cache dei vicini</strong> -- la tabella che ogni sistema operativo mantiene dei dispositivi con cui ha scambiato traffico. Disponibile ovunque, anche su Windows e per gli agenti non eseguiti come root.",
+        "description": "L'ascolto viene per primo, perché non invia nulla e non può far scattare un sistema di rilevamento delle intrusioni. Ogni agente riporta ciò che ha rilevato a intervalli regolari:",
+        "sweep": "<strong>Scansione attiva</strong> (su attivazione esplicita) -- l'unico modo per trovare un dispositivo che non comunica mai di propria iniziativa. Vedere più avanti.",
+        "title": "Come vengono trovati i dispositivi"
+      },
+      "overview": {
+        "description": "Il rilevamento di rete individua; non registra. Registrare una macchina che SysManage non ha mai visto richiederebbe un accesso SSH o WinRM e le relative credenziali, ovvero proprio la raggiungibilità in ingresso che l'architettura agente-server di SysManage evita. Il risultato è quindi un elenco da esaminare -- gli indirizzi che rispondono nelle reti ma non fanno parte del parco macchine -- e una decisione per ciascuno: registrarlo manualmente oppure contrassegnarlo come noto e accettato. Poiché l'osservazione è svolta da agenti all'interno di ciascun segmento, non servono un server di scansione, un nuovo listener o una route dal server verso le reti, e il meccanismo funziona segmento per segmento anche nelle reti instradate, dove uno scanner centrale vedrebbe solo il proprio.",
+        "title": "Panoramica"
+      },
+      "page_title": "Rilevamento di rete - SysManage Professional+",
+      "posture": {
+        "description": "I dispositivi non gestiti alimentano l'elenco dei punti aperti della postura: un controllo verifica se il rilevamento è effettivamente attivo, un altro conta i dispositivi non gestiti e le reti in cui si trovano, e il consulente valuta entrambi. Vedere <a href=\"threat-model-posture.html\">Modello delle minacce e postura</a>.",
+        "title": "La postura e il consulente"
+      },
+      "requirements": {
+        "agent": "Una versione dell'agente che dichiari il supporto al rilevamento di rete. L'ascolto ARP richiede che l'agente sia eseguito come root; senza root, l'agente riporta comunque la cache dei vicini e mDNS/SSDP.",
+        "license": "Licenza Enterprise con il motore di rilevamento degli asset. In sua assenza non viene memorizzato nulla, quindi un server senza licenza non raccoglie mai dispositivi che nessuno può esaminare.",
+        "roles": "Il ruolo View Host Details per visualizzare la pagina e il ruolo Manage Network Discovery per modificare le impostazioni, contrassegnare i dispositivi come noti e avviare le scansioni.",
+        "title": "Requisiti"
+      },
+      "review": {
+        "description": "Ogni dispositivo non gestito mostra il proprio indirizzo, il <strong>produttore</strong> ricavato dal prefisso MAC (il registro IEEE è incluso nel server; nessuna ricerca esce dalla rete), che cosa <strong>sembra</strong> -- una stampante, un telefono, un dispositivo multimediale -- con le motivazioni al passaggio del mouse, i nomi e i servizi che annuncia, quali agenti lo hanno visto e quando. Un'ipotesi basata su indizi deboli è etichettata <strong>Forse</strong>.",
+        "filters": "È possibile filtrare per rete o cercare per indirizzo MAC o IP, e selezionare più dispositivi insieme per contrassegnarli come noti.",
+        "local_mac": "<strong>L'indirizzo può cambiare</strong> -- il dispositivo utilizza un indirizzo MAC amministrato localmente, come fanno telefoni e tablet per motivi di privacy. Potrebbe ricomparire con un nuovo indirizzo.",
+        "no_mac": "<strong>Nessun MAC rilevato</strong> -- il dispositivo è stato rilevato solo tramite il suo indirizzo IP, da un agente che non può vedere gli indirizzi hardware. Viene identificato tramite tale indirizzo finché un agente non ne rileva il MAC.",
+        "title": "Revisione dei dispositivi"
+      },
+      "settings": {
+        "description": "Il rilevamento è disattivato finché un amministratore non lo attiva, per tenant, nella pagina Rilevamento di rete. Le impostazioni stabiliscono con quale frequenza gli agenti inviano i dati (ogni 1-60 minuti, 5 per impostazione predefinita), se le scansioni attive sono consentite e per quanto tempo viene conservato un dispositivo che non viene più visto: 7, 30 (valore predefinito), 90 o 365 giorni. L'attivazione o la disattivazione del rilevamento raggiunge ogni agente compatibile entro circa un minuto.",
+        "title": "Impostazioni"
+      },
+      "sweeps": {
+        "audit": "Ogni scansione viene registrata -- l'intervallo, la velocità, chi l'ha richiesta, quale agente l'ha eseguita, quanti indirizzi ha sondato e quanti dispositivi hanno risposto -- e scritta nel registro di audit.",
+        "description": "Una scansione invia traffico a ogni indirizzo di un intervallo, il che può far scattare il rilevamento delle intrusioni, appare ostile su un segmento che potrebbe non essere di proprietà dell'organizzazione ed è vietato in alcune reti. Per questo le scansioni richiedono una seconda attivazione esplicita, separata da quella del rilevamento, e ogni limite viene applicato sia dal server sia dall'agente che invia il traffico:",
+        "onlink": "Solo una rete IPv4 a cui un agente è collegato direttamente, e solo da parte di un agente presente su di essa. Un intervallo instradato viene rifiutato.",
+        "screenshot_caption": "La scheda Scansioni conserva la registrazione di ogni scansione e di ciò che ha trovato.",
+        "size": "Al massimo 4.096 indirizzi per scansione, da 1 a 200 indirizzi al secondo (50 per impostazione predefinita), una scansione alla volta per agente.",
+        "title": "Scansioni attive"
+      }
     }
   },
   "quick_start": {
@@ -22152,7 +22235,7 @@
         "title": "Ciclo di vita e distribuzione del contenuto"
       },
       "discovery": {
-        "body": "Cosa si trova sulla tua rete che SysManage non gestisce. Gli agenti sono già presenti in ogni segmento e segnalano i vicini visibili - passivamente per impostazione predefinita, con scansioni attive su richiesta, limitate e controllate - e qualsiasi dispositivo già coperto da un host gestito viene filtrato. Il risultato è una pagina di revisione, non un pipeline di onboarding: rileviamo macchine non iscritte, senza forzarne l'iscrizione poiché ciò richiederebbe credenziali sul target e reintroducerebbe l'accesso in entrata che l'architettura evita deliberatamente. Dispositivi che non vorresti gestire - un sensore IoT, una stampante, uno switch - vengono elencati per sempre con una ragione e un proprietario registrati.",
+        "body": "Il rilevamento di rete è disponibile già oggi: gli agenti si trovano già all'interno di ciascun segmento, quindi riportano i vicini che rilevano -- ascolto ARP e dei vicini, mDNS e SSDP, con scansioni attive su attivazione esplicita, solo on-link, a velocità limitata e sottoposte ad audit -- e tutto ciò che è già coperto da un host gestito viene escluso. Il risultato è una pagina di revisione, non una pipeline di onboarding: individuiamo le macchine non registrate, non le registriamo forzatamente, perché ciò richiederebbe credenziali sulla destinazione e reintrodurrebbe l'accesso in ingresso che l'architettura evita deliberatamente. Ogni dispositivo mostra il produttore e il suo aspetto, la pagina dichiara i propri punti ciechi, e i dispositivi che non verrebbero mai gestiti -- una stampante, uno switch, un indirizzo di router virtuale -- vengono contrassegnati come noti in modo definitivo, con la registrazione di un motivo e di un responsabile. Enterprise.",
         "title": "Visibilità degli asset non gestiti"
       },
       "ha": {

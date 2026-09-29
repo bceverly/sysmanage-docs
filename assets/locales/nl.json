@@ -19894,6 +19894,17 @@
           },
           "link": "Handleiding ingebouwde hostmetrieken →",
           "title": "📊 Ingebouwde hostmetrieken"
+        },
+        "network_discovery": {
+          "description": "De apparaten op uw netwerken die SysManage niet beheert, gevonden door de agents die er al zijn en eenmalig beoordeeld.",
+          "features": {
+            "blind_spots": "Leverancier en apparaattype getoond, blinde vlekken benoemd",
+            "correlation": "Beheerde hosts op MAC-adres weggefilterd",
+            "exclusions": "Permanente uitsluitingen met een reden en een eigenaar",
+            "passive": "Eerst passief luisteren; actieve netwerkverkenningen zijn opt-in en worden geaudit"
+          },
+          "link": "Handleiding Netwerkdetectie →",
+          "title": "📡 Netwerkdetectie"
         }
       },
       "overview": {
@@ -21917,6 +21928,78 @@
         "swap": "<strong>Gebruikte swap</strong> (<code>host.swap_used_percent</code>) -- het percentage swap dat in gebruik is. Een host zonder swap rapporteert deze reeks helemaal niet.",
         "title": "De vijf reeksen"
       }
+    },
+    "network_discovery": {
+      "blind_spots": {
+        "description": "Een lege lijst mag niet worden gelezen als een netwerk zonder problemen. Naast de lijst vermeldt de pagina wat detectie niet kon zien: agents die niet naar ARP kunnen luisteren (Windows, of een agent die niet als root draait), agents die niet meer rapporteren, netwerken die nooit zijn verkend -- zodat een stil apparaat daar niet gevonden zou zijn -- en hosts waarvan de agents helemaal geen detectie kunnen uitvoeren. Luisterende agents laten ook hypervisor- en containerbridges buiten beschouwing, zodat de eigen virtuele machines van een host op een interne bridge niet worden gerapporteerd als apparaten op uw netwerk.",
+        "title": "Blinde vlekken worden benoemd"
+      },
+      "breadcrumb": "Netwerkdetectie",
+      "correlation": {
+        "description": "Elk apparaat wordt op basis van zijn hardwareadres (MAC) vergeleken met het machinepark, ongeacht hoe de host het heeft gerapporteerd, zodat een beheerde host nooit als onbeheerd verschijnt. Ingeschreven onderliggende hosts (virtuele machines en containers) worden via hun eigen interfaces gekoppeld, en de poort die een hypervisor per virtuele machine gebruikt, wordt toegeschreven aan de virtuele machine erachter. Een beheerd apparaat wordt altijd als beheerd getoond, ook als iemand ooit het adres ervan heeft uitgesloten. Beheerde apparaten staan op een eigen tabblad, elk met de host waarmee het is gekoppeld.",
+        "title": "Beheerde apparaten blijven buiten de wachtrij"
+      },
+      "exclusions": {
+        "description": "Wanneer u een apparaat als bekend markeert, wordt vastgelegd wat het is (een afdrukapparaat, een IoT-apparaat, netwerkapparatuur, een speciaal apparaat, een persoonlijk apparaat, een virtuele machine, een virtueel adres of overig), waarom, en wie de beslissing nam. Uitsluitingen worden bewaard als auditrecords in plaats van als instelling, zodat \"wie heeft besloten dat dit in orde was\" bewaard blijft. Ze zijn gekoppeld aan het MAC-adres van het apparaat, zodat een apparaat dat via DHCP een nieuw adres krijgt uitgesloten blijft in plaats van bij elke lease opnieuw als nieuw te verschijnen. Als u een uitsluiting intrekt, komt het apparaat terug in de wachtrij en blijft de ingetrokken beslissing zichtbaar als geschiedenis.",
+        "screenshot_caption": "Elke uitsluiting bevat de categorie, de reden en wie de beslissing nam.",
+        "static": "<strong>Een statisch adres registreren</strong> geldt voor een adres in plaats van een apparaat: een virtueel IP-adres, een load balancer of een virtueel routeradres dat door meerdere machines wordt gedeeld. Gebruik het alleen voor adressen die nooit veranderen -- het geldt voor elk apparaat dat het adres heeft, dus een gewoon DHCP-apparaat dat op deze manier is geregistreerd, verschijnt na de volgende lease opnieuw. Virtuele routeradressen (VRRP, HSRP, CARP) worden herkend en als virtuele adressen voorgesteld.",
+        "static_caption": "Een statisch adres registreren, met de waarschuwing die wordt getoond voordat er iets wordt opgeslagen.",
+        "title": "Bekend en in orde: permanente uitsluitingen"
+      },
+      "header": {
+        "description": "Wat staat er op mijn netwerk dat SysManage niet beheert? Uw agents bevinden zich al op elk segment dat voor u belangrijk is, dus zij doen het speurwerk: ze luisteren naar de apparaten om hen heen, rapporteren wat ze horen, en de server zet die rapporten om in een beoordelingswachtrij. Apparaten die uw machinepark al dekt, worden weggelaten; al het andere identificeert u zelf, eenmalig.",
+        "screenshot_caption": "Onbeheerde apparaten met hun leverancier, hoe elk apparaat eruitziet en wat het aankondigt, met de blinde vlekken naast de lijst vermeld.",
+        "title": "Netwerkdetectie"
+      },
+      "limits": {
+        "randomized": "Telefoons en tablets die hun MAC-adres periodiek wijzigen, kunnen meer dan eens verschijnen.",
+        "segments": "Alleen segmenten waar een agent aanwezig is. Een VLAN zonder beheerde host is onzichtbaar.",
+        "switching": "Switchfuncties zoals poortisolatie, Wi-Fi-clientisolatie en multicast snooping kunnen apparaten verbergen voor een agent op hetzelfde netwerk.",
+        "title": "Wat het niet kan zien"
+      },
+      "meta_description": "Vind de apparaten op uw netwerken die SysManage niet beheert, met de agents die er al zijn: eerst passief luisteren, daarna opt-in netwerkverkenningen met audit, en een beoordelingswachtrij met permanente, onderbouwde uitsluitingen.",
+      "methods": {
+        "announce": "<strong>mDNS en SSDP</strong> -- afdrukapparaten, NAS-systemen, tv's en streamingapparaten kondigen aan wat ze zijn. Hier komt het bewijs voor \"wat is het\" vandaan.",
+        "arp": "<strong>Luisteren naar ARP en IPv6-buren</strong> -- elk apparaat dat op het segment communiceert, maakt zijn hardwareadres bekend. Dit vindt de meeste apparaten en vereist dat de agent als root draait (raw capture op Linux, BPF op macOS en de BSD's).",
+        "cache": "<strong>De neighbor-cache</strong> -- de tabel die elk besturingssysteem bijhoudt van de apparaten waarmee het verkeer heeft uitgewisseld. Overal beschikbaar, ook op Windows en voor agents die niet als root draaien.",
+        "description": "Luisteren komt eerst, omdat het niets verzendt en geen inbraakdetectie kan activeren. Elke agent rapporteert met een vast interval wat hij heeft gehoord:",
+        "sweep": "<strong>Actieve netwerkverkenning</strong> (opt-in) -- de enige manier om een apparaat te vinden dat nooit uit zichzelf communiceert. Zie hieronder.",
+        "title": "Hoe apparaten worden gevonden"
+      },
+      "overview": {
+        "description": "Netwerkdetectie detecteert; het schrijft niet in. Voor het inschrijven van een machine die SysManage nooit heeft gezien, zijn SSH- of WinRM-toegang en referenties voor die machine nodig, en dat is precies de inkomende bereikbaarheid die het agent-naar-server-ontwerp van SysManage vermijdt. Het resultaat is dus een lijst om te beoordelen -- de adressen die op uw netwerken antwoorden en niet in uw machinepark staan -- en voor elk een beslissing: schrijf het zelf in, of markeer het als bekend en in orde. Omdat het speurwerk wordt gedaan door agents binnen elk segment, is er geen scanserver, geen nieuwe listener en geen route van de server naar uw netwerken nodig, en het werkt per segment in gerouteerde netwerken waar een centrale scanner alleen zijn eigen segment zou zien.",
+        "title": "Overzicht"
+      },
+      "page_title": "Netwerkdetectie - SysManage Professional+",
+      "posture": {
+        "description": "Onbeheerde apparaten voeden de actielijst van de beveiligingsstatus: een controle gaat na of detectie überhaupt actief is, een andere telt de onbeheerde apparaten en de netwerken waarop ze zich bevinden, en de adviseur beoordeelt beide. Zie <a href=\"threat-model-posture.html\">Dreigingsmodel en beveiligingsstatus</a>.",
+        "title": "Beveiligingsstatus en de adviseur"
+      },
+      "requirements": {
+        "agent": "Een agentversie die ondersteuning voor netwerkdetectie aangeeft. Luisteren naar ARP vereist dat de agent als root draait; zonder root rapporteert hij nog steeds de neighbor-cache en mDNS/SSDP.",
+        "license": "Enterprise-licentie met de asset discovery-engine. Zonder licentie wordt niets opgeslagen, zodat een server zonder licentie nooit apparaten verzamelt die niemand kan beoordelen.",
+        "roles": "De rol \"View Host Details\" om de pagina te bekijken, en de rol \"Manage Network Discovery\" om instellingen te wijzigen, apparaten als bekend te markeren en sweeps te starten.",
+        "title": "Vereisten"
+      },
+      "review": {
+        "description": "Elk onbeheerd apparaat toont zijn adres, de <strong>leverancier</strong> op basis van het MAC-voorvoegsel (het IEEE-register wordt met de server meegeleverd; er gaat geen opzoekverzoek uw netwerk uit), hoe het <strong>eruitziet</strong> -- een afdrukapparaat, een telefoon, een media-apparaat -- met de redenen bij aanwijzen met de muis, de namen en diensten die het aankondigt, en welke agents het hebben gezien en wanneer. Een schatting op basis van zwak bewijs krijgt het label <strong>Misschien</strong>.",
+        "filters": "Filter op netwerk of zoek op MAC- of IP-adres, en selecteer apparaten in bulk om ze als bekend te markeren.",
+        "local_mac": "<strong>Adres kan veranderen</strong> -- het apparaat gebruikt een lokaal beheerd MAC-adres, zoals telefoons en tablets doen voor privacy. Het kan onder een nieuw adres opnieuw verschijnen.",
+        "no_mac": "<strong>Geen MAC gezien</strong> -- het apparaat is alleen via zijn IP-adres waargenomen, door een agent die geen hardwareadressen kan zien. Het wordt aan dat adres herkend totdat een agent zijn MAC-adres ziet.",
+        "title": "Apparaten beoordelen"
+      },
+      "settings": {
+        "description": "Detectie staat uit totdat een beheerder deze per tenant inschakelt op de pagina Netwerkdetectie. In de instellingen kiest u hoe vaak agents rapporteren (elke 1 tot 60 minuten, standaard 5), of actieve netwerkverkenningen zijn toegestaan en hoe lang een apparaat dat niet meer wordt gezien bewaard blijft: 7, 30 (de standaard), 90 of 365 dagen. Het in- of uitschakelen van detectie bereikt binnen ongeveer een minuut elke geschikte agent.",
+        "title": "Instellingen"
+      },
+      "sweeps": {
+        "audit": "Elke netwerkverkenning wordt vastgelegd -- het bereik, de snelheid, wie erom vroeg, welke agent hem uitvoerde, hoeveel adressen hij heeft afgetast en hoeveel apparaten antwoordden -- en naar het auditlogboek geschreven.",
+        "description": "Een netwerkverkenning stuurt verkeer naar elk adres in een bereik, wat inbraakdetectie kan activeren, er vijandig uitziet op een segment dat mogelijk niet van u is en op sommige netwerken verboden is. Netwerkverkenningen zijn daarom een tweede, afzonderlijke opt-in bovenop detectie, en elke limiet wordt afgedwongen door zowel de server als de agent die het verkeer verstuurt:",
+        "onlink": "Alleen een IPv4-netwerk waarop een agent rechtstreeks is aangesloten, en alleen door een agent op dat netwerk. Een gerouteerd bereik wordt geweigerd.",
+        "screenshot_caption": "Het tabblad Netwerkverkenningen bewaart het overzicht van elke netwerkverkenning en wat die heeft gevonden.",
+        "size": "Maximaal 4.096 adressen per netwerkverkenning, met 1 tot 200 adressen per seconde (standaard 50), en één netwerkverkenning per agent tegelijk.",
+        "title": "Actieve netwerkverkenningen"
+      }
     }
   },
   "quick_start": {
@@ -22152,7 +22235,7 @@
         "title": "Content lifecycle &amp; distribution"
       },
       "discovery": {
-        "body": "Wat bevindt zich op uw netwerk en wordt niet beheerd door SysManage. Agents zitten al in elk segment en rapporteren de buren die ze zien - passief per standaardinstelling, met actieve sweeps op aanvraag, binnen een bepaald bereik en onderworpen aan audit. Het resultaat is een overzichtspagina, geen onboarding-pijplijn: we detecteren niet-geïntegreerde machines, maar dwingen hun integratie niet, omdat dat referenties op het doel zou vereisen en de inkomende toegang opnieuw zou invoeren die de architectuur bewust vermijdt. Apparaten die u nooit zou beheren - een IoT-sensor, een printer, een switch - worden voorgoed op een toegestane lijst geplaatst, met een reden en een eigenaar vastgelegd.",
+        "body": "Netwerkdetectie is nu beschikbaar: agents bevinden zich al binnen elk segment, dus ze rapporteren de buren die ze horen -- luisteren naar ARP en buren, mDNS en SSDP, met actieve netwerkverkenningen die opt-in, alleen on-link, snelheidsbeperkt en geaudit zijn -- en alles wat al door een beheerde host wordt gedekt, wordt weggefilterd. Het resultaat is een beoordelingspagina, geen onboardingpijplijn: we detecteren niet-ingeschreven machines, maar schrijven ze niet geforceerd in, omdat dat referenties op het doelsysteem zou vereisen en de inkomende toegang zou herintroduceren die de architectuur bewust vermijdt. Elk apparaat toont zijn leverancier en hoe het eruitziet, de pagina benoemt haar eigen blinde vlekken, en apparaten die u nooit zou beheren -- een afdrukapparaat, een switch, een virtueel routeradres -- worden definitief als bekend gemarkeerd, met een vastgelegde reden en eigenaar. Enterprise.",
         "title": "Onbeheerde activa zichtbaarheid"
       },
       "ha": {

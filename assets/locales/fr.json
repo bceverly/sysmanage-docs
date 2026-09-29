@@ -19894,6 +19894,17 @@
           },
           "link": "Guide des métriques d'hôte intégrées →",
           "title": "📊 Métriques d'hôte intégrées"
+        },
+        "network_discovery": {
+          "description": "Les appareils de vos réseaux que SysManage ne gère pas, repérés par les agents déjà présents et examinés une seule fois.",
+          "features": {
+            "blind_spots": "Fabricant et type d'appareil affichés, angles morts indiqués",
+            "correlation": "Hôtes gérés filtrés par adresse MAC",
+            "exclusions": "Exclusions permanentes avec un motif et un responsable",
+            "passive": "Écoute passive d'abord ; balayages actifs sur activation explicite et audités"
+          },
+          "link": "Guide de la découverte du réseau →",
+          "title": "📡 Découverte du réseau"
         }
       },
       "overview": {
@@ -21917,6 +21928,78 @@
         "swap": "<strong>Swap utilisé</strong> (<code>host.swap_used_percent</code>) : le pourcentage de swap utilisé. Un hôte sans swap ne remonte pas du tout cette série.",
         "title": "Les cinq séries"
       }
+    },
+    "network_discovery": {
+      "blind_spots": {
+        "description": "Une liste vide ne doit pas être interprétée comme un réseau sain. À côté de la liste, la page indique ce que la découverte n'a pas pu voir : les agents qui ne peuvent pas écouter le trafic ARP (Windows, ou un agent qui ne s'exécute pas en tant que root), les agents qui ont cessé de remonter des données, les réseaux qui n'ont jamais été balayés -- de sorte qu'un appareil silencieux sur ces réseaux n'aurait pas été détecté -- et les hôtes dont les agents ne peuvent pas du tout effectuer de découverte. Les agents en écoute ignorent également les ponts d'hyperviseur et de conteneurs, afin que les machines virtuelles d'un hôte sur un pont interne ne soient pas signalées comme des appareils de votre réseau.",
+        "title": "Les angles morts sont indiqués"
+      },
+      "breadcrumb": "Découverte du réseau",
+      "correlation": {
+        "description": "Chaque appareil est comparé au parc par son adresse matérielle (MAC), quelle que soit la façon dont l'hôte l'a remontée, de sorte qu'un hôte géré n'apparaît jamais comme non géré. Les hôtes enfants enrôlés (machines virtuelles et conteneurs) sont reconnus par leurs propres interfaces, et le port par invité d'un hyperviseur est attribué à l'invité qui se trouve derrière. Un appareil géré apparaît toujours comme géré, même si quelqu'un a un jour exclu son adresse. Les appareils gérés sont listés dans un onglet dédié, avec l'hôte auquel chacun correspond.",
+        "title": "Les appareils gérés restent hors de la file d'examen"
+      },
+      "exclusions": {
+        "description": "Marquer un appareil comme connu enregistre ce qu'il est (une imprimante, un appareil ou capteur IoT, un équipement réseau, un équipement dédié, un appareil personnel, une machine virtuelle, une adresse virtuelle ou autre), pourquoi, et qui en a décidé. Les exclusions sont conservées sous forme d'enregistrements d'audit plutôt que de paramètre, afin que la réponse à « qui a décidé que c'était acceptable » soit préservée. Elles sont indexées par l'adresse MAC de l'appareil : un appareil qui obtient une nouvelle adresse par DHCP reste donc exclu au lieu de réapparaître comme nouveau à chaque bail. Révoquer une exclusion remet l'appareil dans la file d'examen et conserve la décision retirée dans l'historique.",
+        "screenshot_caption": "Chaque exclusion porte sa catégorie, son motif et le nom de la personne qui en a décidé.",
+        "static": "<strong>Enregistrer une adresse statique</strong> couvre une adresse plutôt qu'un appareil : une IP virtuelle, un répartiteur de charge ou une adresse de routeur virtuel partagée par plusieurs machines. Ne l'utilisez que pour des adresses qui ne changent jamais -- elle couvre tout appareil qui détient l'adresse, si bien qu'un appareil DHCP ordinaire enregistré de cette façon réapparaît après son bail suivant. Les adresses de routeur virtuel (VRRP, HSRP, CARP) sont reconnues et proposées comme adresses virtuelles.",
+        "static_caption": "Enregistrement d'une adresse statique, avec l'avertissement affiché avant toute sauvegarde.",
+        "title": "Connus et acceptés : exclusions permanentes"
+      },
+      "header": {
+        "description": "Qu'y a-t-il sur mon réseau que SysManage ne gère pas ? Vos agents sont déjà présents sur chaque segment qui vous importe, ce sont donc eux qui observent : ils écoutent les appareils qui les entourent, remontent ce qu'ils entendent, et le serveur transforme ces remontées en file d'examen. Les appareils déjà couverts par votre parc sont écartés ; tout le reste est à identifier par vous, une seule fois.",
+        "screenshot_caption": "Appareils non gérés avec leur fabricant, ce à quoi chacun ressemble et ce qu'il annonce, avec les angles morts indiqués à côté de la liste.",
+        "title": "Découverte du réseau"
+      },
+      "limits": {
+        "randomized": "Les téléphones et tablettes qui changent périodiquement d'adresse MAC peuvent apparaître plusieurs fois.",
+        "segments": "Seuls les segments sur lesquels se trouve un agent sont couverts. Un VLAN sans aucun hôte géré est invisible.",
+        "switching": "Des fonctions de commutateur telles que l'isolation de ports, l'isolation des clients Wi-Fi et le multicast snooping peuvent masquer des appareils à un agent situé sur le même réseau.",
+        "title": "Ce qu'elle ne peut pas voir"
+      },
+      "meta_description": "Trouvez les appareils de vos réseaux que SysManage ne gère pas, grâce aux agents déjà présents : écoute passive d'abord, balayages audités sur activation explicite ensuite, et une file d'examen avec des exclusions permanentes et motivées.",
+      "methods": {
+        "announce": "<strong>mDNS et SSDP</strong> -- les imprimantes, les NAS, les TV et les appareils de streaming annoncent ce qu'ils sont. C'est de là que proviennent les éléments permettant de dire « de quoi il s'agit ».",
+        "arp": "<strong>Écoute ARP et du voisinage IPv6</strong> -- chaque appareil qui communique sur le segment annonce son adresse matérielle. C'est la méthode qui trouve le plus d'appareils, et elle exige que l'agent s'exécute en tant que root (capture brute sous Linux, BPF sous macOS et les BSD).",
+        "cache": "<strong>Le cache de voisinage</strong> -- la table que tout système d'exploitation tient des appareils avec lesquels il a échangé du trafic. Disponible partout, y compris sous Windows et pour les agents qui ne s'exécutent pas en tant que root.",
+        "description": "L'écoute passe en premier, car elle n'envoie rien et ne peut pas déclencher un système de détection d'intrusion. Chaque agent remonte ce qu'il a entendu à intervalle régulier :",
+        "sweep": "<strong>Balayage actif</strong> (sur activation explicite) -- le seul moyen de trouver un appareil qui ne s'exprime jamais de lui-même. Voir ci-dessous.",
+        "title": "Comment les appareils sont trouvés"
+      },
+      "overview": {
+        "description": "La découverte du réseau détecte ; elle n'enrôle pas. Enrôler une machine que SysManage n'a jamais vue nécessiterait un accès SSH ou WinRM et des identifiants pour celle-ci, c'est-à-dire précisément la joignabilité entrante que la conception agent-vers-serveur de SysManage évite. Le résultat est donc une liste à examiner -- les adresses qui répondent sur vos réseaux et ne font pas partie de votre parc -- et une décision pour chacune : l'enrôler vous-même, ou la marquer comme connue et acceptée. Comme l'observation est effectuée par des agents situés dans chaque segment, elle ne nécessite ni serveur d'analyse, ni nouvel écouteur, ni route du serveur vers vos réseaux, et elle fonctionne segment par segment dans les réseaux routés, là où un scanner central ne verrait que le sien.",
+        "title": "Vue d'ensemble"
+      },
+      "page_title": "Découverte du réseau - SysManage Professional+",
+      "posture": {
+        "description": "Les appareils non gérés alimentent la liste des points à traiter de la posture de sécurité : un contrôle vérifie si la découverte est bien en service, un autre compte les appareils non gérés et les réseaux sur lesquels ils se trouvent, et le conseiller évalue les deux. Voir <a href=\"threat-model-posture.html\">Modèle de menaces et posture de sécurité</a>.",
+        "title": "La posture de sécurité et le conseiller"
+      },
+      "requirements": {
+        "agent": "Une version de l'agent qui annonce la prise en charge de la découverte du réseau. L'écoute ARP exige que l'agent s'exécute en tant que root ; sans root, il remonte tout de même le cache de voisinage et mDNS/SSDP.",
+        "license": "Une licence Enterprise avec le moteur de découverte des actifs. Sans elle, rien n'est stocké : un serveur sans licence ne collecte donc jamais d'appareils que personne ne peut examiner.",
+        "roles": "Le rôle View Host Details pour afficher la page, et le rôle Manage Network Discovery pour modifier les paramètres, marquer des appareils comme connus et lancer des balayages.",
+        "title": "Prérequis"
+      },
+      "review": {
+        "description": "Chaque appareil non géré affiche son adresse, le <strong>fabricant</strong> déduit de son préfixe MAC (le registre IEEE est livré avec le serveur ; aucune recherche ne quitte votre réseau), ce à quoi il <strong>ressemble</strong> -- une imprimante, un téléphone, un appareil multimédia -- avec les raisons au survol, les noms et services qu'il annonce, ainsi que les agents qui l'ont vu et quand. Une supposition fondée sur des indices faibles est marquée <strong>Peut-être</strong>.",
+        "filters": "Filtrez par réseau ou recherchez par adresse MAC ou IP, et sélectionnez des appareils en masse pour les marquer comme connus.",
+        "local_mac": "<strong>L'adresse peut changer</strong> -- l'appareil utilise une adresse MAC administrée localement, comme le font les téléphones et les tablettes pour protéger la vie privée. Il peut réapparaître sous une nouvelle adresse.",
+        "no_mac": "<strong>Aucune MAC vue</strong> -- l'appareil n'a été entendu que par son adresse IP, depuis un agent qui ne peut pas voir les adresses matérielles. Il est identifié par cette adresse jusqu'à ce qu'un agent voie son adresse MAC.",
+        "title": "Examen des appareils"
+      },
+      "settings": {
+        "description": "La découverte est désactivée jusqu'à ce qu'un administrateur l'active, par locataire, sur la page Découverte du réseau. Les paramètres définissent la fréquence des remontées des agents (toutes les 1 à 60 minutes, 5 par défaut), l'autorisation ou non des balayages actifs, et la durée de conservation d'un appareil qui n'est plus vu : 7, 30 (la valeur par défaut), 90 ou 365 jours. L'activation ou la désactivation de la découverte parvient à chaque agent compatible en une minute environ.",
+        "title": "Paramètres"
+      },
+      "sweeps": {
+        "audit": "Chaque balayage est enregistré -- la plage, le débit, le demandeur, l'agent qui l'a exécuté, le nombre d'adresses sondées et le nombre d'appareils qui ont répondu -- et consigné dans le journal d'audit.",
+        "description": "Un balayage envoie du trafic vers chaque adresse d'une plage, ce qui peut déclencher la détection d'intrusion, paraît hostile sur un segment qui ne vous appartient peut-être pas et est interdit sur certains réseaux. Les balayages font donc l'objet d'une seconde activation explicite, distincte de celle de la découverte, et chaque limite est appliquée à la fois par le serveur et par l'agent qui envoie le trafic :",
+        "onlink": "Uniquement un réseau IPv4 auquel un agent est directement rattaché, et uniquement par un agent situé sur ce réseau. Une plage routée est refusée.",
+        "screenshot_caption": "L'onglet Balayages conserve la trace de chaque balayage et de ce qu'il a trouvé.",
+        "size": "Au plus 4 096 adresses par balayage, à raison de 1 à 200 adresses par seconde (50 par défaut), avec un seul balayage à la fois par agent.",
+        "title": "Balayages actifs"
+      }
     }
   },
   "quick_start": {
@@ -22152,7 +22235,7 @@
         "title": "Cycle de vie et distribution du contenu"
       },
       "discovery": {
-        "body": "Qu'y a-t-il sur votre réseau que SysManage ne gère pas. Des agents sont déjà présents dans chaque segment et rapportent les voisins qu'ils peuvent voir -- passivement par défaut, avec des balayages actifs optionnels, ciblés et audités -- et tout ce qui est déjà couvert par un hôte géré est filtré. Le résultat est une page de revue, pas un pipeline d'intégration : nous détectons les machines non inscrites, mais nous ne les forçons pas à l'inscription, car cela nécessiterait des identifiants sur la cible et réintroduirait l'accès entrant que l'architecture évite délibérément. Les appareils que vous ne géreriez jamais -- un capteur IoT, une imprimante, un commutateur -- sont listés pour toujours avec une raison et un propriétaire enregistrés.",
+        "body": "La découverte du réseau est disponible dès aujourd'hui : les agents sont déjà présents dans chaque segment, ils remontent donc les voisins qu'ils entendent -- écoute ARP et du voisinage, mDNS et SSDP, avec des balayages actifs sur activation explicite, limités au lien local, à débit limité et audités -- et tout ce qui est déjà couvert par un hôte géré est écarté. Le résultat est une page d'examen, pas un pipeline d'intégration : nous détectons les machines non enrôlées, nous ne les enrôlons pas de force, car cela exigerait des identifiants sur la cible et réintroduirait l'accès entrant que l'architecture évite délibérément. Chaque appareil affiche son fabricant et ce à quoi il ressemble, la page indique ses propres angles morts, et les appareils que vous ne gérerez jamais -- une imprimante, un commutateur, une adresse de routeur virtuel -- sont marqués comme connus de façon définitive, avec un motif et un responsable enregistrés. Enterprise.",
         "title": "Visibilité des actifs non gérés"
       },
       "ha": {

@@ -19894,6 +19894,17 @@
           },
           "link": "Guía de métricas de host integradas →",
           "title": "📊 Métricas de host integradas"
+        },
+        "network_discovery": {
+          "description": "Los dispositivos de sus redes que SysManage no gestiona, encontrados por los agentes que ya están allí y revisados una sola vez.",
+          "features": {
+            "blind_spots": "Fabricante y tipo de dispositivo visibles, puntos ciegos declarados",
+            "correlation": "Hosts gestionados filtrados por dirección MAC",
+            "exclusions": "Exclusiones permanentes con un motivo y un responsable",
+            "passive": "Primero escucha pasiva; barridos activos opcionales y auditados"
+          },
+          "link": "Guía de Descubrimiento de red →",
+          "title": "📡 Descubrimiento de red"
         }
       },
       "overview": {
@@ -21917,6 +21928,78 @@
         "swap": "<strong>Swap usado</strong> (<code>host.swap_used_percent</code>): el porcentaje de swap en uso. Un host sin swap no informa esta serie en absoluto.",
         "title": "Las cinco series"
       }
+    },
+    "network_discovery": {
+      "blind_spots": {
+        "description": "Una lista vacía no debe interpretarse como una red limpia. Junto a la lista, la página indica lo que el descubrimiento no pudo ver: agentes que no pueden escuchar ARP (Windows, o un agente que no se ejecuta como root), agentes que han dejado de enviar informes, redes que nunca se han barrido -- por lo que un dispositivo silencioso allí no se habría encontrado -- y hosts cuyos agentes no pueden realizar el descubrimiento en absoluto. Los agentes que escuchan también omiten los puentes de hipervisores y contenedores, de modo que las propias máquinas virtuales de un host en un puente interno no se notifican como dispositivos de su red.",
+        "title": "Los puntos ciegos se declaran"
+      },
+      "breadcrumb": "Descubrimiento de red",
+      "correlation": {
+        "description": "Cada dispositivo se compara con la flota por su dirección de hardware (MAC), sea cual sea la forma en que el host la haya notificado, de modo que un host gestionado nunca aparece como no gestionado. Los hosts secundarios inscritos (máquinas virtuales y contenedores) coinciden a través de sus propias interfaces, y el puerto por máquina virtual de un hipervisor se atribuye a la máquina virtual que hay detrás. Un dispositivo gestionado siempre se muestra como gestionado, aunque alguien haya excluido su dirección en algún momento. Los dispositivos gestionados aparecen en su propia pestaña, cada uno con el host con el que coincidió.",
+        "title": "Los dispositivos gestionados quedan fuera de la cola"
+      },
+      "exclusions": {
+        "description": "Marcar un dispositivo como conocido registra qué es (Impresora, Dispositivo o sensor IoT, equipo de red, Equipo dedicado, dispositivo personal, máquina virtual, dirección virtual u Otro), por qué y quién lo decidió. Las exclusiones se conservan como registros de auditoría en lugar de como una configuración, de modo que \"quién decidió que esto era aceptable\" perdura. Se identifican por la dirección MAC del dispositivo, así que un dispositivo que recibe una nueva dirección por DHCP sigue excluido en lugar de reaparecer como nuevo con cada concesión. Revocar una exclusión devuelve el dispositivo a la cola y mantiene visible la decisión retirada como historial.",
+        "screenshot_caption": "Cada exclusión incluye su categoría, su motivo y quién lo decidió.",
+        "static": "<strong>Registrar una dirección estática</strong> cubre una dirección en lugar de un dispositivo: una IP virtual, un balanceador de carga o una dirección de router virtual compartida por varias máquinas. Úselo solo para direcciones que nunca cambian -- cubre cualquier dispositivo que tenga la dirección, por lo que un dispositivo DHCP corriente registrado de esta forma reaparece tras su siguiente concesión. Las direcciones de router virtual (VRRP, HSRP, CARP) se reconocen y se sugieren como direcciones virtuales.",
+        "static_caption": "Registro de una dirección estática, con la advertencia que se muestra antes de guardar nada.",
+        "title": "Conocidos y aceptados: exclusiones permanentes"
+      },
+      "header": {
+        "description": "¿Qué hay en mi red que SysManage no gestiona? Sus agentes ya están en cada segmento que le interesa, así que son ellos quienes buscan: escuchan los dispositivos que los rodean, informan de lo que oyen y el servidor convierte esos informes en una cola de revisión. Los dispositivos que su flota ya cubre se omiten; todo lo demás le corresponde identificarlo a usted, una sola vez.",
+        "screenshot_caption": "Dispositivos no gestionados con su fabricante, el tipo de dispositivo que aparentan ser y lo que anuncian, con los puntos ciegos indicados junto a la lista.",
+        "title": "Descubrimiento de red"
+      },
+      "limits": {
+        "randomized": "Los teléfonos y tabletas que cambian su dirección MAC periódicamente pueden aparecer más de una vez.",
+        "segments": "Solo los segmentos donde hay un agente. Una VLAN sin ningún host gestionado es invisible.",
+        "switching": "Funciones de los switches como el aislamiento de puertos, el aislamiento de clientes Wi-Fi y el multicast snooping pueden ocultar dispositivos a un agente de la misma red.",
+        "title": "Lo que no puede ver"
+      },
+      "meta_description": "Encuentre los dispositivos de sus redes que SysManage no gestiona mediante los agentes que ya están allí: primero escucha pasiva, después barridos opcionales y auditados, y una cola de revisión con exclusiones permanentes y justificadas.",
+      "methods": {
+        "announce": "<strong>mDNS y SSDP</strong> -- las impresoras, los NAS, los TV y los dispositivos de streaming anuncian qué son. De aquí procede la evidencia sobre \"qué es\".",
+        "arp": "<strong>Escucha de ARP y de vecinos IPv6</strong> -- todo dispositivo que se comunica en el segmento anuncia su dirección de hardware. Esto encuentra la mayor cantidad de dispositivos y requiere que el agente se ejecute como root (captura sin procesar en Linux, BPF en macOS y los BSD).",
+        "cache": "<strong>La caché de vecinos</strong> -- la tabla que todo sistema operativo mantiene de los dispositivos con los que ha intercambiado tráfico. Disponible en todas partes, incluidos Windows y los agentes que no se ejecutan como root.",
+        "description": "La escucha va primero, porque no envía nada y no puede activar un detector de intrusiones. Cada agente informa de lo que ha oído a intervalos regulares:",
+        "sweep": "<strong>Barrido activo</strong> (opcional) -- la única forma de encontrar un dispositivo que nunca se comunica por sí mismo. Consulte más abajo.",
+        "title": "Cómo se encuentran los dispositivos"
+      },
+      "overview": {
+        "description": "Descubrimiento de red detecta; no inscribe. Inscribir una máquina que SysManage nunca ha visto requeriría acceso SSH o WinRM y credenciales para ella, que es precisamente la accesibilidad entrante que evita el diseño de agente a servidor de SysManage. Por eso el resultado es una lista para revisar -- las direcciones que responden en sus redes y que no están en su flota -- y una decisión para cada una: inscribirla usted mismo o marcarla como conocida y aceptada. Como la búsqueda la realizan los agentes dentro de cada segmento, no necesita ningún servidor de escaneo, ningún nuevo servicio de escucha ni ninguna ruta desde el servidor hacia sus redes, y funciona por segmento en redes enrutadas donde un escáner central solo vería el suyo.",
+        "title": "Descripción general"
+      },
+      "page_title": "Descubrimiento de red - SysManage Professional+",
+      "posture": {
+        "description": "Los dispositivos no gestionados alimentan la lista de pendientes de la postura: una comprobación pregunta si el descubrimiento se está ejecutando, otra cuenta los dispositivos no gestionados y las redes en las que se encuentran, y el asesor puntúa ambas. Consulte <a href=\"threat-model-posture.html\">Modelo de amenazas y postura</a>.",
+        "title": "La postura y el asesor"
+      },
+      "requirements": {
+        "agent": "Una versión del agente que anuncie el descubrimiento de red. La escucha de ARP requiere que el agente se ejecute como root; sin root, sigue informando de la caché de vecinos y de mDNS/SSDP.",
+        "license": "Licencia Enterprise con el motor de descubrimiento de activos. Sin ella no se almacena nada, de modo que un servidor sin licencia nunca recopila dispositivos que nadie puede revisar.",
+        "roles": "El rol «View Host Details» para ver la página y el rol «Manage Network Discovery» para cambiar la configuración, marcar dispositivos como conocidos e iniciar barridos.",
+        "title": "Requisitos"
+      },
+      "review": {
+        "description": "Cada dispositivo no gestionado muestra su dirección, el <strong>fabricante</strong> según el prefijo de su MAC (el registro del IEEE se incluye con el servidor; ninguna consulta sale de su red), lo que <strong>aparenta ser</strong> -- una impresora, un teléfono, un dispositivo multimedia -- con los motivos al pasar el cursor, los nombres y servicios que anuncia, y qué agentes lo vieron y cuándo. Una suposición basada en evidencia débil se etiqueta como <strong>Quizás</strong>.",
+        "filters": "Filtre por red o busque por dirección MAC o IP, y seleccione dispositivos en bloque para marcarlos como conocidos.",
+        "local_mac": "<strong>La dirección puede cambiar</strong> -- el dispositivo usa una MAC administrada localmente, como hacen los teléfonos y las tabletas por privacidad. Puede reaparecer con una nueva.",
+        "no_mac": "<strong>No se vio ninguna MAC</strong> -- el dispositivo solo se detectó por su dirección IP, desde un agente que no puede ver direcciones de hardware. Se identifica por esa dirección hasta que un agente vea su MAC.",
+        "title": "Revisión de dispositivos"
+      },
+      "settings": {
+        "description": "El descubrimiento está desactivado hasta que un administrador lo activa, por inquilino, en la página Descubrimiento de red. La configuración determina con qué frecuencia informan los agentes (cada 1 a 60 minutos, 5 de forma predeterminada), si se permiten los barridos activos y cuánto tiempo se conserva un dispositivo que ya no se ve: 7, 30 (el valor predeterminado), 90 o 365 días. Activar o desactivar el descubrimiento llega a todos los agentes compatibles en aproximadamente un minuto.",
+        "title": "Configuración"
+      },
+      "sweeps": {
+        "audit": "Cada barrido queda registrado -- el rango, la velocidad, quién lo solicitó, qué agente lo ejecutó, cuántas direcciones sondeó y cuántos dispositivos respondieron -- y se escribe en el registro de auditoría.",
+        "description": "Un barrido envía tráfico a todas las direcciones de un rango, lo que puede activar la detección de intrusiones, parece hostil en un segmento que quizá no sea suyo y está prohibido en algunas redes. Por eso los barridos son una segunda activación opcional independiente, además del descubrimiento, y cada límite lo aplican tanto el servidor como el agente que envía el tráfico:",
+        "onlink": "Solo una red IPv4 a la que un agente esté conectado directamente, y solo mediante un agente de esa red. Un rango enrutado se rechaza.",
+        "screenshot_caption": "La pestaña Barridos conserva el registro de cada barrido y de lo que encontró.",
+        "size": "Como máximo 4.096 direcciones por barrido, a entre 1 y 200 direcciones por segundo (50 de forma predeterminada), un barrido por agente a la vez.",
+        "title": "Barridos activos"
+      }
     }
   },
   "quick_start": {
@@ -22152,7 +22235,7 @@
         "title": "Ciclo de vida del contenido y distribución"
       },
       "discovery": {
-        "body": "¿Qué hay en tu red que SysManage no gestiona? Los agentes ya están presentes en cada segmento y reportan los vecinos que pueden ver --por defecto de forma pasiva, con escaneos activos opcionales, limitados y auditados-- y cualquier cosa ya cubierta por un host gestionado se filtra. El resultado es una página de revisión, no un pipeline de incorporación: detectamos máquinas no inscritas, pero no las forzamos a inscribirse, porque eso requeriría credenciales en el objetivo y reintroduciría el acceso entrante que la arquitectura evita deliberadamente. Dispositivos que nunca gestionarías --un sensor IoT, una impresora, un conmutador-- se agregan a una lista blanca de forma permanente, junto con la razón y el propietario registrados.",
+        "body": "Descubrimiento de red ya está disponible: los agentes ya están dentro de cada segmento, así que informan de los vecinos que oyen -- escucha de ARP y de vecinos, mDNS y SSDP, con barridos activos opcionales, solo en la red directamente conectada, con límite de velocidad y auditados -- y todo lo que ya cubre un host gestionado se filtra. El resultado es una página de revisión, no un proceso de incorporación: detectamos las máquinas no inscritas, no forzamos su inscripción, porque eso requeriría credenciales en el destino y volvería a introducir el acceso entrante que la arquitectura evita deliberadamente. Cada dispositivo muestra su fabricante y lo que aparenta ser, la página declara sus propios puntos ciegos, y los dispositivos que nunca gestionaría -- una impresora, un switch, una dirección de router virtual -- se marcan como conocidos de forma definitiva, con un motivo y un responsable registrados. Enterprise.",
         "title": "Visibilidad de activos no administrados"
       },
       "ha": {
