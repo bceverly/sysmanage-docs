@@ -21816,7 +21816,14 @@
         "title": "Logging Configuration"
       },
       "performance": {
-        "title": "Performance Tuning"
+        "title": "Database Connection Pool and Workers",
+        "intro": "Each server worker keeps a pool of PostgreSQL connections. The installer sizes that pool for the machine it is installing on and writes the values into <code>sysmanage.yaml</code>, so you can see and change them:",
+        "sizing": "How the values are chosen: <code>size</code> is twice the CPU count plus 8, kept between 10 and 40, and <code>max_overflow</code> matches it. On a small machine both are capped by memory (about 25 connections per GB, since PostgreSQL usually runs on the same machine). Leave the block out entirely and the server computes the same values each time it starts.",
+        "check": "When the server starts it asks PostgreSQL for <code>max_connections</code>. Every worker's pool, plus 10 connections kept free for everything else (migrations, monitoring, an administrator's <code>psql</code>), must fit. If they do not, the server reduces <code>max_overflow</code> and then <code>size</code> until they do, and logs a warning that names both numbers. It never refuses to start over this. To use the larger pool, raise <code>max_connections</code> in <code>postgresql.conf</code> (and restart PostgreSQL), or lower the values here.",
+        "workers": "Workers multiply everything: each one has its own pools. The worker count comes from the <code>SYSMANAGE_UVICORN_WORKERS</code> environment variable (default 1), and the startup check accounts for it.",
+        "tenants": "With multi-tenancy enabled, every tenant database also gets a small pool per worker (<code>tenant_size</code> plus <code>tenant_max_overflow</code>). Count those too when you plan <code>max_connections</code> on a database server that holds many tenants.",
+        "commands": "To see the values for a machine, or to add them to an existing configuration (an existing <code>database_pool</code> block is never changed), run from the server's install directory:",
+        "history": "Before version 3.10 the pool was a fixed library default (5 connections plus 10 overflow) and each connected agent held a connection for as long as it stayed connected, so a few dozen agents could stall the server. Agents now borrow a connection only while a message is being handled."
       },
       "title": "Advanced Features"
     },
@@ -22488,6 +22495,19 @@
         "title": "Port Conflicts"
       },
       "title": "Troubleshooting"
+    },
+    "dev": {
+      "title": "Running a Development Server",
+      "intro": "A development server runs from the source checkout, with the web UI served by Vite instead of nginx. These tips set one up and keep it apart from anything you run in production.",
+      "tools": "Install the development tools once (test runners, linters, Playwright and the telemetry stack):",
+      "config": "Create <code>sysmanage-dev.yaml</code> in the project root from <code>sysmanage-dev.yaml.example</code>; the server reads it when <code>/etc/sysmanage.yaml</code> does not exist. Point <code>SYSMANAGE_CONFIG_PATH</code> at a file to use any other. The settings that matter most for development:",
+      "dev_mode": "<code>dev_mode: true</code> tells the server there is no TLS proxy in front of it: links in emails use <code>http://host:3000</code> and binding to all interfaces is not warned about. Leave it out on a real deployment; an absent flag means production.",
+      "database": "PostgreSQL behaves like production and is the better choice. For a quick throwaway server, set the database user to <code>sqlite</code> and <code>name</code> to a file path. SQLite ignores <code>database_pool</code>; on PostgreSQL the pool is sized for your workstation automatically.",
+      "vault": "OpenBAO: <code>make start</code> starts a local development OpenBAO alongside the server. To run without it, set <code>vault: enabled: false</code> and put secrets such as <code>jwt_secret</code> directly in the file (development only).",
+      "multitenancy": "Multi-tenancy stays off unless <code>multitenancy: enabled: true</code>; the environment variable <code>SYSMANAGE_MULTITENANCY=false</code> forces it off for a single run.",
+      "run": "Run the migrations, then start and stop everything with:",
+      "ports": "The API listens on port 8080 and the Vite web UI on port 3000. The database migrations use the same tool operators run in production.",
+      "second": "Need a second, disposable server (for example to test something without touching your own data)? The scale harness starts one with its own PostgreSQL container, configuration and port, and deletes it afterwards:"
     }
   },
   "site": {

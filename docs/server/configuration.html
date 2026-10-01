@@ -315,16 +315,26 @@ openssl rand -base64 16</code></pre>
                     </div>
 
                     <div class="config-section">
-                        <h3 data-i18n="server_configuration.advanced.performance.title" data-i18n-html>Performance Tuning</h3>
-                        <pre><code>performance:
-  workers: 4                            # Number of worker processes
-  max_connections: 1000                 # Maximum concurrent connections
-  keepalive_timeout: 30                 # Keep-alive timeout (seconds)
-  websocket_timeout: 300                # WebSocket timeout (seconds)
+                        <h3 data-i18n="server_configuration.advanced.performance.title" data-i18n-html>Database Connection Pool and Workers</h3>
+                        <p data-i18n="server_configuration.advanced.performance.intro" data-i18n-html>Each server worker keeps a pool of PostgreSQL connections. The installer sizes that pool for the machine it is installing on and writes the values into <code>sysmanage.yaml</code>, so you can see and change them:</p>
+                        <pre><code>database_pool:
+  size: 24                  # connections kept open (per worker)
+  max_overflow: 24          # extra connections for bursts
+  timeout: 30               # seconds to wait for a free connection
+  recycle: 1800             # maximum connection age, seconds
+  tenant_size: 2            # per tenant database (multi-tenancy)
+  tenant_max_overflow: 6    # per tenant database, bursts</code></pre>
+                        <p data-i18n="server_configuration.advanced.performance.sizing" data-i18n-html>How the values are chosen: <code>size</code> is twice the CPU count plus 8, kept between 10 and 40, and <code>max_overflow</code> matches it. On a small machine both are capped by memory (about 25 connections per GB, since PostgreSQL usually runs on the same machine). Leave the block out entirely and the server computes the same values each time it starts.</p>
+                        <p data-i18n="server_configuration.advanced.performance.check" data-i18n-html>When the server starts it asks PostgreSQL for <code>max_connections</code>. Every worker's pool, plus 10 connections kept free for everything else (migrations, monitoring, an administrator's <code>psql</code>), must fit. If they do not, the server reduces <code>max_overflow</code> and then <code>size</code> until they do, and logs a warning that names both numbers. It never refuses to start over this. To use the larger pool, raise <code>max_connections</code> in <code>postgresql.conf</code> (and restart PostgreSQL), or lower the values here.</p>
+                        <p data-i18n="server_configuration.advanced.performance.workers" data-i18n-html>Workers multiply everything: each one has its own pools. The worker count comes from the <code>SYSMANAGE_UVICORN_WORKERS</code> environment variable (default 1), and the startup check accounts for it.</p>
+                        <p data-i18n="server_configuration.advanced.performance.tenants" data-i18n-html>With multi-tenancy enabled, every tenant database also gets a small pool per worker (<code>tenant_size</code> plus <code>tenant_max_overflow</code>). Count those too when you plan <code>max_connections</code> on a database server that holds many tenants.</p>
+                        <p data-i18n="server_configuration.advanced.performance.commands" data-i18n-html>To see the values for a machine, or to add them to an existing configuration (an existing <code>database_pool</code> block is never changed), run from the server's install directory:</p>
+                        <pre><code># Show the values for this machine
+.venv/bin/python -m backend.persistence.pool_sizing --print
 
-  # Database connection pooling
-  db_pool_size: 10                      # Database connection pool size
-  db_max_overflow: 20                   # Maximum overflow connections</code></pre>
+# Add them to a configuration that has none
+.venv/bin/python -m backend.persistence.pool_sizing --apply /etc/sysmanage.yaml</code></pre>
+                        <p data-i18n="server_configuration.advanced.performance.history" data-i18n-html>Before version 3.10 the pool was a fixed library default (5 connections plus 10 overflow) and each connected agent held a connection for as long as it stayed connected, so a few dozen agents could stall the server. Agents now borrow a connection only while a message is being handled.</p>
                     </div>
                 </section>
 

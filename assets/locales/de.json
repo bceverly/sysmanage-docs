@@ -22956,7 +22956,14 @@
         "title": "Protokollierungskonfiguration"
       },
       "performance": {
-        "title": "Leistungsoptimierung"
+        "title": "Datenbank-Verbindungspool und Worker",
+        "intro": "Jeder Server-Worker unterhält einen Pool von PostgreSQL-Verbindungen. Das Installationsprogramm bemisst diesen Pool für die Maschine, auf der es installiert, und schreibt die Werte in <code>sysmanage.yaml</code>, sodass Sie sie einsehen und ändern können:",
+        "sizing": "So werden die Werte gewählt: <code>size</code> ist die doppelte CPU-Anzahl plus 8, begrenzt auf 10 bis 40, und <code>max_overflow</code> entspricht diesem Wert. Auf einer kleinen Maschine werden beide durch den Arbeitsspeicher begrenzt (etwa 25 Verbindungen pro GB, da PostgreSQL meist auf derselben Maschine läuft). Lassen Sie den Block ganz weg, berechnet der Server bei jedem Start dieselben Werte.",
+        "check": "Beim Start fragt der Server PostgreSQL nach <code>max_connections</code>. Die Pools aller Worker plus 10 Verbindungen, die für alles andere frei bleiben (Migrationen, Überwachung, das <code>psql</code> eines Administrators), müssen hineinpassen. Ist das nicht der Fall, verringert der Server <code>max_overflow</code> und dann <code>size</code>, bis sie passen, und protokolliert eine Warnung, die beide Zahlen nennt. Deswegen verweigert er nie den Start. Um den größeren Pool zu nutzen, erhöhen Sie <code>max_connections</code> in <code>postgresql.conf</code> (und starten PostgreSQL neu) oder senken Sie die Werte hier.",
+        "workers": "Worker vervielfachen alles: Jeder hat seine eigenen Pools. Die Anzahl der Worker stammt aus der Umgebungsvariablen <code>SYSMANAGE_UVICORN_WORKERS</code> (Standard 1), und die Startprüfung berücksichtigt sie.",
+        "tenants": "Bei aktivierter Mandantenfähigkeit erhält zudem jede Mandantendatenbank einen kleinen Pool pro Worker (<code>tenant_size</code> plus <code>tenant_max_overflow</code>). Rechnen Sie diese ebenfalls mit ein, wenn Sie <code>max_connections</code> auf einem Datenbankserver mit vielen Mandanten planen.",
+        "commands": "Um die Werte für eine Maschine anzuzeigen oder sie einer bestehenden Konfiguration hinzuzufügen (ein vorhandener <code>database_pool</code>-Block wird nie geändert), führen Sie im Installationsverzeichnis des Servers Folgendes aus:",
+        "history": "Vor Version 3.10 war der Pool ein fester Bibliotheks-Standardwert (5 Verbindungen plus 10 Überlauf), und jeder verbundene Agent belegte eine Verbindung, solange er verbunden blieb, sodass schon einige Dutzend Agenten den Server blockieren konnten. Agenten leihen sich eine Verbindung jetzt nur noch, während eine Nachricht verarbeitet wird."
       },
       "title": "Erweiterte Funktionen"
     },
@@ -23628,6 +23635,19 @@
         "title": "Port-Konflikte"
       },
       "title": "Fehlerbehebung"
+    },
+    "dev": {
+      "title": "Einen Entwicklungsserver betreiben",
+      "intro": "Ein Entwicklungsserver läuft aus dem Quellcode-Checkout, wobei die Web-Oberfläche von Vite statt von nginx ausgeliefert wird. Diese Tipps helfen beim Einrichten und halten ihn von allem getrennt, was Sie in der Produktion betreiben.",
+      "tools": "Installieren Sie einmalig die Entwicklungswerkzeuge (Test-Runner, Linter, Playwright und den Telemetrie-Stack):",
+      "config": "Erstellen Sie <code>sysmanage-dev.yaml</code> im Projektstammverzeichnis aus <code>sysmanage-dev.yaml.example</code>; der Server liest sie, wenn <code>/etc/sysmanage.yaml</code> nicht existiert. Lassen Sie <code>SYSMANAGE_CONFIG_PATH</code> auf eine Datei zeigen, um eine andere zu verwenden. Die wichtigsten Einstellungen für die Entwicklung:",
+      "dev_mode": "<code>dev_mode: true</code> teilt dem Server mit, dass kein TLS-Proxy vor ihm steht: Links in E-Mails verwenden <code>http://host:3000</code>, und vor dem Binden an alle Schnittstellen wird nicht gewarnt. Lassen Sie es bei einer echten Bereitstellung weg; ein fehlendes Flag bedeutet Produktion.",
+      "database": "PostgreSQL verhält sich wie in der Produktion und ist die bessere Wahl. Für einen schnellen Wegwerf-Server setzen Sie den Datenbankbenutzer auf <code>sqlite</code> und <code>name</code> auf einen Dateipfad. SQLite ignoriert <code>database_pool</code>; unter PostgreSQL wird der Pool automatisch für Ihre Workstation bemessen.",
+      "vault": "OpenBAO: <code>make start</code> startet neben dem Server ein lokales Entwicklungs-OpenBAO. Um ohne es zu arbeiten, setzen Sie <code>vault: enabled: false</code> und tragen Geheimnisse wie <code>jwt_secret</code> direkt in die Datei ein (nur für die Entwicklung).",
+      "multitenancy": "Die Mandantenfähigkeit bleibt ausgeschaltet, sofern nicht <code>multitenancy: enabled: true</code> gesetzt ist; die Umgebungsvariable <code>SYSMANAGE_MULTITENANCY=false</code> schaltet sie für einen einzelnen Lauf zwangsweise aus.",
+      "run": "Führen Sie die Migrationen aus und starten und stoppen Sie dann alles mit:",
+      "ports": "Die API lauscht auf Port 8080 und die Vite-Web-Oberfläche auf Port 3000. Die Datenbankmigrationen verwenden dasselbe Werkzeug, das Betreiber in der Produktion ausführen.",
+      "second": "Sie brauchen einen zweiten Wegwerf-Server (zum Beispiel, um etwas zu testen, ohne Ihre eigenen Daten anzurühren)? Das Skalierungs-Testgerüst startet einen mit eigenem PostgreSQL-Container, eigener Konfiguration und eigenem Port und löscht ihn anschließend:"
     }
   },
   "server_quickstart": {

@@ -22890,7 +22890,14 @@
         "title": "Configuración de Registro"
       },
       "performance": {
-        "title": "Optimización de Rendimiento"
+        "title": "Pool de conexiones de base de datos y procesos de trabajo",
+        "intro": "Cada proceso de trabajo (worker) del servidor mantiene un pool de conexiones de PostgreSQL. El instalador dimensiona ese pool para la máquina en la que se instala y escribe los valores en <code>sysmanage.yaml</code>, para que pueda verlos y cambiarlos:",
+        "sizing": "Cómo se eligen los valores: <code>size</code> es el doble del número de CPU más 8, mantenido entre 10 y 40, y <code>max_overflow</code> coincide con él. En una máquina pequeña ambos quedan limitados por la memoria (unas 25 conexiones por GB, ya que PostgreSQL suele ejecutarse en la misma máquina). Si omite el bloque por completo, el servidor calcula los mismos valores cada vez que se inicia.",
+        "check": "Al iniciarse, el servidor consulta a PostgreSQL el valor de <code>max_connections</code>. El pool de cada proceso de trabajo, más 10 conexiones reservadas para todo lo demás (migraciones, monitoreo, el <code>psql</code> de un administrador), debe caber. Si no cabe, el servidor reduce <code>max_overflow</code> y después <code>size</code> hasta que quepa, y registra una advertencia que indica ambos números. Nunca se niega a iniciarse por esto. Para usar el pool más grande, aumente <code>max_connections</code> en <code>postgresql.conf</code> (y reinicie PostgreSQL), o reduzca los valores aquí.",
+        "workers": "Los procesos de trabajo lo multiplican todo: cada uno tiene sus propios pools. El número de procesos de trabajo proviene de la variable de entorno <code>SYSMANAGE_UVICORN_WORKERS</code> (valor predeterminado 1), y la comprobación de inicio lo tiene en cuenta.",
+        "tenants": "Con la multiinquilinidad habilitada, cada base de datos de inquilino también recibe un pequeño pool por proceso de trabajo (<code>tenant_size</code> más <code>tenant_max_overflow</code>). Cuéntelos también al planificar <code>max_connections</code> en un servidor de base de datos que aloje muchos inquilinos.",
+        "commands": "Para ver los valores de una máquina, o para agregarlos a una configuración existente (un bloque <code>database_pool</code> existente nunca se modifica), ejecute desde el directorio de instalación del servidor:",
+        "history": "Antes de la versión 3.10, el pool era un valor predeterminado fijo de la biblioteca (5 conexiones más 10 de desbordamiento) y cada agente conectado retenía una conexión mientras permanecía conectado, por lo que unas pocas docenas de agentes podían bloquear el servidor. Ahora los agentes toman prestada una conexión solo mientras se procesa un mensaje."
       },
       "title": "Características Avanzadas"
     },
@@ -23562,6 +23569,19 @@
         "title": "Conflictos de Puertos"
       },
       "title": "Solución de Problemas"
+    },
+    "dev": {
+      "title": "Ejecutar un servidor de desarrollo",
+      "intro": "Un servidor de desarrollo se ejecuta desde el código fuente descargado, con la interfaz web servida por Vite en lugar de nginx. Estos consejos sirven para configurarlo y mantenerlo separado de todo lo que ejecute en producción.",
+      "tools": "Instale una vez las herramientas de desarrollo (ejecutores de pruebas, linters, Playwright y la pila de telemetría):",
+      "config": "Cree <code>sysmanage-dev.yaml</code> en la raíz del proyecto a partir de <code>sysmanage-dev.yaml.example</code>; el servidor lo lee cuando <code>/etc/sysmanage.yaml</code> no existe. Apunte <code>SYSMANAGE_CONFIG_PATH</code> a un archivo para usar cualquier otro. Los ajustes más importantes para el desarrollo:",
+      "dev_mode": "<code>dev_mode: true</code> indica al servidor que no hay ningún proxy TLS delante de él: los enlaces de los correos electrónicos usan <code>http://host:3000</code> y no se advierte de la vinculación a todas las interfaces. Omítalo en una implementación real; si el indicador no está presente, se trata de producción.",
+      "database": "PostgreSQL se comporta como en producción y es la mejor opción. Para un servidor desechable rápido, establezca el usuario de la base de datos en <code>sqlite</code> y <code>name</code> en una ruta de archivo. SQLite ignora <code>database_pool</code>; en PostgreSQL el pool se dimensiona automáticamente para su estación de trabajo.",
+      "vault": "OpenBAO: <code>make start</code> inicia un OpenBAO local de desarrollo junto al servidor. Para trabajar sin él, establezca <code>vault: enabled: false</code> y coloque secretos como <code>jwt_secret</code> directamente en el archivo (solo para desarrollo).",
+      "multitenancy": "La multiinquilinidad permanece desactivada a menos que se establezca <code>multitenancy: enabled: true</code>; la variable de entorno <code>SYSMANAGE_MULTITENANCY=false</code> la fuerza a desactivarse para una sola ejecución.",
+      "run": "Ejecute las migraciones y luego inicie y detenga todo con:",
+      "ports": "La API escucha en el puerto 8080 y la interfaz web de Vite en el puerto 3000. Las migraciones de la base de datos usan la misma herramienta que los operadores ejecutan en producción.",
+      "second": "¿Necesita un segundo servidor desechable (por ejemplo, para probar algo sin tocar sus propios datos)? El arnés de escalado inicia uno con su propio contenedor de PostgreSQL, su propia configuración y su propio puerto, y lo elimina después:"
     }
   },
   "server_quickstart": {

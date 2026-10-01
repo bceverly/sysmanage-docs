@@ -22890,7 +22890,14 @@
         "title": "ログ設定"
       },
       "performance": {
-        "title": "パフォーマンスチューニング"
+        "title": "データベース接続プールとワーカー",
+        "intro": "各サーバーワーカーは PostgreSQL 接続のプールを保持します。インストーラーはインストール先のマシンに合わせてそのプールのサイズを決め、値を <code>sysmanage.yaml</code> に書き込むため、値を確認して変更できます:",
+        "sizing": "値の決め方: <code>size</code> は CPU 数の 2 倍に 8 を加えた値で、10 から 40 の範囲に収められ、<code>max_overflow</code> も同じ値になります。小さなマシンでは、どちらもメモリによって上限が設けられます (PostgreSQL は通常同じマシンで動作するため、1 GB あたり約 25 接続)。このブロックを完全に省略すると、サーバーは起動するたびに同じ値を計算します。",
+        "check": "サーバーは起動時に PostgreSQL に <code>max_connections</code> を問い合わせます。すべてのワーカーのプールに、その他すべての用途 (移行、監視、管理者の <code>psql</code>) のために空けておく 10 接続を加えたものが、その範囲に収まる必要があります。収まらない場合、サーバーは収まるまで <code>max_overflow</code>、次に <code>size</code> を減らし、両方の数値を示す警告をログに記録します。これを理由に起動を拒否することはありません。より大きなプールを使うには、<code>postgresql.conf</code> の <code>max_connections</code> を増やす (そして PostgreSQL を再起動する) か、ここで値を下げてください。",
+        "workers": "ワーカーはすべてを倍増させます。各ワーカーは独自のプールを持ちます。ワーカー数は環境変数 <code>SYSMANAGE_UVICORN_WORKERS</code> (デフォルトは 1) から取得され、起動時のチェックはこれを考慮します。",
+        "tenants": "マルチテナンシーが有効な場合、各テナントデータベースもワーカーごとに小さなプール (<code>tenant_size</code> と <code>tenant_max_overflow</code> の合計) を持ちます。多数のテナントを収容するデータベースサーバーで <code>max_connections</code> を計画するときは、これらも数に入れてください。",
+        "commands": "マシンの値を確認する、または既存の設定に値を追加する (既存の <code>database_pool</code> ブロックは決して変更されません) には、サーバーのインストールディレクトリから次を実行します:",
+        "history": "バージョン 3.10 より前は、プールはライブラリの固定デフォルト (5 接続とオーバーフロー 10) で、接続した各エージェントは接続している間ずっと接続を 1 つ保持していたため、数十のエージェントでサーバーが停止することがありました。現在、エージェントはメッセージの処理中にのみ接続を借ります。"
       },
       "title": "高度な機能"
     },
@@ -23562,6 +23569,19 @@
         "title": "ポートの競合"
       },
       "title": "トラブルシューティング"
+    },
+    "dev": {
+      "title": "開発サーバーの実行",
+      "intro": "開発サーバーはソースのチェックアウトから実行され、Web UI は nginx ではなく Vite によって提供されます。以下のヒントは、開発サーバーをセットアップし、本番環境で実行しているものから切り離しておくためのものです。",
+      "tools": "開発ツール (テストランナー、リンター、Playwright、テレメトリースタック) を一度インストールします:",
+      "config": "プロジェクトのルートに <code>sysmanage-dev.yaml.example</code> から <code>sysmanage-dev.yaml</code> を作成します。<code>/etc/sysmanage.yaml</code> が存在しない場合、サーバーはこのファイルを読み込みます。別のファイルを使うには、<code>SYSMANAGE_CONFIG_PATH</code> でそのファイルを指定します。開発で最も重要な設定:",
+      "dev_mode": "<code>dev_mode: true</code> は、サーバーの前段に TLS プロキシがないことをサーバーに伝えます。メール内のリンクは <code>http://host:3000</code> を使用し、すべてのインターフェースへのバインドについて警告されません。実際のデプロイでは省略してください。フラグがない場合は本番環境を意味します。",
+      "database": "PostgreSQL は本番環境と同じように動作するため、より良い選択です。手早く使い捨てのサーバーを用意するには、データベースユーザーを <code>sqlite</code> に、<code>name</code> をファイルパスに設定します。SQLite は <code>database_pool</code> を無視します。PostgreSQL では、プールはワークステーションに合わせて自動的にサイズが決まります。",
+      "vault": "OpenBAO: <code>make start</code> はサーバーと並行してローカルの開発用 OpenBAO を起動します。これなしで実行するには、<code>vault: enabled: false</code> を設定し、<code>jwt_secret</code> などのシークレットをファイルに直接記述します (開発時のみ)。",
+      "multitenancy": "マルチテナンシーは <code>multitenancy: enabled: true</code> を設定しない限りオフのままです。環境変数 <code>SYSMANAGE_MULTITENANCY=false</code> を使うと、1 回の実行に限り強制的にオフになります。",
+      "run": "移行を実行してから、次のコマンドですべてを起動および停止します:",
+      "ports": "API はポート 8080 で、Vite の Web UI はポート 3000 で待ち受けます。データベースの移行には、オペレーターが本番環境で実行するのと同じツールを使用します。",
+      "second": "2 台目の使い捨てサーバーが必要ですか (たとえば自分のデータに触れずに何かをテストするため)? スケールテスト用ハーネスは、専用の PostgreSQL コンテナー、設定、ポートを持つサーバーを起動し、終了後に削除します:"
     }
   },
   "server_quickstart": {

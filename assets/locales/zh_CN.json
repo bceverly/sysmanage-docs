@@ -22890,7 +22890,14 @@
         "title": "日志配置"
       },
       "performance": {
-        "title": "性能调优"
+        "title": "数据库连接池与工作进程",
+        "intro": "每个服务器工作进程都维护一个 PostgreSQL 连接池。安装程序会根据所安装的机器确定该连接池的大小，并将这些值写入 <code>sysmanage.yaml</code>，以便您查看和修改：",
+        "sizing": "这些值的确定方式：<code>size</code> 为 CPU 数量的两倍再加 8，并限制在 10 到 40 之间，<code>max_overflow</code> 与其相同。在小型机器上，两者都受内存限制（约每 GB 25 个连接，因为 PostgreSQL 通常运行在同一台机器上）。如果完全省略该配置块，服务器每次启动时都会计算出相同的值。",
+        "check": "服务器启动时会向 PostgreSQL 查询 <code>max_connections</code>。所有工作进程的连接池，加上为其他用途（迁移、监控、管理员的 <code>psql</code>）预留的 10 个连接，必须在此范围内。如果超出，服务器会先减小 <code>max_overflow</code>，再减小 <code>size</code>，直到满足为止，并记录一条同时列出这两个数值的警告。服务器绝不会因此拒绝启动。要使用更大的连接池，请在 <code>postgresql.conf</code> 中提高 <code>max_connections</code>（并重新启动 PostgreSQL），或在此处降低这些值。",
+        "workers": "工作进程会使一切成倍增加：每个工作进程都有自己的连接池。工作进程数量来自环境变量 <code>SYSMANAGE_UVICORN_WORKERS</code>（默认为 1），启动检查会将其考虑在内。",
+        "tenants": "启用多租户后，每个租户数据库也会为每个工作进程分配一个小连接池（<code>tenant_size</code> 加 <code>tenant_max_overflow</code>）。在为承载大量租户的数据库服务器规划 <code>max_connections</code> 时，也要将这些计算在内。",
+        "commands": "要查看某台机器的值，或将这些值添加到现有配置中（现有的 <code>database_pool</code> 配置块永远不会被修改），请在服务器的安装目录中运行：",
+        "history": "在 3.10 版本之前，连接池采用固定的库默认值（5 个连接加 10 个溢出连接），并且每个已连接的代理在保持连接期间都会一直占用一个连接，因此几十个代理就可能使服务器停滞。现在，代理仅在处理消息期间借用连接。"
       },
       "title": "高级功能"
     },
@@ -23562,6 +23569,19 @@
         "title": "端口冲突"
       },
       "title": "故障排除"
+    },
+    "dev": {
+      "title": "运行开发服务器",
+      "intro": "开发服务器从源代码检出目录运行，Web 界面由 Vite 而非 nginx 提供。以下提示用于搭建开发服务器，并使其与您在生产环境中运行的任何内容保持隔离。",
+      "tools": "一次性安装开发工具（测试运行器、代码检查工具、Playwright 和遥测栈）：",
+      "config": "在项目根目录中根据 <code>sysmanage-dev.yaml.example</code> 创建 <code>sysmanage-dev.yaml</code>；当 <code>/etc/sysmanage.yaml</code> 不存在时，服务器会读取该文件。要使用其他文件，请将 <code>SYSMANAGE_CONFIG_PATH</code> 指向该文件。对开发最重要的设置：",
+      "dev_mode": "<code>dev_mode: true</code> 告诉服务器其前方没有 TLS 代理：电子邮件中的链接使用 <code>http://host:3000</code>，绑定到所有接口时也不会发出警告。在实际部署中请省略此项；缺少该标志即表示生产环境。",
+      "database": "PostgreSQL 的行为与生产环境一致，是更好的选择。如需快速搭建一次性服务器，请将数据库用户设置为 <code>sqlite</code>，并将 <code>name</code> 设置为文件路径。SQLite 会忽略 <code>database_pool</code>；在 PostgreSQL 上，连接池会根据您的工作站自动确定大小。",
+      "vault": "OpenBAO：<code>make start</code> 会在服务器旁启动一个本地开发用 OpenBAO。若不使用它，请设置 <code>vault: enabled: false</code>，并将 <code>jwt_secret</code> 等机密直接写入该文件（仅限开发）。",
+      "multitenancy": "除非设置 <code>multitenancy: enabled: true</code>，否则多租户保持关闭；环境变量 <code>SYSMANAGE_MULTITENANCY=false</code> 可在单次运行中强制将其关闭。",
+      "run": "运行迁移，然后使用以下命令启动和停止所有组件：",
+      "ports": "API 监听端口 8080，Vite Web 界面监听端口 3000。数据库迁移使用的工具与运维人员在生产环境中运行的工具相同。",
+      "second": "需要第二台一次性服务器（例如在不触及您自己数据的情况下测试某些内容）？规模测试工具会启动一台拥有独立 PostgreSQL 容器、配置和端口的服务器，并在之后将其删除："
     }
   },
   "server_quickstart": {

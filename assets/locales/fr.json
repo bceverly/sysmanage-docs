@@ -22890,7 +22890,14 @@
         "title": "Configuration de Journalisation"
       },
       "performance": {
-        "title": "Optimisation des Performances"
+        "title": "Pool de connexions à la base de données et workers",
+        "intro": "Chaque worker du serveur conserve un pool de connexions PostgreSQL. Le programme d'installation dimensionne ce pool pour la machine sur laquelle il s'installe et écrit les valeurs dans <code>sysmanage.yaml</code>, afin que vous puissiez les consulter et les modifier :",
+        "sizing": "Comment les valeurs sont choisies : <code>size</code> vaut deux fois le nombre de CPU plus 8, maintenu entre 10 et 40, et <code>max_overflow</code> prend la même valeur. Sur une petite machine, les deux sont plafonnés par la mémoire (environ 25 connexions par Go, car PostgreSQL s'exécute généralement sur la même machine). Si vous omettez entièrement le bloc, le serveur calcule les mêmes valeurs à chaque démarrage.",
+        "check": "Au démarrage, le serveur demande à PostgreSQL la valeur de <code>max_connections</code>. Le pool de chaque worker, plus 10 connexions laissées libres pour tout le reste (migrations, surveillance, le <code>psql</code> d'un administrateur), doit y tenir. Si ce n'est pas le cas, le serveur réduit <code>max_overflow</code> puis <code>size</code> jusqu'à ce qu'ils tiennent, et journalise un avertissement qui indique les deux nombres. Il ne refuse jamais de démarrer pour cette raison. Pour utiliser le pool plus grand, augmentez <code>max_connections</code> dans <code>postgresql.conf</code> (et redémarrez PostgreSQL), ou réduisez les valeurs ici.",
+        "workers": "Les workers multiplient tout : chacun possède ses propres pools. Le nombre de workers provient de la variable d'environnement <code>SYSMANAGE_UVICORN_WORKERS</code> (1 par défaut), et la vérification au démarrage en tient compte.",
+        "tenants": "Lorsque la multilocation est activée, chaque base de données de locataire reçoit également un petit pool par worker (<code>tenant_size</code> plus <code>tenant_max_overflow</code>). Comptez-les aussi lorsque vous planifiez <code>max_connections</code> sur un serveur de base de données qui héberge de nombreux locataires.",
+        "commands": "Pour afficher les valeurs d'une machine, ou pour les ajouter à une configuration existante (un bloc <code>database_pool</code> existant n'est jamais modifié), exécutez depuis le répertoire d'installation du serveur :",
+        "history": "Avant la version 3.10, le pool était une valeur par défaut fixe de la bibliothèque (5 connexions plus 10 de débordement) et chaque agent connecté conservait une connexion tant qu'il restait connecté, si bien que quelques dizaines d'agents pouvaient bloquer le serveur. Désormais, les agents n'empruntent une connexion que pendant le traitement d'un message."
       },
       "title": "Fonctionnalités Avancées"
     },
@@ -23562,6 +23569,19 @@
         "title": "Conflits de Ports"
       },
       "title": "Dépannage"
+    },
+    "dev": {
+      "title": "Exécuter un serveur de développement",
+      "intro": "Un serveur de développement s'exécute à partir de l'extraction des sources, l'interface web étant servie par Vite au lieu de nginx. Ces conseils permettent d'en configurer un et de le tenir à l'écart de tout ce que vous exécutez en production.",
+      "tools": "Installez une fois les outils de développement (exécuteurs de tests, linters, Playwright et la pile de télémétrie) :",
+      "config": "Créez <code>sysmanage-dev.yaml</code> à la racine du projet à partir de <code>sysmanage-dev.yaml.example</code> ; le serveur le lit lorsque <code>/etc/sysmanage.yaml</code> n'existe pas. Faites pointer <code>SYSMANAGE_CONFIG_PATH</code> vers un fichier pour en utiliser un autre. Les paramètres les plus importants pour le développement :",
+      "dev_mode": "<code>dev_mode: true</code> indique au serveur qu'aucun proxy TLS ne se trouve devant lui : les liens des e-mails utilisent <code>http://host:3000</code> et la liaison à toutes les interfaces ne déclenche pas d'avertissement. Omettez-le sur un déploiement réel ; l'absence de cet indicateur signifie la production.",
+      "database": "PostgreSQL se comporte comme en production et constitue le meilleur choix. Pour un serveur jetable rapide, définissez l'utilisateur de la base de données sur <code>sqlite</code> et <code>name</code> sur un chemin de fichier. SQLite ignore <code>database_pool</code> ; sur PostgreSQL, le pool est dimensionné automatiquement pour votre poste de travail.",
+      "vault": "OpenBAO : <code>make start</code> démarre un OpenBAO local de développement à côté du serveur. Pour vous en passer, définissez <code>vault: enabled: false</code> et placez les secrets tels que <code>jwt_secret</code> directement dans le fichier (développement uniquement).",
+      "multitenancy": "La multilocation reste désactivée sauf si <code>multitenancy: enabled: true</code> est défini ; la variable d'environnement <code>SYSMANAGE_MULTITENANCY=false</code> la force à l'état désactivé pour une seule exécution.",
+      "run": "Exécutez les migrations, puis démarrez et arrêtez l'ensemble avec :",
+      "ports": "L'API écoute sur le port 8080 et l'interface web Vite sur le port 3000. Les migrations de la base de données utilisent le même outil que celui exécuté par les opérateurs en production.",
+      "second": "Besoin d'un second serveur jetable (par exemple pour tester quelque chose sans toucher à vos propres données) ? Le banc de test de montée en charge en démarre un avec son propre conteneur PostgreSQL, sa propre configuration et son propre port, puis le supprime ensuite :"
     }
   },
   "server_quickstart": {
