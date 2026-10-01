@@ -16844,7 +16844,7 @@
       },
       "idp": {
         "account": {
-          "first_login": "Les utilisateurs de OIDC doivent disposer d'une ligne sysmanage provisionnée avant leur première connexion (le rappel rejette les sujets inconnus avec 403) ; Les utilisateurs LDAP s'authentifient via le formulaire de mot de passe et suivent le flux de création d'utilisateurs existant.",
+          "first_login": "Les utilisateurs OIDC et SAML ont besoin d'un compte sysmanage lié à leur identité avant leur première connexion, sauf si le provisionnement JIT est activé pour le fournisseur ; sans ce compte, la connexion revient sur la page de connexion avec un message qui l'indique. Les utilisateurs LDAP s'authentifient via le formulaire de mot de passe et suivent le flux de création d'utilisateurs existant.",
           "intro": "Les lignes d'utilisateurs Sysmanage existantes sélectionnent deux nouvelles colonnes qui les lient à un répertoire :",
           "provider": "<code>external_idp_provider_id</code> -- FK vers la ligne du fournisseur. <code>NULL</code> pour les comptes locaux uniquement (valeur par défaut).",
           "subject": "<code>external_subject</code> -- identifiant stable côté IdP. Pour LDAP, il s'agit du DN complet de l'utilisateur ; pour OIDC, de la revendication <code>sub</code>. Sert à rétablir le lien si l'identifiant utilisateur change.",
@@ -16857,10 +16857,15 @@
           "intro": "Chaque route ci-dessous renvoie 402 si <code>external_idp_engine</code> n'est pas chargé.",
           "list": "liste providers",
           "mappings": "rôle mappings pour le fournisseur",
-          "oidc_callback": "anonyme; échange le code, renvoie la session JWT",
+          "oidc_callback": "anonyme ; échange le code, amène le navigateur sur la console en étant connecté",
           "oidc_start": "anonyme; redirige le navigateur vers l'IdP",
           "settings": "cross-provider paramètres",
-          "title": "Référence de l'API"
+          "title": "Référence de l'API",
+          "saml_start": "anonyme ; redirige le navigateur vers l'IdP",
+          "saml_acs": "anonyme ; vérifie l'assertion, amène le navigateur sur la console en étant connecté",
+          "saml_metadata": "anonyme ; les métadonnées SP de ce serveur, pour l'IdP",
+          "sso_providers": "anonyme ; les fournisseurs proposés par la page de connexion (vide sans le moteur)",
+          "sso_session": "échange le cookie de transfert à usage unique contre la session"
         },
         "breadcrumb": "Fournisseurs d'identité externes",
         "fallback": {
@@ -16885,7 +16890,7 @@
         "oidc": {
           "client": "<code>oidc_client_id</code> + <code>oidc_client_secret_secret_id</code> -- l'application enregistrée auprès de l'IdP. Le secret client est stocké dans Vault.",
           "discovery": "<code>oidc_discovery_url</code> -- remplacement facultatif du document de découverte well-known. Par défaut : <code>{issuer}/.well-known/openid-configuration</code>.",
-          "flow": "L'interface d'authentification redirige le navigateur vers <code>/api/auth/oidc/{provider_id}/start</code>, qui 302e vers l'endpoint d'autorisation de l'IdP avec un jeton <code>state</code> pour protéger contre les attaques CSRF. Après la connexion de l'utilisateur, l'IdP redirige vers <code>/api/auth/oidc/{provider_id}/callback?code=…&amp;state=…</code> et le moteur échange le code pour un jeton ID. La revendication <code>sub</code> est comparée à la colonne <code>external_subject</code> de l'utilisateur pour localiser le compte local.",
+          "flow": "La page de connexion affiche un bouton <strong>Se connecter avec</strong> pour chaque fournisseur activé. Il envoie le navigateur vers <code>/api/auth/oidc/{provider_id}/start</code>, qui répond par un 302 vers l'endpoint d'autorisation de l'IdP avec un jeton <code>state</code> qui protège contre les attaques CSRF. Après la connexion de l'utilisateur, l'IdP revient vers <code>/api/auth/oidc/{provider_id}/callback?code=…&amp;state=…</code> et le moteur échange le code contre un jeton d'ID. La revendication <code>sub</code> est comparée à la colonne <code>external_subject</code> de l'utilisateur pour localiser le compte local.",
           "group_claim": "<code>oidc_group_claim</code> -- nom de la revendication du jeton d'identité qui liste les groupes de l'utilisateur (par défaut <code>groups</code> ; certains IdP utilisent <code>roles</code> ou un nom personnalisé).",
           "intro": "Pour chaque OIDC fournisseur, configurer:",
           "issuer": "<code>oidc_issuer_url</code> -- la racine HTTPS de l'IdP, par ex. <code>https://login.example.com</code>.",
@@ -16904,7 +16909,22 @@
           "match": "Si l'un des groupes externes de l'utilisateur correspond au <code>external_group</code> d'une entrée, celle-ci apporte son <code>role_name</code>. Les correspondances multiples sont cumulées.",
           "title": "Mappage groupe externe → rôle sysmanage"
         },
-        "title": "Fournisseurs d'identité externes - Professional+ - SysManage"
+        "title": "Fournisseurs d'identité externes - Professional+ - SysManage",
+        "saml": {
+          "title": "SAML 2.0",
+          "intro": "Pour chaque fournisseur SAML, configurez :",
+          "idp": "<code>saml_idp_entity_id</code>, <code>saml_idp_sso_url</code> et <code>saml_idp_x509_cert</code> -- l'ID d'entité de l'IdP, son URL de connexion et le certificat qui vérifie ses signatures.",
+          "sp": "<code>saml_sp_entity_id</code> et <code>saml_sp_acs_url</code> -- l'identité de ce serveur auprès de l'IdP. L'URL ACS est généralement <code>https://your-sysmanage.example.com/api/auth/saml/{provider_id}/acs</code> ; l'IdP peut importer les deux depuis <code>/api/auth/saml/{provider_id}/metadata</code>.",
+          "attributes": "<code>saml_email_attribute</code> et <code>saml_group_attribute</code> -- les attributs de l'assertion qui contiennent l'adresse e-mail de l'utilisateur (le NameID est utilisé s'il est vide) et ses appartenances à des groupes (par défaut <code>groups</code>).",
+          "signed": "<code>saml_want_assertions_signed</code> -- exige que l'IdP signe ses assertions. Activé par défaut ; laissez-le activé."
+        },
+        "landing": {
+          "title": "Se connecter depuis la page de connexion",
+          "buttons": "La page de connexion propose un bouton <strong>Se connecter avec</strong> par fournisseur OIDC ou SAML activé qui n'est pas limité à un locataire. Sur un serveur sans fournisseur de ce type, la page de connexion reste inchangée.",
+          "handoff": "Lorsque l'IdP renvoie le navigateur, sysmanage connecte l'utilisateur et le redirige vers la page <code>/login/sso</code> de la console. La session transite dans un cookie HttpOnly valable deux minutes que la page échange une seule fois -- jamais dans l'URL, où elle finirait dans l'historique du navigateur et dans les journaux du serveur.",
+          "host": "L'adresse de la console provient de <code>webui.public_url</code> dans <code>sysmanage.yaml</code>. Définissez-la, puis enregistrez les URL de redirection et ACS sous ce même nom d'hôte : le navigateur ne renvoie le cookie de transfert qu'à l'hôte qui l'a défini.",
+          "failure": "Si la connexion n'aboutit pas, l'utilisateur arrive sur la même page avec la raison (par exemple, une identité sans compte sysmanage actif) et un moyen de revenir au formulaire de mot de passe. Les détails figurent dans le journal du serveur."
+        }
       },
       "imagemode": {
         "actions": {

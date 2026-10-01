@@ -3734,7 +3734,7 @@
       },
       "idp": {
         "account": {
-          "first_login": "OIDC users must have a sysmanage row provisioned before their first sign-in (the callback rejects unknown subjects with 403); LDAP users authenticate via the password form and follow the existing user-creation flow.",
+          "first_login": "OIDC and SAML users need a sysmanage account linked to their identity before their first sign-in, unless the provider has JIT provisioning enabled; without one, the sign-in lands back on the login page saying so. LDAP users authenticate via the password form and follow the existing user-creation flow.",
           "intro": "Existing sysmanage user rows pick up two new columns that link them to a directory:",
           "provider": "<code>external_idp_provider_id</code> -- FK to the provider row. <code>NULL</code> for local-only accounts (the default).",
           "subject": "<code>external_subject</code> -- IdP-side stable identifier. For LDAP this is the user's full DN; for OIDC it's the <code>sub</code> claim. Used to re-link if the userid changes.",
@@ -3747,10 +3747,15 @@
           "intro": "Every route below returns 402 without <code>external_idp_engine</code> loaded.",
           "list": "list providers",
           "mappings": "role mappings for the provider",
-          "oidc_callback": "anonymous; exchanges code, returns session JWT",
+          "oidc_callback": "anonymous; exchanges the code, lands the browser on the console signed in",
           "oidc_start": "anonymous; redirects browser to IdP",
           "settings": "cross-provider settings",
-          "title": "API Reference"
+          "title": "API Reference",
+          "saml_start": "anonymous; redirects browser to IdP",
+          "saml_acs": "anonymous; verifies the assertion, lands the browser on the console signed in",
+          "saml_metadata": "anonymous; this server's SP metadata, for the IdP",
+          "sso_providers": "anonymous; the providers the login page offers (empty without the engine)",
+          "sso_session": "exchanges the one-shot hand-off cookie for the session"
         },
         "breadcrumb": "External Identity Providers",
         "fallback": {
@@ -3775,7 +3780,7 @@
         "oidc": {
           "client": "<code>oidc_client_id</code> + <code>oidc_client_secret_secret_id</code> -- the application registered with the IdP. The client secret is Vault-stored.",
           "discovery": "<code>oidc_discovery_url</code> -- optional override for the well-known discovery doc. Defaults to <code>{issuer}/.well-known/openid-configuration</code>.",
-          "flow": "The login UI redirects the browser to <code>/api/auth/oidc/{provider_id}/start</code>, which 302s to the IdP's authorization endpoint with a CSRF-protecting <code>state</code> token. After the user signs in, the IdP returns to <code>/api/auth/oidc/{provider_id}/callback?code=…&amp;state=…</code> and the engine exchanges the code for an ID token. The <code>sub</code> claim is matched against the user's <code>external_subject</code> column to locate the local account.",
+          "flow": "The login page shows a <strong>Sign in with</strong> button for each enabled provider. It sends the browser to <code>/api/auth/oidc/{provider_id}/start</code>, which 302s to the IdP's authorization endpoint with a CSRF-protecting <code>state</code> token. After the user signs in, the IdP returns to <code>/api/auth/oidc/{provider_id}/callback?code=…&amp;state=…</code> and the engine exchanges the code for an ID token. The <code>sub</code> claim is matched against the user's <code>external_subject</code> column to locate the local account.",
           "group_claim": "<code>oidc_group_claim</code> -- name of the ID-token claim that lists the user's groups (default <code>groups</code>; some IdPs use <code>roles</code> or a custom name).",
           "intro": "For each OIDC provider, configure:",
           "issuer": "<code>oidc_issuer_url</code> -- the IdP's HTTPS root, e.g. <code>https://login.example.com</code>.",
@@ -3794,7 +3799,22 @@
           "match": "If any of the user's external groups matches an entry's <code>external_group</code>, the entry contributes its <code>role_name</code>. Multiple matches are unioned.",
           "title": "External Group → sysmanage Role Mapping"
         },
-        "title": "External Identity Providers - Professional+ - SysManage"
+        "title": "External Identity Providers - Professional+ - SysManage",
+        "saml": {
+          "title": "SAML 2.0",
+          "intro": "For each SAML provider, configure:",
+          "idp": "<code>saml_idp_entity_id</code>, <code>saml_idp_sso_url</code> and <code>saml_idp_x509_cert</code> -- the IdP's entity ID, its sign-on URL, and the certificate that verifies its signatures.",
+          "sp": "<code>saml_sp_entity_id</code> and <code>saml_sp_acs_url</code> -- this server's identity at the IdP. The ACS URL is typically <code>https://your-sysmanage.example.com/api/auth/saml/{provider_id}/acs</code>; the IdP can import both from <code>/api/auth/saml/{provider_id}/metadata</code>.",
+          "attributes": "<code>saml_email_attribute</code> and <code>saml_group_attribute</code> -- the assertion attributes that carry the user's email (the NameID is used when empty) and group memberships (default <code>groups</code>).",
+          "signed": "<code>saml_want_assertions_signed</code> -- require the IdP to sign its assertions. On by default; leave it on."
+        },
+        "landing": {
+          "title": "Signing In from the Login Page",
+          "buttons": "The login page offers one <strong>Sign in with</strong> button per enabled OIDC or SAML provider that is not scoped to a tenant. On a server with no such provider, the login page is unchanged.",
+          "handoff": "When the IdP returns the browser, sysmanage signs the user in and redirects to the console's <code>/login/sso</code> page. The session travels in a two-minute HttpOnly cookie that the page exchanges once -- never in the URL, where it would end up in browser history and server logs.",
+          "host": "The console's address comes from <code>webui.public_url</code> in <code>sysmanage.yaml</code>. Set it, and register the redirect and ACS URLs on that same host name: the browser only returns the hand-off cookie to the host that set it.",
+          "failure": "If the sign-in does not complete, the user lands on the same page with the reason (for example, an identity with no active sysmanage account) and a way back to the password form. The details are in the server log."
+        }
       },
       "mirror": {
         "airgap": {

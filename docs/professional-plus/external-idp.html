@@ -56,7 +56,26 @@
                         <li data-i18n="docs.proplus.idp.oidc.discovery" data-i18n-html><code>oidc_discovery_url</code> -- optional override for the well-known discovery doc. Defaults to <code>{issuer}/.well-known/openid-configuration</code>.</li>
                         <li data-i18n="docs.proplus.idp.oidc.group_claim" data-i18n-html><code>oidc_group_claim</code> -- name of the ID-token claim that lists the user's groups (default <code>groups</code>; some IdPs use <code>roles</code> or a custom name).</li>
                     </ul>
-                    <p data-i18n="docs.proplus.idp.oidc.flow" data-i18n-html>The login UI redirects the browser to <code>/api/auth/oidc/{provider_id}/start</code>, which 302s to the IdP's authorization endpoint with a CSRF-protecting <code>state</code> token. After the user signs in, the IdP returns to <code>/api/auth/oidc/{provider_id}/callback?code=…&amp;state=…</code> and the engine exchanges the code for an ID token. The <code>sub</code> claim is matched against the user's <code>external_subject</code> column to locate the local account.</p>
+                    <p data-i18n="docs.proplus.idp.oidc.flow" data-i18n-html>The login page shows a <strong>Sign in with</strong> button for each enabled provider. It sends the browser to <code>/api/auth/oidc/{provider_id}/start</code>, which 302s to the IdP's authorization endpoint with a CSRF-protecting <code>state</code> token. After the user signs in, the IdP returns to <code>/api/auth/oidc/{provider_id}/callback?code=…&amp;state=…</code> and the engine exchanges the code for an ID token. The <code>sub</code> claim is matched against the user's <code>external_subject</code> column to locate the local account.</p>
+                </section>
+
+                <section>
+                    <h2 data-i18n="docs.proplus.idp.saml.title" data-i18n-html>SAML 2.0</h2>
+                    <p data-i18n="docs.proplus.idp.saml.intro" data-i18n-html>For each SAML provider, configure:</p>
+                    <ul>
+                        <li data-i18n="docs.proplus.idp.saml.idp" data-i18n-html><code>saml_idp_entity_id</code>, <code>saml_idp_sso_url</code> and <code>saml_idp_x509_cert</code> -- the IdP's entity ID, its sign-on URL, and the certificate that verifies its signatures.</li>
+                        <li data-i18n="docs.proplus.idp.saml.sp" data-i18n-html><code>saml_sp_entity_id</code> and <code>saml_sp_acs_url</code> -- this server's identity at the IdP. The ACS URL is typically <code>https://your-sysmanage.example.com/api/auth/saml/{provider_id}/acs</code>; the IdP can import both from <code>/api/auth/saml/{provider_id}/metadata</code>.</li>
+                        <li data-i18n="docs.proplus.idp.saml.attributes" data-i18n-html><code>saml_email_attribute</code> and <code>saml_group_attribute</code> -- the assertion attributes that carry the user's email (the NameID is used when empty) and group memberships (default <code>groups</code>).</li>
+                        <li data-i18n="docs.proplus.idp.saml.signed" data-i18n-html><code>saml_want_assertions_signed</code> -- require the IdP to sign its assertions. On by default; leave it on.</li>
+                    </ul>
+                </section>
+
+                <section>
+                    <h2 data-i18n="docs.proplus.idp.landing.title" data-i18n-html>Signing In from the Login Page</h2>
+                    <p data-i18n="docs.proplus.idp.landing.buttons" data-i18n-html>The login page offers one <strong>Sign in with</strong> button per enabled OIDC or SAML provider that is not scoped to a tenant. On a server with no such provider, the login page is unchanged.</p>
+                    <p data-i18n="docs.proplus.idp.landing.handoff" data-i18n-html>When the IdP returns the browser, sysmanage signs the user in and redirects to the console's <code>/login/sso</code> page. The session travels in a two-minute HttpOnly cookie that the page exchanges once -- never in the URL, where it would end up in browser history and server logs.</p>
+                    <p data-i18n="docs.proplus.idp.landing.host" data-i18n-html>The console's address comes from <code>webui.public_url</code> in <code>sysmanage.yaml</code>. Set it, and register the redirect and ACS URLs on that same host name: the browser only returns the hand-off cookie to the host that set it.</p>
+                    <p data-i18n="docs.proplus.idp.landing.failure" data-i18n-html>If the sign-in does not complete, the user lands on the same page with the reason (for example, an identity with no active sysmanage account) and a way back to the password form. The details are in the server log.</p>
                 </section>
 
                 <section>
@@ -76,7 +95,7 @@
                         <li data-i18n="docs.proplus.idp.account.provider" data-i18n-html><code>external_idp_provider_id</code> -- FK to the provider row. <code>NULL</code> for local-only accounts (the default).</li>
                         <li data-i18n="docs.proplus.idp.account.subject" data-i18n-html><code>external_subject</code> -- IdP-side stable identifier. For LDAP this is the user's full DN; for OIDC it's the <code>sub</code> claim. Used to re-link if the userid changes.</li>
                     </ul>
-                    <p data-i18n="docs.proplus.idp.account.first_login" data-i18n-html>OIDC users must have a sysmanage row provisioned before their first sign-in (the callback rejects unknown subjects with 403); LDAP users authenticate via the password form and follow the existing user-creation flow.</p>
+                    <p data-i18n="docs.proplus.idp.account.first_login" data-i18n-html>OIDC and SAML users need a sysmanage account linked to their identity before their first sign-in, unless the provider has JIT provisioning enabled; without one, the sign-in lands back on the login page saying so. LDAP users authenticate via the password form and follow the existing user-creation flow.</p>
                 </section>
 
                 <section>
@@ -95,7 +114,12 @@
                         <li><code>DELETE /api/idp-providers/{id}/role-mappings/{mapping_id}</code> -- <span data-i18n="docs.proplus.idp.api.delete_mapping" data-i18n-html>remove a mapping</span></li>
                         <li><code>GET / PUT /api/settings/idp</code> -- <span data-i18n="docs.proplus.idp.api.settings" data-i18n-html>cross-provider settings</span></li>
                         <li><code>GET /api/auth/oidc/{provider_id}/start</code> -- <span data-i18n="docs.proplus.idp.api.oidc_start" data-i18n-html>anonymous; redirects browser to IdP</span></li>
-                        <li><code>GET /api/auth/oidc/{provider_id}/callback</code> -- <span data-i18n="docs.proplus.idp.api.oidc_callback" data-i18n-html>anonymous; exchanges code, returns session JWT</span></li>
+                        <li><code>GET /api/auth/oidc/{provider_id}/callback</code> -- <span data-i18n="docs.proplus.idp.api.oidc_callback" data-i18n-html>anonymous; exchanges the code, lands the browser on the console signed in</span></li>
+                        <li><code>GET /api/auth/saml/{provider_id}/start</code> -- <span data-i18n="docs.proplus.idp.api.saml_start" data-i18n-html>anonymous; redirects browser to IdP</span></li>
+                        <li><code>POST /api/auth/saml/{provider_id}/acs</code> -- <span data-i18n="docs.proplus.idp.api.saml_acs" data-i18n-html>anonymous; verifies the assertion, lands the browser on the console signed in</span></li>
+                        <li><code>GET /api/auth/saml/{provider_id}/metadata</code> -- <span data-i18n="docs.proplus.idp.api.saml_metadata" data-i18n-html>anonymous; this server's SP metadata, for the IdP</span></li>
+                        <li><code>GET /api/auth/sso/providers</code> -- <span data-i18n="docs.proplus.idp.api.sso_providers" data-i18n-html>anonymous; the providers the login page offers (empty without the engine)</span></li>
+                        <li><code>POST /api/auth/sso/session</code> -- <span data-i18n="docs.proplus.idp.api.sso_session" data-i18n-html>exchanges the one-shot hand-off cookie for the session</span></li>
                     </ul>
                 </section>
             </div>

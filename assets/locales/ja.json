@@ -16844,7 +16844,7 @@
       },
       "idp": {
         "account": {
-          "first_login": "OIDC ユーザーは、最初のサインインの前に sysmanage 行をプロビジョニングする必要があります (コールバックは不明なサブジェクトを 403 で拒否します)。 LDAP ユーザーはパスワード フォーム経由で認証し、既存のユーザー作成フローに従います。",
+          "first_login": "OIDC および SAML ユーザーは、プロバイダーで JIT プロビジョニングが有効になっていない限り、最初のサインインの前に自分の ID にリンクされた sysmanage アカウントが必要です。アカウントがない場合、サインインはその旨を示してログインページに戻ります。LDAP ユーザーはパスワードフォームで認証し、既存のユーザー作成フローに従います。",
           "intro": "既存の sysmanage ユーザー行は、ディレクトリにリンクする 2 つの新しい列を選択します。",
           "provider": "<code>external_idp_provider_id</code> -- プロバイダー行への FK。ローカル専用アカウント（デフォルト）の場合は <code>NULL</code> です。",
           "subject": "<code>external_subject</code> -- IdP 側の安定した識別子。 LDAP の場合、これはユーザーの完全な DN です。 OIDC の場合、<code>sub</code> クレームです。ユーザーIDが変更された場合に再リンクするために使用されます。",
@@ -16857,10 +16857,15 @@
           "intro": "<code>external_idp_engine</code> がロードされていない場合、以下のすべてのルートは 402 を返します。",
           "list": "リストプロバイダー",
           "mappings": "プロバイダーの役割マッピング",
-          "oidc_callback": "匿名;コードを交換し、セッション JWT を返します",
+          "oidc_callback": "匿名。コードを交換し、サインイン済みの状態でブラウザーをコンソールに移動します",
           "oidc_start": "匿名;ブラウザを IdP にリダイレクトします",
           "settings": "cross-provider 設定",
-          "title": "API リファレンス"
+          "title": "API リファレンス",
+          "saml_start": "匿名。ブラウザーを IdP にリダイレクトします",
+          "saml_acs": "匿名。アサーションを検証し、サインイン済みの状態でブラウザーをコンソールに移動します",
+          "saml_metadata": "匿名。IdP 向けの、このサーバーの SP メタデータ",
+          "sso_providers": "匿名。ログインページが提示するプロバイダー (エンジンがない場合は空)",
+          "sso_session": "1 回限りの受け渡し用 Cookie をセッションと交換します"
         },
         "breadcrumb": "外部 ID プロバイダー",
         "fallback": {
@@ -16885,7 +16890,7 @@
         "oidc": {
           "client": "<code>oidc_client_id</code> + <code>oidc_client_secret_secret_id</code> -- IdP に登録されたアプリケーション。クライアント シークレットは Vault に保存されます。",
           "discovery": "<code>oidc_discovery_url</code> -- 既知の検出ドキュメントのオプションのオーバーライド。デフォルトは <code>{issuer}/.well-known/openid-configuration</code> です。",
-          "flow": "ログイン UI はブラウザーを <code>/api/auth/oidc/{provider_id}/start</code> にリダイレクトし、そこから CSRF 対策用の <code>state</code> トークン付きで IdP の認可エンドポイントへ 302 リダイレクトします。ユーザーがサインインすると、IdP は <code>/api/auth/oidc/{provider_id}/callback?code=…&amp;state=…</code> に戻り、エンジンはそのコードを ID トークンと交換します。<code>sub</code> クレームをユーザーの <code>external_subject</code> 列と照合して、ローカルアカウントを特定します。",
+          "flow": "ログインページには、有効なプロバイダーごとに <strong>サインイン</strong> ボタンが表示されます。このボタンはブラウザーを <code>/api/auth/oidc/{provider_id}/start</code> に送り、そこから CSRF 対策用の <code>state</code> トークン付きで IdP の認可エンドポイントへ 302 リダイレクトします。ユーザーがサインインすると、IdP は <code>/api/auth/oidc/{provider_id}/callback?code=…&amp;state=…</code> に戻り、エンジンはそのコードを ID トークンと交換します。<code>sub</code> クレームをユーザーの <code>external_subject</code> 列と照合して、ローカルアカウントを特定します。",
           "group_claim": "<code>oidc_group_claim</code> -- ユーザーのグループをリストする ID トークン クレームの名前 (デフォルト <code>groups</code> 、一部の IdP は <code>roles</code> またはカスタム名を使用します)。",
           "intro": "OIDC プロバイダーごとに、以下を構成します。",
           "issuer": "<code>oidc_issuer_url</code> -- IdP の HTTPS ルート、例: <code>https://login.example.com</code> 。",
@@ -16904,7 +16909,22 @@
           "match": "ユーザーの外部グループのいずれかがエントリの <code>external_group</code> と一致する場合、エントリはその <code>role_name</code> を提供します。複数の一致が結合されます。",
           "title": "外部グループ → sysmanage ロール マッピング"
         },
-        "title": "外部 ID プロバイダー - Professional+ - SysManage"
+        "title": "外部 ID プロバイダー - Professional+ - SysManage",
+        "saml": {
+          "title": "SAML 2.0",
+          "intro": "SAML プロバイダーごとに、以下を構成します。",
+          "idp": "<code>saml_idp_entity_id</code>、<code>saml_idp_sso_url</code>、<code>saml_idp_x509_cert</code> -- IdP のエンティティ ID、そのサインオン URL、およびその署名を検証する証明書。",
+          "sp": "<code>saml_sp_entity_id</code> と <code>saml_sp_acs_url</code> -- IdP におけるこのサーバーの識別情報。ACS URL は通常 <code>https://your-sysmanage.example.com/api/auth/saml/{provider_id}/acs</code> です。IdP は両方を <code>/api/auth/saml/{provider_id}/metadata</code> からインポートできます。",
+          "attributes": "<code>saml_email_attribute</code> と <code>saml_group_attribute</code> -- ユーザーのメールアドレス (空の場合は NameID を使用) とグループメンバーシップ (既定値は <code>groups</code>) を格納するアサーション属性。",
+          "signed": "<code>saml_want_assertions_signed</code> -- IdP にアサーションへの署名を要求します。既定で有効です。有効のままにしてください。"
+        },
+        "landing": {
+          "title": "ログインページからのサインイン",
+          "buttons": "ログインページには、テナントに限定されていない有効な OIDC または SAML プロバイダーごとに <strong>サインイン</strong> ボタンが 1 つ表示されます。そのようなプロバイダーがないサーバーでは、ログインページは変わりません。",
+          "handoff": "IdP がブラウザーを戻すと、sysmanage はユーザーをサインインさせ、コンソールの <code>/login/sso</code> ページにリダイレクトします。セッションは、ページが一度だけ交換する有効期間 2 分の HttpOnly Cookie で受け渡されます -- URL には決して含めません。URL に含めるとブラウザーの履歴やサーバーログに残ってしまうためです。",
+          "host": "コンソールのアドレスは <code>sysmanage.yaml</code> の <code>webui.public_url</code> から取得されます。これを設定し、リダイレクト URL と ACS URL を同じホスト名で登録してください。ブラウザーは受け渡し用 Cookie を、それを設定したホストにしか返しません。",
+          "failure": "サインインが完了しない場合、ユーザーは理由 (たとえば、有効な sysmanage アカウントのない ID) とパスワードフォームに戻る手段が表示された同じページに移動します。詳細はサーバーログに記録されます。"
+        }
       },
       "imagemode": {
         "actions": {

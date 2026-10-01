@@ -16844,7 +16844,7 @@
       },
       "idp": {
         "account": {
-          "first_login": "OIDC-gebruikers moeten een sysmanage-rij hebben ingericht voordat ze voor de eerste keer inloggen (de callback weigert onbekende onderwerpen met 403); LDAP-gebruikers authenticeren via het wachtwoordformulier en volgen de bestaande stroom voor het aanmaken van gebruikers.",
+          "first_login": "OIDC- en SAML-gebruikers hebben vóór hun eerste aanmelding een sysmanage-account nodig dat aan hun identiteit is gekoppeld, tenzij JIT-provisioning voor de provider is ingeschakeld; zonder zo'n account komt de aanmelding terug op de inlogpagina met een melding daarover. LDAP-gebruikers authenticeren via het wachtwoordformulier en volgen de bestaande stroom voor het aanmaken van gebruikers.",
           "intro": "Bestaande sysmanage-gebruikersrijen nemen twee nieuwe kolommen op die ze aan een map koppelen:",
           "provider": "<code>external_idp_provider_id</code> -- FK naar de providerrij. <code>NULL</code> voor alleen lokale accounts (de standaardinstelling).",
           "subject": "<code>external_subject</code> -- Stabiele identificatie aan de IdP-zijde. Voor LDAP is dit de volledige DN van de gebruiker; voor OIDC is dit de claim <code>sub</code>. Wordt gebruikt om opnieuw te koppelen als het gebruikers-ID verandert.",
@@ -16857,10 +16857,15 @@
           "intro": "Elke route hieronder retourneert 402 zonder <code>external_idp_engine</code> geladen.",
           "list": "lijst aanbieders",
           "mappings": "roltoewijzingen voor de provider",
-          "oidc_callback": "anoniem; wisselt code uit, retourneert sessie JWT",
+          "oidc_callback": "anoniem; wisselt de code in en brengt de browser aangemeld naar de console",
           "oidc_start": "anoniem; stuurt de browser door naar IdP",
           "settings": "cross-provider instellingen",
-          "title": "API-referentie"
+          "title": "API-referentie",
+          "saml_start": "anoniem; stuurt de browser door naar de IdP",
+          "saml_acs": "anoniem; verifieert de assertion en brengt de browser aangemeld naar de console",
+          "saml_metadata": "anoniem; de SP-metadata van deze server, voor de IdP",
+          "sso_providers": "anoniem; de providers die de inlogpagina aanbiedt (leeg zonder de engine)",
+          "sso_session": "wisselt het eenmalige overdrachtscookie in voor de sessie"
         },
         "breadcrumb": "Externe identiteitsproviders",
         "fallback": {
@@ -16885,7 +16890,7 @@
         "oidc": {
           "client": "<code>oidc_client_id</code> + <code>oidc_client_secret_secret_id</code> -- de applicatie die is geregistreerd bij de IdP. Het clientgeheim is opgeslagen in Vault.",
           "discovery": "<code>oidc_discovery_url</code> -- optionele overschrijving voor het bekende detectiedocument. Standaard ingesteld op <code>{issuer}/.well-known/openid-configuration</code>.",
-          "flow": "De inlog-UI stuurt de browser door naar <code>/api/auth/oidc/{provider_id}/start</code>, dat met een 302 doorverwijst naar het autorisatie-eindpunt van de IdP, met een <code>state</code>-token ter bescherming tegen CSRF. Nadat de gebruiker zich heeft aangemeld, keert de IdP terug naar <code>/api/auth/oidc/{provider_id}/callback?code=…&amp;state=…</code> en wisselt de engine de code in voor een ID-token. De claim <code>sub</code> wordt vergeleken met de kolom <code>external_subject</code> van de gebruiker om het lokale account te vinden.",
+          "flow": "De inlogpagina toont voor elke ingeschakelde provider een knop <strong>Aanmelden met</strong>. Die stuurt de browser naar <code>/api/auth/oidc/{provider_id}/start</code>, dat met een 302 doorverwijst naar het autorisatie-eindpunt van de IdP, met een <code>state</code>-token ter bescherming tegen CSRF. Nadat de gebruiker zich heeft aangemeld, keert de IdP terug naar <code>/api/auth/oidc/{provider_id}/callback?code=…&amp;state=…</code> en wisselt de engine de code in voor een ID-token. De claim <code>sub</code> wordt vergeleken met de kolom <code>external_subject</code> van de gebruiker om het lokale account te vinden.",
           "group_claim": "<code>oidc_group_claim</code> -- naam van de ID-tokenclaim die de groepen van de gebruiker vermeldt (standaard <code>groups</code>; sommige IdP's gebruiken <code>roles</code> of een aangepaste naam).",
           "intro": "Configureer voor elke OIDC-provider:",
           "issuer": "<code>oidc_issuer_url</code> -- de HTTPS-root van de IdP, bijv. <code>https://login.example.com</code>.",
@@ -16904,7 +16909,22 @@
           "match": "Als een van de externe groepen van de gebruiker overeenkomt met de <code>external_group</code> van een vermelding, levert die vermelding haar <code>role_name</code>. Meerdere overeenkomsten worden samengevoegd.",
           "title": "Externe groep → sysmanage Roltoewijzing"
         },
-        "title": "Externe identiteitsproviders - Professional+ - SysManage"
+        "title": "Externe identiteitsproviders - Professional+ - SysManage",
+        "saml": {
+          "title": "SAML 2.0",
+          "intro": "Configureer voor elke SAML-provider:",
+          "idp": "<code>saml_idp_entity_id</code>, <code>saml_idp_sso_url</code> en <code>saml_idp_x509_cert</code> -- de entiteits-ID van de IdP, de aanmeld-URL ervan en het certificaat waarmee de handtekeningen ervan worden geverifieerd.",
+          "sp": "<code>saml_sp_entity_id</code> en <code>saml_sp_acs_url</code> -- de identiteit van deze server bij de IdP. De ACS-URL is doorgaans <code>https://your-sysmanage.example.com/api/auth/saml/{provider_id}/acs</code>; de IdP kan beide importeren uit <code>/api/auth/saml/{provider_id}/metadata</code>.",
+          "attributes": "<code>saml_email_attribute</code> en <code>saml_group_attribute</code> -- de assertion-attributen met het e-mailadres van de gebruiker (bij een lege waarde wordt de NameID gebruikt) en zijn groepslidmaatschappen (standaard <code>groups</code>).",
+          "signed": "<code>saml_want_assertions_signed</code> -- vereist dat de IdP zijn assertions ondertekent. Standaard ingeschakeld; laat het ingeschakeld."
+        },
+        "landing": {
+          "title": "Aanmelden vanaf de inlogpagina",
+          "buttons": "De inlogpagina biedt één knop <strong>Aanmelden met</strong> per ingeschakelde OIDC- of SAML-provider die niet aan een tenant is gebonden. Op een server zonder zo'n provider blijft de inlogpagina ongewijzigd.",
+          "handoff": "Wanneer de IdP de browser terugstuurt, meldt sysmanage de gebruiker aan en verwijst door naar de pagina <code>/login/sso</code> van de console. De sessie reist in een HttpOnly-cookie van twee minuten dat de pagina eenmaal inwisselt -- nooit in de URL, waar die in de browsergeschiedenis en de serverlogboeken terecht zou komen.",
+          "host": "Het adres van de console komt uit <code>webui.public_url</code> in <code>sysmanage.yaml</code>. Stel het in en registreer de redirect- en ACS-URL's op diezelfde hostnaam: de browser stuurt het overdrachtscookie alleen terug naar de host die het heeft ingesteld.",
+          "failure": "Als de aanmelding niet wordt voltooid, komt de gebruiker op dezelfde pagina terecht met de reden (bijvoorbeeld een identiteit zonder actief sysmanage-account) en een weg terug naar het wachtwoordformulier. De details staan in het serverlogboek."
+        }
       },
       "imagemode": {
         "actions": {

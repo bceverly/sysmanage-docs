@@ -16844,7 +16844,7 @@
       },
       "idp": {
         "account": {
-          "first_login": "OIDC 使用者必須在首次登入之前設定 sysmanage 行（回呼會拒絕未知主題並傳回 403）；LDAP 使用者透過密碼表單進行驗證，並遵循現有的使用者建立流程。",
+          "first_login": "除非提供者已啟用 JIT 佈建，否則 OIDC 與 SAML 使用者在首次登入前需要一個與其身分連結的 sysmanage 帳戶；若沒有該帳戶，登入會返回登入頁面並顯示相應說明。LDAP 使用者透過密碼表單進行驗證，並遵循現有的使用者建立流程。",
           "intro": "現有的 sysmanage 使用者行選取兩個新資料列，將它們連結到目錄：",
           "provider": "<code>external_idp_provider_id</code> -- 指向提供者資料列的外鍵。本機專用帳戶為 <code>NULL</code>（預設值）。",
           "subject": "<code>external_subject</code> -- IdP 端的穩定識別碼。對 LDAP 而言是使用者的完整 DN；對 OIDC 而言是 <code>sub</code> 宣告。當使用者 ID 變更時用於重新連結。",
@@ -16857,10 +16857,15 @@
           "intro": "下面的每條路由都會在未載入 <code>external_idp_engine</code> 的情況下傳回 402。",
           "list": "清單 providers",
           "mappings": "提供者的角色映射",
-          "oidc_callback": "匿名的;交換代碼，返回會話 JWT",
+          "oidc_callback": "匿名；交換授權碼，讓瀏覽器以已登入狀態進入主控台",
           "oidc_start": "匿名; 重新導向 瀏覽器 to IdP",
           "settings": "cross-provider 設定",
-          "title": "API 參考"
+          "title": "API 參考",
+          "saml_start": "匿名；將瀏覽器重新導向至 IdP",
+          "saml_acs": "匿名；驗證斷言，讓瀏覽器以已登入狀態進入主控台",
+          "saml_metadata": "匿名；本伺服器的 SP 中繼資料，供 IdP 使用",
+          "sso_providers": "匿名；登入頁面提供的提供者（沒有引擎時為空）",
+          "sso_session": "以一次性交接 Cookie 交換工作階段"
         },
         "breadcrumb": "外部身分提供者",
         "fallback": {
@@ -16885,7 +16890,7 @@
         "oidc": {
           "client": "<code>oidc_client_id</code> + <code>oidc_client_secret_secret_id</code> -- 在 IdP 註冊的應用程式。用戶端密碼儲存在 Vault 中。",
           "discovery": "<code>oidc_discovery_url</code> -- 可選，用於覆寫 well-known 探索文件。預設為 <code>{issuer}/.well-known/openid-configuration</code>。",
-          "flow": "登入 UI 會將瀏覽器重新導向至 <code>/api/auth/oidc/{provider_id}/start</code>，再以 302 帶著防護 CSRF 的 <code>state</code> 權杖導向 IdP 的授權端點。使用者登入後，IdP 會返回 <code>/api/auth/oidc/{provider_id}/callback?code=…&amp;state=…</code>，由引擎以授權碼交換 ID 權杖。<code>sub</code> 宣告會與使用者的 <code>external_subject</code> 欄位比對，以找出本機帳戶。",
+          "flow": "登入頁面會為每個已啟用的提供者顯示一個 <strong>使用以下方式登入</strong> 按鈕。該按鈕會將瀏覽器送往 <code>/api/auth/oidc/{provider_id}/start</code>，再以 302 帶著防護 CSRF 的 <code>state</code> 權杖導向 IdP 的授權端點。使用者登入後，IdP 會返回 <code>/api/auth/oidc/{provider_id}/callback?code=…&amp;state=…</code>，由引擎以授權碼交換 ID 權杖。<code>sub</code> 宣告會與使用者的 <code>external_subject</code> 欄位比對，以找出本機帳戶。",
           "group_claim": "<code>oidc_group_claim</code> -- 列出使用者群組的 ID 權杖宣告名稱（預設為 <code>groups</code>；部分 IdP 使用 <code>roles</code> 或自訂名稱）。",
           "intro": "用於 每個 OIDC provider, 組態:",
           "issuer": "<code>oidc_issuer_url</code> -- IdP 的 HTTPS 根網址，例如 <code>https://login.example.com</code>。",
@@ -16904,7 +16909,22 @@
           "match": "若使用者的任一外部群組與某項目的 <code>external_group</code> 相符，該項目就會提供其 <code>role_name</code>。多個相符結果會取聯集。",
           "title": "外部群組 → sysmanage 角色映射"
         },
-        "title": "外部身分提供者 - 專業+ - SysManage"
+        "title": "外部身分提供者 - 專業+ - SysManage",
+        "saml": {
+          "title": "SAML 2.0",
+          "intro": "為每個 SAML 提供者設定：",
+          "idp": "<code>saml_idp_entity_id</code>、<code>saml_idp_sso_url</code> 和 <code>saml_idp_x509_cert</code> -- IdP 的實體 ID、其登入 URL，以及用來驗證其簽章的憑證。",
+          "sp": "<code>saml_sp_entity_id</code> 和 <code>saml_sp_acs_url</code> -- 本伺服器在 IdP 上的身分。ACS URL 通常為 <code>https://your-sysmanage.example.com/api/auth/saml/{provider_id}/acs</code>；IdP 可以從 <code>/api/auth/saml/{provider_id}/metadata</code> 匯入這兩項。",
+          "attributes": "<code>saml_email_attribute</code> 和 <code>saml_group_attribute</code> -- 承載使用者電子郵件（為空時使用 NameID）與群組成員資格（預設為 <code>groups</code>）的斷言屬性。",
+          "signed": "<code>saml_want_assertions_signed</code> -- 要求 IdP 對其斷言進行簽署。預設開啟；請保持開啟。"
+        },
+        "landing": {
+          "title": "從登入頁面登入",
+          "buttons": "登入頁面會為每個未限定於租戶的已啟用 OIDC 或 SAML 提供者提供一個 <strong>使用以下方式登入</strong> 按鈕。在沒有此類提供者的伺服器上，登入頁面維持不變。",
+          "handoff": "當 IdP 將瀏覽器導回時，sysmanage 會讓使用者登入並重新導向至主控台的 <code>/login/sso</code> 頁面。工作階段透過一個有效期為兩分鐘的 HttpOnly Cookie 傳遞，頁面只會交換一次 -- 絕不放在 URL 中，否則它會留在瀏覽器歷程記錄與伺服器記錄檔裡。",
+          "host": "主控台的位址來自 <code>sysmanage.yaml</code> 中的 <code>webui.public_url</code>。請設定此值，並在同一主機名稱上註冊重新導向 URL 與 ACS URL：瀏覽器只會將交接 Cookie 傳回給設定它的主機。",
+          "failure": "如果登入未完成，使用者會進入同一頁面，頁面上會顯示原因（例如，某個身分沒有使用中的 sysmanage 帳戶）以及返回密碼表單的方式。詳細資訊記錄在伺服器記錄檔中。"
+        }
       },
       "imagemode": {
         "actions": {

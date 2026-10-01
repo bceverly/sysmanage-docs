@@ -16844,7 +16844,7 @@
       },
       "idp": {
         "account": {
-          "first_login": "OIDC 用户必须在首次登录前配置 sysmanage 行（回调会拒绝未知主题并返回 403）； LDAP 用户通过密码表单进行身份验证，并遵循现有的用户创建流程。",
+          "first_login": "除非提供者启用了 JIT 预配，否则 OIDC 和 SAML 用户在首次登录之前需要一个与其身份关联的 sysmanage 帐户；如果没有该帐户，登录会返回登录页面并给出相应说明。LDAP 用户通过密码表单进行身份验证，并遵循现有的用户创建流程。",
           "intro": "现有的 sysmanage 用户行选取两个新列，将它们链接到目录：",
           "provider": "<code>external_idp_provider_id</code> -- FK 到提供商行。 <code>NULL</code> 用于仅限本地帐户（默认值）。",
           "subject": "<code>external_subject</code> -- IdP 端稳定标识符。对于 LDAP，这是用户的完整 DN；对于 OIDC，它是 <code>sub</code> 声明。用于在用户 ID 更改时重新链接。",
@@ -16857,10 +16857,15 @@
           "intro": "下面的每条路由都会在未加载 <code>external_idp_engine</code> 的情况下返回 402。",
           "list": "列表 providers",
           "mappings": "提供者的角色映射",
-          "oidc_callback": "匿名的;交换代码，返回会话 JWT",
+          "oidc_callback": "匿名；交换代码，使浏览器以已登录状态进入控制台",
           "oidc_start": "匿名; 重定向 浏览器 to IdP",
           "settings": "cross-provider 设置",
-          "title": "API 参考"
+          "title": "API 参考",
+          "saml_start": "匿名；将浏览器重定向到 IdP",
+          "saml_acs": "匿名；验证断言，使浏览器以已登录状态进入控制台",
+          "saml_metadata": "匿名；本服务器的 SP 元数据，供 IdP 使用",
+          "sso_providers": "匿名；登录页面提供的提供者（没有引擎时为空）",
+          "sso_session": "用一次性交接 Cookie 交换会话"
         },
         "breadcrumb": "外部身份提供程序",
         "fallback": {
@@ -16885,7 +16890,7 @@
         "oidc": {
           "client": "<code>oidc_client_id</code> + <code>oidc_client_secret_secret_id</code> -- 向 IdP 注册的应用程序。客户端密钥存储在保管库中。",
           "discovery": "<code>oidc_discovery_url</code> -- 众所周知的发现文档的可选覆盖。默认为 <code>{issuer}/.well-known/openid-configuration</code> 。",
-          "flow": "登录 UI 将浏览器重定向到 <code>/api/auth/oidc/{provider_id}/start</code> ，它使用 CSRF 保护的 <code>state</code> 令牌 302 到 IdP 的授权端点。用户登录后，IdP 返回 <code>/api/auth/oidc/{provider_id}/callback?code=…&amp;state=…</code> 并且引擎将代码交换为 ID 令牌。 <code>sub</code> 声明与用户的 <code>external_subject</code> 列进行匹配，以找到本地帐户。",
+          "flow": "登录页面会为每个已启用的提供者显示一个 <strong>使用以下方式登录</strong> 按钮。该按钮将浏览器发送到 <code>/api/auth/oidc/{provider_id}/start</code>，后者使用防护 CSRF 的 <code>state</code> 令牌以 302 重定向到 IdP 的授权端点。用户登录后，IdP 返回到 <code>/api/auth/oidc/{provider_id}/callback?code=…&amp;state=…</code>，引擎用该代码交换 ID 令牌。<code>sub</code> 声明与用户的 <code>external_subject</code> 列进行匹配，以找到本地帐户。",
           "group_claim": "<code>oidc_group_claim</code> -- 列出用户组的 ID 令牌声明的名称（默认 <code>groups</code> ；某些 IdP 使用 <code>roles</code> 或自定义名称）。",
           "intro": "用于 每个 OIDC provider, 配置:",
           "issuer": "<code>oidc_issuer_url</code> -- IdP 的 HTTPS 根，例如 <code>https://login.example.com</code> 。",
@@ -16904,7 +16909,22 @@
           "match": "如果任何用户的外部组与条目的 <code>external_group</code> 匹配，则该条目将贡献其 <code>role_name</code> 。多个匹配项被合并。",
           "title": "外部组 → sysmanage 角色映射"
         },
-        "title": "外部身份提供商 - 专业+ - SysManage"
+        "title": "外部身份提供商 - 专业+ - SysManage",
+        "saml": {
+          "title": "SAML 2.0",
+          "intro": "为每个 SAML 提供者配置：",
+          "idp": "<code>saml_idp_entity_id</code>、<code>saml_idp_sso_url</code> 和 <code>saml_idp_x509_cert</code> -- IdP 的实体 ID、其登录 URL，以及用于验证其签名的证书。",
+          "sp": "<code>saml_sp_entity_id</code> 和 <code>saml_sp_acs_url</code> -- 本服务器在 IdP 上的身份。ACS URL 通常为 <code>https://your-sysmanage.example.com/api/auth/saml/{provider_id}/acs</code>；IdP 可以从 <code>/api/auth/saml/{provider_id}/metadata</code> 导入这两项。",
+          "attributes": "<code>saml_email_attribute</code> 和 <code>saml_group_attribute</code> -- 承载用户电子邮件（为空时使用 NameID）和组成员资格（默认为 <code>groups</code>）的断言属性。",
+          "signed": "<code>saml_want_assertions_signed</code> -- 要求 IdP 对其断言进行签名。默认开启；请保持开启。"
+        },
+        "landing": {
+          "title": "从登录页面登录",
+          "buttons": "登录页面为每个未限定到租户的已启用 OIDC 或 SAML 提供者提供一个 <strong>使用以下方式登录</strong> 按钮。在没有此类提供者的服务器上，登录页面保持不变。",
+          "handoff": "当 IdP 将浏览器返回时，sysmanage 会让用户登录并重定向到控制台的 <code>/login/sso</code> 页面。会话通过一个有效期为两分钟的 HttpOnly Cookie 传递，页面只交换一次 -- 绝不放在 URL 中，否则它会留在浏览器历史记录和服务器日志里。",
+          "host": "控制台的地址来自 <code>sysmanage.yaml</code> 中的 <code>webui.public_url</code>。请设置该值，并在同一主机名上注册重定向 URL 和 ACS URL：浏览器只会将交接 Cookie 返回给设置它的主机。",
+          "failure": "如果登录未完成，用户会进入同一页面，页面上显示原因（例如，某个身份没有处于活动状态的 sysmanage 帐户）以及返回密码表单的方式。详细信息记录在服务器日志中。"
+        }
       },
       "imagemode": {
         "actions": {
