@@ -13692,13 +13692,13 @@
           "007": "secrets_engine -- OpenBAO-backed secret deployment to hosts",
           "008": "container_engine -- Full WSL / LXD container lifecycle (open source has read-only)",
           "009": "proplus_core -- Pro+ settings + license management UI",
-          "010": "av_management_engine -- Centralised ClamAV / ClamWin deployment, named policies, scan scheduling, commercial-AV detection (CrowdStrike, SentinelOne, Defender, etc.)",
+          "010": "av_management_engine -- Centralized ClamAV deployment, named policies, scan scheduling, commercial-AV detection (CrowdStrike, SentinelOne, Defender, etc.)",
           "011": "firewall_orchestration_engine -- Multi-platform firewall config generation (UFW, firewalld, pf, ipfw, npf, Windows Firewall, macOS), role assignment, fleet deployment, conflict detection, compliance reporting",
           "ent": {
             "airgap_collector_engine": "{{c1}} -- Offline artifact and CVE collection (public side)",
             "airgap_repository_engine": "{{c1}} -- Air-gapped repository serving (private side)",
             "automation_engine": "{{c1}} -- Saved-script library, scheduled execution, approval workflows",
-            "av_management_engine": "{{c1}} -- Centralised ClamAV / ClamWin deployment, named policies, scan scheduling, commercial-AV detection (CrowdStrike, SentinelOne, Defender, etc.)",
+            "av_management_engine": "{{c1}} -- Centralized ClamAV deployment, named policies, scan scheduling, commercial-AV detection (CrowdStrike, SentinelOne, Defender, etc.)",
             "child_host_handlers_engine": "{{c1}} -- Child-host action handlers (declarative deployment plans)",
             "config_management_engine": "{{c1}} -- Desired-state configuration management and drift: Puppet / Salt / Chef adapters, profile storage and assignment, scheduled enforcement, baseline capture, remediate-to-baseline",
             "content_lifecycle_engine": "{{c1}} -- Content views and lifecycle environments with gated promotion",
@@ -17972,10 +17972,10 @@
         "title": "Feature Codes"
       },
       "header": {
-        "description": "Centralised, policy-driven antivirus deployment for ClamAV (Linux/BSD/macOS) and ClamWin (Windows). Adds reusable AV policies, scheduled scans, definition-update cadence control, and a fleet-wide commercial-AV detection report on top of the open-source basics.",
+        "description": "Centralized, policy-driven antivirus deployment for ClamAV on Linux, the BSDs, macOS and Windows. Adds reusable AV policies, scheduled scans, definition-update cadence control, and a fleet-wide commercial-AV detection report on top of the open-source basics.",
         "title": "AV Management Engine"
       },
-      "meta_description": "Centralised antivirus deployment, policy management, scan scheduling, and commercial AV detection across the fleet.",
+      "meta_description": "Centralized antivirus deployment, policy management, scan scheduling, and commercial AV detection across the fleet.",
       "opensource": {
         "commercial": "Professional+: fleet-wide commercial-AV detection report (CrowdStrike, SentinelOne, Defender, etc.)",
         "deploy": "Community Edition: per-host install / enable / disable / remove via {{c1}}",
@@ -17984,7 +17984,7 @@
         "title": "Community Edition vs Professional+"
       },
       "overview": {
-        "description": "The AV Management Engine generates server-side ClamAV / ClamWin configurations and ships them to agents as fully-baked deploy plans. The agent runs the plan via the generic apply_deployment_plan handler -- no AV business logic lives on the agent. The engine layers an AvPolicy abstraction on top so an operator can define a single named policy (cadence + schedule + product) and apply it to any number of hosts.",
+        "description": "The AV Management Engine generates server-side ClamAV configurations and ships them to agents as fully-baked deploy plans. The agent runs the plan via the generic <code>apply_deployment_plan</code> handler -- no AV business logic lives on the agent. The engine layers an <strong>AvPolicy</strong> abstraction on top so an operator can define a single named policy (cadence + schedule + product) and apply it to any number of hosts.",
         "title": "Overview"
       },
       "page_title": "AV Management Engine - SysManage Professional+",
@@ -17993,6 +17993,15 @@
         "endpoints": "Endpoints",
         "example": "Example",
         "title": "AV Policies"
+      },
+      "platforms": {
+        "auto": "With <a href=\"malware-detection.html\">Malware Detection</a> licensed, the server deploys this automatically to every approved, active host whose operating system has an antivirus default, and redeploys when the plan improves. A deployment counts as done only when the agent reports success. Removing or disabling antivirus on a host opts that host out until someone deploys or enables it again.",
+        "bsd": "<strong>FreeBSD, OpenBSD, NetBSD</strong> -- the port or package with its own user and service names (<code>clamav_freshclam</code> on FreeBSD, <code>freshclam</code> on OpenBSD, <code>freshclamd</code> on NetBSD), enabled through each system's own service manager.",
+        "description": "A deploy plan follows the layout each platform's ClamAV package already has, rather than imposing one. The signature database location is left to the package, so the updater and the scanner always agree on where it is. Signatures update every two hours by default (<code>checks_per_day</code>, 1 to 24; ClamAV's mirrors throttle clients that check more often than hourly):",
+        "linux": "<strong>Linux</strong> -- the distribution's ClamAV packages and their <code>freshclam</code> and <code>clamd</code> services.",
+        "macos": "<strong>macOS</strong> -- ClamAV from Homebrew (under <code>/opt/homebrew</code> on Apple silicon), with a launchd job that keeps signatures current, since Homebrew has no update service.",
+        "title": "Each Platform's Own Layout",
+        "windows": "<strong>Windows</strong> -- the official ClamAV installer through winget (native on Arm64), installed under <code>C:\\Program Files\\ClamAV</code>, with a scheduled task that runs the signature update as SYSTEM."
       }
     },
     "breadcrumb": "Professional+",
@@ -18657,6 +18666,17 @@
           },
           "link": "Network Discovery Guide →",
           "title": "📡 Network Discovery"
+        },
+        "malware_detection": {
+          "description": "Each host scans itself with its own ClamAV and a YARA rule feed the server keeps current; findings are reviewed once and blind spots are stated.",
+          "features": {
+            "deploy": "ClamAV installed and kept current on every host automatically",
+            "jobs": "Fleet scan jobs by tag, inventory or host, a bounded number at a time",
+            "legs": "ClamAV signatures plus a validated YARA rule feed",
+            "quarantine": "Quarantine moves files, never deletes them, and restores them exactly"
+          },
+          "link": "Malware Detection Guide →",
+          "title": "🛡 Malware Detection"
         }
       },
       "overview": {
@@ -18695,7 +18715,7 @@
             "virtualization": "Hardware virtualization management (KVM/QEMU, bhyve, VMM/vmd)",
             "vulnerability": "Vulnerability scanning engine",
             "airgap": "Fully air-gapped deployment, including private mirrors for the agent's own install channels",
-            "av": "Centralised antivirus management with commercial-AV detection",
+            "av": "Centralized antivirus management with commercial-AV detection",
             "config_management": "Desired-state configuration management and drift detection across Ansible, PowerShell DSC, Puppet, Salt and Chef, with scheduled enforcement and remediate-to-baseline",
             "content_distribution": "Snap Store proxy and container-image (OCI) content lifecycle",
             "content_lifecycle": "Content views and lifecycle environments with gated promotion",
@@ -21068,6 +21088,76 @@
         "size": "At most 4,096 addresses per sweep, at 1 to 200 addresses per second (50 by default), one sweep per agent at a time.",
         "title": "Active Sweeps"
       }
+    },
+    "malware_detection": {
+      "alerting": {
+        "description": "Open findings at or above a chosen severity (high by default, so an EICAR test file does not page anyone) can raise an alert through the <em>Malware detected</em> alert condition. Two posture checks score the fleet: one flags hosts that can scan but have not been scanned in 30 days, the other counts open high and critical findings -- and an unscanned host or a check that did not run can never prove a host clean. See <a href=\"threat-model-posture.html\">Threat Model and Posture</a>.",
+        "title": "Alerts and Posture"
+      },
+      "breadcrumb": "Malware Detection",
+      "deploy": {
+        "description": "With Malware Detection licensed, the server installs ClamAV on every approved, active host whose operating system has an antivirus default, and keeps it current -- no one has to deploy it host by host. Signatures update every two hours by default (at most hourly; ClamAV's mirrors throttle clients that check more often): through the package's own update service on Linux and the BSDs, a launchd job on macOS and a scheduled task on Windows. When the deployment plan improves, hosts that already have ClamAV receive the new one too. A deployment counts as done only when the agent reports it succeeded; a failed one is retried, later each time, and never given up on.",
+        "opt_out": "Removing or disabling antivirus on a host from its page is respected: automatic deployment leaves that host alone until someone deploys or enables it again. See <a href=\"av-management-engine.html\">Antivirus Management</a> for the per-platform details.",
+        "title": "ClamAV on Every Host, Automatically"
+      },
+      "findings": {
+        "description": "A finding is one file on one host matching one signature or rule, with its severity (from the rule, or from the kind of ClamAV signature), the check that found it, its hash, and when it was first and last seen. Seeing the same file again updates the finding rather than adding another. Each finding gets a decision with a reason, recorded with who made it:",
+        "false_positive": "<strong>False positive</strong> -- the file is known and acceptable. Later scans that see it again leave the decision alone.",
+        "quarantine": "<strong>Quarantined</strong> -- moved off its path by the agent (below).",
+        "resolved": "<strong>Resolved</strong> -- dealt with outside SysManage. If the file comes back, the finding reopens.",
+        "screenshot_caption": "Decided findings keep who decided and why.",
+        "title": "Findings and Decisions"
+      },
+      "header": {
+        "description": "Is there malware on my fleet? Every managed host can run ClamAV, so each host scans itself -- with ClamAV's own signatures and with a YARA rule feed the server keeps current -- and the server turns the reports into findings you decide on. What could not be checked is stated beside the findings, so a quiet page never pretends to be a clean fleet.",
+        "screenshot_caption": "Open findings with their severity and the check that found them, the blind spots stated beside them, and the rule feed in use.",
+        "title": "Malware Detection"
+      },
+      "legs": {
+        "blind_spots": "A check that did not run is a <strong>blind spot</strong>, never a clean result. The page lists them beside the findings -- hosts with no ClamAV, hosts never scanned, checks that did not run and why (not enough memory, no signature database), and hosts where ClamAV loaded fewer rules than it was given -- and a finding is only closed when the check that found it runs over its path again and no longer sees it.",
+        "description": "Each scan runs two independent checks, and each records whether it ran and, if not, why:",
+        "feed": "<strong>Rule feed</strong> -- YARA rules from the server: a curated set that ships with SysManage, plus any sets you import. It is cheap (a few megabytes of memory) and always runs where ClamAV is installed.",
+        "signatures": "<strong>ClamAV signatures</strong> -- ClamAV's own database of known malware. Loading it takes about 1 GB of memory, so it runs through the ClamAV daemon when one is running, and otherwise only when the host has at least 2 GB of memory free.",
+        "title": "Two Checks per Scan"
+      },
+      "limits": {
+        "defender": "On Windows, Microsoft Defender may remove a known-malicious file before a scan reaches it. That is Defender doing its job; the file then simply is not there to report.",
+        "memory": "On hosts with little free memory and no ClamAV daemon, only the rule feed runs; the missing signature check is shown as a blind spot.",
+        "realtime": "It scans when asked; it does not watch files as they are written.",
+        "title": "What It Cannot Do",
+        "yara": "Only the YARA features ClamAV supports: no modules such as pe or math, and every rule needs strings."
+      },
+      "meta_description": "Scan your fleet for malware with each host's own ClamAV: ClamAV's signatures plus a YARA rule feed, fleet scan jobs with a bounded rollout, findings with stated blind spots, and quarantine that moves files instead of deleting them.",
+      "overview": {
+        "description": "Scanning happens on each host, with that host's ClamAV, so no file ever leaves the machine it is on and no scanning server is needed. The server sends each scan the paths to look at and the current rule feed; the agent runs the scan and reports what matched, the file's SHA-256 and which checks ran. Malware Detection finds and contains; it is not real-time protection and it does not replace an endpoint detection product.",
+        "title": "Overview"
+      },
+      "page_title": "Malware Detection - SysManage Professional+",
+      "quarantine": {
+        "description": "Quarantine moves a file into a protected directory on its own host and makes it unreadable; it never deletes anything. The agent only moves the file if it still has the hash the scan saw, so a file that changed since the scan is left alone. Files in system locations need an explicit confirmation, because moving them can stop a host from working. The finding shows as quarantined only once the agent confirms the move. Restore puts the file back exactly where it was, with its original permissions, owner and timestamps -- and refuses if something else now occupies that path. Quarantine and restore need their own role, separate from scanning.",
+        "title": "Quarantine and Restore"
+      },
+      "requirements": {
+        "agent": "An agent version that advertises malware scanning, and ClamAV on the host (installed automatically, see above).",
+        "license": "Enterprise license with the malware detection engine.",
+        "roles": "The View Host Details role to view the page, Run Malware Scans to start scans and decide on findings, and Quarantine Malware to quarantine and restore files.",
+        "title": "Requirements"
+      },
+      "rulesets": {
+        "description": "ClamAV runs YARA rules, but only a subset, and it fails silently: a rule that imports a YARA module makes it skip the whole file, and a rule without strings is skipped with a warning nobody reads. So every rule set is checked before it is stored: rules ClamAV would not run are removed and listed with the reason, and what is stored is exactly what will run. The curated set ships inside the licensed engine, which is also how an air-gapped server gets updates. Imported sets are versioned and can be retired, never silently changed. Because rule sets are shared by every tenant, only an administrator at server scope can import or retire one.",
+        "screenshot_caption": "The curated feed and imported sets, with any rules ClamAV would skip listed with the reason.",
+        "title": "Rule Sets"
+      },
+      "scanning": {
+        "description": "A scan is started as one job for any number of hosts:",
+        "dialog_caption": "Starting a scan job: targets, paths per operating system family, and how many hosts scan at once.",
+        "paths": "<strong>Paths</strong> -- given separately for Linux, BSD and macOS hosts and for Windows hosts, so one job covers a mixed fleet. Left empty, each host scans the places malware usually lands on its operating system (home and temporary directories, web roots, startup locations) -- never the whole disk.",
+        "progress": "Hosts the targets name that cannot be scanned -- no ClamAV, a scan already running, an invalid path -- are listed with the reason instead of being dropped. The Scans tab shows each job's progress and, for every host, what each check did.",
+        "rollout": "<strong>Hosts scanning at once</strong> -- 25 by default, up to 200. The rest wait their turn and start as others finish, so a fleet-wide scan never loads every host, hypervisor or storage array at the same moment.",
+        "scans_caption": "Scan jobs with their rollout progress, and what each check did on each host.",
+        "targets": "<strong>Targets</strong> -- all hosts, or any mix of tags, configuration inventories and individual hosts. Targets are resolved when the job starts, so a host tagged next week is covered by next week's scan without anyone editing a list.",
+        "title": "Scanning the Fleet"
+      }
     }
   },
   "quick_start": {
@@ -22890,7 +22980,7 @@
     "edition": {
       "community": "Free, open-source, and self-hosted on a single server and database. A persistent agent for Linux, Windows, macOS, FreeBSD, OpenBSD, and NetBSD; real-time WebSocket monitoring; hardware and software inventory; package and OS update management; maintenance windows so updates land when you expect them; user and access management; tagging; firewall status; ad-hoc scripts; reporting; database high availability, so the server runs against a Patroni / pg_auto_failover / Stolon cluster and survives a primary failover without manual intervention -- point it at a proxy VIP or a libpq multi-host DSN and pooled connections re-resolve to the new primary on their own; agent capability reporting, so a mixed fleet shows what each agent can actually do on its platform; an endpoint fact store that answers queries in osquery's own table schema on every platform the agent runs on -- natively on OpenBSD and NetBSD, where osquery does not exist, with osquery itself as an optional provider elsewhere; and an audit log.",
       "professional": "Everything in Community Edition, plus AI-assisted health analysis with score history, CVE vulnerability scanning, vendor errata and advisory management, OS end-of-life tracking with maintenance-window-aware release upgrades, CIS / DISA STIG compliance auditing, alerting to email / webhook / Slack / Teams, scheduled PDF reporting, an expanded audit trail, secrets management backed by OpenBAO, LXD and WSL container management, provisioning-template authoring, and curated, versioned query packs assigned per host, tag or site, with ad-hoc fleet-wide live query.",
-      "enterprise": "Everything in Professional, plus FIPS compliance-mode management, antivirus management, firewall orchestration, automation at fleet scale, full VM lifecycle management (KVM, bhyve, and OpenBSD vmm), observability via OpenTelemetry / Grafana / Graylog, content views and lifecycle environments with gated promotion, a Snap Store proxy and container-image content lifecycle, image-mode (bootc / rpm-ostree) host management, desired-state configuration management across Ansible, PowerShell DSC, Puppet, Salt and Chef -- with scheduled enforcement, fleet-scale job templates and inventories, baseline capture, drift detection that extends to arbitrary files and configuration state, one-click remediate-to-baseline and targeted remediation playbooks -- an advisor that scores risk-ranked recommendations over the fleet's evidence, reports what it could not assess instead of counting it as clean, and proposes fixes for an operator to approve, host provisioning -- both on external hypervisors and bare metal over PXE, with hardware discovery -- multi-factor authentication and external IdP single sign-on, fully air-gapped deployment (including private mirrors for the agent's own install channels, so hosts provisioned inside an enclave still enroll), and multi-site federation.",
+      "enterprise": "Everything in Professional, plus FIPS compliance-mode management, antivirus management, firewall orchestration, automation at fleet scale, full VM lifecycle management (KVM, bhyve, and OpenBSD vmm), observability via OpenTelemetry / Grafana / Graylog, content views and lifecycle environments with gated promotion, a Snap Store proxy and container-image content lifecycle, image-mode (bootc / rpm-ostree) host management, desired-state configuration management across Ansible, PowerShell DSC, Puppet, Salt and Chef -- with scheduled enforcement, fleet-scale job templates and inventories, baseline capture, drift detection that extends to arbitrary files and configuration state, one-click remediate-to-baseline and targeted remediation playbooks -- an advisor that scores risk-ranked recommendations over the fleet's evidence, reports what it could not assess instead of counting it as clean, and proposes fixes for an operator to approve, malware detection with each host's own ClamAV and a YARA rule feed, host provisioning -- both on external hypervisors and bare metal over PXE, with hardware discovery -- multi-factor authentication and external IdP single sign-on, fully air-gapped deployment (including private mirrors for the agent's own install channels, so hosts provisioned inside an enclave still enroll), and multi-site federation.",
       "saas": "Everything in Enterprise, run as a control plane that hosts isolated tenants -- a database per tenant, customer-owned SSO, and per-tenant edition assignment so each tenant can be set to Community, Professional, or Enterprise independently."
     },
     "coming": {
@@ -22910,7 +23000,7 @@
       },
       "advisor": {
         "title": "Proactive operations & advisor",
-        "body": "The advisor ships today: risk-scored recommendations across your collected facts, CVEs, compliance results and configuration state, with curated rule packs and proposed fixes, and a guided threat-model wizard that turns your answers into a prioritized posture punch list with audited waivers. Built-in host metric graphs ship too: CPU, memory, swap, load and disk history for every host, charted per host and across the fleet, and flowing through to the existing Prometheus endpoint for Grafana (Professional+). Still ahead: signature and YARA malware detection. Enterprise unless noted."
+        "body": "The advisor ships today: risk-scored recommendations across your collected facts, CVEs, compliance results and configuration state, with curated rule packs and proposed fixes, and a guided threat-model wizard that turns your answers into a prioritized posture punch list with audited waivers. Built-in host metric graphs ship too: CPU, memory, swap, load and disk history for every host, charted per host and across the fleet, and flowing through to the existing Prometheus endpoint for Grafana (Professional+). Malware detection ships too: each host scans itself with its own ClamAV and a YARA rule feed the server keeps current, ClamAV is installed and kept updated on every host automatically, fleet scans run as jobs a bounded number of hosts at a time, and quarantine moves files rather than deleting them. Enterprise unless noted."
       },
       "security": {
         "title": "Security tooling coexistence",
@@ -22931,6 +23021,18 @@
       "ha": {
         "title": "High availability & disaster recovery",
         "body": "Survive losing a server, and survive losing a site. Several SysManage servers running active behind a load balancer, with the scheduled work leader-elected so it still runs exactly once; integration with the PostgreSQL failover managers you already run rather than a fifth one of our own; and a warm secondary in another network that agents fail over to on their own when the primary becomes unreachable -- the agent carries an ordered list of servers rather than a single address. Promotion is explicit and fenced, so a broken link cannot leave two servers both accepting check-ins. Enterprise."
+      },
+      "scale": {
+        "body": "Built for very large fleets: no moment where load arrives all at once. Agent schedules are randomized and remembered across reconnects, so a server restart never sets the whole fleet off in step; agents send only what changed; the server drains reconnect storms through bounded, fair queues; fleet-wide changes roll out in waves; scheduled work runs exactly once across several server processes; and module updates are staged and verified before they replace a working engine. Proven against simulated fleets of tens of thousands of agents across many tenants and sites. Community Edition and Enterprise.",
+        "title": "Scale hardening"
+      },
+      "targeting": {
+        "body": "Choose where fleet work runs the way large estates are laid out: by site in a multi-site deployment, and by network segment -- named sets of address ranges -- within a site or a single-site install, with per-site and per-segment limits on how many hosts work at once. Scans, configuration inventories and maintenance windows all gain the same selectors. Enterprise.",
+        "title": "Targeting by site and network segment"
+      },
+      "terminal": {
+        "body": "An interactive shell on any managed host, straight from the web UI -- tunneled through the agent's existing connection, so it needs no inbound port, no running SSH server and no keys, and never changes the host's security posture to make it work. Every session is audited, with a live view for a second person to watch. The terminal itself is Community Edition; session recording and playback arrive at Professional, and second-person approval before a session opens at Enterprise.",
+        "title": "Browser remote terminal"
       }
     },
     "full": {

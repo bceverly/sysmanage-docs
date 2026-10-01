@@ -13222,13 +13222,13 @@
           "007": "secrets_engine -- Depéndido de OpenBAO para despliegue de secretos a hosts",
           "008": "motor_de_contenedores -- ciclo de vida completo del contenedor WSL / LXD (el origen abierto tiene solo lectura)",
           "009": "proplus_core - Configuración Pro+ + interfaz de gestión de licencias",
-          "010": "av_management_engine -- Despliegue centralizado de ClamAV / ClamWin, políticas nombradas, programación de escaneos, detección de AV comerciales (CrowdStrike, SentinelOne, Defender, etc.)",
+          "010": "av_management_engine -- Implementación centralizada de ClamAV, políticas con nombre, programación de escaneos, detección de antivirus comerciales (CrowdStrike, SentinelOne, Defender, etc.)",
           "011": "firewall_orchestration_engine -- generación de configuraciones de firewall multiplataforma (UFW, firewalld, pf, ipfw, npf, Windows Firewall, macOS), asignación de roles, despliegue en la flota, deteccioñn de conflictos y informes de cumplimiento",
           "ent": {
             "airgap_collector_engine": "{{c1}} -- Recopilación de artefactos fuera de línea y CVE (lado público)",
             "airgap_repository_engine": "{{c1}} -- Repositorio air-gap que sirve (lado privado)",
             "automation_engine": "{{c1}} -- Biblioteca de scripts guardados, ejecución programada, flujos de aprobación",
-            "av_management_engine": "{{c1}} -- Despliegue centralizado de ClamAV / ClamWin, políticas con nombre, programación de análisis, detección de antivirus comerciales (CrowdStrike, SentinelOne, Defender, etc.)",
+            "av_management_engine": "{{c1}} -- Implementación centralizada de ClamAV, políticas con nombre, programación de escaneos, detección de antivirus comerciales (CrowdStrike, SentinelOne, Defender, etc.)",
             "child_host_handlers_engine": "{{c1}} -- Manipuladores de acción de host hijo (planes de despliegue declarativos)",
             "config_management_engine": "{{c1}} -- Gestión de la configuración de estado deseado y desviación: adaptadores de Puppet / Salt / Chef, almacenamiento y asignación de perfiles, aplicación programada, captura de líneas base, remediación hacia la línea base",
             "content_lifecycle_engine": "{{c1}} -- Vistas de contenido y entornos de ciclo de vida con promoción controlada",
@@ -18904,10 +18904,10 @@
         "title": "Códigos de características"
       },
       "header": {
-        "description": "Despliegue antivirus centralizado y basado en políticas para ClamAV (Linux/BSD/macOS) y ClamWin (Windows). Añade políticas AV reutilizables, escaneos programados, control de cadencia de actualización de definiciones e informe de detección de AV comercial en toda la flota sobre los aspectos básicos de código abierto.",
+        "description": "Implementación centralizada de antivirus basada en políticas para ClamAV en Linux, los BSD, macOS y Windows. Añade, sobre las funciones básicas de código abierto, políticas de AV reutilizables, escaneos programados, control de la cadencia de actualización de definiciones y un informe de detección de antivirus comerciales en toda la flota.",
         "title": "Motor de gestión antivirus"
       },
-      "meta_description": "Despliegue centralizado de antivirus, gestión de políticas, programación de escaneos y detección de antivirus comerciales en toda la flota.",
+      "meta_description": "Implementación centralizada de antivirus, gestión de políticas, programación de escaneos y detección de antivirus comerciales en toda la flota.",
       "opensource": {
         "commercial": "Professional+: informe de detección de AV comercial en toda la flota (CrowdStrike, SentinelOne, Defender, etc.)",
         "deploy": "Instalación / habilitación / deshabilitación / eliminación per-host en la Comunidad: {{c1}}",
@@ -18916,7 +18916,7 @@
         "title": "Community Edition vs Professional+"
       },
       "overview": {
-        "description": "El motor de gestión antivirus genera configuraciones de ClamAV / ClamWin del lado del servidor y las envía a los agentes como planes de despliegue completamente preparados. El agente ejecuta el plan a través del manejador genérico apply_deployment_plan -- no hay lógica de negocio AV en el agente. El motor agrega una abstracción AvPolicy encima para que un operador pueda definir una sola política con nombre (cadencia + programación + producto) y aplicarla a cualquier número de hosts.",
+        "description": "El motor de gestión de AV genera en el servidor las configuraciones de ClamAV y las envía a los agentes como planes de implementación completamente preparados. El agente ejecuta el plan mediante el controlador genérico <code>apply_deployment_plan</code> -- en el agente no reside ninguna lógica de negocio de AV. El motor añade encima una abstracción <strong>AvPolicy</strong> para que un operador pueda definir una única política con nombre (cadencia + programación + producto) y aplicarla a cualquier número de hosts.",
         "title": "Visión general"
       },
       "page_title": "Motor de gestión antivirus - SysManage Professional+",
@@ -18925,6 +18925,15 @@
         "endpoints": "Puntos finales",
         "example": "Ejemplo",
         "title": "Políticas AV"
+      },
+      "platforms": {
+        "auto": "Con <a href=\"malware-detection.html\">Detección de malware</a> bajo licencia, el servidor lo despliega automáticamente en cada host aprobado y activo cuyo sistema operativo tenga un antivirus predeterminado, y lo vuelve a desplegar cuando el plan mejora. Un despliegue solo se considera completado cuando el agente informa de que ha tenido éxito. Quitar o desactivar el antivirus en un host excluye a ese host hasta que alguien lo despliegue o lo active de nuevo.",
+        "bsd": "<strong>FreeBSD, OpenBSD, NetBSD</strong> -- el port o el paquete, con sus propios nombres de usuario y de servicio (<code>clamav_freshclam</code> en FreeBSD, <code>freshclam</code> en OpenBSD, <code>freshclamd</code> en NetBSD), habilitado mediante el gestor de servicios propio de cada sistema.",
+        "description": "Un plan de despliegue sigue la estructura que ya tiene el paquete de ClamAV de cada plataforma, en lugar de imponer una. La ubicación de la base de datos de firmas se deja en manos del paquete, de modo que el actualizador y el escáner siempre coinciden en dónde está. Las firmas se actualizan cada dos horas de forma predeterminada (<code>checks_per_day</code>, de 1 a 24; las réplicas de ClamAV limitan a los clientes que comprueban con más frecuencia que una vez por hora):",
+        "linux": "<strong>Linux</strong> -- los paquetes de ClamAV de la distribución y sus servicios <code>freshclam</code> y <code>clamd</code>.",
+        "macos": "<strong>macOS</strong> -- ClamAV desde Homebrew (en <code>/opt/homebrew</code> en Apple Silicon), con un trabajo de launchd que mantiene las firmas actualizadas, ya que Homebrew no tiene servicio de actualización.",
+        "title": "La estructura propia de cada plataforma",
+        "windows": "<strong>Windows</strong> -- el instalador oficial de ClamAV mediante winget (nativo en Arm64), instalado en <code>C:\\Program Files\\ClamAV</code>, con una tarea programada que ejecuta la actualización de firmas como SYSTEM."
       }
     },
     "breadcrumb": "Profesional+",
@@ -19905,6 +19914,17 @@
           },
           "link": "Guía de Descubrimiento de red →",
           "title": "📡 Descubrimiento de red"
+        },
+        "malware_detection": {
+          "description": "Cada host se analiza a sí mismo con su propio ClamAV y un feed de reglas YARA que el servidor mantiene actualizado; los hallazgos se revisan una sola vez y se indican los puntos ciegos.",
+          "features": {
+            "deploy": "ClamAV instalado y actualizado automáticamente en cada host",
+            "jobs": "Tareas de análisis de la flota por etiqueta, inventario o host, un número limitado a la vez",
+            "legs": "Firmas de ClamAV más un feed de reglas YARA validado",
+            "quarantine": "La cuarentena mueve los archivos, nunca los elimina, y los restaura exactamente"
+          },
+          "link": "Guía de Detección de malware →",
+          "title": "🛡 Detección de malware"
         }
       },
       "overview": {
@@ -19933,7 +19953,7 @@
             "all_pro": "Todo en Profesional",
             "audit": "Registro y retención de auditoría",
             "automation": "Biblioteca de scripts guardados + ejecución programada + flujos de trabajo de aprobación",
-            "av": "Gestión centralizada de antivirus con detección de AV comercial",
+            "av": "Gestión centralizada de antivirus con detección de antivirus comerciales",
             "compliance": "Generación de informes de cumplimiento",
             "config_management": "Gestión de configuración en estado deseado y detección de desvíos a través de Ansible, PowerShell DSC, Puppet, Salt y Chef, con aplicación programada y corrección a la línea base",
             "content_distribution": "Proxy de Snap Store y contenido de ciclo de vida de imágenes de contenedor (OCI)",
@@ -22000,6 +22020,76 @@
         "size": "Como máximo 4.096 direcciones por barrido, a entre 1 y 200 direcciones por segundo (50 de forma predeterminada), un barrido por agente a la vez.",
         "title": "Barridos activos"
       }
+    },
+    "malware_detection": {
+      "alerting": {
+        "description": "Los hallazgos abiertos con una gravedad igual o superior a la elegida (alta de forma predeterminada, para que un archivo de prueba EICAR no avise a nadie) pueden generar una alerta mediante la condición de alerta <em>Malware detectado</em>. Dos comprobaciones de postura evalúan la flota: una señala los hosts que pueden analizarse pero no se han analizado en 30 días, y la otra cuenta los hallazgos abiertos de gravedad alta y crítica -- y un host sin analizar o una comprobación que no se ejecutó nunca puede demostrar que un host está limpio. Consulte <a href=\"threat-model-posture.html\">Modelo de amenazas y postura</a>.",
+        "title": "Alertas y postura"
+      },
+      "breadcrumb": "Detección de malware",
+      "deploy": {
+        "description": "Con Detección de malware bajo licencia, el servidor instala ClamAV en cada host aprobado y activo cuyo sistema operativo tenga un antivirus predeterminado, y lo mantiene actualizado -- nadie tiene que desplegarlo host por host. Las firmas se actualizan cada dos horas de forma predeterminada (como máximo una vez por hora; las réplicas de ClamAV limitan a los clientes que comprueban con más frecuencia): mediante el servicio de actualización propio del paquete en Linux y los BSD, un trabajo de launchd en macOS y una tarea programada en Windows. Cuando el plan de despliegue mejora, los hosts que ya tienen ClamAV también reciben el nuevo. Un despliegue solo se considera completado cuando el agente informa de que tuvo éxito; uno fallido se reintenta, cada vez más tarde, y nunca se abandona.",
+        "opt_out": "Si se quita o desactiva el antivirus de un host desde su página, se respeta: el despliegue automático deja ese host en paz hasta que alguien lo despliegue o lo active de nuevo. Consulte <a href=\"av-management-engine.html\">Gestión antivirus</a> para conocer los detalles de cada plataforma.",
+        "title": "ClamAV en cada host, automáticamente"
+      },
+      "findings": {
+        "description": "Un hallazgo es un archivo en un host que coincide con una firma o regla, con su gravedad (de la regla o del tipo de firma de ClamAV), la comprobación que lo encontró, su hash y cuándo se vio por primera y por última vez. Volver a ver el mismo archivo actualiza el hallazgo en lugar de añadir otro. Cada hallazgo recibe una decisión con un motivo, registrada junto con quién la tomó:",
+        "false_positive": "<strong>Falso positivo</strong> -- el archivo es conocido y aceptable. Los análisis posteriores que vuelvan a verlo no modifican la decisión.",
+        "quarantine": "<strong>En cuarentena</strong> -- el agente lo ha movido fuera de su ruta (ver más abajo).",
+        "resolved": "<strong>Resuelto</strong> -- gestionado fuera de SysManage. Si el archivo vuelve a aparecer, el hallazgo se reabre.",
+        "screenshot_caption": "Los hallazgos decididos conservan quién decidió y por qué.",
+        "title": "Hallazgos y decisiones"
+      },
+      "header": {
+        "description": "¿Hay malware en mi flota? Todos los hosts gestionados pueden ejecutar ClamAV, así que cada host se analiza a sí mismo -- con las firmas propias de ClamAV y con un feed de reglas YARA que el servidor mantiene actualizado -- y el servidor convierte los informes en hallazgos sobre los que usted decide. Lo que no se pudo comprobar se indica junto a los hallazgos, para que una página sin novedades nunca aparente ser una flota limpia.",
+        "screenshot_caption": "Hallazgos abiertos con su gravedad y la comprobación que los encontró, los puntos ciegos indicados a su lado y el feed de reglas en uso.",
+        "title": "Detección de malware"
+      },
+      "legs": {
+        "blind_spots": "Una comprobación que no se ejecutó es un <strong>punto ciego</strong>, nunca un resultado limpio. La página los enumera junto a los hallazgos -- hosts sin ClamAV, hosts nunca analizados, comprobaciones que no se ejecutaron y por qué (memoria insuficiente, sin base de datos de firmas) y hosts en los que ClamAV cargó menos reglas de las que recibió -- y un hallazgo solo se cierra cuando la comprobación que lo encontró vuelve a recorrer su ruta y ya no lo ve.",
+        "description": "Cada análisis ejecuta dos comprobaciones independientes, y cada una registra si se ejecutó y, si no, por qué:",
+        "feed": "<strong>Feed de reglas</strong> -- reglas YARA del servidor: un conjunto seleccionado que se incluye con SysManage, más cualquier conjunto que usted importe. Es ligero (unos pocos megabytes de memoria) y siempre se ejecuta donde está instalado ClamAV.",
+        "signatures": "<strong>Firmas de ClamAV</strong> -- la base de datos propia de ClamAV de malware conocido. Cargarla requiere aproximadamente 1 GB de memoria, por lo que se ejecuta a través del demonio de ClamAV cuando hay uno en ejecución y, en caso contrario, solo cuando el host tiene al menos 2 GB de memoria libre.",
+        "title": "Dos comprobaciones por análisis"
+      },
+      "limits": {
+        "defender": "En Windows, Microsoft Defender puede eliminar un archivo malicioso conocido antes de que un análisis llegue a él. Eso es Defender haciendo su trabajo; el archivo simplemente ya no está ahí para notificarlo.",
+        "memory": "En hosts con poca memoria libre y sin demonio de ClamAV, solo se ejecuta el feed de reglas; la comprobación de firmas que falta se muestra como un punto ciego.",
+        "realtime": "Analiza cuando se le solicita; no vigila los archivos mientras se escriben.",
+        "title": "Lo que no puede hacer",
+        "yara": "Solo las funciones de YARA que admite ClamAV: ningún módulo como pe o math, y cada regla necesita cadenas."
+      },
+      "meta_description": "Analice su flota en busca de malware con el propio ClamAV de cada host: firmas de ClamAV más un feed de reglas YARA, tareas de análisis de la flota con un despliegue limitado, hallazgos con los puntos ciegos indicados y una cuarentena que mueve los archivos en lugar de eliminarlos.",
+      "overview": {
+        "description": "El análisis se realiza en cada host, con el ClamAV de ese host, de modo que ningún archivo sale nunca de la máquina en la que está y no se necesita ningún servidor de análisis. El servidor envía a cada análisis las rutas que debe examinar y el feed de reglas actual; el agente ejecuta el análisis e informa de lo que coincidió, del SHA-256 del archivo y de qué comprobaciones se ejecutaron. Detección de malware encuentra y contiene; no es una protección en tiempo real y no sustituye a un producto de detección en endpoints.",
+        "title": "Visión general"
+      },
+      "page_title": "Detección de malware - SysManage Professional+",
+      "quarantine": {
+        "description": "La cuarentena mueve un archivo a un directorio protegido en su propio host y lo hace ilegible; nunca elimina nada. El agente solo mueve el archivo si todavía tiene el hash que vio el análisis, de modo que un archivo que ha cambiado desde el análisis no se toca. Los archivos en ubicaciones del sistema requieren una confirmación explícita, porque moverlos puede hacer que un host deje de funcionar. El hallazgo aparece como en cuarentena solo cuando el agente confirma el movimiento. La restauración devuelve el archivo exactamente a donde estaba, con sus permisos, propietario y marcas de tiempo originales -- y se rechaza si ahora hay otra cosa en esa ruta. La cuarentena y la restauración requieren su propio rol, independiente del de análisis.",
+        "title": "Cuarentena y restauración"
+      },
+      "requirements": {
+        "agent": "Una versión del agente que anuncie el análisis de malware, y ClamAV en el host (se instala automáticamente, ver más arriba).",
+        "license": "Licencia Enterprise con el motor de detección de malware.",
+        "roles": "El rol «View Host Details» para ver la página, el rol «Run Malware Scans» para iniciar análisis y decidir sobre los hallazgos, y el rol «Quarantine Malware» para poner archivos en cuarentena y restaurarlos.",
+        "title": "Requisitos"
+      },
+      "rulesets": {
+        "description": "ClamAV ejecuta reglas YARA, pero solo un subconjunto, y falla en silencio: una regla que importa un módulo de YARA hace que omita el archivo completo, y una regla sin cadenas se omite con una advertencia que nadie lee. Por eso cada conjunto de reglas se comprueba antes de almacenarse: las reglas que ClamAV no ejecutaría se eliminan y se enumeran con el motivo, y lo que se almacena es exactamente lo que se ejecutará. El conjunto seleccionado se incluye dentro del motor bajo licencia, que es también la forma en que un servidor aislado de la red recibe actualizaciones. Los conjuntos importados tienen versiones y pueden retirarse, pero nunca modificarse en silencio. Como los conjuntos de reglas son compartidos por todos los inquilinos, solo un administrador con ámbito de servidor puede importar o retirar uno.",
+        "screenshot_caption": "El feed seleccionado y los conjuntos importados, con las reglas que ClamAV omitiría enumeradas junto con el motivo.",
+        "title": "Conjuntos de reglas"
+      },
+      "scanning": {
+        "description": "Un análisis se inicia como una única tarea para cualquier número de hosts:",
+        "dialog_caption": "Inicio de una tarea de análisis: objetivos, rutas por familia de sistema operativo y cuántos hosts analizan a la vez.",
+        "paths": "<strong>Rutas</strong> -- indicadas por separado para hosts Linux, BSD y macOS y para hosts Windows, de modo que una sola tarea cubra una flota mixta. Si se dejan vacías, cada host analiza los lugares donde el malware suele acabar en su sistema operativo (directorios personales y temporales, raíces web, ubicaciones de inicio) -- nunca el disco completo.",
+        "progress": "Los hosts incluidos en los objetivos que no se pueden analizar -- sin ClamAV, con un análisis ya en curso, con una ruta no válida -- se enumeran con el motivo en lugar de descartarse. La pestaña Análisis muestra el progreso de cada tarea y, para cada host, lo que hizo cada comprobación.",
+        "rollout": "<strong>Hosts que analizan a la vez</strong> -- 25 de forma predeterminada, hasta 200. El resto espera su turno y comienza a medida que otros terminan, de modo que un análisis de toda la flota nunca carga todos los hosts, hipervisores o cabinas de almacenamiento en el mismo momento.",
+        "scans_caption": "Tareas de análisis con el progreso de su despliegue y lo que hizo cada comprobación en cada host.",
+        "targets": "<strong>Objetivos</strong> -- todos los hosts, o cualquier combinación de etiquetas, inventarios de configuración y hosts individuales. Los objetivos se resuelven cuando se inicia la tarea, de modo que un host etiquetado la próxima semana queda cubierto por el análisis de la próxima semana sin que nadie edite una lista.",
+        "title": "Análisis de la flota"
+      }
     }
   },
   "quick_start": {
@@ -22219,7 +22309,7 @@
     "breadcrumb": "Cronograma",
     "coming": {
       "advisor": {
-        "body": "El asesor ya está disponible: recomendaciones puntuadas por riesgo a partir de sus datos recopilados, CVE, resultados de cumplimiento y estado de configuración, con paquetes de reglas seleccionados y correcciones propuestas, y un asistente guiado de modelo de amenazas que convierte sus respuestas en una lista priorizada de acciones de postura con excepciones auditadas. También están disponibles los gráficos de métricas de host integradas: historial de CPU, memoria, swap, carga y disco para cada host, representado por host y en toda la flota, y enviado al endpoint de Prometheus existente para Grafana (Professional+). Pendiente: detección de malware por firmas y con YARA. Enterprise salvo que se indique lo contrario.",
+        "body": "El asesor ya está disponible: recomendaciones puntuadas por riesgo sobre los hechos recopilados, las CVE, los resultados de cumplimiento y el estado de configuración, con paquetes de reglas seleccionados y correcciones propuestas, y un asistente guiado de modelo de amenazas que convierte sus respuestas en una lista priorizada de pendientes de postura de seguridad con excepciones auditadas. También están disponibles los gráficos integrados de métricas de host: historial de CPU, memoria, swap, carga y disco para cada host, representado por host y en toda la flota, y enviado al endpoint de Prometheus existente para Grafana (Professional+). También está disponible la detección de malware: cada host se escanea a sí mismo con su propio ClamAV y un feed de reglas YARA que el servidor mantiene actualizado, ClamAV se instala y se mantiene actualizado automáticamente en cada host, los escaneos de la flota se ejecutan como tareas sobre un número limitado de hosts a la vez, y la cuarentena mueve los archivos en lugar de eliminarlos. Enterprise salvo que se indique lo contrario.",
         "title": "Operaciones proactivas y asesoramiento"
       },
       "arch": {
@@ -22255,11 +22345,23 @@
         "body": "Conocerte donde estás en lugar de reemplazar lo que ya ejecutas: orquestar Velociraptor para la respuesta a incidentes y la caza de amenazas, e ingerir alertas de Wazuh en las mismas superficies de alerta, informes y auditoría que todo lo demás. Empresarial.",
         "title": "Coexistencia de herramientas de seguridad"
       },
-      "title": "En el roadmap"
+      "title": "En el roadmap",
+      "scale": {
+        "body": "Diseñado para flotas muy grandes: ningún momento en el que toda la carga llegue a la vez. Las programaciones de los agentes se aleatorizan y se recuerdan entre reconexiones, de modo que un reinicio del servidor nunca pone en marcha toda la flota al unísono; los agentes envían solo lo que ha cambiado; el servidor absorbe las avalanchas de reconexiones mediante colas acotadas y equitativas; los cambios en toda la flota se despliegan por oleadas; el trabajo programado se ejecuta exactamente una vez entre varios procesos de servidor; y las actualizaciones de módulos se preparan y verifican antes de reemplazar un motor que funciona. Probado con flotas simuladas de decenas de miles de agentes repartidos en muchos inquilinos y sitios. Community Edition y Enterprise.",
+        "title": "Refuerzo para gran escala"
+      },
+      "targeting": {
+        "body": "Elija dónde se ejecuta el trabajo de la flota según la organización de los grandes entornos: por sitio en un despliegue multisitio, y por segmento de red -- conjuntos con nombre de rangos de direcciones -- dentro de un sitio o de una instalación de un solo sitio, con límites por sitio y por segmento sobre cuántos hosts trabajan a la vez. Los análisis, los inventarios de configuración y las ventanas de mantenimiento obtienen los mismos selectores. Enterprise.",
+        "title": "Selección de objetivos por sitio y segmento de red"
+      },
+      "terminal": {
+        "body": "Un shell interactivo en cualquier host gestionado, directamente desde la interfaz web -- tunelizado a través de la conexión existente del agente, por lo que no necesita ningún puerto de entrada, ningún servidor SSH en ejecución ni claves, y nunca cambia la postura de seguridad del host para funcionar. Cada sesión se audita, con una vista en directo para que una segunda persona la supervise. El terminal en sí forma parte de Community Edition; la grabación y reproducción de sesiones llegan con Professional, y la aprobación por una segunda persona antes de abrir una sesión, con Enterprise.",
+        "title": "Terminal remoto en el navegador"
+      }
     },
     "edition": {
       "community": "Libre, de código abierto y autoalbergado en un solo servidor y base de datos. Un agente persistente para Linux, Windows, macOS, FreeBSD, OpenBSD y NetBSD; monitoreo en tiempo real a través de WebSocket; inventario de hardware y software; gestión de paquetes y actualizaciones del sistema operativo; ventanas de mantenimiento para que las actualizaciones se apliquen cuando se espera; gestión de usuarios y permisos; etiquetado; estado del firewall; scripts ad hoc; informes; alta disponibilidad de la base de datos, por lo que el servidor funciona contra un clúster Patroni / pg_auto_failover / Stolon y sobrevive a un failover primario sin intervención manual -- diríjalo a un VIP proxy o una cadena DSN multi-host libpq y las conexiones pooleadas se resuelven automáticamente al nuevo primario; informes de capacidad del agente, para que una flota mixta muestre qué cada agente puede hacer realmente en su plataforma; un almacén de hechos de extremo que responde a consultas en el esquema de tabla propio de osquery en todas las plataformas en las que funciona el agente -- nativamente en OpenBSD y NetBSD, donde no existe osquery, con osquery como proveedor opcional en otro lugar; y un registro de auditoría.",
-      "enterprise": "Todo en Profesional, más gestión de cumplimiento FIPS, administración de antivirus, orquestación de firewall, automatización a escala de flota, gestión completa del ciclo de vida de las VM (KVM, bhyve y OpenBSD vmm), observabilidad a través de OpenTelemetry / Grafana / Graylog, vistas de contenido y entornos de ciclo de vida con promoción controlada, un proxy de tienda Snap y ciclo de vida de contenido de imagen de contenedor, gestión de hosts en modo imagen (bootc / rpm-ostree), gestión de configuración de estado deseado a través de Ansible, PowerShell DSC, Puppet, Salt y Chef -- con aplicación programada, plantillas de trabajo a escala de flota e inventarios, captura de base de línea, detección de desviación que se extiende a archivos arbitrarios y estado de configuración, restauración instantánea al estado base y playbooks de remediación dirigidos -- un asesor que puntúa recomendaciones clasificadas por riesgo a partir de la evidencia de la flota, informa de lo que no pudo evaluar en lugar de contarlo como correcto y propone correcciones para que un operador las apruebe, aprovisionamiento de hosts -- tanto en hipervisores externos como en metal desnudo sobre PXE, con descubrimiento de hardware -- autenticación multifactor e inicio de sesión único con proveedor de identidad externo (IdP), despliegue completamente aislado (incluidos espejos privados para los canales de instalación del agente, de modo que los hosts aprovisionados dentro de un enclave aún se registren), y federación multisite.",
+      "enterprise": "Todo lo de Professional, más gestión del modo de cumplimiento FIPS, gestión de antivirus, orquestación de firewall, automatización a escala de flota, gestión completa del ciclo de vida de las máquinas virtuales (KVM, bhyve y OpenBSD vmm), observabilidad mediante OpenTelemetry / Grafana / Graylog, vistas de contenido y entornos de ciclo de vida con promoción controlada, un proxy de Snap Store y ciclo de vida del contenido de imágenes de contenedor, gestión de hosts en modo imagen (bootc / rpm-ostree), gestión de configuración de estado deseado con Ansible, PowerShell DSC, Puppet, Salt y Chef -- con aplicación programada, plantillas de tareas e inventarios a escala de flota, captura de línea base, detección de desviaciones que se extiende a archivos arbitrarios y al estado de configuración, corrección a la línea base con un clic y playbooks de corrección específicos -- un asesor que puntúa recomendaciones clasificadas por riesgo a partir de la evidencia de la flota, informa de lo que no pudo evaluar en lugar de contarlo como limpio y propone correcciones para que un operador las apruebe, detección de malware con el propio ClamAV de cada host y un feed de reglas YARA, aprovisionamiento de hosts -- tanto en hipervisores externos como en bare metal mediante PXE, con descubrimiento de hardware -- autenticación multifactor e inicio de sesión único con un IdP externo, implementación totalmente aislada (air-gapped) (incluidos espejos privados para los propios canales de instalación del agente, de modo que los hosts aprovisionados dentro de un enclave también se inscriban) y federación multisitio.",
       "professional": "Todo en la edición Community, más análisis de salud asistido por IA con historial de puntuaciones, escaneo de vulnerabilidades CVE, gestión de erratas y alertas del proveedor, seguimiento del final de vida del sistema operativo con actualizaciones de lanzamiento conscientes del mantenimiento, auditoría de cumplimiento CIS/DISA STIG, alertas por correo electrónico/webhook/Slack/Teams, informes programados en PDF, rastro auditado ampliado, gestión de secretos respaldada por OpenBAO, LXD y WSL para la gestión de contenedores, creación de plantillas de aprovisionamiento y paquetes de consultas curados y versionados asignados por host, etiqueta o sitio, con consultas ad-hoc a nivel de flota en vivo.",
       "saas": "Todo lo que incluye la Edición Enterprise, ejecutada como un control plane que hospeda tenantes aislados -- una base de datos por tenante, SSO propiedad del cliente y asignación de edición por tenante para que cada uno pueda ser configurado en Comunitaria, Profesional o Enterprise."
     },

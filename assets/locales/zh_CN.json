@@ -13222,13 +13222,13 @@
           "007": "secrets_engine -- 使用OpenBAO部署主机密钥",
           "008": "container_engine -- 全功能 WSL / LXD 容器生命周期（开源版本为只读）",
           "009": "proplus_core -- Pro+ 设置 + 许可证管理UI",
-          "010": "av_management_engine -- 中央化 ClamAV / ClamWin 部署，命名策略，扫描计划安排，商业防病毒软件检测（CrowdStrike, SentinelOne, Defender等）",
+          "010": "av_management_engine -- 集中式 ClamAV 部署、命名策略、扫描计划、商业 AV 检测（CrowdStrike、SentinelOne、Defender 等）",
           "011": "firewall_orchestration_engine -- 多平台防火墙配置生成（UFW, firewalld, pf, ipfw, npf, Windows Firewall, macOS），角色分配，集群部署，冲突检测，合规报告",
           "ent": {
             "airgap_collector_engine": "{{c1}} -- 离线艺术品和 CVE 收集（公共侧）",
             "airgap_repository_engine": "{{c1}} -- 隔离网络的软件包服务器（私侧）",
             "automation_engine": "{{c1}} -- 保存脚本库，计划执行，审批工作流程",
-            "av_management_engine": "{{c1}} -- 集中式ClamAV/ClamWin部署，命名策略，扫描计划，商业防病毒检测（CrowdStrike、SentinelOne、Defender等）",
+            "av_management_engine": "{{c1}} -- 集中式 ClamAV 部署、命名策略、扫描计划、商业 AV 检测（CrowdStrike、SentinelOne、Defender 等）",
             "child_host_handlers_engine": "{{c1}} -- 子主机操作处理程序（声明式部署计划）",
             "config_management_engine": "{{c1}} -- 期望状态配置管理和漂移：Puppet / Salt / Chef适配器，配置文件存储和分配，计划执行，基线捕获，恢复到基线",
             "content_lifecycle_engine": "{{c1}} -- 内容视图和生命周期环境与受控推广",
@@ -18904,10 +18904,10 @@
         "title": "功能代码"
       },
       "header": {
-        "description": "集中式、基于策略的 ClamAV (Linux/BSD/macOS) 和 ClamWin (Windows) 防病毒部署。添加可重用 AV 策略、计划扫描、定义更新节奏控制以及机群范围内的商业防病毒检测报告，同时保持开源基础的完整性。",
+        "description": "面向 Linux、各类 BSD、macOS 和 Windows 上 ClamAV 的集中式、策略驱动的防病毒部署。在开源基础功能之上，增加可重用的 AV 策略、计划扫描、定义更新频率控制，以及覆盖整个主机群的商业 AV 检测报告。",
         "title": "AV 管理引擎"
       },
-      "meta_description": "整个集群的集中式防病毒部署、策略管理、扫描计划和商业 AV 检测。",
+      "meta_description": "覆盖整个主机群的集中式防病毒部署、策略管理、扫描计划和商业 AV 检测。",
       "opensource": {
         "commercial": "Professional+：全队商业 AV 检测报告（CrowdStrike、SentinelOne、Defender 等）",
         "deploy": "社区版：每主机安装/启用/禁用/移除（通过{{c1}}）",
@@ -18916,7 +18916,7 @@
         "title": "Community Edition vs Professional+"
       },
       "overview": {
-        "description": "AV 管理引擎生成服务器端 ClamAV / ClamWin 配置，并将其作为完全成熟的部署计划发送给代理。代理通过通用的 apply_deployment_plan 处理程序运行计划----代理上没有 AV 业务逻辑。该引擎在顶部分层了 AvPolicy 抽象，以便操作员可以定义单个命名策略（节奏 + 时间表 + 产品）并将其应用到任意数量的主机。",
+        "description": "AV 管理引擎在服务器端生成 ClamAV 配置，并将其作为完全就绪的部署计划发送给代理。代理通过通用的 <code>apply_deployment_plan</code> 处理程序运行该计划 -- 代理上不包含任何 AV 业务逻辑。引擎在此之上叠加了 <strong>AvPolicy</strong> 抽象，使运维人员只需定义一个命名策略（频率 + 计划 + 产品），即可将其应用于任意数量的主机。",
         "title": "概述"
       },
       "page_title": "AV管理引擎-SysManage Professional+",
@@ -18925,6 +18925,15 @@
         "endpoints": "端点",
         "example": "示例",
         "title": "AV 策略"
+      },
+      "platforms": {
+        "auto": "获得<a href=\"malware-detection.html\">恶意软件检测</a>许可后，服务器会自动将其部署到操作系统具有防病毒默认配置的每台已批准且处于活动状态的主机上，并在部署计划改进时重新部署。只有在代理报告成功后，部署才算完成。在主机上移除或禁用防病毒软件后，该主机将退出自动部署，直到有人再次部署或启用它。",
+        "bsd": "<strong>FreeBSD、OpenBSD、NetBSD</strong> -- 使用各自的 port 或软件包及其自有的用户名和服务名（FreeBSD 上为 <code>clamav_freshclam</code>，OpenBSD 上为 <code>freshclam</code>，NetBSD 上为 <code>freshclamd</code>），并通过各系统自身的服务管理器启用。",
+        "description": "部署计划遵循各平台 ClamAV 软件包原有的布局，而不是强加一套布局。签名数据库的位置交由软件包决定，因此更新程序和扫描程序对其位置的认识始终一致。签名默认每两小时更新一次（<code>checks_per_day</code>，取值 1 到 24；ClamAV 的镜像会限制检查频率高于每小时一次的客户端）：",
+        "linux": "<strong>Linux</strong> -- 发行版自带的 ClamAV 软件包及其 <code>freshclam</code> 和 <code>clamd</code> 服务。",
+        "macos": "<strong>macOS</strong> -- 来自 Homebrew 的 ClamAV（在 Apple 芯片上位于 <code>/opt/homebrew</code> 下），并配有一个保持签名最新的 launchd 作业，因为 Homebrew 没有更新服务。",
+        "title": "各平台自有的布局",
+        "windows": "<strong>Windows</strong> -- 通过 winget 安装官方 ClamAV 安装程序（在 Arm64 上原生运行），安装在 <code>C:\\Program Files\\ClamAV</code> 下，并由一个以 SYSTEM 身份运行的计划任务执行签名更新。"
       }
     },
     "breadcrumb": "专业版+",
@@ -19905,6 +19914,17 @@
           },
           "link": "网络发现指南 →",
           "title": "📡 网络发现"
+        },
+        "malware_detection": {
+          "description": "每台主机使用自己的 ClamAV 和服务器持续更新的 YARA 规则源扫描自身；发现项只需审核一次，盲区会被明确列出。",
+          "features": {
+            "deploy": "在每台主机上自动安装 ClamAV 并保持最新",
+            "jobs": "按标签、清单或主机运行主机群扫描作业，并限制同时运行的数量",
+            "legs": "ClamAV 签名加上经过验证的 YARA 规则源",
+            "quarantine": "隔离只移动文件、绝不删除，并可原样恢复"
+          },
+          "link": "恶意软件检测指南 →",
+          "title": "🛡 恶意软件检测"
         }
       },
       "overview": {
@@ -19933,7 +19953,7 @@
             "all_pro": "专业版所有功能",
             "audit": "审计日志和保留",
             "automation": "保存的脚本库+计划执行+批准工作流程",
-            "av": "集中式防病毒管理，包括商业AV检测",
+            "av": "具备商业 AV 检测功能的集中式防病毒管理",
             "compliance": "合规报告生成",
             "config_management": "Ansible、PowerShell DSC、Puppet、Salt 和 Chef 之间的期望状态配置和偏差检测，提供调度执行和恢复到基线",
             "content_distribution": "Snap Store代理和容器镜像（OCI）内容生命周期",
@@ -22000,6 +22020,76 @@
         "size": "每次扫描最多 4,096 个地址，速率为每秒 1 到 200 个地址（默认 50 个），每个代理同一时间只执行一次扫描。",
         "title": "主动扫描"
       }
+    },
+    "malware_detection": {
+      "alerting": {
+        "description": "达到或高于所选严重程度的未处理发现项（默认为“高”，因此 EICAR 测试文件不会惊动任何人）可以通过 <em>Malware detected</em> 警报条件触发警报。两项安全态势检查为主机群评分：一项标记可以扫描但 30 天内未被扫描的主机，另一项统计严重程度为“高”和“严重”的未处理发现项 -- 未扫描的主机或未运行的检查永远无法证明主机是干净的。请参阅<a href=\"threat-model-posture.html\">威胁模型与安全态势</a>。",
+        "title": "警报与安全态势"
+      },
+      "breadcrumb": "恶意软件检测",
+      "deploy": {
+        "description": "获得恶意软件检测许可后，服务器会在操作系统具有防病毒默认配置的每台已批准且处于活动状态的主机上安装 ClamAV 并保持其最新 -- 无需逐台主机部署。签名默认每两小时更新一次（最多每小时一次；ClamAV 的镜像会限制检查更频繁的客户端）：在 Linux 和各 BSD 系统上通过软件包自带的更新服务，在 macOS 上通过 launchd 作业，在 Windows 上通过计划任务。部署计划改进后，已安装 ClamAV 的主机也会收到新的计划。只有在代理报告成功后，部署才算完成；失败的部署会重试，每次间隔更长，并且绝不放弃。",
+        "opt_out": "在主机页面上移除或禁用防病毒软件的操作会得到尊重：在有人再次部署或启用之前，自动部署不会触碰该主机。各平台的详细信息请参阅<a href=\"av-management-engine.html\">防病毒管理</a>。",
+        "title": "自动在每台主机上部署 ClamAV"
+      },
+      "findings": {
+        "description": "一个发现项是指一台主机上的一个文件与一个签名或规则相匹配，包含其严重程度（来自规则，或来自 ClamAV 签名的类型）、发现它的检查、其哈希值，以及首次和最后一次发现的时间。再次发现同一文件时会更新该发现项，而不是新增一个。每个发现项都会得到一个附带理由的决定，并记录做出决定的人：",
+        "false_positive": "<strong>误报</strong> -- 该文件已知且可接受。之后的扫描再次发现它时，不会改变该决定。",
+        "quarantine": "<strong>已隔离</strong> -- 已由代理从其路径移走（见下文）。",
+        "resolved": "<strong>已解决</strong> -- 已在 SysManage 之外处理。如果文件再次出现，该发现项会重新打开。",
+        "screenshot_caption": "已决定的发现项会保留决定人及理由。",
+        "title": "发现项与决定"
+      },
+      "header": {
+        "description": "我的主机群中有恶意软件吗？每台受管主机都可以运行 ClamAV，因此由每台主机扫描自身 -- 使用 ClamAV 自带的签名和服务器持续更新的 YARA 规则源 -- 服务器再将这些报告转化为供您做出决定的发现项。无法检查的内容会在发现项旁边明确列出，因此一个安静的页面绝不会伪装成干净的主机群。",
+        "screenshot_caption": "未处理的发现项及其严重程度和发现它们的检查、旁边明确列出的盲区，以及正在使用的规则源。",
+        "title": "恶意软件检测"
+      },
+      "legs": {
+        "blind_spots": "未运行的检查是一个<strong>盲区</strong>，绝不是干净的结果。页面会在发现项旁边列出盲区 -- 没有 ClamAV 的主机、从未扫描过的主机、未运行的检查及原因（内存不足、没有签名数据库），以及 ClamAV 加载的规则少于提供给它的规则的主机 -- 只有当发现该问题的检查再次扫描其路径且不再发现它时，发现项才会关闭。",
+        "description": "每次扫描运行两项独立的检查，每项检查都会记录是否运行，以及未运行时的原因：",
+        "feed": "<strong>规则源</strong> -- 来自服务器的 YARA 规则：随 SysManage 提供的精选规则集，以及您导入的任何规则集。它开销很小（只需几兆字节内存），在安装了 ClamAV 的地方始终会运行。",
+        "signatures": "<strong>ClamAV 签名</strong> -- ClamAV 自带的已知恶意软件数据库。加载它需要大约 1 GB 内存，因此在 ClamAV 守护进程运行时通过守护进程执行，否则仅在主机至少有 2 GB 可用内存时运行。",
+        "title": "每次扫描两项检查"
+      },
+      "limits": {
+        "defender": "在 Windows 上，Microsoft Defender 可能会在扫描到达之前删除已知的恶意文件。这是 Defender 在履行其职责；此时该文件已不存在，自然也无从报告。",
+        "memory": "在可用内存较少且没有 ClamAV 守护进程的主机上，只运行规则源；缺失的签名检查会显示为盲区。",
+        "realtime": "它在收到请求时扫描，不会在文件写入时实时监视。",
+        "title": "它无法做到的事",
+        "yara": "仅支持 ClamAV 所支持的 YARA 功能：不支持 pe 或 math 等模块，且每条规则都必须包含 strings。"
+      },
+      "meta_description": "使用每台主机自己的 ClamAV 扫描主机群中的恶意软件：ClamAV 签名加上 YARA 规则源、限制并发推出的主机群扫描作业、明确列出盲区的发现项，以及移动而非删除文件的隔离。",
+      "overview": {
+        "description": "扫描在每台主机上使用该主机的 ClamAV 进行，因此文件绝不会离开其所在的机器，也不需要扫描服务器。服务器向每次扫描发送要检查的路径和当前的规则源；代理执行扫描并报告匹配的内容、文件的 SHA-256 以及运行了哪些检查。恶意软件检测负责发现和遏制；它不是实时防护，也不能取代终端检测产品。",
+        "title": "概述"
+      },
+      "page_title": "恶意软件检测 - SysManage Professional+",
+      "quarantine": {
+        "description": "隔离会将文件移入其所在主机上的受保护目录并使其不可读；它绝不删除任何内容。只有当文件仍具有扫描时看到的哈希值时，代理才会移动它，因此扫描后发生变化的文件不会被触碰。位于系统位置的文件需要明确确认，因为移动它们可能导致主机无法正常工作。只有在代理确认移动后，发现项才会显示为已隔离。恢复会将文件精确放回原来的位置，并保留其原始权限、所有者和时间戳 -- 如果该路径现在已被其他内容占用，则会拒绝恢复。隔离和恢复需要单独的角色，与扫描角色分开。",
+        "title": "隔离与恢复"
+      },
+      "requirements": {
+        "agent": "声明支持恶意软件扫描的代理版本，以及主机上的 ClamAV（如上所述会自动安装）。",
+        "license": "包含恶意软件检测引擎的 Enterprise 许可证。",
+        "roles": "查看页面需要“View Host Details”角色，启动扫描和对发现项做出决定需要“Run Malware Scans”角色，隔离和恢复文件需要“Quarantine Malware”角色。",
+        "title": "要求"
+      },
+      "rulesets": {
+        "description": "ClamAV 可以运行 YARA 规则，但只支持其中一部分，而且会静默失败：导入 YARA 模块的规则会导致它跳过整个文件，没有 strings 的规则则会被跳过，只留下一条没人会看的警告。因此，每个规则集在存储之前都会经过检查：ClamAV 不会运行的规则会被移除并连同原因一起列出，存储的内容与实际运行的内容完全一致。精选规则集随授权引擎一起提供，气隙环境中的服务器也通过这种方式获取更新。导入的规则集带有版本，可以停用，但绝不会被静默更改。由于规则集由所有租户共享，只有服务器范围的管理员才能导入或停用规则集。",
+        "screenshot_caption": "精选规则源和导入的规则集，ClamAV 会跳过的规则连同原因一起列出。",
+        "title": "规则集"
+      },
+      "scanning": {
+        "description": "扫描以一个作业的形式启动，可面向任意数量的主机：",
+        "dialog_caption": "启动扫描作业：目标、按操作系统系列划分的路径，以及同时扫描的主机数量。",
+        "paths": "<strong>路径</strong> -- 分别为 Linux、BSD 和 macOS 主机以及 Windows 主机指定，因此一个作业即可覆盖混合主机群。留空时，每台主机会扫描其操作系统上恶意软件通常落脚的位置（主目录和临时目录、Web 根目录、启动位置） -- 绝不扫描整个磁盘。",
+        "progress": "目标中包含但无法扫描的主机 -- 没有 ClamAV、已有扫描正在运行、路径无效 -- 会连同原因一起列出，而不是被悄悄丢弃。“扫描”选项卡显示每个作业的进度，以及每台主机上每项检查的执行情况。",
+        "rollout": "<strong>同时扫描的主机数</strong> -- 默认为 25，最多 200。其余主机排队等候，在其他主机完成后依次开始，因此覆盖整个主机群的扫描绝不会在同一时刻给每台主机、虚拟机管理程序或存储阵列带来负载。",
+        "scans_caption": "扫描作业及其推出进度，以及每台主机上每项检查的执行情况。",
+        "targets": "<strong>目标</strong> -- 所有主机，或标签、配置清单和单个主机的任意组合。目标在作业启动时解析，因此下周打上标签的主机会被下周的扫描覆盖，无需任何人编辑列表。",
+        "title": "扫描主机群"
+      }
     }
   },
   "quick_start": {
@@ -22219,7 +22309,7 @@
     "breadcrumb": "路线图",
     "coming": {
       "advisor": {
-        "body": "顾问功能现已推出：基于你收集的事实、CVE、合规结果和配置状态给出按风险评分的建议，附带精选规则包和建议的修复方案，以及一个引导式威胁建模向导，可将你的回答转化为按优先级排列的安全态势待办清单，并附带经过审计的豁免。内置主机指标图表也已推出：每台主机的 CPU、内存、交换空间、负载和磁盘历史记录，可按主机和跨主机群绘制图表，并通过现有的 Prometheus 端点提供给 Grafana（Professional+）。即将推出：基于特征码和 YARA 的恶意软件检测。除非另有说明，均为 Enterprise 版。",
+        "body": "顾问现已推出：基于您收集的事实、CVE、合规结果和配置状态给出按风险评分的建议，附带精选规则包和建议修复，并提供引导式威胁模型向导，将您的回答转化为按优先级排列、带有经审计豁免的安全态势待办清单。内置主机指标图表也已推出：每台主机的 CPU、内存、交换空间、负载和磁盘历史，可按主机及整个主机群绘制图表，并通过现有的 Prometheus 端点提供给 Grafana（Professional+）。恶意软件检测也已推出：每台主机使用自己的 ClamAV 以及由服务器保持最新的 YARA 规则源扫描自身，ClamAV 会在每台主机上自动安装并保持更新，主机群扫描以作业形式运行、每次处理有限数量的主机，隔离会移动文件而不是删除文件。除非另有说明，均为 Enterprise。",
         "title": "主动操作与顾问"
       },
       "arch": {
@@ -22255,11 +22345,23 @@
         "body": "与您当前的环境相适应，而不是取代您已经运行的系统：协调 Velociraptor 进行事件响应和威胁狩猎，并将 Wazuh 警报导入到与其他所有内容相同的警报、报告和审计表面中。企业版。",
         "title": "安全工具共存"
       },
-      "title": "路线图上"
+      "title": "路线图上",
+      "scale": {
+        "body": "专为超大规模主机群打造：不会出现负载同时涌入的时刻。代理的调度时间经过随机化，并在重新连接后保持不变，因此服务器重启绝不会让整个主机群同步行动；代理只发送发生变化的内容；服务器通过有上限的公平队列消化重连风暴；覆盖整个主机群的变更分批推出；计划工作在多个服务器进程之间只执行一次；模块更新在替换正在运行的引擎之前会先暂存并验证。已在跨越众多租户和站点、规模达数万个代理的模拟主机群上得到验证。Community Edition 和 Enterprise。",
+        "title": "规模化加固"
+      },
+      "targeting": {
+        "body": "按照大型环境的布局方式选择主机群工作的运行位置：在多站点部署中按站点选择，在站点内部或单站点安装中按网段（命名的地址范围集合）选择，并可按站点和按网段限制同时工作的主机数量。扫描、配置清单和维护窗口都将支持相同的选择器。Enterprise。",
+        "title": "按站点和网段定位目标"
+      },
+      "terminal": {
+        "body": "直接在 Web UI 中打开任意受管主机上的交互式 shell -- 通过代理现有的连接建立隧道，因此无需入站端口、无需运行 SSH 服务器、也无需密钥，并且绝不会为此更改主机的安全态势。每个会话都会被审计，并提供实时视图供第二个人旁观。终端本身属于 Community Edition；会话录制和回放在 Professional 中提供，会话开启前的第二人审批在 Enterprise 中提供。",
+        "title": "浏览器远程终端"
+      }
     },
     "edition": {
       "community": "免费、开源，在单一服务器和数据库上自行托管。适用于 Linux、Windows、macOS、FreeBSD、OpenBSD 和 NetBSD 的常驻代理；基于 WebSocket 的实时监控；硬件和软件清单；软件包与操作系统更新管理；维护窗口，让更新在您预期的时间落地；用户与访问管理；标签；防火墙状态；临时脚本；报表；数据库高可用性，使服务器可运行在 Patroni / pg_auto_failover / Stolon 集群之上，并在主节点故障转移时无需人工干预 -- 只需将其指向代理 VIP 或 libpq 多主机 DSN，池化连接便会自行重新解析到新的主节点；代理能力报告，让混合主机群清楚显示每个代理在其平台上实际能做什么；端点事实存储，在代理运行的每个平台上以 osquery 自身的表结构回答查询 -- 在不存在 osquery 的 OpenBSD 和 NetBSD 上以原生方式实现，在其他平台上可选用 osquery 本身作为提供程序；以及审计日志。",
-      "enterprise": "专业版所有功能，加上FIPS合规模式管理、防病毒管理、防火墙编排、规模化自动化、完整虚拟机生命周期管理（KVM、bhyve和OpenBSD vmm）、通过OpenTelemetry/Grafana/Graylog的可观察性、内容视图和生命周期环境（受限推广）、Snap Store代理和容器镜像内容生命周期、基于镜像的管理（bootc/rpm-ostree）主机管理、通过Ansible、PowerShell DSC、Puppet、Salt和Chef的期望状态配置管理 -- 计划执行、规模化作业模板和清单、基线捕获、配置漂移检测（扩展到任意文件和配置状态）、一键恢复到基线和目标修复工作簿 -- 基于主机群证据给出按风险排序并评分的建议的顾问，它会报告无法评估的内容而不是将其计为正常，并提出修复建议供操作员批准，主机配置 -- 在外部虚拟机和裸金属上通过PXE，以及硬件发现 -- 多因素身份验证和外部IdP单点登录，完全隔离部署（包括代理自身安装渠道的私有镜像，因此内部封装的主机仍然可以注册），以及多站点联邦。",
+      "enterprise": "包含 Professional 的全部功能，另加 FIPS 合规模式管理、防病毒管理、防火墙编排、主机群规模的自动化、完整的虚拟机生命周期管理（KVM、bhyve 和 OpenBSD vmm）、通过 OpenTelemetry / Grafana / Graylog 实现的可观测性、带受控推广的内容视图和生命周期环境、Snap Store 代理和容器镜像内容生命周期、镜像模式（bootc / rpm-ostree）主机管理、跨 Ansible、PowerShell DSC、Puppet、Salt 和 Chef 的期望状态配置管理 -- 包括计划执行、主机群规模的作业模板和清单、基线捕获、可扩展到任意文件和配置状态的配置漂移检测、一键修复至基线以及有针对性的修复 playbook -- 一个基于主机群证据对按风险排序的建议进行评分、如实报告无法评估的内容而不将其计为正常、并提出修复建议供运维人员批准的顾问，使用每台主机自身的 ClamAV 和 YARA 规则源进行的恶意软件检测，主机置备 -- 支持外部虚拟机管理程序以及通过 PXE 的裸金属，并提供硬件发现 -- 多因素认证和外部 IdP 单点登录，完全物理隔离的部署（包括用于代理自身安装渠道的私有镜像，使在隔离区内置备的主机仍可注册），以及多站点联邦。",
       "professional": "社区版的所有功能，加上人工智能辅助健康分析（包括历史得分），CVE漏洞扫描，供应商勘误和安全建议管理，考虑维护窗口的操作系统生命周期结束跟踪，CIS/DISA STIG合规审核，通过电子邮件/Webhook/Slack/Teams发送警报，按计划生成PDF报告，扩展审计跟踪，由OpenBAO支持的秘密管理，LXD和WSL容器管理，配置模板创建，以及根据主机、标签或站点分配的精心策划、版本化查询包，可进行随时随地的全局查询。",
       "saas": "企业版的所有功能，作为控制平面运行，托管隔离租户 -- 每个租户一个数据库，客户拥有的 SSO 以及每个租户的独立版本分配，以便每个租户可以分别设置为社区、专业或企业版。"
     },

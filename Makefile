@@ -131,6 +131,7 @@ help:
 	@echo "  screenshots-seed       - Seed base OSS demo data + host inventory into the VM"
 	@echo "  screenshots-pro-seed   - Seed Professional engine demo data (in-VM ORM)"
 	@echo "  screenshots-discovery-seed - Seed Network Discovery reports (in-VM ORM, Enterprise)"
+	@echo "  screenshots-malware-seed   - Seed Malware Detection scan jobs + findings (in-VM ORM, Enterprise)"
 	@echo "  screenshots-ent-seed   - Seed Enterprise engine demo data (in-VM ORM)"
 	@echo "  screenshots-fleet-seed - Seed fleet-engine demo data (Pro+ REST)"
 	@echo "  screenshots-cfg-seed   - Seed config profiles + drift findings (in-VM ORM)"
@@ -390,7 +391,7 @@ screenshot:
 # ---- Automated documentation screenshots (screenshots/ pipeline) ------------
 # Reproducible screenshots: provision a VM, seed demo data (REST + WS), drive the
 # UI with Playwright, write PNGs into assets/images/. See screenshots/README.md.
-.PHONY: screenshots screenshots-community screenshots-enterprise screenshots-seed screenshots-capture screenshots-vm-up screenshots-vm-down screenshots-pro-build screenshots-pro-seed screenshots-pro-capture screenshots-ent-build screenshots-ent-seed screenshots-ent-capture screenshots-ent-roles screenshots-fleet-seed screenshots-cfg-seed screenshots-facts-seed screenshots-facts-capture screenshots-advisor-seed screenshots-advisor-capture screenshots-discovery-seed screenshots-discovery-capture
+.PHONY: screenshots screenshots-community screenshots-enterprise screenshots-seed screenshots-capture screenshots-vm-up screenshots-vm-down screenshots-pro-build screenshots-pro-seed screenshots-pro-capture screenshots-ent-build screenshots-ent-seed screenshots-ent-capture screenshots-ent-roles screenshots-fleet-seed screenshots-cfg-seed screenshots-facts-seed screenshots-facts-capture screenshots-advisor-seed screenshots-advisor-capture screenshots-discovery-seed screenshots-discovery-capture screenshots-malware-seed screenshots-malware-capture
 
 SHOTS_DIR := screenshots
 # Load screenshots/config.env (targets, admin + demo creds) if present.
@@ -458,6 +459,7 @@ screenshots:
 	@$(MAKE) screenshots-fleet-seed
 	@$(MAKE) screenshots-advisor-seed
 	@$(MAKE) screenshots-discovery-seed
+	@$(MAKE) screenshots-malware-seed
 	@$(MAKE) screenshots-ent-capture
 	@$(MAKE) screenshots-ent-roles
 	@echo "$(BLUE)All tiers captured -- destroying the VM...$(RESET)"
@@ -486,6 +488,7 @@ screenshots-enterprise:
 	@$(MAKE) screenshots-fleet-seed
 	@$(MAKE) screenshots-advisor-seed
 	@$(MAKE) screenshots-discovery-seed
+	@$(MAKE) screenshots-malware-seed
 	@$(MAKE) screenshots-ent-capture
 	@$(MAKE) screenshots-ent-roles
 	@echo "$(GREEN)✓ Enterprise screenshots refreshed in assets/images/$(RESET)"
@@ -708,6 +711,15 @@ screenshots-discovery-seed:
 		cat seed_discovery.py | vagrant ssh -c "cd /opt/sysmanage && sudo env PYTHONPATH=/opt/sysmanage /opt/sysmanage/.venv/bin/python - 2>&1" 2>/dev/null \
 			| sed 's/^/  /' || echo "$(YELLOW)discovery seed failed (is the Enterprise-licensed VM up and seeded?)$(RESET)"
 
+# Malware Detection (21.3): real scan jobs through the real job + result path
+# and the licensed malware_engine, a quarantine and a false-positive decision.
+screenshots-malware-seed:
+	@cd $(SHOTS_DIR) && VMIP=$$(vagrant ssh -c 'hostname -I' 2>/dev/null | awk '{print $$1}' | tr -d '\r'); \
+		[ -n "$$VMIP" ] || { echo "$(RED)Screenshot VM not running. Run 'make screenshots-ent-build' first.$(RESET)"; exit 1; }; \
+		echo "$(BLUE)Seeding malware scan jobs + findings (in-VM ORM)...$(RESET)"; \
+		cat seed_malware.py | vagrant ssh -c "cd /opt/sysmanage && sudo env PYTHONPATH=/opt/sysmanage /opt/sysmanage/.venv/bin/python - 2>&1" 2>/dev/null \
+			| sed 's/^/  /' || echo "$(YELLOW)malware seed failed (is the Enterprise-licensed VM up and seeded?)$(RESET)"
+
 # Capture into assets/images/. Targets SCREENSHOT_TARGET_WEB if set, else the
 # running VM's private IP (resolved via vagrant ssh).
 screenshots-capture: install-browsers
@@ -762,6 +774,12 @@ screenshots-advisor-capture:
 screenshots-discovery-capture:
 	@$(MAKE) screenshots-ent-capture \
 		SCREENSHOT_ONLY=ent-asset-discovery,ent-asset-discovery-known,ent-asset-discovery-static,ent-asset-discovery-sweeps
+
+# Re-capture ONLY the Malware Detection shots (21.3), against an Enterprise VM
+# that is built and seeded (through screenshots-malware-seed).
+screenshots-malware-capture:
+	@$(MAKE) screenshots-ent-capture \
+		SCREENSHOT_ONLY=ent-malware,ent-malware-decided,ent-malware-scans,ent-malware-scan-dialog,ent-malware-rulesets
 
 # Capture the Enterprise-tier shots (tier=enterprise in shotlist.json) against the
 # Enterprise-licensed VM. Run AFTER: screenshots-ent-build, screenshots-seed,
@@ -990,7 +1008,7 @@ lint-file-length:
 # .js seeders (real-screenshot.js etc.) are covered by eslint below, not here.
 LINT_PY := add_test_user.py scripts/ screenshots/seed.py screenshots/seed_pro.py \
 	screenshots/seed_ent.py screenshots/seed_ent_config.py \
-	screenshots/seed_fleet.py screenshots/seed_advisor.py screenshots/seed_discovery.py screenshots/set_roles.py \
+	screenshots/seed_fleet.py screenshots/seed_advisor.py screenshots/seed_discovery.py screenshots/seed_malware.py screenshots/set_roles.py \
 	screenshots/pro_keygen.py screenshots/fixture_agent.py screenshots/gen_seed_sql.py \
 	assets/locales/
 
