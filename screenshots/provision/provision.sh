@@ -82,16 +82,18 @@ fi
 
 # `apt-get update` exits 0 even when it could not refresh an index, so check
 # explicitly: continuing with stale lists is what produced the 404 storm.
-apt-get update -y 2>&1 | tee /tmp/apt-update.log
-if grep -qE '^(Ign|Err)' /tmp/apt-update.log; then
+# mktemp, not a fixed /tmp name: this runs as root (MITRE "Lucky 13" #11).
+APT_LOG="$(mktemp)"
+apt-get update -y 2>&1 | tee "$APT_LOG"
+if grep -qE '^(Ign|Err)' "$APT_LOG"; then
     echo "  apt index refresh was incomplete -- retrying once:"
-    grep -E '^(Ign|Err)' /tmp/apt-update.log | head -5
-    apt-get update -y 2>&1 | tee /tmp/apt-update.log
-    if grep -qE '^Err' /tmp/apt-update.log; then
+    grep -E '^(Ign|Err)' "$APT_LOG" | head -5
+    apt-get update -y 2>&1 | tee "$APT_LOG"
+    if grep -qE '^Err' "$APT_LOG"; then
         echo "ERROR: apt cannot refresh its package index." >&2
         echo "       Installing against stale lists 404s on every package," >&2
         echo "       which looks like a network fault but is not." >&2
-        grep -E '^Err' /tmp/apt-update.log | head -10 >&2
+        grep -E '^Err' "$APT_LOG" | head -10 >&2
         exit 1
     fi
 fi

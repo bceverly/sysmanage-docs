@@ -118,18 +118,24 @@ async function generateDashboardScreenshot() {
                 );
                 console.log('🔍 Found input fields:', JSON.stringify(allInputs, null, 2));
 
-                // Try multiple credential combinations
-                const credentials = [
-                    { userid: 'admin', password: 'admin' },
-                    { userid: 'admin@sysmanage.local', password: 'admin' },
-                    { userid: 'demo', password: 'demo' },
-                    { userid: 'test', password: 'test' },
-                    { userid: 'admin', password: 'password' }
-                ];
+                // Credentials come from the environment, the same variables
+                // screenshots/capture.mjs uses.  This used to try a list of
+                // well-known defaults (admin/admin, admin/password, demo/demo)
+                // -- guessing default passwords is MITRE "Lucky 13" #12
+                // (CWE-259), so it is gone.
+                const credentials = (process.env.SCREENSHOT_PW)
+                    ? [{
+                        userid: process.env.SCREENSHOT_USER || 'admin@sysmanage.org',
+                        password: process.env.SCREENSHOT_PW,
+                    }]
+                    : [];
+                if (credentials.length === 0) {
+                    console.log('Set SCREENSHOT_USER and SCREENSHOT_PW to log in');
+                }
 
                 let loginSuccess = false;
                 for (const cred of credentials) {
-                    console.log(`🔐 Trying credentials: ${cred.userid} / ${cred.password}`);
+                    console.log(`🔐 Logging in as ${cred.userid}`);
 
                     // Fill the userid field (found via debug)
                     const useridField = await page.$('input[name="userid"]');

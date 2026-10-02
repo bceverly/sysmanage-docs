@@ -222,6 +222,61 @@ class I18n {
         );
     }
 
+    // Translations are machine-generated (an LLM translation service) and are
+    // rendered as HTML, so a value must never be able to carry script.  Found
+    // 2026-10-02: ar.json held raw model output ("<tool_call>... Correction
+    // Needed!") in a translation.  Only the markup our own strings use is
+    // kept; anything else is unwrapped to its text, script-capable elements
+    // are dropped with their content, and links may only point to http(s),
+    // mailto or this site.  MITRE "Lucky 13" #2 (XSS, CWE-79); the same
+    // allow-list is enforced on the locale files by scripts/lucky13_check.py.
+    static sanitizeHtml(html) {
+        const allowedTags = new Set(['A', 'B', 'BR', 'CODE', 'DIV', 'EM', 'I', 'KBD', 'LI', 'OL',
+            'P', 'PRE', 'SMALL', 'SPAN', 'STRONG', 'SUB', 'SUP', 'UL']);
+        const droppedTags = new Set(['SCRIPT', 'STYLE', 'IFRAME', 'OBJECT', 'EMBED', 'TEMPLATE',
+            'NOSCRIPT', 'SVG', 'MATH', 'LINK', 'META', 'BASE', 'FORM', 'INPUT', 'BUTTON', 'TEXTAREA']);
+        const allowedAttrs = new Set(['href', 'class', 'target', 'rel', 'title']);
+        const ELEMENT_NODE = 1;
+        const COMMENT_NODE = 8;
+        // A <template>'s content is inert: nothing in it loads or runs.
+        const template = document.createElement('template');
+        template.innerHTML = html;
+        const clean = (parent) => {
+            Array.from(parent.childNodes).forEach((node) => {
+                if (node.nodeType === COMMENT_NODE) {
+                    node.remove();
+                    return;
+                }
+                if (node.nodeType !== ELEMENT_NODE) {
+                    return;
+                }
+                if (droppedTags.has(node.tagName)) {
+                    node.remove();
+                    return;
+                }
+                clean(node);
+                if (!allowedTags.has(node.tagName)) {
+                    node.replaceWith(...node.childNodes);
+                    return;
+                }
+                Array.from(node.attributes).forEach((attr) => {
+                    const name = attr.name.toLowerCase();
+                    const value = attr.value.trim();
+                    const badHref = name === 'href' &&
+                        /^[a-z][a-z0-9+.-]*:/i.test(value) && !/^(https?|mailto):/i.test(value);
+                    if (!allowedAttrs.has(name) || badHref) {
+                        node.removeAttribute(attr.name);
+                    }
+                });
+                if (node.getAttribute('target') === '_blank') {
+                    node.setAttribute('rel', 'noopener noreferrer');
+                }
+            });
+        };
+        clean(template.content);
+        return template.content;
+    }
+
     // Re-insert inline markup that was lifted out of a translatable string.
     //
     // A sentence carrying <code>/<strong>/<em> MID-SENTENCE is rejected by the
@@ -284,7 +339,7 @@ class I18n {
                 // Render as HTML when the string carries tags/entities.  The
                 // explicit data-i18n-html attribute still forces this for any
                 // string the heuristic might miss.
-                element.innerHTML = translation;
+                element.replaceChildren(I18n.sanitizeHtml(translation));
             } else {
                 element.textContent = translation;
             }

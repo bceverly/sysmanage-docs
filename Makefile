@@ -101,7 +101,7 @@ else
 endif
 
 .PHONY: release help install-dev install-hooks install-vm-deps install-browsers screenshot clean check-deps platform-info ensure-lint-tools \
-       test test-spelling test-markdown-lint test-vale test-accessibility test-links \
+       test test-spelling test-markdown-lint test-vale test-accessibility test-links test-lucky13 \
        check-test-deps website-package i18n-validate i18n-markup i18n-code i18n-html-sync i18n-markup-fix i18n-seed i18n-extract i18n-fix \
        translate translate-dry translate-check lint lint-file-length lint-python lint-security lint-js lint-css lint-css-fix ensure-css-lint-tools
 
@@ -165,6 +165,7 @@ help:
 	@echo "  test-vale              - Run Vale documentation style checker"
 	@echo "  test-accessibility     - Run pa11y accessibility tests on HTML pages"
 	@echo "  test-links             - Run lychee link checker on all Markdown and HTML files"
+	@echo "  test-lucky13           - MITRE \"Lucky 13\" unforgivable vulnerability checks (Christey 2007)"
 	@echo ""
 	@echo "$(GREEN)Packaging & maintenance:$(RESET)"
 	@echo "  website-package        - Build .deb package for self-hosted sysmanage.org (nginx + certbot)"
@@ -969,12 +970,25 @@ test-accessibility:
 test-links:
 	@echo "$(BLUE)=== Link Check ===$(RESET)"
 	@command -v lychee >/dev/null 2>&1 || { echo "$(YELLOW)⊘ lychee not installed -- skipping (no OpenBSD/BSD build)$(RESET)"; exit 0; }; \
-	lychee --verbose --no-progress --root-dir . --max-retries 3 --retry-wait-time 2 --exclude-path node_modules --exclude-path .git --exclude-path SignPath --exclude 'http://localhost:*' '**/*.md' '**/*.html' && echo "$(GREEN)✓ Link check passed$(RESET)"
+	ACCEPT=""; \
+	if [ -z "$$GITHUB_TOKEN" ]; then \
+		echo "$(YELLOW)⚠ GITHUB_TOKEN not set: GitHub throttles anonymous checks (429/503), so those two codes are tolerated here. CI uses a token and stays strict. For a strict local run: export GITHUB_TOKEN=<a token>$(RESET)"; \
+		ACCEPT="--accept 100..=103,200..=299,429,503"; \
+	fi; \
+	lychee --verbose --no-progress --root-dir . --max-retries 3 --retry-wait-time 2 $$ACCEPT --exclude-path node_modules --exclude-path .git --exclude-path SignPath --exclude 'http://localhost:*' '**/*.md' '**/*.html' && echo "$(GREEN)✓ Link check passed$(RESET)"
+
+# MITRE "Lucky 13" unforgivable vulnerabilities (Steve Christey, Black Hat
+# 2007) -- this repository's share: XSS sinks and translation markup, remote
+# script inclusion, world-writable files, weak crypto, predictable /tmp paths
+# and credentials in the tree.  Mirrors .github/workflows/lucky13.yml.
+test-lucky13:
+	@echo "$(BLUE)=== MITRE \"Lucky 13\" unforgivable vulnerabilities ===$(RESET)"
+	@$(PYTHON) scripts/lucky13_check.py && echo "$(GREEN)✓ Lucky 13 checks passed$(RESET)"
 
 # Run all tests (mirrors full CI/CD test suite).
 # Front-loads check-test-deps so a missing tool fails with a clear install
 # hint instead of an opaque "make: <tool>: No such file or directory".
-test: check-test-deps test-spelling test-markdown-lint test-vale test-accessibility test-links i18n-validate
+test: check-test-deps test-spelling test-markdown-lint test-vale test-accessibility test-links test-lucky13 i18n-validate
 	@echo ""
 	@echo "$(GREEN)========================================$(RESET)"
 	@echo "$(GREEN)  All tests passed$(RESET)"

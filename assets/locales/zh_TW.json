@@ -6481,7 +6481,7 @@
           "125": "啟用敏感環境的批准要求",
           "126": "定期審查腳本執行日誌",
           "127": "數據收集配置",
-          "128": "配置代理收集的系統信息及其頻率。",
+          "128": "代理程式向伺服器回報的內容與時間。未變更的報告不會再次傳送：代理程式會在內容變更時傳送報告，並且無論如何每天傳送一次，讓伺服器保持最新狀態，而不會每隔幾分鐘就收到相同的資料。",
           "129": "收集類型",
           "130": "類型",
           "131": "描述",
@@ -17229,7 +17229,25 @@
       "troubleshooting": "故障排除",
       "view_docs": "查看伺服器文檔 →"
     },
-    "title": "文檔 - SysManage"
+    "title": "文檔 - SysManage",
+    "agent_collection": {
+      "settings": "以下四項設定控制排程；其他一切皆為固定：",
+      "th_report": "報告",
+      "th_when": "傳送時間",
+      "heartbeat": "心跳",
+      "heartbeat_when": "每 30 秒 (<code>websocket.ping_interval</code>)",
+      "snapshots": "清單：已安裝的軟體、使用者與群組、硬體、作業系統、憑證、角色、套件倉庫、防毒、防火牆、日誌轉送、重新開機狀態、子主機",
+      "snapshots_when": "每 5 分鐘檢查一次；有變更時傳送，並且無論如何每 24 小時傳送一次",
+      "processes": "執行中的程序",
+      "processes_when": "每 5 分鐘檢查一次；程序啟動或停止時傳送，並且無論如何每 15 分鐘傳送一次",
+      "metrics": "主機指標（CPU、記憶體、交換空間、負載、磁碟）",
+      "metrics_when": "每 15 分鐘",
+      "updates": "可用更新",
+      "updates_when": "每小時檢查一次 (<code>client.update_check_interval</code>)；清單變更時傳送",
+      "catalog": "套件目錄（倉庫提供的內容）",
+      "catalog_when": "每 24 小時 (<code>client.package_collection_interval</code>)、啟動時（除非 <code>client.package_collection_at_startup</code> 為 false），以及伺服器要求時",
+      "full": "當伺服器要求時（從主控台重新整理，或執行回報資料的命令）、代理程式重新啟動時，以及主機獲得核准或其身分變更時，所有內容都會完整傳送，無論是否變更。3.10 之前版本的代理程式每 5 分鐘傳送一次所有報告。"
+    }
   },
   "ent": {
     "card": {
@@ -22857,7 +22875,41 @@
       "title": "安全性 文件"
     },
     "section_title": "安全",
-    "title": "安全性 文件 - SysManage"
+    "title": "安全性 文件 - SysManage",
+    "lucky13": {
+      "title": "已針對 MITRE 的 \"Lucky 13\" 不可饒恕漏洞進行測試",
+      "intro": "2007 年，MITRE 的 Steve Christey 在 Black Hat USA 上發表了 <a href=\"https://cwe.mitre.org/documents/unforgivable_vulns/unforgivable.pdf\" target=\"_blank\">Unforgivable Vulnerabilities</a>：十三類弱點，文件如此完備、如此明顯、又如此容易發現，以至於發布其中任何一個都是不可饒恕的。SysManage 會明確地逐一測試它們。",
+      "ci": "伺服器、代理程式與文件儲存庫在每次推送時，都會在 CI 中以獨立命名的步驟執行這些檢查；Professional+ 則在每次發行版建置時執行。每個儲存庫都可以使用 <code>make test-lucky13</code> 在本機執行，並檢查適用於自身的類別。每項發現不是被修正，就是連同其安全理由一起記錄在經過審查的允許清單中。",
+      "th_num": "#",
+      "th_class": "漏洞類別",
+      "th_check": "SysManage 的檢查方式",
+      "r01_class": "緩衝區溢位 (CWE-120)",
+      "r01_check": "每個登入與註冊欄位以及每個路徑參數中的過大值 (例如 100 KB 的字串) 都必須被乾淨地拒絕，絕不能導致伺服器當機。",
+      "r02_class": "跨網站指令碼 (CWE-79)",
+      "r02_check": "Web 介面與本網站中沒有未經審查的原始 HTML 輸出；機器翻譯在呈現之前會先經過清理。",
+      "r03_class": "目錄周遊 (CWE-23)",
+      "r03_check": "每個路徑參數中的 <code>../..</code> 與絕對路徑都會被拒絕。",
+      "r04_class": "遠端檔案引入 (CWE-98)",
+      "r04_check": "絕不會從請求資料中載入程式碼；Professional+ 引擎只有在其簽章通過驗證後才會被載入。",
+      "r05_class": "SQL 注入 (CWE-89)",
+      "r05_check": "登入及每個 ID 參數中的 <code>' OR 1=1</code> 既不會讓任何人登入，也不會以 SQL 的形式到達資料庫。",
+      "r06_class": "所有人皆可寫入的檔案 (CWE-276、CWE-279)",
+      "r06_check": "安裝程式、指令碼與程式碼絕不會授予其他使用者對檔案或目錄的寫入權限。",
+      "r07_class": "直接請求 (CWE-425)",
+      "r07_check": "每個 API 路由都需要登入，或連同原因列在經過審查的公開清單中；對所有其他路由的匿名呼叫都會被拒絕。",
+      "r08_class": "使用 <code>authenticated=1</code> 繞過驗證 (CWE-472)",
+      "r08_check": "在每個受保護的路由上，聲稱呼叫端已登入或是管理員的偽造 Cookie、標頭與表單欄位都會被忽略。",
+      "r09_class": "自製加密 (CWE-327)",
+      "r09_check": "只使用經過審查的標準函式庫：不將 MD5 或 SHA-1 用於安全目的，不使用 DES、RC4、ECB 模式或自製加密法。",
+      "r10_class": "透過說明進行權限提升 (CWE-271)",
+      "r10_check": "特權程式碼 (伺服器，以及以 root 或 SYSTEM 身分執行的代理程式) 絕不會啟動瀏覽器、說明檢視器或任何其他介面。",
+      "r11_class": "符號連結跟隨 (CWE-61)",
+      "r11_check": "沒有可預測的暫存檔名稱。",
+      "r12_class": "寫死或預設的密碼 (CWE-259)",
+      "r12_check": "原始碼、工具與工作流程中不含任何憑證。範例設定只包含佔位值；安裝程式會為每個安裝產生各自的 JWT 密鑰、密碼鹽與復原密碼，佔位值或眾所周知的密碼在登入時絕不會被接受。",
+      "r13_class": "整數溢位 (CWE-190)",
+      "r13_check": "每個數值參數中的 <code>0xffffffff</code>、超過 64 位元的值以及負數都會被乾淨地拒絕。"
+    }
   },
   "security_page": {
     "features": "安全功能",
@@ -23393,7 +23445,8 @@
           "generate_secrets": "產生新的機密值：<code>openssl rand -base64 32</code>",
           "never_commit": "永遠不要將配置檔案提交到版本控制",
           "strong_passwords": "使用強密碼（12 個字元以上）",
-          "title": "必需的安全步驟"
+          "title": "必需的安全步驟",
+          "installer_generated": "安裝套件（deb、rpm、FreeBSD、NetBSD、macOS、Windows、snap）在建立設定檔時會產生 <code>jwt_secret</code>、<code>password_salt</code> 以及復原用的 <code>admin_password</code>；復原密碼存放在該檔案中。佔位值或 <code>admin</code> 這類眾所周知的密碼在登入時絕不會被接受。手動安裝時，請執行 <code>python -m backend.config.install_secrets --apply /etc/sysmanage.yaml</code>。"
         },
         "title": "步驟 6：配置",
         "windows_path": "Windows："

@@ -7,8 +7,10 @@
 Add a test user to the SysManage database for screenshot purposes
 """
 
-import sys
+import os
+import secrets
 import sqlite3
+import sys
 from datetime import datetime, timezone
 from argon2 import PasswordHasher
 
@@ -23,7 +25,11 @@ def add_test_user():
 
     # User details
     userid = 'admin@sysmanage.local'
-    password = 'AdminPassword123!'  # Meets policy: uppercase, lowercase, number, special char
+    # No password in the source (MITRE "Lucky 13" #12, CWE-259): take it from
+    # the environment, or generate one that meets the policy and print it once.
+    password = os.environ.get("SYSMANAGE_TEST_PASSWORD") or (
+        secrets.token_urlsafe(18) + "Aa1!"
+    )
     first_name = 'System'
     last_name = 'Administrator'
 

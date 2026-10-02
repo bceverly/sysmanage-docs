@@ -170,6 +170,45 @@ Automated screenshots are generated for:
 
 See [SCREENSHOTS.md](SCREENSHOTS.md) for details on the screenshot generation process.
 
+## 🔒 Security
+
+### MITRE "Lucky 13" (Unforgivable Vulnerabilities)
+
+Every SysManage repository is checked on every push for the thirteen
+"unforgivable" vulnerability classes in Steve Christey's paper
+[Unforgivable Vulnerabilities](https://cwe.mitre.org/documents/unforgivable_vulns/unforgivable.pdf)
+(MITRE, Black Hat USA 2007): weaknesses so well documented and so easy to find
+that shipping one is unforgivable. Each repository checks the classes that
+apply to it.
+
+This repository is a static site, so it checks:
+
+| # | Class | What is checked here |
+| --- | --- | --- |
+| 2 | Cross-site scripting (CWE-79) | No unreviewed raw-HTML sinks in the site's JavaScript; every translation uses only allowed markup, and `assets/js/i18n.js` sanitizes translations before rendering them |
+| 4 | Remote file inclusion (CWE-98) | No third-party `<script src>` without an integrity hash; no `eval`/`exec`/dynamic import in our scripts |
+| 6 | World-writable files (CWE-276) | No `chmod` granting write to others in scripts, hooks or workflows |
+| 9 | Grow-your-own crypto (CWE-327) | No MD5/SHA-1 for security, PyCrypto, DES, RC4, ECB or rot13 |
+| 11 | Symlink following (CWE-61) | No `tempfile.mktemp` or fixed `/tmp` paths |
+| 12 | Hard-coded passwords (CWE-259) | No private keys, tokens or password literals in scripts, tooling or workflows |
+
+The other classes (buffer overflow, directory traversal, SQL injection, direct
+request, `authenticated=1`, privilege escalation via Help and integer
+overflow) need a server, a database or privileged code, and are checked in the
+[server](https://github.com/bceverly/sysmanage),
+[agent](https://github.com/bceverly/sysmanage-agent) and Professional+
+repositories.
+
+Run locally:
+
+```bash
+make test-lucky13      # also part of make test
+```
+
+In CI it runs as the `MITRE "Lucky 13" unforgivable vulnerabilities (Christey 2007)`
+step of `.github/workflows/lucky13.yml`. A hit is either fixed or added to the
+reviewed allow-list in `scripts/lucky13_check.py` with the reason it is safe.
+
 ## 🤝 Contributing
 
 We welcome contributions to improve SysManage documentation!

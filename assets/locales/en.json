@@ -7449,7 +7449,7 @@
           "125": "Enable approval requirements for sensitive environments",
           "126": "Regularly review script execution logs",
           "127": "Data Collection Configuration",
-          "128": "Configure what system information the agent collects and how frequently.",
+          "128": "What the agent reports to the server, and when. Unchanged reports are not sent again: the agent sends a report when its content changes, and once a day regardless, so the server stays current without the same data arriving every few minutes.",
           "129": "Collection Types",
           "130": "Type",
           "131": "Description",
@@ -16792,6 +16792,24 @@
       "title": "Comparison",
       "description": "How SysManage stacks up against Ansible, Puppet, Salt, Chef, and Satellite -- including first-class FreeBSD, OpenBSD, and NetBSD support most tools lack.",
       "view": "View Comparison →"
+    },
+    "agent_collection": {
+      "settings": "Four settings control the schedule; everything else is fixed:",
+      "th_report": "Report",
+      "th_when": "When it is sent",
+      "heartbeat": "Heartbeat",
+      "heartbeat_when": "Every 30 seconds (<code>websocket.ping_interval</code>)",
+      "snapshots": "Inventory: installed software, users and groups, hardware, operating system, certificates, roles, package repositories, antivirus, firewall, log forwarding, reboot status, child hosts",
+      "snapshots_when": "Checked every 5 minutes; sent when something changed, and once every 24 hours regardless",
+      "processes": "Running processes",
+      "processes_when": "Checked every 5 minutes; sent when a process starts or stops, and every 15 minutes regardless",
+      "metrics": "Host metrics (CPU, memory, swap, load, disk)",
+      "metrics_when": "Every 15 minutes",
+      "updates": "Available updates",
+      "updates_when": "Checked every hour (<code>client.update_check_interval</code>); sent when the list changes",
+      "catalog": "Package catalog (what repositories offer)",
+      "catalog_when": "Every 24 hours (<code>client.package_collection_interval</code>), at startup unless <code>client.package_collection_at_startup</code> is false, and whenever the server asks",
+      "full": "Everything is sent in full, changed or not, when the server asks for it (a refresh from the console, or a command that reports data), when the agent restarts, and when the host is approved or its identity changes. Agents before version 3.10 send every report every 5 minutes."
     }
   },
   "features": {
@@ -21783,7 +21801,41 @@
       "title": "Security Documentation"
     },
     "section_title": "Security",
-    "title": "Security Documentation - SysManage"
+    "title": "Security Documentation - SysManage",
+    "lucky13": {
+      "title": "Tested for MITRE's \"Lucky 13\" Unforgivable Vulnerabilities",
+      "intro": "In 2007 Steve Christey of MITRE presented <a href=\"https://cwe.mitre.org/documents/unforgivable_vulns/unforgivable.pdf\" target=\"_blank\">Unforgivable Vulnerabilities</a> at Black Hat USA: thirteen classes of weakness so well documented, so obvious and so cheap to find that shipping one is unforgivable. SysManage tests for every one of them explicitly.",
+      "ci": "The server, agent and documentation repositories run these checks in CI as a named step on every push; Professional+ runs them on every release build. Each repository runs them locally with <code>make test-lucky13</code> and checks the classes that apply to it. A finding is fixed, or recorded on a reviewed allow-list together with the reason it is safe.",
+      "th_num": "#",
+      "th_class": "Vulnerability class",
+      "th_check": "How SysManage checks it",
+      "r01_class": "Buffer overflow (CWE-120)",
+      "r01_check": "Oversized values, such as 100 KB strings, in every sign-in and enrollment field and every path parameter must be refused cleanly and never crash the server.",
+      "r02_class": "Cross-site scripting (CWE-79)",
+      "r02_check": "No unreviewed raw-HTML output in the web interface or on this site; machine translations are sanitized before they are rendered.",
+      "r03_class": "Directory traversal (CWE-23)",
+      "r03_check": "<code>../..</code> and absolute paths in every path parameter are refused.",
+      "r04_class": "Remote file inclusion (CWE-98)",
+      "r04_check": "No code is ever loaded from request data; Professional+ engines are loaded only after their signature is verified.",
+      "r05_class": "SQL injection (CWE-89)",
+      "r05_check": "<code>' OR 1=1</code> in the login and in every id parameter neither signs anyone in nor reaches the database as SQL.",
+      "r06_class": "World-writable files (CWE-276, CWE-279)",
+      "r06_check": "Installers, scripts and code never give other users write access to files or directories.",
+      "r07_class": "Direct request (CWE-425)",
+      "r07_check": "Every API route requires a login or is on a reviewed public list with its reason; anonymous calls to every other route are refused.",
+      "r08_class": "Authentication bypass with <code>authenticated=1</code> (CWE-472)",
+      "r08_check": "Forged cookies, headers and form fields that claim the caller is signed in or an administrator are ignored on every protected route.",
+      "r09_class": "Grow-your-own cryptography (CWE-327)",
+      "r09_check": "Only standard, reviewed libraries: no MD5 or SHA-1 for security, no DES, RC4, ECB mode or home-made ciphers.",
+      "r10_class": "Privilege escalation through Help (CWE-271)",
+      "r10_check": "Privileged code (the server, and the agent running as root or SYSTEM) never launches a browser, a help viewer or any other interface.",
+      "r11_class": "Symlink following (CWE-61)",
+      "r11_check": "No predictable temporary file names.",
+      "r12_class": "Hard-coded or default passwords (CWE-259)",
+      "r12_check": "No credentials in source code, tooling or workflows. The example configuration ships only placeholders; the installers generate each installation's JWT secret, password salt and recovery password, and a placeholder or well-known password is never accepted at sign-in.",
+      "r13_class": "Integer overflow (CWE-190)",
+      "r13_check": "<code>0xffffffff</code>, values beyond 64 bits and negative numbers in every numeric parameter are refused cleanly."
+    }
   },
   "security_page": {
     "features": "Security Features",
@@ -22319,7 +22371,8 @@
           "generate_secrets": "Generate new secrets: <code>openssl rand -base64 32</code>",
           "never_commit": "Never commit configuration files to version control",
           "strong_passwords": "Use strong passwords (12+ characters)",
-          "title": "Required Security Steps"
+          "title": "Required Security Steps",
+          "installer_generated": "The packages (deb, rpm, FreeBSD, NetBSD, macOS, Windows, snap) generate <code>jwt_secret</code>, <code>password_salt</code> and the recovery <code>admin_password</code> when they create the configuration file; the recovery password is in that file. A placeholder or well-known password such as <code>admin</code> is never accepted at sign-in. For a manual install, run <code>python -m backend.config.install_secrets --apply /etc/sysmanage.yaml</code>."
         },
         "title": "Step 6: Configuration",
         "windows_path": "Windows:"
