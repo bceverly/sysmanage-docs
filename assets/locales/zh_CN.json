@@ -22946,7 +22946,7 @@
         "intro": "每个服务器工作进程都维护一个 PostgreSQL 连接池。安装程序会根据所安装的机器确定该连接池的大小，并将这些值写入 <code>sysmanage.yaml</code>，以便您查看和修改：",
         "sizing": "这些值的确定方式：<code>size</code> 为 CPU 数量的两倍再加 8，并限制在 10 到 40 之间，<code>max_overflow</code> 与其相同。在小型机器上，两者都受内存限制（约每 GB 25 个连接，因为 PostgreSQL 通常运行在同一台机器上）。如果完全省略该配置块，服务器每次启动时都会计算出相同的值。",
         "check": "服务器启动时会向 PostgreSQL 查询 <code>max_connections</code>。所有工作进程的连接池，加上为其他用途（迁移、监控、管理员的 <code>psql</code>）预留的 10 个连接，必须在此范围内。如果超出，服务器会先减小 <code>max_overflow</code>，再减小 <code>size</code>，直到满足为止，并记录一条同时列出这两个数值的警告。服务器绝不会因此拒绝启动。要使用更大的连接池，请在 <code>postgresql.conf</code> 中提高 <code>max_connections</code>（并重新启动 PostgreSQL），或在此处降低这些值。",
-        "workers": "工作进程会使一切成倍增加：每个工作进程都有自己的连接池。工作进程数量来自环境变量 <code>SYSMANAGE_UVICORN_WORKERS</code>（默认为 1），启动检查会将其考虑在内。",
+        "workers": "worker 会让一切成倍增加：每个 worker 都有自己的连接池。默认情况下，服务器会根据所在机器选择 worker 数量：每个 CPU 一个，但保留四分之一的 CPU 给 PostgreSQL 和操作系统；超过 2 GB 的内存每 GB 至多一个；最多 16 个；使用 SQLite 时始终只运行一个。在 <code>sysmanage.yaml</code> 中将 <code>api.workers</code> 设为一个数字即可覆盖该值（环境变量 <code>SYSMANAGE_UVICORN_WORKERS</code> 优先于两者）。启动检查会考虑这个数量，服务器日志会说明选择了多少个以及原因。",
         "tenants": "启用多租户后，每个租户数据库也会为每个工作进程分配一个小连接池（<code>tenant_size</code> 加 <code>tenant_max_overflow</code>）。在为承载大量租户的数据库服务器规划 <code>max_connections</code> 时，也要将这些计算在内。",
         "commands": "要查看某台机器的值，或将这些值添加到现有配置中（现有的 <code>database_pool</code> 配置块永远不会被修改），请在服务器的安装目录中运行：",
         "history": "在 3.10 版本之前，连接池采用固定的库默认值（5 个连接加 10 个溢出连接），并且每个已连接的代理在保持连接期间都会一直占用一个连接，因此几十个代理就可能使服务器停滞。现在，代理仅在处理消息期间借用连接。",
