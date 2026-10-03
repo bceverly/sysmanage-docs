@@ -337,7 +337,7 @@ openssl rand -base64 16</code></pre>
 .venv/bin/python -m backend.persistence.pool_sizing --apply /etc/sysmanage.yaml</code></pre>
                         <p data-i18n="server_configuration.advanced.performance.history" data-i18n-html>Before version 3.10 the pool was a fixed library default (5 connections plus 10 overflow) and each connected agent held a connection for as long as it stayed connected, so a few dozen agents could stall the server. Agents now borrow a connection only while a message is being handled.</p>
                         <h3 data-i18n="server_configuration.advanced.agent_connections.title" data-i18n-html>Agent Connections</h3>
-                        <p data-i18n="server_configuration.advanced.agent_connections.intro" data-i18n-html>Two limits protect the server when many agents connect at once, for example after the server restarts. Every key is optional; the values shown are the defaults:</p>
+                        <p data-i18n="server_configuration.advanced.agent_connections.intro" data-i18n-html>These settings protect the server when many agents connect at once, for example after the server restarts. Every key is optional; the values shown are the defaults:</p>
                         <pre><code>security:
   trusted_proxies: ["127.0.0.1", "::1"]  # reverse proxies whose X-Forwarded-For is believed
   agent_connection_limits:
@@ -345,9 +345,13 @@ openssl rand -base64 16</code></pre>
     per_address: 600           # per address, for agents not registered yet
     window_seconds: 900
     admissions_per_second: 100 # registrations admitted per second, per worker
-    admission_burst: 200</code></pre>
+    admission_burst: 200
+    initial_report_drain_per_second: 50    # the drain rate assumed until one is measured
+    initial_report_messages_per_agent: 10  # what one connecting agent is expected to add
+    initial_report_max_window_seconds: 1800</code></pre>
                         <p data-i18n="server_configuration.advanced.agent_connections.limits" data-i18n-html>Once an agent is registered it is limited by its own identity, so agents behind one NAT address or proxy no longer share an allowance; only agents that have not registered yet are counted by address. An agent over its limit is told how long to wait, with a little randomness so a crowd does not return in the same second.</p>
                         <p data-i18n="server_configuration.advanced.agent_connections.admission" data-i18n-html>After a restart, registrations are admitted at a steady rate instead of all at once. An agent over the rate is not refused: its registration reply simply arrives later, and it holds no database connection while it waits.</p>
+                        <p data-i18n="server_configuration.advanced.agent_connections.report_window" data-i18n-html>An agent's first reports after it connects can add dozens of messages, and a whole fleet connecting at once adds them all in the same minute. When the server already has work queued, or many agents have just connected, it asks each connecting agent to spread its first reports over a window: the work it expects divided by the rate it has been working through messages over the last minute, at most <code>initial_report_max_window_seconds</code>. A quiet server asks for no delay. <code>initial_report_messages_per_agent</code> is how much work one connecting agent is expected to add. <code>initial_report_drain_per_second</code> is the lowest rate the server assumes, for when it has measured too little to go on.</p>
                         <p data-i18n="server_configuration.advanced.agent_connections.trusted" data-i18n-html>Behind a reverse proxy the server reads the client's address from <code>X-Forwarded-For</code>, but only when the request comes from one of <code>trusted_proxies</code>, and only the part that proxy added. The default trusts the local machine, which is where the installers put nginx. If your proxy runs on another machine, add its address.</p>
                     </div>
                 </section>
