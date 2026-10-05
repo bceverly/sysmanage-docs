@@ -100,7 +100,7 @@ else
     RESET :=
 endif
 
-.PHONY: release help install-dev install-hooks install-vm-deps install-browsers screenshot clean check-deps platform-info ensure-lint-tools \
+.PHONY: lint-license-headers lint-license-headers-fix release help install-dev install-hooks install-vm-deps install-browsers screenshot clean check-deps platform-info ensure-lint-tools \
        test test-spelling test-markdown-lint test-vale test-accessibility test-links test-lucky13 \
        check-test-deps website-package i18n-validate i18n-markup i18n-code i18n-html-sync i18n-markup-fix i18n-seed i18n-extract i18n-fix \
        translate translate-dry translate-check lint lint-file-length lint-python lint-security lint-js lint-css lint-css-fix ensure-css-lint-tools
@@ -190,6 +190,8 @@ help:
 	@echo "$(YELLOW)Other targets:$(RESET)"
 	@echo "  make install-hooks     - Point core.hooksPath at the in-repo .githooks/"
 	@echo "  make lint-file-length  - No source file over 1000 lines (the pre-push gate)"
+	@echo "  make lint-license-headers - Copyright + license header on every source file"
+	@echo "  make lint-license-headers-fix - Add missing headers / bump a stale year"
 	@echo "  make ensure-lint-tools - Create the lint venv (pylint + bandit) if absent"
 	@echo "  make ensure-js-lint-tools - Install the local eslint devDependency if absent"
 	@echo "  make screenshots-check-vm-config - Validate the screenshot VM configuration"
@@ -1001,6 +1003,16 @@ test: check-test-deps test-spelling test-markdown-lint test-vale test-accessibil
 # File-length gate: no source file may exceed 1000 lines (scripts/ exempt).
 # Keyed on code extensions only, so docs content (.html/.md/.json/.css) is
 # inherently exempt -- only actual code (.py/.ts/.js) is subject to the limit.
+# License-header gate: every source file carries our copyright notice and
+# THIS repository's license (AGPL here; proprietary in Pro+, never crossed).
+# The fix target adds missing headers and bumps a stale end year; a header
+# naming the wrong license is reported for a person to correct.
+lint-license-headers:
+	@$(PYTHON) scripts/check_license_headers.py
+
+lint-license-headers-fix:
+	@$(PYTHON) scripts/check_license_headers.py --fix
+
 lint-file-length:
 	@echo "Checking file lengths (max 1000 lines; scripts/ + generated i18n exempt)..."
 	@bad=$$(git ls-files '*.py' '*.pyx' '*.pxi' '*.ts' '*.tsx' '*.js' '*.jsx' \
@@ -1124,7 +1136,7 @@ lint-css-fix: ensure-css-lint-tools
 	@./node_modules/.bin/stylelint "assets/css/**/*.css" --fix
 	@echo "[OK] CSS auto-fix completed"
 
-lint: lint-file-length lint-python lint-security lint-js lint-css i18n-validate i18n-strict i18n-markup i18n-code i18n-html-sync translate-check
+lint: lint-file-length lint-license-headers lint-python lint-security lint-js lint-css i18n-validate i18n-strict i18n-markup i18n-code i18n-html-sync translate-check
 	@echo "[OK] docs lint (python + security + js + i18n) passed"
 
 # Structure gate. i18n-validate asks "is the key there?", translate-check asks
