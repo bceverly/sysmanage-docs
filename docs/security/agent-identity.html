@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Agent Identity - SysManage Security</title>
+    <meta name="description" content="How the SysManage server knows an agent is the host it claims to be: a secret host token per host, every connection verified, a hostname never enough.">
+    <link rel="stylesheet" href="/assets/css/style.css">
+    <link rel="icon" type="image/svg+xml" href="/assets/images/favicon.svg">
+</head>
+<body data-auto-header="documentation" data-auto-footer>
+    <!-- Header injected automatically by components.js -->
+
+    <main class="docs-main">
+        <div class="container">
+            <div class="docs-breadcrumb">
+                <a href="../" data-i18n="docs.auto.security.authentication.001">Documentation</a> > <a href="./" data-i18n="docs.auto.security.authentication.002">Security</a> > <span data-i18n="security_agent_identity.crumb" data-i18n-html>Agent Identity</span>
+            </div>
+
+            <div class="docs-header">
+                <h1 data-i18n="security_agent_identity.title" data-i18n-html>Agent Identity</h1>
+                <p data-i18n="security_agent_identity.lead" data-i18n-html>How the server knows that an agent is the host it claims to be, and why a hostname is never enough.</p>
+            </div>
+
+            <div class="docs-content">
+                <section class="docs-section">
+                    <h2 data-i18n="security_agent_identity.name.title" data-i18n-html>A Host Is Its Credential, Not Its Name</h2>
+                    <p data-i18n="security_agent_identity.name.p1" data-i18n-html>Hostnames are public: they are in DNS, in certificates and in inventories. So every agent holds a host token, a secret the server issues once, when the host is first registered, and the agent keeps in its own database. The server identifies an agent by that token, never by its hostname or its address.</p>
+                </section>
+                <section class="docs-section">
+                    <h2 data-i18n="security_agent_identity.token.title" data-i18n-html>How an Agent Gets Its Token</h2>
+                    <ul>
+                        <li data-i18n="security_agent_identity.token.new" data-i18n-html><strong>A new host</strong> gets its id and token from the registration that created it, and from no other.</li>
+                        <li data-i18n="security_agent_identity.token.existing" data-i18n-html><strong>Registering a name that already exists</strong> returns no credential: knowing a host's name is not proof of being that host.</li>
+                        <li data-i18n="security_agent_identity.token.retry" data-i18n-html><strong>A lost reply</strong> (a timeout, a server restart at the wrong moment) does not lock the agent out. The agent sends the same random value with every registration attempt, and the server recognizes the retry and sends the credential again. That value stops working the first time the agent proves its token.</li>
+                        <li data-i18n="security_agent_identity.token.kept" data-i18n-html><strong>The agent keeps its token</strong> across restarts and upgrades; a reply that does not carry one never erases it.</li>
+                    </ul>
+                </section>
+                <section class="docs-section">
+                    <h2 data-i18n="security_agent_identity.verify.title" data-i18n-html>Every Connection Is Verified</h2>
+                    <p data-i18n="security_agent_identity.verify.p1" data-i18n-html>When an agent connects, it presents its host id and its token. A connection that claims an existing host without the right token is refused: nothing is bound to it, it receives no token, and the server logs the attempt and writes an audit entry with the claimed host and the source address.</p>
+                    <p data-i18n="security_agent_identity.verify.p2" data-i18n-html>After that, every message on a connection may only touch that connection's own host, and a host's commands go only to its verified connection.</p>
+                </section>
+                <section class="docs-section">
+                    <h2 data-i18n="security_agent_identity.older.title" data-i18n-html>Older Agents</h2>
+                    <p data-i18n="security_agent_identity.older.p1" data-i18n-html>Agents released before this protection identify with their host id alone. They are still accepted, so upgrading the server does not lock out a fleet. Once an upgraded agent proves its token, its host is marked as requiring one, and the host id alone is refused for that host from then on.</p>
+                </section>
+                <section class="docs-section">
+                    <h2 data-i18n="security_agent_identity.reinstall.title" data-i18n-html>Reinstalled Hosts</h2>
+                    <p data-i18n="security_agent_identity.reinstall.p1" data-i18n-html>A reinstalled host has lost its token, so it can no longer connect as itself. An administrator re-enrolls it from the host page, which clears the old credential and returns the host to pending approval; see <a href="../getting-started/agent-approval.html">Agent Approval</a>.</p>
+                </section>
+                <section class="docs-section">
+                    <h2 data-i18n="security_agent_identity.tested.title" data-i18n-html>How This Is Tested</h2>
+                    <p data-i18n="security_agent_identity.tested.p1" data-i18n-html>Every change to the server runs an impersonation check: a real server, a legitimate agent, and an attacker that knows only that agent's hostname. The attacker tries to register the name again, to connect as the host, to send data with no token or a wrong one, and to receive the host's commands. Every attempt must fail, while the legitimate agent's own updates and an older agent's connection must succeed.</p>
+                </section>
+            </div>
+        </div>
+    </main>
+
+    <!-- Footer injected automatically by components.js -->
+    <script src="/assets/js/components.js"></script>
+    <script src="/assets/js/i18n.js"></script>
+    <script src="/assets/js/main.js"></script>
+    <script src="/assets/js/navbar.js"></script>
+</body>
+</html>

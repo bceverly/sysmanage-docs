@@ -16143,7 +16143,7 @@
         },
         "proplus_install": {
           "command": "Do servidor isolado, monte o ISO Pro+ e execute seu instalador:",
-          "grace_note": "<strong>Sobre o período de graça offline:</strong> a sobreposição Pro+ <em>não</em> anula a configuração do <code>license.phone_home_url</code>. O JWT da licença inclui um campo <code>offline_days</code> (geralmente 30); o validador opera no modo de graça offline por esse número de dias após a instalação. Planeje reconstruir a sobreposição Pro+ em um host de construção conectado à internet e reaplicá-la no servidor isolado antes que a janela de graça expire -- caso contrário, o Pro+ silenciosamente rebaixa para a tier Community na próxima inicialização do serviço. Este é o mecanismo de enforcement intencionado que previne a compartilhamento indefinido da ISO de sobreposição.",
+          "grace_note": "<strong>Sobre a operação offline:</strong> um servidor isolado mantém sua licença Pro+ enquanto a própria licença for válida; não há limite de tempo para operar offline. O que a limita é a data de expiração da licença, mais 7 dias de carência, que o servidor verifica a cada inicialização e cerca de uma vez por dia enquanto está em execução. Passado esse prazo, os recursos Pro+ são desativados e o servidor continua funcionando como Community. Para renovar, gere a sobreposição Pro+ com a nova licença no host de build conectado à Internet e aplique-a no servidor isolado. O campo <code>offline_days</code> da licença define apenas quando o log do servidor começa a avisar que não alcançou o servidor de licenças; revogações e atualizações de engines não chegam a um servidor offline.",
           "intro": "Pule esta etapa se o servidor isolado apenas precisar das funcionalidades da camada Comunidade. Para habilitar as características Pro+ (espelhamento de repositório, gerenciamento de hosts filhos, federação, etc.) no servidor isolado, instale a sobreposição Pro+ em cima do servidor já instalado. A sobreposição Pro+ carrega os módulos da engine Cython licenciada, o JWT de licença e a chave pública de licença cacheada -- nenhum acesso à rede para <code>license.sysmanage.org</code> é necessário em qualquer ponto.",
           "step1": "Verifica se o servidor SysManage está instalado (procura por <code>/opt/sysmanage/.venv/bin/python</code> e <code>/etc/sysmanage.yaml</code>).",
           "step2": "Copia os módulos embutidos do motor Cython e as camadas JavaScript para <code>/var/lib/sysmanage/modules/</code> (propriedade de <code>sysmanage:sysmanage</code>, modo 0644).",
@@ -17131,7 +17131,8 @@
       "reporting": "Relatórios de Vulnerabilidade",
       "scanning": "Varredura de Segurança",
       "title": "Segurança",
-      "view_docs": "Ver Docs de Segurança →"
+      "view_docs": "Ver Docs de Segurança →",
+      "agent_identity": "Identidade do agente"
     },
     "server": {
       "configuration": "Configuração",
@@ -22828,6 +22829,14 @@
       "r12_check": "Nenhuma credencial no código-fonte, nas ferramentas ou nos workflows. A configuração de exemplo traz apenas marcadores de posição; os instaladores geram o segredo JWT, o salt de senhas e a senha de recuperação de cada instalação, e um marcador de posição ou uma senha conhecida nunca é aceito no login.",
       "r13_class": "Estouro de inteiros (CWE-190)",
       "r13_check": "<code>0xffffffff</code>, valores acima de 64 bits e números negativos em cada parâmetro numérico são recusados de forma limpa."
+    },
+    "agent_identity": {
+      "title": "Identidade do agente",
+      "description": "Como o servidor distingue um agente real de um que só conhece um nome de host.",
+      "token": "Um token de host secreto por host, emitido uma única vez",
+      "verify": "Toda conexão verificada; impostores recusados e auditados",
+      "reinstall": "Registrar novamente um host reinstalado",
+      "link": "Identidade do agente →"
     }
   },
   "security_page": {
@@ -24271,5 +24280,38 @@
     "workers": "Um servidor SysManage escala executando mais processos worker em sua máquina. Cada worker atende seus agentes a partir de um loop de eventos; os workers compartilham um banco de dados PostgreSQL e se coordenam por meio dele, por isso não precisam de cache nem de broker de mensagens entre eles.",
     "tenants": "Com multilocação, cada locatário tem seu próprio banco de dados, que pode ser colocado em outro servidor PostgreSQL para tirar suas conexões e sua carga do servidor principal.",
     "guide": "Quantos agentes um servidor suporta, como dimensionar sua CPU, sua memória e suas conexões de banco de dados e o que esperar após uma reinicialização foram medidos, não estimados. Estão no <a href=\"../server/scaling.html\">Guia de escalabilidade</a>."
+  },
+  "security_agent_identity": {
+    "crumb": "Identidade do agente",
+    "title": "Identidade do agente",
+    "lead": "Como o servidor sabe que um agente é o host que afirma ser, e por que um nome de host nunca é suficiente.",
+    "name": {
+      "title": "Um host é a sua credencial, não o seu nome",
+      "p1": "Nomes de host são públicos: estão no DNS, em certificados e em inventários. Por isso, cada agente possui um token de host, um segredo que o servidor emite uma única vez, quando o host é registrado pela primeira vez, e que o agente guarda em seu próprio banco de dados. O servidor identifica um agente por esse token, nunca pelo seu nome de host ou pelo seu endereço."
+    },
+    "token": {
+      "title": "Como um agente obtém seu token",
+      "new": "<strong>Um novo host</strong> recebe seu id e seu token do registro que o criou, e de nenhum outro.",
+      "existing": "<strong>Registrar um nome que já existe</strong> não retorna nenhuma credencial: conhecer o nome de um host não é prova de ser esse host.",
+      "retry": "<strong>Uma resposta perdida</strong> (um tempo limite esgotado, uma reinicialização do servidor no momento errado) não bloqueia o agente. O agente envia o mesmo valor aleatório em cada tentativa de registro, e o servidor reconhece a nova tentativa e envia a credencial novamente. Esse valor deixa de funcionar na primeira vez que o agente comprova seu token.",
+      "kept": "<strong>O agente mantém seu token</strong> entre reinicializações e atualizações; uma resposta que não contém um token nunca o apaga."
+    },
+    "verify": {
+      "title": "Toda conexão é verificada",
+      "p1": "Quando um agente se conecta, ele apresenta seu id de host e seu token. Uma conexão que alega ser um host existente sem o token correto é recusada: nada é vinculado a ela, ela não recebe nenhum token, e o servidor registra a tentativa em log e grava uma entrada de auditoria com o host alegado e o endereço de origem.",
+      "p2": "A partir daí, cada mensagem em uma conexão só pode afetar o próprio host dessa conexão, e os comandos de um host vão somente para sua conexão verificada."
+    },
+    "older": {
+      "title": "Agentes mais antigos",
+      "p1": "Agentes lançados antes desta proteção se identificam apenas com seu id de host. Eles continuam sendo aceitos, de modo que atualizar o servidor não bloqueia uma frota. Assim que um agente atualizado comprova seu token, seu host é marcado como exigindo um, e o id de host sozinho passa a ser recusado para esse host a partir de então."
+    },
+    "reinstall": {
+      "title": "Hosts reinstalados",
+      "p1": "Um host reinstalado perdeu seu token, portanto não pode mais se conectar como ele mesmo. Um administrador o registra novamente a partir da página do host, o que apaga a credencial antiga e retorna o host para aprovação pendente; consulte <a href=\"../getting-started/agent-approval.html\">Aprovação de agentes</a>."
+    },
+    "tested": {
+      "title": "Como isso é testado",
+      "p1": "Toda alteração no servidor executa uma verificação de personificação: um servidor real, um agente legítimo e um atacante que conhece apenas o nome de host desse agente. O atacante tenta registrar o nome novamente, conectar-se como o host, enviar dados sem token ou com um token errado e receber os comandos do host. Toda tentativa deve falhar, enquanto as atualizações do próprio agente legítimo e a conexão de um agente mais antigo devem ter sucesso."
+    }
   }
 }

@@ -16143,7 +16143,7 @@
         },
         "proplus_install": {
           "command": "Du serveur hors ligne, montez l'ISO Pro+ et exécutez son programme d'installation :",
-          "grace_note": "<strong>À propos de la période d'indulgence hors ligne :</strong> l'overlay Pro+ ne <em>ne vide pas</em> le paramètre <code>license.phone_home_url</code>. Le jeton de licence inclut un champ <code>offline_days</code> (généralement 30) ; le validateur fonctionne en mode d'indulgence hors ligne pendant autant de jours après l'installation. Prévoyez de reconstruire l'overlay Pro+ sur la machine de construction connectée à Internet et de le réappliquer sur le serveur isolé avant que la fenêtre d'indulgence ne expire -- sinon, Pro+ se démote silencieusement au niveau Community lors du prochain démarrage du service. C'est l'outil prévu pour empêcher la diffusion illimitée de l'image ISO de l'overlay.",
+          "grace_note": "<strong>À propos du fonctionnement hors ligne :</strong> un serveur isolé conserve sa licence Pro+ tant que la licence elle-même est valide ; le fonctionnement hors ligne n'a pas de limite de durée. Ce qui le borne, c'est la date d'expiration de la licence, plus 7 jours de grâce, que le serveur vérifie à chaque démarrage et environ une fois par jour en fonctionnement. Passé ce délai, les fonctions Pro+ se désactivent et le serveur continue de fonctionner en édition Community. Pour renouveler, construisez la surcouche Pro+ avec la nouvelle licence sur l'hôte de compilation connecté à Internet, puis appliquez-la sur le serveur isolé. Le champ <code>offline_days</code> de la licence fixe seulement le moment où le journal du serveur commence à signaler qu'il n'a pas joint le serveur de licences ; les révocations et les mises à jour des moteurs ne peuvent pas atteindre un serveur hors ligne.",
           "intro": "Sauter cette étape si le serveur hors réseau n'a besoin que des fonctionnalités de l'édition Communauté. Pour activer les fonctionnalités Pro+ (réplication du dépôt, gestion des hôtes enfants, fédération, etc.) sur le serveur hors réseau, installez la couche Pro+ au-dessus du serveur déjà installé. La couche Pro+ contient les modules de moteur Cython sous licence, le JWT de licence et la clé publique de licence en cache -- aucune accès réseau à <code>license.sysmanage.org</code> n'est nécessaire à aucun moment.",
           "step1": "Valide si le serveur SysManage est installé (cherche <code>/opt/sysmanage/.venv/bin/python</code> et <code>/etc/sysmanage.yaml</code>).",
           "step2": "Copie les modules d'émulateur Cython emballés et les shim JavaScript vers <code>/var/lib/sysmanage/modules/</code> (propriétaire par <code>sysmanage:sysmanage</code>, mode 0644).",
@@ -17131,7 +17131,8 @@
       "reporting": "Rapport de Vulnérabilités",
       "scanning": "Analyse de Sécurité",
       "title": "Sécurité",
-      "view_docs": "Voir Documentation Sécurité →"
+      "view_docs": "Voir Documentation Sécurité →",
+      "agent_identity": "Identité de l'agent"
     },
     "server": {
       "configuration": "Configuration",
@@ -22828,6 +22829,14 @@
       "r12_check": "Aucun identifiant dans le code source, les outils ou les workflows. La configuration d'exemple ne contient que des valeurs de substitution ; les installeurs génèrent le secret JWT, le sel des mots de passe et le mot de passe de récupération propres à chaque installation, et une valeur de substitution ou un mot de passe bien connu n'est jamais accepté à la connexion.",
       "r13_class": "Dépassement d'entier (CWE-190)",
       "r13_check": "<code>0xffffffff</code>, les valeurs au-delà de 64 bits et les nombres négatifs dans chaque paramètre numérique sont refusés proprement."
+    },
+    "agent_identity": {
+      "title": "Identité de l'agent",
+      "description": "Comment le serveur distingue un véritable agent d'un agent qui ne connaît qu'un nom d'hôte.",
+      "token": "Un jeton d'hôte secret par hôte, émis une seule fois",
+      "verify": "Chaque connexion vérifiée ; imposteurs refusés et audités",
+      "reinstall": "Réinscription d'un hôte réinstallé",
+      "link": "Identité de l'agent →"
     }
   },
   "security_page": {
@@ -24271,5 +24280,38 @@
     "workers": "Un serveur SysManage monte en charge en exécutant davantage de processus workers sur sa machine. Chaque worker sert ses agents depuis une boucle d'événements ; les workers partagent une base de données PostgreSQL et se coordonnent par elle, si bien qu'aucun cache ni courtier de messages n'est nécessaire entre eux.",
     "tenants": "Avec la multi-location, chaque locataire dispose de sa propre base de données, qui peut être placée sur un autre serveur PostgreSQL pour retirer ses connexions et sa charge du serveur principal.",
     "guide": "Le nombre d'agents qu'un serveur prend en charge, le dimensionnement de son processeur, de sa mémoire et de ses connexions à la base de données, et ce qu'il faut attendre après un redémarrage ont été mesurés, non estimés. Tout cela se trouve dans le <a href=\"../server/scaling.html\">Guide de mise à l'échelle</a>."
+  },
+  "security_agent_identity": {
+    "crumb": "Identité de l'agent",
+    "title": "Identité de l'agent",
+    "lead": "Comment le serveur sait qu'un agent est bien l'hôte qu'il prétend être, et pourquoi un nom d'hôte ne suffit jamais.",
+    "name": {
+      "title": "Un hôte est son identifiant secret, pas son nom",
+      "p1": "Les noms d'hôte sont publics : ils figurent dans le DNS, dans les certificats et dans les inventaires. Chaque agent détient donc un jeton d'hôte, un secret que le serveur émet une seule fois, lors du premier enregistrement de l'hôte, et que l'agent conserve dans sa propre base de données. Le serveur identifie un agent par ce jeton, jamais par son nom d'hôte ni par son adresse."
+    },
+    "token": {
+      "title": "Comment un agent obtient son jeton",
+      "new": "<strong>Un nouvel hôte</strong> obtient son identifiant et son jeton de l'enregistrement qui l'a créé, et d'aucun autre.",
+      "existing": "<strong>L'enregistrement d'un nom déjà existant</strong> ne renvoie aucun identifiant secret : connaître le nom d'un hôte ne prouve pas que l'on est cet hôte.",
+      "retry": "<strong>Une réponse perdue</strong> (un délai d'attente dépassé, un redémarrage du serveur au mauvais moment) ne bloque pas l'agent. L'agent envoie la même valeur aléatoire à chaque tentative d'enregistrement, et le serveur reconnaît la nouvelle tentative et renvoie l'identifiant secret. Cette valeur cesse de fonctionner dès la première fois que l'agent prouve son jeton.",
+      "kept": "<strong>L'agent conserve son jeton</strong> lors des redémarrages et des mises à niveau ; une réponse qui n'en contient pas ne l'efface jamais."
+    },
+    "verify": {
+      "title": "Chaque connexion est vérifiée",
+      "p1": "Lorsqu'un agent se connecte, il présente son identifiant d'hôte et son jeton. Une connexion qui revendique un hôte existant sans le bon jeton est refusée : rien ne lui est associé, elle ne reçoit aucun jeton, et le serveur journalise la tentative et écrit une entrée d'audit indiquant l'hôte revendiqué et l'adresse source.",
+      "p2": "Ensuite, chaque message sur une connexion ne peut concerner que l'hôte propre à cette connexion, et les commandes d'un hôte ne sont envoyées qu'à sa connexion vérifiée."
+    },
+    "older": {
+      "title": "Agents plus anciens",
+      "p1": "Les agents publiés avant cette protection s'identifient uniquement par leur identifiant d'hôte. Ils restent acceptés, de sorte que la mise à niveau du serveur ne bloque pas un parc. Dès qu'un agent mis à niveau prouve son jeton, son hôte est marqué comme en exigeant un, et l'identifiant d'hôte seul est désormais refusé pour cet hôte."
+    },
+    "reinstall": {
+      "title": "Hôtes réinstallés",
+      "p1": "Un hôte réinstallé a perdu son jeton et ne peut donc plus se connecter en tant que lui-même. Un administrateur le réinscrit depuis la page de l'hôte, ce qui supprime l'ancien identifiant secret et replace l'hôte en attente d'approbation ; voir <a href=\"../getting-started/agent-approval.html\">Approbation des agents</a>."
+    },
+    "tested": {
+      "title": "Comment cela est testé",
+      "p1": "Chaque modification du serveur exécute une vérification d'usurpation d'identité : un vrai serveur, un agent légitime et un attaquant qui ne connaît que le nom d'hôte de cet agent. L'attaquant tente d'enregistrer à nouveau le nom, de se connecter en tant qu'hôte, d'envoyer des données sans jeton ou avec un jeton erroné, et de recevoir les commandes de l'hôte. Chaque tentative doit échouer, tandis que les propres mises à jour de l'agent légitime et la connexion d'un agent plus ancien doivent réussir."
+    }
   }
 }

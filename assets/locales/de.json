@@ -16143,7 +16143,7 @@
         },
         "proplus_install": {
           "command": "Vom air-gapped Server aus das Pro+ Overlay-ISO mounten und dessen Installer starten:",
-          "grace_note": "<strong>Über die Offline-Grazeit:</strong> das Pro+ Overlay setzt <em>nicht</em> den <code>license.phone_home_url</code>-Einstellung auf leer. Der Lizenz-JWT enthält ein <code>offline_days</code>-Feld (typischerweise 30); der Validator läuft in Offline-Grazeit-Modus für diese Anzahl von Tagen nach der Installation. Planen Sie, das Pro+ Overlay im Internet-vernetzten Build-Host neu zu erstellen und es vor Ablauf des Grazeit-Fensters auf dem isolierten Server anzuwenden - andernfalls wird Pro+ lautlos zur Community-Ebene degradiert beim nächsten Dienststart. Dies ist die intendierte Mechanik, um das Weiterverbreiten der Overlay-ISO zu verhindern.",
+          "grace_note": "<strong>Zum Offline-Betrieb:</strong> Ein Server ohne Netzanbindung behält seine Pro+-Lizenz, solange die Lizenz selbst gültig ist; für den Offline-Betrieb gibt es keine Zeitgrenze. Begrenzt wird er durch das Ablaufdatum der Lizenz plus 7 Tage Kulanz, das der Server bei jedem Start und im laufenden Betrieb etwa einmal am Tag prüft. Danach werden die Pro+-Funktionen abgeschaltet, und der Server läuft als Community weiter. Zum Verlängern erstellen Sie das Pro+-Overlay mit der neuen Lizenz auf dem Build-Host mit Internetzugang und wenden es auf dem Server ohne Netzanbindung an. Das Feld <code>offline_days</code> der Lizenz legt nur fest, ab wann das Serverprotokoll warnt, dass der Lizenzserver nicht erreicht wurde; Widerrufe und Engine-Updates erreichen einen Offline-Server nicht.",
           "intro": "Springen Sie diesen Schritt über, wenn der air-gelagerte Server nur Funktionalität der Community-Tier benötigt. Um die Pro+ Funktionen (Repository-Spiegelung, Kind-Host-Verwaltung, Federation usw.) auf dem air-gelagerten Server zu aktivieren, installieren Sie das Pro+ Overlay-Bundle über den bereits installierten Server. Das Pro+ Overlay enthält die lizenzierten Cython Engine Module, die Lizenz JWT und den zwischengespeicherten öffentlichen Lizenzschlüssel - es wird keine Netzwerkverbindung zu <code>license.sysmanage.org</code> benötigt.",
           "step1": "Überprüft, ob die SysManage-Server installiert ist (Sucht nach <code>/opt/sysmanage/.venv/bin/python</code> und <code>/etc/sysmanage.yaml</code>).",
           "step2": "Kopiert die integrierten Cython-Engine-Module und JavaScript-Plugin-Shims zu <code>/var/lib/sysmanage/modules/</code> (besitzt von <code>sysmanage:sysmanage</code>, Modus 0644).",
@@ -17131,7 +17131,8 @@
       "reporting": "Schwachstellenberichte",
       "scanning": "Sicherheitsscanning",
       "title": "Sicherheit",
-      "view_docs": "Sicherheitsdokumentation Anzeigen →"
+      "view_docs": "Sicherheitsdokumentation Anzeigen →",
+      "agent_identity": "Agent-Identität"
     },
     "server": {
       "configuration": "Konfiguration",
@@ -22894,6 +22895,14 @@
       "r12_check": "Keine Zugangsdaten in Quellcode, Werkzeugen oder Workflows. Die Beispielkonfiguration enthält nur Platzhalter; die Installer erzeugen für jede Installation ein eigenes JWT-Secret, ein eigenes Passwort-Salt und ein eigenes Wiederherstellungspasswort, und ein Platzhalter oder allgemein bekanntes Passwort wird bei der Anmeldung nie akzeptiert.",
       "r13_class": "Ganzzahlüberlauf (CWE-190)",
       "r13_check": "<code>0xffffffff</code>, Werte jenseits von 64 Bit und negative Zahlen werden in jedem numerischen Parameter sauber abgewiesen."
+    },
+    "agent_identity": {
+      "title": "Agent-Identität",
+      "description": "Wie der Server einen echten Agenten von einem unterscheidet, der nur einen Hostnamen kennt.",
+      "token": "Ein geheimes Host-Token pro Host, einmalig ausgestellt",
+      "verify": "Jede Verbindung verifiziert; Betrüger abgewiesen und protokolliert",
+      "reinstall": "Erneute Registrierung eines neu installierten Hosts",
+      "link": "Agent-Identität →"
     }
   },
   "security_page": {
@@ -24337,5 +24346,38 @@
     "workers": "Ein SysManage-Server skaliert, indem er auf seinem Rechner mehr Worker-Prozesse ausführt. Jeder Worker bedient seine Agenten aus einer Ereignisschleife; die Worker teilen sich eine PostgreSQL-Datenbank und stimmen sich über sie ab, daher ist zwischen ihnen weder ein Cache noch ein Message Broker nötig.",
     "tenants": "Mit Mandantenfähigkeit hat jeder Mandant eine eigene Datenbank, die auf einem anderen PostgreSQL-Server platziert werden kann, um dessen Verbindungen und Last vom Hauptserver zu nehmen.",
     "guide": "Wie viele Agenten ein Server trägt, wie CPU, Arbeitsspeicher und Datenbankverbindungen zu bemessen sind und was nach einem Neustart zu erwarten ist, wurde gemessen, nicht geschätzt. Das steht im <a href=\"../server/scaling.html\">Skalierungsleitfaden</a>."
+  },
+  "security_agent_identity": {
+    "crumb": "Agent-Identität",
+    "title": "Agent-Identität",
+    "lead": "Wie der Server erkennt, dass ein Agent wirklich der Host ist, für den er sich ausgibt, und warum ein Hostname dafür nie ausreicht.",
+    "name": {
+      "title": "Ein Host ist sein Berechtigungsnachweis, nicht sein Name",
+      "p1": "Hostnamen sind öffentlich: Sie stehen im DNS, in Zertifikaten und in Inventaren. Deshalb besitzt jeder Agent ein Host-Token, ein Geheimnis, das der Server einmalig bei der ersten Registrierung des Hosts ausstellt und das der Agent in seiner eigenen Datenbank aufbewahrt. Der Server identifiziert einen Agenten anhand dieses Tokens, niemals anhand seines Hostnamens oder seiner Adresse."
+    },
+    "token": {
+      "title": "Wie ein Agent sein Token erhält",
+      "new": "<strong>Ein neuer Host</strong> erhält seine ID und sein Token aus der Registrierung, die ihn angelegt hat, und aus keiner anderen.",
+      "existing": "<strong>Die Registrierung eines bereits vorhandenen Namens</strong> liefert keinen Berechtigungsnachweis: Den Namen eines Hosts zu kennen, beweist nicht, dieser Host zu sein.",
+      "retry": "<strong>Eine verlorene Antwort</strong> (ein Timeout, ein Serverneustart im falschen Moment) sperrt den Agenten nicht aus. Der Agent sendet bei jedem Registrierungsversuch denselben Zufallswert, und der Server erkennt die Wiederholung und sendet den Berechtigungsnachweis erneut. Dieser Wert wird ungültig, sobald der Agent sein Token zum ersten Mal nachweist.",
+      "kept": "<strong>Der Agent behält sein Token</strong> über Neustarts und Upgrades hinweg; eine Antwort ohne Token löscht es niemals."
+    },
+    "verify": {
+      "title": "Jede Verbindung wird überprüft",
+      "p1": "Wenn sich ein Agent verbindet, legt er seine Host-ID und sein Token vor. Eine Verbindung, die einen vorhandenen Host ohne das richtige Token beansprucht, wird abgewiesen: Nichts wird an sie gebunden, sie erhält kein Token, und der Server protokolliert den Versuch und schreibt einen Audit-Eintrag mit dem beanspruchten Host und der Quelladresse.",
+      "p2": "Danach darf jede Nachricht auf einer Verbindung nur den eigenen Host dieser Verbindung betreffen, und die Befehle eines Hosts gehen ausschließlich an seine verifizierte Verbindung."
+    },
+    "older": {
+      "title": "Ältere Agenten",
+      "p1": "Agenten, die vor diesem Schutz veröffentlicht wurden, identifizieren sich allein mit ihrer Host-ID. Sie werden weiterhin akzeptiert, sodass ein Server-Upgrade keine Flotte aussperrt. Sobald ein aktualisierter Agent sein Token nachweist, wird sein Host als tokenpflichtig markiert, und die Host-ID allein wird für diesen Host von da an abgewiesen."
+    },
+    "reinstall": {
+      "title": "Neu installierte Hosts",
+      "p1": "Ein neu installierter Host hat sein Token verloren und kann sich daher nicht mehr als er selbst verbinden. Ein Administrator registriert ihn auf der Host-Seite erneut, wodurch der alte Berechtigungsnachweis gelöscht und der Host wieder in den Status ausstehende Genehmigung versetzt wird; siehe <a href=\"../getting-started/agent-approval.html\">Agent-Genehmigung</a>."
+    },
+    "tested": {
+      "title": "Wie dies getestet wird",
+      "p1": "Jede Änderung am Server durchläuft eine Identitätsdiebstahl-Prüfung: ein echter Server, ein legitimer Agent und ein Angreifer, der nur den Hostnamen dieses Agenten kennt. Der Angreifer versucht, den Namen erneut zu registrieren, sich als der Host zu verbinden, Daten ohne Token oder mit einem falschen Token zu senden und die Befehle des Hosts zu empfangen. Jeder Versuch muss fehlschlagen, während die eigenen Aktualisierungen des legitimen Agenten und die Verbindung eines älteren Agenten erfolgreich sein müssen."
+    }
   }
 }

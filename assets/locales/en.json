@@ -4051,7 +4051,7 @@
           "step4": "Edits <code>/etc/sysmanage.yaml</code> via the SysManage venv's PyYAML: writes <code>license.key</code> (the JWT carried in the bundle), and disables <code>geo_lookup.enabled</code> + <code>geo_lookup.ipapi_fallback_enabled</code> so no DNS queries leave the enclave for IP-geolocation lookups.",
           "step5": "Populates the <code>proplus_module_cache</code> table in the SysManage database with a row per engine <code>.so</code> file (module code, platform, architecture, Python version, file path, SHA-512 hash). The module loader queries this table on startup to decide which engines to load -- without these rows it would try to download them from <code>license.sysmanage.org</code> and fail on air-gap.",
           "verify": "The installer then runs <code>systemctl restart sysmanage</code> and prints commands to verify the activation. Confirm with <code>curl -ks http://localhost:3000/api/v1/server-info | python3 -m json.tool</code> -- you should see <code>license_tier: enterprise</code> (or whatever tier the JWT carries) and <code>role_engine_loaded: true</code>. The navbar role chip in the web UI turns green after a hard refresh.",
-          "grace_note": "<strong>About the offline grace period:</strong> the Pro+ overlay does <em>not</em> blank the <code>license.phone_home_url</code> setting. The license JWT includes an <code>offline_days</code> field (typically 30); the validator runs in offline-grace mode for that many days after install. Plan to rebuild the Pro+ overlay on the internet-connected build host and re-apply it on the air-gapped server before the grace window expires -- otherwise Pro+ silently demotes to Community tier on the next service start. This is the intended enforcement mechanism that prevents the overlay ISO from being shared indefinitely."
+          "grace_note": "<strong>About offline operation:</strong> an air-gapped server keeps its Pro+ license for as long as the license itself is valid; there is no time limit on running offline. What bounds it is the license's expiry date, plus 7 days of grace, which the server checks at every start and about once a day while it runs. When that passes, Pro+ features turn off and the server keeps running as Community. To renew, build the Pro+ overlay with the new license on the internet-connected build host and apply it on the air-gapped server. The license's <code>offline_days</code> field only sets when the server's log starts warning that it has not reached the license server; revocations and engine updates cannot reach a server that is offline."
         },
         "agentmirrors": {
           "aur": "Arch Linux is deliberately absent. Its package is built from a <code>PKGBUILD</code> on the target machine, so there is no artifact to mirror; the channel is not offered rather than accepting a URL that would never be read.",
@@ -4332,7 +4332,8 @@
       "reporting": "Vulnerability Reporting",
       "scanning": "Security Scanning",
       "title": "Security",
-      "view_docs": "View Security Docs →"
+      "view_docs": "View Security Docs →",
+      "agent_identity": "Agent Identity"
     },
     "server": {
       "configuration": "Configuration",
@@ -21754,6 +21755,14 @@
       "r12_check": "No credentials in source code, tooling or workflows. The example configuration ships only placeholders; the installers generate each installation's JWT secret, password salt and recovery password, and a placeholder or well-known password is never accepted at sign-in.",
       "r13_class": "Integer overflow (CWE-190)",
       "r13_check": "<code>0xffffffff</code>, values beyond 64 bits and negative numbers in every numeric parameter are refused cleanly."
+    },
+    "agent_identity": {
+      "title": "Agent Identity",
+      "description": "How the server tells a real agent from one that only knows a hostname.",
+      "token": "A secret host token per host, issued once",
+      "verify": "Every connection verified; impostors refused and audited",
+      "reinstall": "Re-enrolling a reinstalled host",
+      "link": "Agent Identity →"
     }
   },
   "security_page": {
@@ -24267,5 +24276,38 @@
     "workers": "A SysManage server scales by running more worker processes on its machine. Each worker serves its agents from one event loop; the workers share one PostgreSQL database and coordinate through it, so no cache or message broker is needed between them.",
     "tenants": "With multi-tenancy, each tenant has its own database, which can be placed on another PostgreSQL server to take its connections and load off the main one.",
     "guide": "How many agents one server carries, how to size its CPU, memory and database connections, and what to expect after a restart were measured, not estimated. They are in the <a href=\"../server/scaling.html\">Scaling Guide</a>."
+  },
+  "security_agent_identity": {
+    "crumb": "Agent Identity",
+    "title": "Agent Identity",
+    "lead": "How the server knows that an agent is the host it claims to be, and why a hostname is never enough.",
+    "name": {
+      "title": "A Host Is Its Credential, Not Its Name",
+      "p1": "Hostnames are public: they are in DNS, in certificates and in inventories. So every agent holds a host token, a secret the server issues once, when the host is first registered, and the agent keeps in its own database. The server identifies an agent by that token, never by its hostname or its address."
+    },
+    "token": {
+      "title": "How an Agent Gets Its Token",
+      "new": "<strong>A new host</strong> gets its id and token from the registration that created it, and from no other.",
+      "existing": "<strong>Registering a name that already exists</strong> returns no credential: knowing a host's name is not proof of being that host.",
+      "retry": "<strong>A lost reply</strong> (a timeout, a server restart at the wrong moment) does not lock the agent out. The agent sends the same random value with every registration attempt, and the server recognizes the retry and sends the credential again. That value stops working the first time the agent proves its token.",
+      "kept": "<strong>The agent keeps its token</strong> across restarts and upgrades; a reply that does not carry one never erases it."
+    },
+    "verify": {
+      "title": "Every Connection Is Verified",
+      "p1": "When an agent connects, it presents its host id and its token. A connection that claims an existing host without the right token is refused: nothing is bound to it, it receives no token, and the server logs the attempt and writes an audit entry with the claimed host and the source address.",
+      "p2": "After that, every message on a connection may only touch that connection's own host, and a host's commands go only to its verified connection."
+    },
+    "older": {
+      "title": "Older Agents",
+      "p1": "Agents released before this protection identify with their host id alone. They are still accepted, so upgrading the server does not lock out a fleet. Once an upgraded agent proves its token, its host is marked as requiring one, and the host id alone is refused for that host from then on."
+    },
+    "reinstall": {
+      "title": "Reinstalled Hosts",
+      "p1": "A reinstalled host has lost its token, so it can no longer connect as itself. An administrator re-enrolls it from the host page, which clears the old credential and returns the host to pending approval; see <a href=\"../getting-started/agent-approval.html\">Agent Approval</a>."
+    },
+    "tested": {
+      "title": "How This Is Tested",
+      "p1": "Every change to the server runs an impersonation check: a real server, a legitimate agent, and an attacker that knows only that agent's hostname. The attacker tries to register the name again, to connect as the host, to send data with no token or a wrong one, and to receive the host's commands. Every attempt must fail, while the legitimate agent's own updates and an older agent's connection must succeed."
+    }
   }
 }

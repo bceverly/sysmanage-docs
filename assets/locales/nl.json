@@ -16143,7 +16143,7 @@
         },
         "proplus_install": {
           "command": "Vanaf de air-gapped server, mount het Pro+ overlay ISO en voer zijn installer uit:",
-          "grace_note": "<strong>Over de offline-graceperiode:</strong> het Pro+ overlay doet <em>niet</em> het veld <code>license.phone_home_url</code> leeg. De licentie JWT bevat een <code>offline_days</code>-veld (meestal 30); de validator draait in offline-grace modus voor die veel dagen na installatie. Plan om het Pro+ overlay opnieuw te bouwen op de internetverbonden build-host en heraan te passeren op de air-gapped server voordat de grace-window verloopt - anders demotet Pro+ stil naar Community tier bij de volgende service start. Dit is de bedoelde uitvoeringsmechanisme die voorkomt dat het overlay ISO onbeperkt wordt gedeeld.",
+          "grace_note": "<strong>Over offline werken:</strong> een afgeschermde server behoudt zijn Pro+-licentie zolang de licentie zelf geldig is; er is geen tijdslimiet voor offline werken. De grens is de vervaldatum van de licentie plus 7 dagen respijt, die de server bij elke start en tijdens het draaien ongeveer eens per dag controleert. Daarna worden de Pro+-functies uitgeschakeld en draait de server verder als Community. Om te verlengen bouwt u de Pro+-overlay met de nieuwe licentie op de buildhost met internettoegang en past u die toe op de afgeschermde server. Het veld <code>offline_days</code> van de licentie bepaalt alleen wanneer het serverlogboek begint te waarschuwen dat de licentieserver niet is bereikt; intrekkingen en engine-updates kunnen een offline server niet bereiken.",
           "intro": "Deze stap overslaan als de luchtdichte server alleen Community-tierfuncties nodig heeft. Om Pro+functionaliteiten (repository-mirroring, kind-host-beheer, federatie, etc.) op de luchtdichte server te activeren, installeer het Pro+ overlay-bundel bovenop de al geïnstalleerde server. Het Pro+ overlay draagt de gecertificeerde Cython-engine-modules, de licentie JWT en de gecachte licentie openbare sleutel -- geen netwerktoegang tot <code>license.sysmanage.org</code> is nodig op elk moment.",
           "step1": "Controleert of de SysManage-server is geïnstalleerd (zoekt naar <code>/opt/sysmanage/.venv/bin/python</code> en <code>/etc/sysmanage.yaml</code>).",
           "step2": "Kopieert de geïmplementeerde Cython-engine-modules en JavaScript-plugin shims naar <code>/var/lib/sysmanage/modules/</code> (beheerd door <code>sysmanage:sysmanage</code>, modus 0644).",
@@ -17131,7 +17131,8 @@
       "reporting": "Kwetsbaarheidsrapporten",
       "scanning": "Beveiligingsscanning",
       "title": "Beveiliging",
-      "view_docs": "Bekijk Beveiligingsdocs →"
+      "view_docs": "Bekijk Beveiligingsdocs →",
+      "agent_identity": "Agentidentiteit"
     },
     "server": {
       "configuration": "Configuratie",
@@ -22828,6 +22829,14 @@
       "r12_check": "Geen inloggegevens in broncode, tooling of workflows. De voorbeeldconfiguratie bevat alleen tijdelijke aanduidingen; de installers genereren per installatie een eigen JWT-geheim, wachtwoord-salt en herstelwachtwoord, en een tijdelijke aanduiding of bekend wachtwoord wordt bij het aanmelden nooit geaccepteerd.",
       "r13_class": "Overloop van gehele getallen (CWE-190)",
       "r13_check": "<code>0xffffffff</code>, waarden boven 64 bits en negatieve getallen in elke numerieke parameter worden netjes geweigerd."
+    },
+    "agent_identity": {
+      "title": "Agentidentiteit",
+      "description": "Hoe de server een echte agent onderscheidt van een agent die alleen een hostnaam kent.",
+      "token": "Een geheim host-token per host, eenmalig uitgegeven",
+      "verify": "Elke verbinding geverifieerd; imitators geweigerd en geaudit",
+      "reinstall": "Een opnieuw geïnstalleerde host opnieuw registreren",
+      "link": "Agentidentiteit →"
     }
   },
   "security_page": {
@@ -24271,5 +24280,38 @@
     "workers": "Een SysManage-server schaalt door meer workerprocessen op zijn machine te draaien. Elke worker bedient zijn agents vanuit één event loop; de workers delen één PostgreSQL-database en stemmen via die database af, dus er is tussen hen geen cache of message broker nodig.",
     "tenants": "Met multi-tenancy heeft elke tenant een eigen database, die op een andere PostgreSQL-server geplaatst kan worden om de verbindingen en belasting van de hoofdserver te halen.",
     "guide": "Hoeveel agents één server draagt, hoe je de CPU, het geheugen en de databaseverbindingen dimensioneert en wat je na een herstart kunt verwachten, is gemeten, niet geschat. Het staat in de <a href=\"../server/scaling.html\">Schaalgids</a>."
+  },
+  "security_agent_identity": {
+    "crumb": "Agentidentiteit",
+    "title": "Agentidentiteit",
+    "lead": "Hoe de server weet dat een agent de host is die hij beweert te zijn, en waarom een hostnaam nooit volstaat.",
+    "name": {
+      "title": "Een host is zijn referentie, niet zijn naam",
+      "p1": "Hostnamen zijn openbaar: ze staan in DNS, in certificaten en in inventarissen. Daarom bezit elke agent een host-token, een geheim dat de server eenmalig uitgeeft wanneer de host voor het eerst wordt geregistreerd, en dat de agent in zijn eigen database bewaart. De server identificeert een agent aan de hand van dat token, nooit aan de hand van zijn hostnaam of zijn adres."
+    },
+    "token": {
+      "title": "Hoe een agent zijn token krijgt",
+      "new": "<strong>Een nieuwe host</strong> krijgt zijn id en token uit de registratie waarmee hij is aangemaakt, en uit geen enkele andere.",
+      "existing": "<strong>Het registreren van een naam die al bestaat</strong> levert geen referentie op: de naam van een host kennen is geen bewijs dat u die host bent.",
+      "retry": "<strong>Een verloren antwoord</strong> (een time-out, een herstart van de server op het verkeerde moment) sluit de agent niet buiten. De agent stuurt bij elke registratiepoging dezelfde willekeurige waarde mee, en de server herkent de nieuwe poging en stuurt de referentie opnieuw. Die waarde werkt niet meer zodra de agent voor het eerst zijn token heeft bewezen.",
+      "kept": "<strong>De agent behoudt zijn token</strong> bij herstarts en upgrades; een antwoord zonder token wist het nooit."
+    },
+    "verify": {
+      "title": "Elke verbinding wordt geverifieerd",
+      "p1": "Wanneer een agent verbinding maakt, presenteert hij zijn host-id en zijn token. Een verbinding die zich uitgeeft voor een bestaande host zonder het juiste token wordt geweigerd: er wordt niets aan gekoppeld, ze ontvangt geen token, en de server logt de poging en schrijft een auditregel met de geclaimde host en het bronadres.",
+      "p2": "Daarna mag elk bericht op een verbinding alleen de eigen host van die verbinding betreffen, en gaan de opdrachten van een host alleen naar zijn geverifieerde verbinding."
+    },
+    "older": {
+      "title": "Oudere agents",
+      "p1": "Agents die vóór deze beveiliging zijn uitgebracht, identificeren zich alleen met hun host-id. Ze worden nog steeds geaccepteerd, zodat een upgrade van de server geen machinepark buitensluit. Zodra een geüpgradede agent zijn token bewijst, wordt zijn host gemarkeerd als host die een token vereist, en wordt het host-id alleen voor die host vanaf dat moment geweigerd."
+    },
+    "reinstall": {
+      "title": "Opnieuw geïnstalleerde hosts",
+      "p1": "Een opnieuw geïnstalleerde host is zijn token kwijt en kan dus niet langer als zichzelf verbinding maken. Een beheerder registreert hem opnieuw vanaf de hostpagina, waardoor de oude referentie wordt gewist en de host terugkeert naar de status in afwachting van goedkeuring; zie <a href=\"../getting-started/agent-approval.html\">Agentgoedkeuring</a>."
+    },
+    "tested": {
+      "title": "Hoe dit wordt getest",
+      "p1": "Bij elke wijziging aan de server wordt een imitatiecontrole uitgevoerd: een echte server, een legitieme agent en een aanvaller die alleen de hostnaam van die agent kent. De aanvaller probeert de naam opnieuw te registreren, als de host verbinding te maken, gegevens te verzenden zonder token of met een verkeerd token, en de opdrachten van de host te ontvangen. Elke poging moet mislukken, terwijl de eigen updates van de legitieme agent en de verbinding van een oudere agent moeten slagen."
+    }
   }
 }
