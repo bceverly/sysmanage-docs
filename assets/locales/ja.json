@@ -16840,6 +16840,13 @@
           "handoff": "IdP がブラウザーを戻すと、sysmanage はユーザーをサインインさせ、コンソールの <code>/login/sso</code> ページにリダイレクトします。セッションは、ページが一度だけ交換する有効期間 2 分の HttpOnly Cookie で受け渡されます -- URL には決して含めません。URL に含めるとブラウザーの履歴やサーバーログに残ってしまうためです。",
           "host": "コンソールのアドレスは <code>sysmanage.yaml</code> の <code>webui.public_url</code> から取得されます。これを設定し、リダイレクト URL と ACS URL を同じホスト名で登録してください。ブラウザーは受け渡し用 Cookie を、それを設定したホストにしか返しません。",
           "failure": "サインインが完了しない場合、ユーザーは理由 (たとえば、有効な sysmanage アカウントのない ID) とパスワードフォームに戻る手段が表示された同じページに移動します。詳細はサーバーログに記録されます。"
+        },
+        "mfa": {
+          "title": "多要素サインインの必須化",
+          "intro": "シングル サインオンでは多要素認証は ID プロバイダーに任され、SysManage は IdP が返すトークンを受け入れます。OIDC または SAML プロバイダーで <strong>多要素サインインを必須にする</strong> をオンにすると、ユーザーが複数の要素でサインインしたことをトークンが示していないサインインを SysManage は拒否します。これにより、構成ミスや回避された IdP ポリシーが見過ごされることはなくなります。既定ではオフです。インターネットから到達可能なコンソールではオンにしてください。",
+          "oidc": "<strong>OIDC:</strong> ID トークンの <code>amr</code> クレームに <code>mfa</code> が含まれている必要があります (RFC 8176。Microsoft Entra ID はユーザーが MFA を完了したときにこれを設定します)。保証レベルを代わりに <code>acr</code> で表す IdP の場合は、受け入れる値を <code>oidc_acr_values</code> に列挙します。これらの値はサインイン時にも要求されます。",
+          "saml": "<strong>SAML:</strong> アサーションの <code>AuthnContextClassRef</code> は <code>saml_mfa_authn_contexts</code> のいずれか (1 行に 1 つ) である必要があります。空の場合は Microsoft Entra ID の <code>http://schemas.microsoft.com/claims/multipleauthn</code> を意味します。AuthnRequest はそのコンテキストを IdP に要求します。",
+          "refused": "拒否されたサインインは「ID プロバイダーが多要素サインインを確認しませんでした」というメッセージとともにログインページに戻り、サーバーログにはプロバイダーと、トークンが代わりに示していた内容が記録されます。"
         }
       },
       "imagemode": {
@@ -24330,6 +24337,65 @@
     "tested": {
       "title": "テスト方法",
       "p1": "サーバーへのすべての変更に対して、なりすましチェックが実行されます。実際のサーバー、正規のエージェント、およびそのエージェントのホスト名だけを知っている攻撃者を用意します。攻撃者は、名前の再登録、そのホストとしての接続、トークンなしまたは誤ったトークンでのデータ送信、ホストのコマンドの受信を試みます。これらの試行はすべて失敗しなければならず、一方で正規のエージェント自身の更新と旧バージョンのエージェントの接続は成功しなければなりません。"
+    }
+  },
+  "deploy_best": {
+    "crumb": "ベストプラクティス",
+    "title": "ベストプラクティスのデプロイモデル",
+    "lead": "本番環境で SysManage を運用する方法を説明します。保護されたコンソールとは別にエージェント用の公開エンドポイントを設け、ホストを堅牢化し、外部からサーバーを監視する Canary を配置します。",
+    "internet": {
+      "title": "インターネットから到達可能なサーバー",
+      "intro": "エージェントと管理者では、サーバーに求めるものが異なります。エージェントは稼働している場所がどこであってもサーバーに到達できる必要がありますが、コンソールには管理者だけが到達できるようにすべきです。それぞれに別のホスト名を割り当ててください。",
+      "agents": "<strong>公開エージェントホスト名</strong> (例: <code>agents.example.com</code>) は、エージェントが接続する先です。新しいエージェントは登録トークンを使って登録するため、ホスト名を知っているだけではホストを登録できません。また、サーバーはエージェントごと、およびアドレスごとに接続試行回数を制限します。",
+      "console": "<strong>保護されたコンソールホスト名</strong> (例: <code>console.example.com</code>) には、管理者だけが到達できるようにします。IP 許可リスト、クライアント証明書、または多要素サインインを必須とする ID プロバイダーによるシングルサインオンを使用してください (<a href=\"../professional-plus/external-idp.html\">外部 ID プロバイダー</a>を参照)。"
+    },
+    "host": {
+      "title": "ホスト",
+      "os": "<strong>Ubuntu 24.04 LTS</strong>: 5 年間のセキュリティ更新が提供される長期サポートリリースであり、SysManage はこのリリース向けのパッケージを公開しています。",
+      "firewall": "<strong>UFW の前段にクラウドファイアウォールを配置</strong>: プロバイダーのファイアウォールでは HTTPS と、サーバーを管理する場所からの SSH だけを許可します。ホスト上の UFW でも同じ設定にすることで、1 つの設定ミスでサーバーが露出することを防ぎます。",
+      "fail2ban": "<strong>fail2ban はログインパスにのみ適用</strong>: コンソールへのサインインに繰り返し失敗するアドレスを禁止します。エージェントのエンドポイントには適用しないでください。1 つのアドレスの背後にあるフリートが障害後に再接続すると攻撃のように見え、締め出されてしまいます。",
+      "nginx": "<strong>ネットワーク上で待ち受けるのは nginx のみ</strong>: SysManage サーバーは nginx の背後でループバックアドレスを待ち受けます。"
+    },
+    "canary": {
+      "title": "本番環境用 Canary",
+      "intro": "SysManage 内部のアラートはすべて、障害が発生したのがサーバー自体、そのデータベース、またはそのネットワークである場合には停止してしまいます。<code>sysmanage-canary</code> は、外部からサーバーを監視し、何かが動作しなくなったときにメールを送信する独立したプログラムです。独自のサービスとユーザー、独自の設定と独自の Python で動作し、サーバーの仮想環境は決して使用しないため、サーバー、その仮想環境、またはそのデータベースが壊れていても動作し続けます。サーバー上で実行するか、できれば別のマシンで実行してください。",
+      "checks": {
+        "title": "監視対象",
+        "web": "<strong>web_ui</strong>: コンソールの URL が、検証に成功する TLS ハンドシェイクを経て、<code>max_response_ms</code> 以内に応答すること。",
+        "backend": "<strong>backend</strong>: <code>/api/health</code> が制限時間内に応答すること。",
+        "db": "<strong>database</strong>: 接続し、制限時間内に <code>SELECT 1</code> を実行し、使用中の接続数を PostgreSQL の <code>max_connections</code> と比較します (<code>max_connections_percent</code> を超えるとアラートを送信します)。専用の読み取り専用ロールを割り当ててください。",
+        "network": "<strong>network</strong>: <code>resolve</code> に記載されたすべての名前が解決でき、すべての <code>host:port</code> (<code>connect</code> に記載) が接続を受け付けること。たとえばライセンスサーバーやパッケージミラーなどです。",
+        "silence": "<strong>inbound_silence</strong>: データベースから読み取り、<code>max_silence_minutes</code> 以内にいずれかのエージェントから報告があったことを確認します。これにより、ローカルのチェックがすべて合格していても、停止したリスナー、壊れたファイアウォールルール、期限切れの DNS レコードに気付くことができます。マルチテナント構成では、各テナントのデータベースを <code>extra_dsns</code> に列挙してください。"
+      },
+      "config": {
+        "title": "設定ファイル",
+        "p1": "<code>/etc/sysmanage-canary.yaml</code> (FreeBSD と macOS では <code>/usr/local/etc/</code>、NetBSD では <code>/usr/pkg/etc/</code>、Windows では <code>C:\\ProgramData\\SysManage\\</code>) は、パスワードを含むため、Canary ユーザーが所有しモード 0600 とします (Windows では SYSTEM、Administrators、およびサービスのみが読み取り可能)。パッケージはコメント付きの例からこのファイルをインストールします。すべてのチェックには <code>enabled</code>、<code>interval_seconds</code>、<code>timeout_seconds</code>、<code>failures_before_alert</code> があり、それ以外の項目は例の中で説明されています。問題が 1 つでもあるファイルは全体が拒否され、すべての問題が一覧表示されます。"
+      },
+      "alerts": {
+        "title": "アラート",
+        "p1": "チェックが <code>failures_before_alert</code> 回連続で失敗したときに 1 通、停止している間は <code>email.reminder_minutes</code> ごとにリマインダーを、復旧したときに 1 通のメールを送信します。チェックごとに 1 通ずつ送信することはありません。メールは設定された <code>language</code> で書かれます。",
+        "p2": "Canary を誰が監視するか: <code>heartbeat.url</code> にデッドマンスイッチサービス (healthchecks.io など) を設定すると、Canary からの ping が途絶えたときに通知されます。また、<code>heartbeat.daily_email_hour</code> を設定すると、すべてのチェックの状態を記載したメールが毎日届きます。"
+      },
+      "gmail": {
+        "title": "Gmail 経由での送信",
+        "step1": "アラートを送信する Google アカウントで 2 段階認証プロセスを有効にします。",
+        "step2": "アプリ パスワードを作成し (Google アカウント、セキュリティ、アプリ パスワード)、コピーします。",
+        "step3": "<code>email.host</code> を <code>smtp.gmail.com</code> に、<code>port</code> を 587 に、<code>security</code> を <code>starttls</code> に、<code>username</code> と <code>from</code> をそのアドレスに、<code>password</code> をアプリ パスワードに設定します。"
+      },
+      "test": {
+        "title": "テスト",
+        "p1": "Canary ユーザーとして、<code>sysmanage-canary --check-config</code> でファイルを検証し、<code>sysmanage-canary --test-email</code> でテストメッセージを送信し、<code>sysmanage-canary --once</code> で有効なすべてのチェックを 1 回実行して結果を表示します (Windows ではインストールフォルダー内の <code>sysmanage-canary.cmd</code> を管理者として実行します)。その後、サービスを有効にします: <code>systemctl enable --now sysmanage-canary</code> (FreeBSD では <code>sysrc sysmanage_canary_enable=YES</code>、OpenBSD では <code>rcctl enable sysmanage_canary</code>、NetBSD では <code>sysmanage_canary=YES</code> を <code>/etc/rc.conf</code> に記述、macOS では <code>sudo launchctl bootstrap system /Library/LaunchDaemons/org.sysmanage.canary.plist</code>、Windows では <code>Set-Service SysManageCanary -StartupType Automatic</code> の後に <code>Start-Service SysManageCanary</code>)。"
+      },
+      "install": {
+        "title": "インストール",
+        "p1": "Canary は独立したパッケージであるため、SysManage サーバーを実行していないマシンにも導入できます。Debian と Ubuntu 向けの <code>sysmanage-canary</code>、RPM の <code>sysmanage-canary</code> サブパッケージ、FreeBSD ポートの <code>sysutils/sysmanage-canary</code>、そしてリリースページにある macOS パッケージ <code>sysmanage-canary</code> と Windows MSI (x64 および ARM64) です。FreeBSD、OpenBSD、NetBSD のサーバーパッケージにはこれが含まれています。macOS ではパッケージが Canary 専用の Python 環境を用意し、Windows では MSI が独自の Python を同梱するため、どちらもサーバーと何も共有しません。"
+      }
+    }
+  },
+  "deploy_docs": {
+    "best": {
+      "title": "ベストプラクティスのデプロイ",
+      "link": "ベストプラクティスのデプロイモデル"
     }
   }
 }

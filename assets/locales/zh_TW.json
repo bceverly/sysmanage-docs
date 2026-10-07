@@ -16840,6 +16840,13 @@
           "handoff": "當 IdP 將瀏覽器導回時，sysmanage 會讓使用者登入並重新導向至主控台的 <code>/login/sso</code> 頁面。工作階段透過一個有效期為兩分鐘的 HttpOnly Cookie 傳遞，頁面只會交換一次 -- 絕不放在 URL 中，否則它會留在瀏覽器歷程記錄與伺服器記錄檔裡。",
           "host": "主控台的位址來自 <code>sysmanage.yaml</code> 中的 <code>webui.public_url</code>。請設定此值，並在同一主機名稱上註冊重新導向 URL 與 ACS URL：瀏覽器只會將交接 Cookie 傳回給設定它的主機。",
           "failure": "如果登入未完成，使用者會進入同一頁面，頁面上會顯示原因（例如，某個身分沒有使用中的 sysmanage 帳戶）以及返回密碼表單的方式。詳細資訊記錄在伺服器記錄檔中。"
+        },
+        "mfa": {
+          "title": "要求多重要素登入",
+          "intro": "單一登入將多重要素驗證交由身分提供者負責，SysManage 接受 IdP 傳回的權杖。在 OIDC 或 SAML 提供者上開啟 <strong>要求多重要素登入</strong> 後，若權杖未表明使用者以一個以上的要素登入，SysManage 便會拒絕該登入，如此一來，設定錯誤或遭繞過的 IdP 原則就不會再被忽略。此選項預設為關閉；對於任何可從網際網路存取的主控台，請將其開啟。",
+          "oidc": "<strong>OIDC：</strong>ID 權杖的 <code>amr</code> 宣告必須包含 <code>mfa</code>（RFC 8176；使用者完成 MFA 時，Microsoft Entra ID 會設定此值）。對於改以 <code>acr</code> 表達保證等級的 IdP，請在 <code>oidc_acr_values</code> 中列出可接受的值；登入時也會要求這些值。",
+          "saml": "<strong>SAML：</strong>斷言的 <code>AuthnContextClassRef</code> 必須是 <code>saml_mfa_authn_contexts</code> 中的值之一，每行一個；空白表示使用 Microsoft Entra ID 的 <code>http://schemas.microsoft.com/claims/multipleauthn</code>。AuthnRequest 會向 IdP 要求該內容。",
+          "refused": "遭拒絕的登入會回到登入頁面，並顯示「您的身分提供者未確認多重要素登入」，伺服器記錄檔會記下該提供者以及權杖實際表明的內容。"
         }
       },
       "imagemode": {
@@ -24330,6 +24337,65 @@
     "tested": {
       "title": "測試方式",
       "p1": "伺服器的每次變更都會執行冒充檢查：一個真實的伺服器、一個合法的代理程式，以及一個只知道該代理程式主機名稱的攻擊者。攻擊者會嘗試重新註冊該名稱、以該主機身分連線、在沒有權杖或使用錯誤權杖的情況下傳送資料，以及接收該主機的命令。每次嘗試都必須失敗，而合法代理程式自身的更新和舊版代理程式的連線都必須成功。"
+    }
+  },
+  "deploy_best": {
+    "crumb": "最佳實務",
+    "title": "最佳實務部署模型",
+    "lead": "如何在正式環境中執行 SysManage：在受保護的主控台之外為代理程式提供一個公開端點、強化主機，並部署一個從外部監看伺服器的 Canary。",
+    "internet": {
+      "title": "可從網際網路連線的伺服器",
+      "intro": "代理程式和管理員對伺服器的需求不同。代理程式必須能從其執行的任何位置連線到伺服器；而主控台應只允許管理員連線。請為它們分配不同的主機名稱：",
+      "agents": "<strong>公開的代理程式主機名稱</strong>（例如 <code>agents.example.com</code>），供代理程式連線。新的代理程式使用註冊權杖進行註冊，因此光是得知主機名稱並不足以註冊主機，而且伺服器會依代理程式和依位址限制連線嘗試次數。",
+      "console": "<strong>受保護的主控台主機名稱</strong>（例如 <code>console.example.com</code>），只有管理員可以連線：使用 IP 允許清單、用戶端憑證，或透過要求多重要素登入的身分提供者進行單一登入（請參閱<a href=\"../professional-plus/external-idp.html\">外部身分提供者</a>）。"
+    },
+    "host": {
+      "title": "主機",
+      "os": "<strong>Ubuntu 24.04 LTS</strong>：提供五年安全性更新的長期支援版本，SysManage 會為其發布套件。",
+      "firewall": "<strong>在 UFW 之前設置雲端防火牆</strong>：供應商的防火牆只允許 HTTPS，以及來自您管理伺服器所在位置的 SSH；主機上的 UFW 也採用相同設定，如此一次失誤不會讓伺服器暴露。",
+      "fail2ban": "<strong>fail2ban 僅用於登入路徑</strong>：封鎖反覆登入主控台失敗的位址。請勿將其用於代理程式端點：位於同一位址之後的裝置群在中斷後重新連線時看起來像攻擊，會遭到封鎖。",
+      "nginx": "<strong>nginx 是唯一的網路接聽程式</strong>：SysManage 伺服器在其後方的迴路位址上接聽。"
+    },
+    "canary": {
+      "title": "正式環境 Canary",
+      "intro": "當發生故障的正是伺服器、其資料庫或其網路時，SysManage 內部的所有警示都會停止。<code>sysmanage-canary</code> 是一個獨立的程式，它從外部監看伺服器，並在出現故障時傳送電子郵件。它以自己的服務和使用者執行，使用自己的設定和自己的 Python，從不使用伺服器的虛擬環境，因此即使伺服器、其虛擬環境或其資料庫損壞，它仍能繼續執行。可以在伺服器上執行它，更好的做法是在另一台機器上執行。",
+      "checks": {
+        "title": "監看內容",
+        "web": "<strong>web_ui</strong>：主控台 URL 透過驗證成功的 TLS 交握，在 <code>max_response_ms</code> 內回應。",
+        "backend": "<strong>backend</strong>：<code>/api/health</code> 在其時限內回應。",
+        "db": "<strong>database</strong>：建立連線，在其時限內執行 <code>SELECT 1</code>，並將使用中的連線數與 PostgreSQL 的 <code>max_connections</code> 比較（超過 <code>max_connections_percent</code> 時發出警示）。請為它指派專用的唯讀角色。",
+        "network": "<strong>network</strong>：<code>resolve</code> 下的每個名稱都能解析，每個 <code>host:port</code>（列在 <code>connect</code> 下）都接受連線，例如授權伺服器和您的套件鏡像。",
+        "silence": "<strong>inbound_silence</strong>：從資料庫讀取，確認在 <code>max_silence_minutes</code> 內有代理程式回報過，如此即使所有本機檢查都通過，也能發現已停止的接聽程式、損壞的防火牆規則或失效的 DNS 記錄。啟用多租戶時，請在 <code>extra_dsns</code> 下列出每個租戶資料庫。"
+      },
+      "config": {
+        "title": "設定檔",
+        "p1": "<code>/etc/sysmanage-canary.yaml</code>（FreeBSD 和 macOS 為 <code>/usr/local/etc/</code>，NetBSD 為 <code>/usr/pkg/etc/</code>，Windows 為 <code>C:\\ProgramData\\SysManage\\</code>）由 Canary 使用者擁有，權限模式為 0600（在 Windows 上，僅 SYSTEM、Administrators 和該服務可讀取），因為其中包含密碼。套件會依據一個附註解的範例安裝此檔案。每項檢查都有 <code>enabled</code>、<code>interval_seconds</code>、<code>timeout_seconds</code> 和 <code>failures_before_alert</code>；其餘選項在範例中有說明。只要檔案有任何問題，就會整個被拒絕，並列出所有問題。"
+      },
+      "alerts": {
+        "title": "警示",
+        "p1": "當某項檢查連續失敗 <code>failures_before_alert</code> 次時傳送一封電子郵件，在持續故障期間每隔 <code>email.reminder_minutes</code> 傳送一次提醒，復原時再傳送一封；絕不會每次檢查都傳送一封。電子郵件以設定的 <code>language</code> 撰寫。",
+        "p2": "誰來監看 Canary：將 <code>heartbeat.url</code> 設為失效開關服務（healthchecks.io 等），當 Canary 的 ping 停止時它會通知您；設定 <code>heartbeat.daily_email_hour</code> 則可每天收到一封列出所有檢查狀態的電子郵件。"
+      },
+      "gmail": {
+        "title": "透過 Gmail 傳送",
+        "step1": "為將用來傳送警示的 Google 帳戶開啟兩步驟驗證。",
+        "step2": "建立應用程式密碼（Google 帳戶、安全性、應用程式密碼）並複製。",
+        "step3": "將 <code>email.host</code> 設為 <code>smtp.gmail.com</code>，<code>port</code> 設為 587，<code>security</code> 設為 <code>starttls</code>，<code>username</code> 和 <code>from</code> 設為該位址，<code>password</code> 設為應用程式密碼。"
+      },
+      "test": {
+        "title": "測試",
+        "p1": "以 Canary 使用者身分執行：<code>sysmanage-canary --check-config</code> 驗證檔案，<code>sysmanage-canary --test-email</code> 傳送測試訊息，<code>sysmanage-canary --once</code> 將所有已啟用的檢查各執行一次並輸出結果（在 Windows 上，命令為安裝資料夾中的 <code>sysmanage-canary.cmd</code>，需以系統管理員身分執行）。接著啟用服務：<code>systemctl enable --now sysmanage-canary</code>（FreeBSD 為 <code>sysrc sysmanage_canary_enable=YES</code>，OpenBSD 為 <code>rcctl enable sysmanage_canary</code>，NetBSD 為在 <code>sysmanage_canary=YES</code> 中設定 <code>/etc/rc.conf</code>，macOS 為 <code>sudo launchctl bootstrap system /Library/LaunchDaemons/org.sysmanage.canary.plist</code>，Windows 為先執行 <code>Set-Service SysManageCanary -StartupType Automatic</code> 再執行 <code>Start-Service SysManageCanary</code>）。"
+      },
+      "install": {
+        "title": "安裝",
+        "p1": "Canary 是獨立的套件，因此可以安裝在不執行 SysManage 伺服器的機器上：適用於 Debian 和 Ubuntu 的 <code>sysmanage-canary</code>、RPM 中的 <code>sysmanage-canary</code> 子套件、FreeBSD port <code>sysutils/sysmanage-canary</code>，以及發行頁面上的 macOS 套件 <code>sysmanage-canary</code> 和 Windows MSI（x64 和 ARM64）。FreeBSD、OpenBSD 和 NetBSD 的伺服器套件已包含它。在 macOS 上，套件會為 Canary 提供私有的 Python 環境；在 Windows 上，MSI 自帶 Python，因此兩者都不與伺服器共用任何內容。"
+      }
+    }
+  },
+  "deploy_docs": {
+    "best": {
+      "title": "最佳實務部署",
+      "link": "最佳實務部署模型"
     }
   }
 }

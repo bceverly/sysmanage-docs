@@ -16840,6 +16840,13 @@
           "handoff": "Quando l'IdP restituisce il browser, sysmanage autentica l'utente e lo reindirizza alla pagina <code>/login/sso</code> della console. La sessione viaggia in un cookie HttpOnly valido due minuti che la pagina scambia una sola volta -- mai nell'URL, dove finirebbe nella cronologia del browser e nei log del server.",
           "host": "L'indirizzo della console proviene da <code>webui.public_url</code> in <code>sysmanage.yaml</code>. Impostarlo e registrare gli URL di reindirizzamento e ACS sullo stesso nome host: il browser restituisce il cookie di passaggio solo all'host che lo ha impostato.",
           "failure": "Se l'accesso non viene completato, l'utente arriva sulla stessa pagina con il motivo (ad esempio, un'identità senza un account sysmanage attivo) e un modo per tornare al modulo della password. I dettagli si trovano nel log del server."
+        },
+        "mfa": {
+          "title": "Richiedere l'accesso a più fattori",
+          "intro": "Il Single Sign-On delega l'autenticazione a più fattori al provider di identità e SysManage accetta il token restituito dall'IdP. Attivare <strong>Richiedi accesso multifattore</strong> su un provider OIDC o SAML e SysManage rifiuterà ogni accesso il cui token non indichi che l'utente ha effettuato l'accesso con più di un fattore, così un criterio dell'IdP configurato male o aggirato non passa più inosservato. L'opzione è disattivata per impostazione predefinita; attivarla per qualsiasi console raggiungibile da Internet.",
+          "oidc": "<strong>OIDC:</strong> la claim <code>amr</code> del token ID deve contenere <code>mfa</code> (RFC 8176; Microsoft Entra ID la imposta quando l'utente ha completato l'MFA). Per un IdP che esprime il livello di garanzia tramite <code>acr</code>, elencare i valori accettati in <code>oidc_acr_values</code>; vengono richiesti anche al momento dell'accesso.",
+          "saml": "<strong>SAML:</strong> l'<code>AuthnContextClassRef</code> dell'asserzione deve essere uno dei valori di <code>saml_mfa_authn_contexts</code>, uno per riga; se vuoto, si usa <code>http://schemas.microsoft.com/claims/multipleauthn</code> di Microsoft Entra ID. L'AuthnRequest richiede quel contesto all'IdP.",
+          "refused": "Un accesso rifiutato arriva alla pagina di accesso con il messaggio \"Il provider di identità non ha confermato l'accesso a più fattori\" e il log del server registra il provider e ciò che il token indicava invece."
         }
       },
       "imagemode": {
@@ -24330,6 +24337,65 @@
     "tested": {
       "title": "Come viene testato",
       "p1": "Ogni modifica al server esegue un controllo di impersonificazione: un server reale, un agente legittimo e un aggressore che conosce solo il nome host di quell'agente. L'aggressore tenta di registrare di nuovo il nome, di connettersi come l'host, di inviare dati senza token o con un token errato e di ricevere i comandi dell'host. Ogni tentativo deve fallire, mentre gli aggiornamenti dell'agente legittimo e la connessione di un agente meno recente devono riuscire."
+    }
+  },
+  "deploy_best": {
+    "crumb": "Best practice",
+    "title": "Modelli di distribuzione consigliati",
+    "lead": "Come eseguire SysManage in produzione: un endpoint pubblico per gli agenti accanto a una console protetta, un host protetto con hardening e un Canary che sorveglia il server dall'esterno.",
+    "internet": {
+      "title": "Un server raggiungibile da Internet",
+      "intro": "Agenti e amministratori hanno esigenze diverse dal server. Gli agenti devono raggiungerlo ovunque vengano eseguiti; la console dovrebbe essere raggiungibile solo dagli amministratori. Assegnate loro nomi host separati:",
+      "agents": "<strong>Un nome host pubblico per gli agenti</strong> (ad esempio <code>agents.example.com</code>) a cui si connettono gli agenti. I nuovi agenti si registrano con token di registrazione, quindi conoscere il nome host non basta per registrare un host, e il server limita i tentativi di connessione per agente e per indirizzo.",
+      "console": "<strong>Un nome host protetto per la console</strong> (ad esempio <code>console.example.com</code>) raggiungibile solo dagli amministratori: una allowlist di IP, certificati client o single sign-on tramite un provider di identità che richieda l'accesso a più fattori (vedere <a href=\"../professional-plus/external-idp.html\">Provider di identità esterni</a>)."
+    },
+    "host": {
+      "title": "L'host",
+      "os": "<strong>Ubuntu 24.04 LTS</strong>: una versione con supporto a lungo termine, con cinque anni di aggiornamenti di sicurezza, e i pacchetti che SysManage pubblica per essa.",
+      "firewall": "<strong>Un firewall cloud davanti a UFW</strong>: il firewall del provider ammette solo HTTPS e SSH dalla posizione da cui amministrate il server; UFW sull'host fa lo stesso, così un singolo errore non espone il server.",
+      "fail2ban": "<strong>fail2ban solo sui percorsi di accesso</strong>: bloccate gli indirizzi che falliscono ripetutamente l'accesso alla console. Non applicatelo agli endpoint degli agenti: una flotta dietro un unico indirizzo che si riconnette dopo un'interruzione sembra un attacco e verrebbe bloccata.",
+      "nginx": "<strong>nginx è l'unico servizio in ascolto sulla rete</strong>: il server SysManage ascolta sull'indirizzo di loopback dietro di esso."
+    },
+    "canary": {
+      "title": "Canary di produzione",
+      "intro": "Tutto ciò che genera avvisi all'interno di SysManage si ferma quando a guastarsi sono il server, il suo database o la sua rete. <code>sysmanage-canary</code> è un programma separato che sorveglia il server dall'esterno e invia un'email quando qualcosa smette di funzionare. Viene eseguito come servizio e utente propri, con una propria configurazione e un proprio Python, mai l'ambiente virtuale del server, quindi continua a funzionare quando il server, il suo ambiente virtuale o il suo database sono danneggiati. Eseguitelo sul server o, meglio ancora, su un'altra macchina.",
+      "checks": {
+        "title": "Cosa sorveglia",
+        "web": "<strong>web_ui</strong>: l'URL della console risponde, tramite un handshake TLS verificato con successo, entro <code>max_response_ms</code>.",
+        "backend": "<strong>backend</strong>: <code>/api/health</code> risponde entro il proprio limite.",
+        "db": "<strong>database</strong>: si connette, esegue <code>SELECT 1</code> entro il proprio limite e confronta le connessioni in uso con il parametro <code>max_connections</code> di PostgreSQL (con avviso oltre <code>max_connections_percent</code>). Assegnategli un proprio ruolo di sola lettura.",
+        "network": "<strong>network</strong>: ogni nome sotto <code>resolve</code> viene risolto e ogni <code>host:port</code> sotto <code>connect</code> accetta una connessione, ad esempio il server delle licenze e i vostri mirror dei pacchetti.",
+        "silence": "<strong>inbound_silence</strong>: un agente ha inviato un rapporto entro <code>max_silence_minutes</code>, secondo il database, così un servizio in ascolto fermo, una regola del firewall errata o un record DNS scaduto vengono rilevati anche quando tutti i controlli locali hanno esito positivo. Con la multi-tenancy, elencate ogni database tenant sotto <code>extra_dsns</code>."
+      },
+      "config": {
+        "title": "Il file di configurazione",
+        "p1": "<code>/etc/sysmanage-canary.yaml</code> (FreeBSD e macOS <code>/usr/local/etc/</code>, NetBSD <code>/usr/pkg/etc/</code>, Windows <code>C:\\ProgramData\\SysManage\\</code>), di proprietà dell'utente del Canary con modalità 0600 (su Windows, leggibile solo da SYSTEM, Administrators e dal servizio), perché contiene password. Il pacchetto lo installa a partire da un esempio commentato. Ogni controllo ha <code>enabled</code>, <code>interval_seconds</code>, <code>timeout_seconds</code> e <code>failures_before_alert</code>; l'esempio spiega il resto. Un file con un qualsiasi problema viene rifiutato per intero, con l'elenco di tutti i problemi."
+      },
+      "alerts": {
+        "title": "Avvisi",
+        "p1": "Un'email quando un controllo è fallito <code>failures_before_alert</code> volte di seguito, un promemoria ogni <code>email.reminder_minutes</code> finché resta inattivo e una quando si ripristina; mai una per ogni controllo. Le email sono scritte nella lingua configurata in <code>language</code>.",
+        "p2": "Chi sorveglia il Canary: impostate <code>heartbeat.url</code> su un servizio di tipo dead man's switch (healthchecks.io e simili), che vi avvisa quando i ping del Canary si interrompono, e <code>heartbeat.daily_email_hour</code> per un'email giornaliera con lo stato di ogni controllo."
+      },
+      "gmail": {
+        "title": "Invio tramite Gmail",
+        "step1": "Attivate la verifica in due passaggi per l'account Google che invierà gli avvisi.",
+        "step2": "Create una password per le app (account Google, Sicurezza, Password per le app) e copiatela.",
+        "step3": "Impostate <code>email.host</code> su <code>smtp.gmail.com</code>, <code>port</code> su 587, <code>security</code> su <code>starttls</code>, <code>username</code> e <code>from</code> sull'indirizzo e <code>password</code> sulla password per le app."
+      },
+      "test": {
+        "title": "Verificarne il funzionamento",
+        "p1": "Come utente del Canary, <code>sysmanage-canary --check-config</code> convalida il file, <code>sysmanage-canary --test-email</code> invia un messaggio di prova e <code>sysmanage-canary --once</code> esegue una volta ogni controllo abilitato e stampa i risultati (su Windows il comando è <code>sysmanage-canary.cmd</code> nella cartella di installazione, eseguito come amministratore). Quindi abilitate il servizio: <code>systemctl enable --now sysmanage-canary</code> (FreeBSD <code>sysrc sysmanage_canary_enable=YES</code>, OpenBSD <code>rcctl enable sysmanage_canary</code>, NetBSD <code>sysmanage_canary=YES</code> in <code>/etc/rc.conf</code>, macOS <code>sudo launchctl bootstrap system /Library/LaunchDaemons/org.sysmanage.canary.plist</code>, Windows <code>Set-Service SysManageCanary -StartupType Automatic</code> e poi <code>Start-Service SysManageCanary</code>)."
+      },
+      "install": {
+        "title": "Installazione",
+        "p1": "Il Canary è un pacchetto a sé stante, quindi può essere installato su una macchina che non esegue alcun server SysManage: <code>sysmanage-canary</code> per Debian e Ubuntu, il sottopacchetto <code>sysmanage-canary</code> degli RPM, il port FreeBSD <code>sysutils/sysmanage-canary</code>, e il pacchetto macOS <code>sysmanage-canary</code> e l'MSI per Windows (x64 e ARM64) nella pagina delle release. I pacchetti server per FreeBSD, OpenBSD e NetBSD lo includono. Su macOS il pacchetto fornisce al Canary un ambiente Python privato e su Windows l'MSI include un proprio Python, quindi nessuno dei due condivide nulla con il server."
+      }
+    }
+  },
+  "deploy_docs": {
+    "best": {
+      "title": "Distribuzione consigliata",
+      "link": "Modelli di distribuzione consigliati"
     }
   }
 }

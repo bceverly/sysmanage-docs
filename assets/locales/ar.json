@@ -16859,6 +16859,13 @@
           "handoff": "عندما يعيد IdP المتصفح، يقوم sysmanage بتسجيل دخول المستخدم ويعيد توجيهه إلى صفحة <code>/login/sso</code> في وحدة التحكم. تنتقل الجلسة في ملف تعريف ارتباط HttpOnly صالح لمدة دقيقتين تستبدله الصفحة مرة واحدة -- وليس أبدًا في عنوان URL، حيث كانت ستنتهي في سجل المتصفح وسجلات الخادم.",
           "host": "يأتي عنوان وحدة التحكم من <code>webui.public_url</code> في <code>sysmanage.yaml</code>. اضبطه، وسجّل عناوين URL لإعادة التوجيه وACS على اسم المضيف نفسه: لا يعيد المتصفح ملف تعريف ارتباط التسليم إلا إلى المضيف الذي عيّنه.",
           "failure": "إذا لم يكتمل تسجيل الدخول، ينتقل المستخدم إلى الصفحة نفسها مع ذكر السبب (على سبيل المثال، هوية ليس لها حساب sysmanage نشط) وطريقة للعودة إلى نموذج كلمة المرور. توجد التفاصيل في سجل الخادم."
+        },
+        "mfa": {
+          "title": "فرض تسجيل الدخول متعدد العوامل",
+          "intro": "يترك تسجيل الدخول الأحادي المصادقة متعددة العوامل لموفّر الهوية، ويقبل SysManage الرمز المميز الذي يعيده IdP. شغّل <strong>طلب تسجيل الدخول متعدد العوامل</strong> على موفّر OIDC أو SAML، وسيرفض SysManage أي تسجيل دخول لا يذكر رمزه المميز أن المستخدم سجّل الدخول بأكثر من عامل واحد، فلا تمر بعد الآن سياسة IdP خاطئة التكوين أو تم تجاوزها دون أن يلاحظها أحد. هذا الخيار معطّل افتراضيًا؛ شغّله لأي وحدة تحكم يمكن الوصول إليها من الإنترنت.",
+          "oidc": "<strong>OIDC:</strong> يجب أن تحتوي مطالبة <code>amr</code> في رمز المعرّف المميز على <code>mfa</code> (RFC 8176؛ يعيّنها Microsoft Entra ID عندما يكمل المستخدم MFA). بالنسبة إلى IdP الذي يعبّر عن مستوى الضمان عبر <code>acr</code> بدلًا من ذلك، اذكر القيم المقبولة في <code>oidc_acr_values</code>؛ ويتم طلبها أيضًا عند تسجيل الدخول.",
+          "saml": "<strong>SAML:</strong> يجب أن يكون <code>AuthnContextClassRef</code> في التأكيد إحدى قيم <code>saml_mfa_authn_contexts</code>، قيمة واحدة في كل سطر؛ وتعني القيمة الفارغة <code>http://schemas.microsoft.com/claims/multipleauthn</code> الخاص بـ Microsoft Entra ID. يطلب AuthnRequest هذا السياق من IdP.",
+          "refused": "ينتقل تسجيل الدخول المرفوض إلى صفحة تسجيل الدخول مع الرسالة «لم يؤكد موفّر الهوية الخاص بك تسجيل الدخول متعدد العوامل»، ويسجّل سجل الخادم الموفّر وما ذكره الرمز المميز بدلًا من ذلك."
         }
       },
       "imagemode": {
@@ -24402,6 +24409,65 @@
     "tested": {
       "title": "كيف يتم اختبار ذلك",
       "p1": "يشغل كل تغيير على الخادم فحصا لانتحال الهوية: خادم حقيقي، ووكيل شرعي، ومهاجم لا يعرف سوى اسم المضيف الخاص بذلك الوكيل. يحاول المهاجم تسجيل الاسم مرة أخرى، والاتصال بصفته المضيف، وإرسال بيانات دون رمز أو برمز خاطئ، وتلقي أوامر المضيف. ويجب أن تفشل كل محاولة، بينما يجب أن تنجح التحديثات الخاصة بالوكيل الشرعي واتصال الوكيل الأقدم."
+    }
+  },
+  "deploy_best": {
+    "crumb": "أفضل الممارسات",
+    "title": "نماذج النشر وفق أفضل الممارسات",
+    "lead": "كيفية تشغيل SysManage في بيئة الإنتاج: نقطة نهاية عامة للوكلاء إلى جانب وحدة تحكم محمية، ومضيف مُحصَّن، وCanary يراقب الخادم من الخارج.",
+    "internet": {
+      "title": "خادم يمكن الوصول إليه من الإنترنت",
+      "intro": "يحتاج الوكلاء والمسؤولون إلى أشياء مختلفة من الخادم. يجب أن يصل الوكلاء إليه من أي مكان يعملون فيه، بينما ينبغي ألا يصل إلى وحدة التحكم سوى المسؤولين. امنحهم أسماء مضيفين منفصلة:",
+      "agents": "<strong>اسم مضيف عام للوكلاء</strong> (على سبيل المثال <code>agents.example.com</code>) يتصل به الوكلاء. يسجّل الوكلاء الجدد باستخدام رموز التسجيل، لذا فإن معرفة اسم المضيف لا تكفي لتسجيل مضيف، كما يحدّ الخادم من محاولات الاتصال لكل وكيل ولكل عنوان.",
+      "console": "<strong>اسم مضيف محمي لوحدة التحكم</strong> (على سبيل المثال <code>console.example.com</code>) لا يصل إليه سوى المسؤولين: قائمة سماح لعناوين IP، أو شهادات العملاء، أو تسجيل دخول موحد عبر موفّر هوية يشترط تسجيل الدخول متعدد العوامل (راجع <a href=\"../professional-plus/external-idp.html\">موفّرو الهوية الخارجيون</a>)."
+    },
+    "host": {
+      "title": "المضيف",
+      "os": "<strong>Ubuntu 24.04 LTS</strong>: إصدار دعم طويل الأمد مع خمس سنوات من تحديثات الأمان، والحزم التي ينشرها SysManage له.",
+      "firewall": "<strong>جدار حماية سحابي أمام UFW</strong>: لا يسمح جدار حماية المزوّد إلا بـ HTTPS، وبـ SSH من المكان الذي تدير منه الخادم؛ ويفعل UFW على المضيف الشيء نفسه، حتى لا يؤدي خطأ واحد إلى كشف الخادم.",
+      "fail2ban": "<strong>fail2ban على مسارات تسجيل الدخول فقط</strong>: احظر العناوين التي تفشل مرارًا في تسجيل الدخول إلى وحدة التحكم. لا توجّهه إلى نقاط نهاية الوكلاء: فمجموعة الأجهزة الموجودة خلف عنوان واحد والتي تعيد الاتصال بعد انقطاع تبدو كهجوم وسيتم حظرها.",
+      "nginx": "<strong>nginx هو المستمع الوحيد على الشبكة</strong>: يستمع خادم SysManage على عنوان الاسترجاع (loopback) خلفه."
+    },
+    "canary": {
+      "title": "Canary لبيئة الإنتاج",
+      "intro": "كل ما يُطلق التنبيهات داخل SysManage يتوقف عندما يكون الخادم أو قاعدة بياناته أو شبكته هو ما تعطّل. <code>sysmanage-canary</code> برنامج منفصل يراقب الخادم من الخارج ويرسل بريدًا إلكترونيًا عندما يتوقف شيء ما عن العمل. يعمل كخدمة ومستخدم خاصين به، بإعداداته الخاصة ونسخة Python الخاصة به، وليس البيئة الافتراضية للخادم أبدًا، لذا يستمر في العمل عندما يتعطل الخادم أو بيئته الافتراضية أو قاعدة بياناته. شغّله على الخادم، أو الأفضل على جهاز آخر.",
+      "checks": {
+        "title": "ما الذي يراقبه",
+        "web": "<strong>web_ui</strong>: يستجيب عنوان URL لوحدة التحكم، عبر مصافحة TLS يتم التحقق منها بنجاح، خلال <code>max_response_ms</code>.",
+        "backend": "<strong>backend</strong>: يستجيب <code>/api/health</code> ضمن الحد الخاص به.",
+        "db": "<strong>database</strong>: يتصل، ويشغّل <code>SELECT 1</code> ضمن الحد الخاص به، ويقارن الاتصالات المستخدمة مع <code>max_connections</code> في PostgreSQL (مع التنبيه عند تجاوز <code>max_connections_percent</code>). امنحه دورًا خاصًا به للقراءة فقط.",
+        "network": "<strong>network</strong>: يتم حل كل اسم ضمن <code>resolve</code> ويقبل كل <code>host:port</code> ضمن <code>connect</code> الاتصال، على سبيل المثال خادم الترخيص ومرايا الحزم لديك.",
+        "silence": "<strong>inbound_silence</strong>: أبلغ وكيلٌ ما خلال <code>max_silence_minutes</code>، وفق ما يُقرأ من قاعدة البيانات، بحيث يُكتشف المستمع المتوقف أو قاعدة جدار الحماية المعطلة أو سجل DNS المنتهي حتى عندما تنجح كل الفحوصات المحلية. مع تعدد المستأجرين، أدرج قاعدة بيانات كل مستأجر ضمن <code>extra_dsns</code>."
+      },
+      "config": {
+        "title": "ملف الإعدادات",
+        "p1": "<code>/etc/sysmanage-canary.yaml</code> (في FreeBSD وmacOS <code>/usr/local/etc/</code>، وفي NetBSD <code>/usr/pkg/etc/</code>، وفي Windows <code>C:\\ProgramData\\SysManage\\</code>)، مملوك لمستخدم Canary بالوضع 0600 (وفي Windows لا يقرؤه إلا SYSTEM وAdministrators والخدمة)، لأنه يحتوي على كلمات مرور. تثبّته الحزمة من مثال مزوّد بالتعليقات. لكل فحص <code>enabled</code> و<code>interval_seconds</code> و<code>timeout_seconds</code> و<code>failures_before_alert</code>؛ ويشرح المثال الباقي. يُرفض الملف الذي به أي مشكلة بالكامل، مع سرد كل المشكلات."
+      },
+      "alerts": {
+        "title": "التنبيهات",
+        "p1": "رسالة بريد إلكتروني واحدة عندما يفشل فحص <code>failures_before_alert</code> مرة متتالية، وتذكير كل <code>email.reminder_minutes</code> ما دام متوقفًا، ورسالة واحدة عند تعافيه؛ ولا رسالة لكل فحص أبدًا. تُكتب الرسائل باللغة المحددة في <code>language</code>.",
+        "p2": "من يراقب Canary: اضبط <code>heartbeat.url</code> على خدمة مفتاح الرجل الميت (healthchecks.io وما شابهها)، التي تنبهك عندما تتوقف إشارات ping من Canary، واضبط <code>heartbeat.daily_email_hour</code> لتلقي رسالة بريد إلكتروني يومية بحالة كل فحص."
+      },
+      "gmail": {
+        "title": "الإرسال عبر Gmail",
+        "step1": "شغّل التحقق بخطوتين لحساب Google الذي سيرسل التنبيهات.",
+        "step2": "أنشئ كلمة مرور للتطبيق (حساب Google، الأمان، كلمات مرور التطبيقات) وانسخها.",
+        "step3": "اضبط <code>email.host</code> على <code>smtp.gmail.com</code>، و<code>port</code> على 587، و<code>security</code> على <code>starttls</code>، و<code>username</code> و<code>from</code> على العنوان، و<code>password</code> على كلمة مرور التطبيق."
+      },
+      "test": {
+        "title": "اختباره",
+        "p1": "بصفتك مستخدم Canary، يتحقق <code>sysmanage-canary --check-config</code> من الملف، ويرسل <code>sysmanage-canary --test-email</code> رسالة اختبار، ويشغّل <code>sysmanage-canary --once</code> كل فحص مفعّل مرة واحدة ويطبع النتائج (في Windows يكون الأمر <code>sysmanage-canary.cmd</code> في مجلد التثبيت، ويُشغَّل بصلاحيات المسؤول). ثم فعّل الخدمة: <code>systemctl enable --now sysmanage-canary</code> (في FreeBSD <code>sysrc sysmanage_canary_enable=YES</code>، وفي OpenBSD <code>rcctl enable sysmanage_canary</code>، وفي NetBSD <code>sysmanage_canary=YES</code> في <code>/etc/rc.conf</code>، وفي macOS <code>sudo launchctl bootstrap system /Library/LaunchDaemons/org.sysmanage.canary.plist</code>، وفي Windows <code>Set-Service SysManageCanary -StartupType Automatic</code> ثم <code>Start-Service SysManageCanary</code>)."
+      },
+      "install": {
+        "title": "تثبيته",
+        "p1": "Canary حزمة مستقلة، لذا يمكن تثبيته على جهاز لا يشغّل أي خادم SysManage: <code>sysmanage-canary</code> لـ Debian وUbuntu، والحزمة الفرعية <code>sysmanage-canary</code> ضمن حزم RPM، ومنفذ FreeBSD <code>sysutils/sysmanage-canary</code>، وحزمة macOS <code>sysmanage-canary</code> وحزمة Windows MSI (x64 وARM64) في صفحة الإصدارات. وتتضمنه حزم الخادم لأنظمة FreeBSD وOpenBSD وNetBSD. على macOS توفر الحزمة لـ Canary بيئة Python خاصة، وعلى Windows تحمل حزمة MSI نسختها الخاصة من Python، لذا لا يشارك أي منهما الخادم في أي شيء."
+      }
+    }
+  },
+  "deploy_docs": {
+    "best": {
+      "title": "النشر وفق أفضل الممارسات",
+      "link": "نماذج النشر وفق أفضل الممارسات"
     }
   }
 }

@@ -16840,6 +16840,13 @@
           "handoff": "IdP가 브라우저를 돌려보내면 sysmanage는 사용자를 로그인시키고 콘솔의 <code>/login/sso</code> 페이지로 리디렉션합니다. 세션은 페이지가 한 번만 교환하는 2분짜리 HttpOnly 쿠키로 전달됩니다 -- URL에는 절대 담기지 않으며, URL에 담기면 브라우저 기록과 서버 로그에 남게 됩니다.",
           "host": "콘솔 주소는 <code>sysmanage.yaml</code>의 <code>webui.public_url</code>에서 가져옵니다. 이 값을 설정하고 리디렉션 URL과 ACS URL을 같은 호스트 이름으로 등록하십시오. 브라우저는 인계 쿠키를 그것을 설정한 호스트에만 돌려보냅니다.",
           "failure": "로그인이 완료되지 않으면 사용자는 이유(예: 활성 sysmanage 계정이 없는 ID)와 비밀번호 양식으로 돌아가는 방법이 표시된 같은 페이지로 이동합니다. 자세한 내용은 서버 로그에 있습니다."
+        },
+        "mfa": {
+          "title": "다단계 로그인 요구",
+          "intro": "Single Sign-On에서는 다단계 인증을 ID 공급자에게 맡기며, SysManage는 IdP가 반환하는 토큰을 받아들입니다. OIDC 또는 SAML 공급자에서 <strong>다단계 로그인 필요</strong>를 켜면, 사용자가 둘 이상의 요소로 로그인했다고 토큰이 밝히지 않는 로그인을 SysManage가 거부하므로 잘못 구성되었거나 우회된 IdP 정책이 더 이상 눈에 띄지 않고 넘어가지 않습니다. 기본값은 꺼짐이며, 인터넷에서 접근할 수 있는 콘솔에서는 켜십시오.",
+          "oidc": "<strong>OIDC:</strong> ID 토큰의 <code>amr</code> 클레임에 <code>mfa</code>가 포함되어야 합니다(RFC 8176, Microsoft Entra ID는 사용자가 MFA를 완료하면 이를 설정함). 보증 수준을 대신 <code>acr</code>로 표현하는 IdP의 경우 허용되는 값을 <code>oidc_acr_values</code>에 나열하십시오. 이 값들은 로그인 시에도 요청됩니다.",
+          "saml": "<strong>SAML:</strong> 어설션의 <code>AuthnContextClassRef</code>은(는) <code>saml_mfa_authn_contexts</code>의 값 중 하나여야 하며, 한 줄에 하나씩 입력합니다. 비어 있으면 Microsoft Entra ID의 <code>http://schemas.microsoft.com/claims/multipleauthn</code>을(를) 의미합니다. AuthnRequest는 IdP에 해당 컨텍스트를 요청합니다.",
+          "refused": "거부된 로그인은 \"ID 공급자가 다단계 로그인을 확인하지 않았습니다\"라는 메시지와 함께 로그인 페이지로 이동하며, 서버 로그에는 공급자와 토큰이 대신 무엇을 밝혔는지가 기록됩니다."
         }
       },
       "imagemode": {
@@ -24330,6 +24337,65 @@
     "tested": {
       "title": "테스트 방법",
       "p1": "서버에 대한 모든 변경 사항에 대해 사칭 검사가 실행됩니다. 실제 서버, 정상 에이전트, 그리고 해당 에이전트의 호스트 이름만 알고 있는 공격자로 구성됩니다. 공격자는 이름을 다시 등록하고, 해당 호스트로 연결하고, 토큰 없이 또는 잘못된 토큰으로 데이터를 보내고, 호스트의 명령을 수신하려고 시도합니다. 이러한 모든 시도는 실패해야 하며, 정상 에이전트 자체의 업데이트와 이전 버전 에이전트의 연결은 성공해야 합니다."
+    }
+  },
+  "deploy_best": {
+    "crumb": "모범 사례",
+    "title": "모범 사례 배포 모델",
+    "lead": "프로덕션 환경에서 SysManage를 운영하는 방법을 설명합니다. 보호된 콘솔과 별도로 에이전트용 공개 엔드포인트를 두고, 호스트를 강화하며, 외부에서 서버를 감시하는 Canary를 배치합니다.",
+    "internet": {
+      "title": "인터넷에서 접근 가능한 서버",
+      "intro": "에이전트와 관리자는 서버에 요구하는 것이 서로 다릅니다. 에이전트는 실행되는 위치가 어디든 서버에 접근할 수 있어야 하지만, 콘솔은 관리자만 접근할 수 있어야 합니다. 각각에 별도의 호스트 이름을 부여하십시오.",
+      "agents": "<strong>공개 에이전트 호스트 이름</strong>(예: <code>agents.example.com</code>)은 에이전트가 연결하는 대상입니다. 새 에이전트는 등록 토큰으로 등록하므로 호스트 이름을 알아내는 것만으로는 호스트를 등록할 수 없으며, 서버는 에이전트별 및 주소별로 연결 시도를 제한합니다.",
+      "console": "<strong>보호된 콘솔 호스트 이름</strong>(예: <code>console.example.com</code>)은 관리자만 접근할 수 있어야 합니다. IP 허용 목록, 클라이언트 인증서 또는 다단계 로그인을 요구하는 ID 공급자를 통한 싱글 사인온을 사용하십시오(<a href=\"../professional-plus/external-idp.html\">외부 ID 공급자</a> 참조)."
+    },
+    "host": {
+      "title": "호스트",
+      "os": "<strong>Ubuntu 24.04 LTS</strong>: 5년간 보안 업데이트가 제공되는 장기 지원 릴리스이며, SysManage가 이 릴리스용 패키지를 게시합니다.",
+      "firewall": "<strong>UFW 앞단의 클라우드 방화벽</strong>: 공급자의 방화벽은 HTTPS와 서버를 관리하는 위치에서의 SSH만 허용합니다. 호스트의 UFW도 동일하게 설정하므로 한 번의 실수로 서버가 노출되지 않습니다.",
+      "fail2ban": "<strong>fail2ban은 로그인 경로에만 적용</strong>: 콘솔 로그인에 반복적으로 실패하는 주소를 차단합니다. 에이전트 엔드포인트에는 적용하지 마십시오. 하나의 주소 뒤에 있는 플릿이 장애 후 다시 연결하면 공격처럼 보여 차단될 수 있습니다.",
+      "nginx": "<strong>nginx만 네트워크에서 수신 대기</strong>: SysManage 서버는 nginx 뒤에서 루프백 주소로 수신 대기합니다."
+    },
+    "canary": {
+      "title": "프로덕션 Canary",
+      "intro": "SysManage 내부에서 알림을 보내는 모든 기능은 장애가 발생한 대상이 서버, 데이터베이스 또는 네트워크 자체일 때 함께 멈춥니다. <code>sysmanage-canary</code>는 외부에서 서버를 감시하다가 무언가 작동을 멈추면 이메일을 보내는 별도의 프로그램입니다. 자체 서비스와 사용자, 자체 구성과 자체 Python으로 실행되며 서버의 가상 환경은 절대 사용하지 않으므로 서버, 서버의 가상 환경 또는 데이터베이스가 고장 나도 계속 실행됩니다. 서버에서 실행하거나, 가능하면 다른 머신에서 실행하십시오.",
+      "checks": {
+        "title": "감시 대상",
+        "web": "<strong>web_ui</strong>: 콘솔 URL이 검증에 성공하는 TLS 핸드셰이크를 거쳐 <code>max_response_ms</code> 이내에 응답합니다.",
+        "backend": "<strong>backend</strong>: <code>/api/health</code>가 제한 시간 내에 응답합니다.",
+        "db": "<strong>database</strong>: 연결하여 제한 시간 내에 <code>SELECT 1</code>을 실행하고, 사용 중인 연결 수를 PostgreSQL의 <code>max_connections</code>와 비교합니다(<code>max_connections_percent</code>를 넘으면 알림). 전용 읽기 전용 역할을 부여하십시오.",
+        "network": "<strong>network</strong>: <code>resolve</code> 아래의 모든 이름이 확인되고, 모든 <code>host:port</code>(<code>connect</code> 아래에 나열됨)가 연결을 수락합니다. 예를 들어 라이선스 서버와 패키지 미러가 있습니다.",
+        "silence": "<strong>inbound_silence</strong>: 데이터베이스에서 읽어 <code>max_silence_minutes</code> 이내에 에이전트가 보고했는지 확인합니다. 따라서 모든 로컬 검사가 통과하더라도 중단된 리스너, 잘못된 방화벽 규칙 또는 만료된 DNS 레코드를 알아챌 수 있습니다. 멀티테넌시를 사용하는 경우 각 테넌트 데이터베이스를 <code>extra_dsns</code> 아래에 나열하십시오."
+      },
+      "config": {
+        "title": "구성 파일",
+        "p1": "<code>/etc/sysmanage-canary.yaml</code>(FreeBSD 및 macOS는 <code>/usr/local/etc/</code>, NetBSD는 <code>/usr/pkg/etc/</code>, Windows는 <code>C:\\ProgramData\\SysManage\\</code>)은 비밀번호를 담고 있으므로 Canary 사용자가 소유하고 모드는 0600이어야 합니다(Windows에서는 SYSTEM, Administrators 및 서비스만 읽을 수 있음). 패키지는 주석이 달린 예제에서 이 파일을 설치합니다. 모든 검사에는 <code>enabled</code>, <code>interval_seconds</code>, <code>timeout_seconds</code>, <code>failures_before_alert</code>가 있으며, 나머지는 예제에서 설명합니다. 문제가 하나라도 있는 파일은 전체가 거부되며, 모든 문제가 나열됩니다."
+      },
+      "alerts": {
+        "title": "알림",
+        "p1": "검사가 <code>failures_before_alert</code>번 연속으로 실패하면 이메일 한 통, 중단 상태가 계속되는 동안 <code>email.reminder_minutes</code>마다 알림, 복구되면 한 통을 보냅니다. 검사마다 한 통씩 보내지는 않습니다. 이메일은 구성된 <code>language</code>로 작성됩니다.",
+        "p2": "Canary는 누가 감시할까요? <code>heartbeat.url</code>을 데드맨 스위치 서비스(healthchecks.io 등)로 설정하면 Canary의 핑이 멈출 때 알림을 받을 수 있으며, <code>heartbeat.daily_email_hour</code>를 설정하면 모든 검사의 상태가 담긴 이메일을 매일 받을 수 있습니다."
+      },
+      "gmail": {
+        "title": "Gmail을 통한 발송",
+        "step1": "알림을 보낼 Google 계정에서 2단계 인증을 사용 설정합니다.",
+        "step2": "앱 비밀번호를 만들고(Google 계정, 보안, 앱 비밀번호) 복사합니다.",
+        "step3": "<code>email.host</code>를 <code>smtp.gmail.com</code>으로, <code>port</code>를 587로, <code>security</code>를 <code>starttls</code>로, <code>username</code>과 <code>from</code>을 해당 주소로, <code>password</code>를 앱 비밀번호로 설정합니다."
+      },
+      "test": {
+        "title": "테스트",
+        "p1": "Canary 사용자로 <code>sysmanage-canary --check-config</code>를 실행하면 파일을 검증하고, <code>sysmanage-canary --test-email</code>은 테스트 메시지를 보내며, <code>sysmanage-canary --once</code>는 활성화된 모든 검사를 한 번 실행하고 결과를 출력합니다(Windows에서는 설치 폴더의 <code>sysmanage-canary.cmd</code> 명령을 관리자 권한으로 실행합니다). 그런 다음 서비스를 활성화합니다: <code>systemctl enable --now sysmanage-canary</code>(FreeBSD는 <code>sysrc sysmanage_canary_enable=YES</code>, OpenBSD는 <code>rcctl enable sysmanage_canary</code>, NetBSD는 <code>sysmanage_canary=YES</code>에 <code>/etc/rc.conf</code> 추가, macOS는 <code>sudo launchctl bootstrap system /Library/LaunchDaemons/org.sysmanage.canary.plist</code>, Windows는 <code>Set-Service SysManageCanary -StartupType Automatic</code> 실행 후 <code>Start-Service SysManageCanary</code>)."
+      },
+      "install": {
+        "title": "설치",
+        "p1": "Canary는 별도의 패키지이므로 SysManage 서버를 실행하지 않는 머신에도 설치할 수 있습니다. Debian 및 Ubuntu용 <code>sysmanage-canary</code>, RPM의 <code>sysmanage-canary</code> 하위 패키지, FreeBSD 포트 <code>sysutils/sysmanage-canary</code>, 그리고 릴리스 페이지의 macOS 패키지 <code>sysmanage-canary</code> 및 Windows MSI(x64 및 ARM64)가 있습니다. FreeBSD, OpenBSD 및 NetBSD 서버 패키지에는 이것이 포함되어 있습니다. macOS에서는 패키지가 Canary에 전용 Python 환경을 제공하고, Windows에서는 MSI에 자체 Python이 포함되어 있으므로 어느 쪽도 서버와 아무것도 공유하지 않습니다."
+      }
+    }
+  },
+  "deploy_docs": {
+    "best": {
+      "title": "모범 사례 배포",
+      "link": "모범 사례 배포 모델"
     }
   }
 }

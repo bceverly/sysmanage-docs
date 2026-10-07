@@ -16840,6 +16840,13 @@
           "handoff": "Wanneer de IdP de browser terugstuurt, meldt sysmanage de gebruiker aan en verwijst door naar de pagina <code>/login/sso</code> van de console. De sessie reist in een HttpOnly-cookie van twee minuten dat de pagina eenmaal inwisselt -- nooit in de URL, waar die in de browsergeschiedenis en de serverlogboeken terecht zou komen.",
           "host": "Het adres van de console komt uit <code>webui.public_url</code> in <code>sysmanage.yaml</code>. Stel het in en registreer de redirect- en ACS-URL's op diezelfde hostnaam: de browser stuurt het overdrachtscookie alleen terug naar de host die het heeft ingesteld.",
           "failure": "Als de aanmelding niet wordt voltooid, komt de gebruiker op dezelfde pagina terecht met de reden (bijvoorbeeld een identiteit zonder actief sysmanage-account) en een weg terug naar het wachtwoordformulier. De details staan in het serverlogboek."
+        },
+        "mfa": {
+          "title": "Meervoudige aanmelding vereisen",
+          "intro": "Bij single sign-on laat SysManage de meervoudige verificatie over aan de identiteitsprovider en accepteert het het token dat de IdP retourneert. Schakel <strong>Multi-factoraanmelding vereisen</strong> in op een OIDC- of SAML-provider, en SysManage weigert elke aanmelding waarvan het token niet aangeeft dat de gebruiker zich met meer dan één factor heeft aangemeld. Zo blijft een verkeerd geconfigureerd of omzeild IdP-beleid niet langer onopgemerkt. De optie staat standaard uit; schakel haar in voor elke console die vanaf internet bereikbaar is.",
+          "oidc": "<strong>OIDC:</strong> de <code>amr</code>-claim van het ID-token moet <code>mfa</code> bevatten (RFC 8176; Microsoft Entra ID stelt deze in wanneer de gebruiker MFA heeft voltooid). Voor een IdP die het betrouwbaarheidsniveau in plaats daarvan via <code>acr</code> uitdrukt, vermeldt u de geaccepteerde waarden in <code>oidc_acr_values</code>; deze worden ook bij het aanmelden aangevraagd.",
+          "saml": "<strong>SAML:</strong> de <code>AuthnContextClassRef</code> van de assertion moet een van de waarden uit <code>saml_mfa_authn_contexts</code> zijn, één per regel; leeg betekent <code>http://schemas.microsoft.com/claims/multipleauthn</code> van Microsoft Entra ID. Het AuthnRequest vraagt de IdP om die context.",
+          "refused": "Een geweigerde aanmelding komt op de inlogpagina terecht met \"Uw identiteitsprovider heeft de meervoudige aanmelding niet bevestigd\", en het serverlogboek legt de provider vast en wat het token in plaats daarvan vermeldde."
         }
       },
       "imagemode": {
@@ -24330,6 +24337,65 @@
     "tested": {
       "title": "Hoe dit wordt getest",
       "p1": "Bij elke wijziging aan de server wordt een imitatiecontrole uitgevoerd: een echte server, een legitieme agent en een aanvaller die alleen de hostnaam van die agent kent. De aanvaller probeert de naam opnieuw te registreren, als de host verbinding te maken, gegevens te verzenden zonder token of met een verkeerd token, en de opdrachten van de host te ontvangen. Elke poging moet mislukken, terwijl de eigen updates van de legitieme agent en de verbinding van een oudere agent moeten slagen."
+    }
+  },
+  "deploy_best": {
+    "crumb": "Best practices",
+    "title": "Aanbevolen implementatiemodellen",
+    "lead": "Hoe u SysManage in productie draait: een openbaar eindpunt voor agents naast een beveiligde console, een geharde host en een Canary die de server van buitenaf bewaakt.",
+    "internet": {
+      "title": "Een server die bereikbaar is vanaf internet",
+      "intro": "Agents en beheerders hebben verschillende dingen van de server nodig. Agents moeten hem kunnen bereiken vanaf waar ze ook draaien; de console mag alleen voor beheerders bereikbaar zijn. Geef ze afzonderlijke hostnamen:",
+      "agents": "<strong>Een openbare hostnaam voor agents</strong> (bijvoorbeeld <code>agents.example.com</code>) waarmee agents verbinding maken. Nieuwe agents registreren zich met registratietokens, dus het kennen van de hostnaam is niet genoeg om een host te registreren, en de server beperkt het aantal verbindingspogingen per agent en per adres.",
+      "console": "<strong>Een beveiligde hostnaam voor de console</strong> (bijvoorbeeld <code>console.example.com</code>) die alleen beheerders kunnen bereiken: een IP-allowlist, clientcertificaten of single sign-on via een identiteitsprovider die aanmelding met meerdere factoren vereist (zie <a href=\"../professional-plus/external-idp.html\">Externe identiteitsproviders</a>)."
+    },
+    "host": {
+      "title": "De host",
+      "os": "<strong>Ubuntu 24.04 LTS</strong>: een release met langdurige ondersteuning, vijf jaar beveiligingsupdates en de pakketten die SysManage ervoor publiceert.",
+      "firewall": "<strong>Een cloudfirewall vóór UFW</strong>: de firewall van de provider laat alleen HTTPS toe, plus SSH vanaf de plek waar u de server beheert; UFW op de host doet hetzelfde, zodat één fout de server niet blootstelt.",
+      "fail2ban": "<strong>fail2ban alleen op de aanmeldpaden</strong>: blokkeer adressen die herhaaldelijk niet kunnen aanmelden bij de console. Richt het niet op de eindpunten voor agents: een machinepark achter één adres dat na een storing opnieuw verbinding maakt, lijkt op een aanval en zou worden buitengesloten.",
+      "nginx": "<strong>nginx is de enige netwerklistener</strong>: de SysManage-server luistert daarachter op het loopbackadres."
+    },
+    "canary": {
+      "title": "Productie-Canary",
+      "intro": "Alles wat binnen SysManage waarschuwingen geeft, stopt wanneer juist de server, de database of het netwerk is uitgevallen. <code>sysmanage-canary</code> is een apart programma dat de server van buitenaf bewaakt en een e-mail stuurt wanneer iets niet meer werkt. Het draait als eigen service en gebruiker, met een eigen configuratie en een eigen Python, nooit de virtuele omgeving van de server, zodat het blijft draaien wanneer de server, de virtuele omgeving of de database defect is. Draai het op de server, of beter nog, op een andere machine.",
+      "checks": {
+        "title": "Wat het bewaakt",
+        "web": "<strong>web_ui</strong>: de console-URL antwoordt, via een TLS-handshake die met succes wordt geverifieerd, binnen <code>max_response_ms</code>.",
+        "backend": "<strong>backend</strong>: <code>/api/health</code> antwoordt binnen de limiet.",
+        "db": "<strong>database</strong>: maakt verbinding, voert <code>SELECT 1</code> binnen de limiet uit en vergelijkt de gebruikte verbindingen met <code>max_connections</code> van PostgreSQL (met een waarschuwing boven <code>max_connections_percent</code>). Geef het een eigen alleen-lezen rol.",
+        "network": "<strong>network</strong>: elke naam onder <code>resolve</code> wordt omgezet en elke <code>host:port</code> onder <code>connect</code> accepteert een verbinding, bijvoorbeeld de licentieserver en uw pakketmirrors.",
+        "silence": "<strong>inbound_silence</strong>: een agent heeft binnen <code>max_silence_minutes</code> gerapporteerd, gelezen uit de database, zodat een uitgevallen listener, een kapotte firewallregel of een verlopen DNS-record wordt opgemerkt, zelfs wanneer elke lokale controle slaagt. Bij multitenancy vermeldt u elke tenantdatabase onder <code>extra_dsns</code>."
+      },
+      "config": {
+        "title": "Het configuratiebestand",
+        "p1": "<code>/etc/sysmanage-canary.yaml</code> (FreeBSD en macOS <code>/usr/local/etc/</code>, NetBSD <code>/usr/pkg/etc/</code>, Windows <code>C:\\ProgramData\\SysManage\\</code>), eigendom van de Canary-gebruiker met modus 0600 (op Windows alleen leesbaar voor SYSTEM, Administrators en de service), omdat het wachtwoorden bevat. Het pakket installeert het vanuit een voorbeeld met commentaar. Elke controle heeft <code>enabled</code>, <code>interval_seconds</code>, <code>timeout_seconds</code> en <code>failures_before_alert</code>; het voorbeeld legt de rest uit. Een bestand met welk probleem dan ook wordt in zijn geheel geweigerd, met een lijst van alle problemen."
+      },
+      "alerts": {
+        "title": "Waarschuwingen",
+        "p1": "Eén e-mail wanneer een controle <code>failures_before_alert</code> keer achter elkaar is mislukt, een herinnering elke <code>email.reminder_minutes</code> zolang die mislukt blijft, en één wanneer die herstelt; nooit één per controle. E-mails worden geschreven in de taal die is ingesteld in <code>language</code>.",
+        "p2": "Wie bewaakt de Canary: stel <code>heartbeat.url</code> in op een dodemansknopservice (healthchecks.io en vergelijkbare), die u waarschuwt wanneer de pings van de Canary stoppen, en <code>heartbeat.daily_email_hour</code> voor een dagelijkse e-mail met de status van elke controle."
+      },
+      "gmail": {
+        "title": "Verzenden via Gmail",
+        "step1": "Schakel verificatie in twee stappen in voor het Google-account dat de waarschuwingen gaat verzenden.",
+        "step2": "Maak een app-wachtwoord aan (Google-account, Beveiliging, App-wachtwoorden) en kopieer het.",
+        "step3": "Stel <code>email.host</code> in op <code>smtp.gmail.com</code>, <code>port</code> op 587, <code>security</code> op <code>starttls</code>, <code>username</code> en <code>from</code> op het adres en <code>password</code> op het app-wachtwoord."
+      },
+      "test": {
+        "title": "Testen",
+        "p1": "Als de Canary-gebruiker valideert <code>sysmanage-canary --check-config</code> het bestand, verstuurt <code>sysmanage-canary --test-email</code> een testbericht en voert <code>sysmanage-canary --once</code> elke ingeschakelde controle één keer uit en toont de resultaten (op Windows is het commando <code>sysmanage-canary.cmd</code> in de installatiemap, uitgevoerd als administrator). Schakel daarna de service in: <code>systemctl enable --now sysmanage-canary</code> (FreeBSD <code>sysrc sysmanage_canary_enable=YES</code>, OpenBSD <code>rcctl enable sysmanage_canary</code>, NetBSD <code>sysmanage_canary=YES</code> in <code>/etc/rc.conf</code>, macOS <code>sudo launchctl bootstrap system /Library/LaunchDaemons/org.sysmanage.canary.plist</code>, Windows <code>Set-Service SysManageCanary -StartupType Automatic</code> en daarna <code>Start-Service SysManageCanary</code>)."
+      },
+      "install": {
+        "title": "Installeren",
+        "p1": "De Canary is een eigen pakket en kan dus op een machine staan waarop geen SysManage-server draait: <code>sysmanage-canary</code> voor Debian en Ubuntu, het subpakket <code>sysmanage-canary</code> van de RPM's, de FreeBSD-port <code>sysutils/sysmanage-canary</code>, en het macOS-pakket <code>sysmanage-canary</code> en de Windows-MSI (x64 en ARM64) op de releasepagina. De serverpakketten voor FreeBSD, OpenBSD en NetBSD bevatten het. Op macOS geeft het pakket de Canary een eigen Python-omgeving en op Windows bevat de MSI een eigen Python, zodat geen van beide iets deelt met de server."
+      }
+    }
+  },
+  "deploy_docs": {
+    "best": {
+      "title": "Aanbevolen implementatie",
+      "link": "Aanbevolen implementatiemodellen"
     }
   }
 }

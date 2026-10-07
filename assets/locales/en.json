@@ -3815,6 +3815,13 @@
           "handoff": "When the IdP returns the browser, sysmanage signs the user in and redirects to the console's <code>/login/sso</code> page. The session travels in a two-minute HttpOnly cookie that the page exchanges once -- never in the URL, where it would end up in browser history and server logs.",
           "host": "The console's address comes from <code>webui.public_url</code> in <code>sysmanage.yaml</code>. Set it, and register the redirect and ACS URLs on that same host name: the browser only returns the hand-off cookie to the host that set it.",
           "failure": "If the sign-in does not complete, the user lands on the same page with the reason (for example, an identity with no active sysmanage account) and a way back to the password form. The details are in the server log."
+        },
+        "mfa": {
+          "title": "Requiring Multi-Factor Sign-In",
+          "intro": "Single sign-on leaves multi-factor authentication to the identity provider, and SysManage accepts the token the IdP returns. Turn on <strong>Require multi-factor sign-in</strong> on an OIDC or SAML provider and SysManage refuses a sign-in whose token does not say the user signed in with more than one factor, so a misconfigured or bypassed IdP policy no longer goes unnoticed. It is off by default; turn it on for any console reachable from the internet.",
+          "oidc": "<strong>OIDC:</strong> the ID token's <code>amr</code> claim must contain <code>mfa</code> (RFC 8176; Microsoft Entra ID sets it when the user completed MFA). For an IdP that expresses assurance through <code>acr</code> instead, list the accepted values in <code>oidc_acr_values</code>; they are also requested at sign-in.",
+          "saml": "<strong>SAML:</strong> the assertion's <code>AuthnContextClassRef</code> must be one of <code>saml_mfa_authn_contexts</code>, one per line; empty means Microsoft Entra ID's <code>http://schemas.microsoft.com/claims/multipleauthn</code>. The AuthnRequest asks the IdP for that context.",
+          "refused": "A refused sign-in lands on the login page with \"Your identity provider did not confirm multi-factor sign-in\", and the server log records the provider and what the token said instead."
         }
       },
       "mirror": {
@@ -24326,6 +24333,65 @@
     "tested": {
       "title": "How This Is Tested",
       "p1": "Every change to the server runs an impersonation check: a real server, a legitimate agent, and an attacker that knows only that agent's hostname. The attacker tries to register the name again, to connect as the host, to send data with no token or a wrong one, and to receive the host's commands. Every attempt must fail, while the legitimate agent's own updates and an older agent's connection must succeed."
+    }
+  },
+  "deploy_best": {
+    "crumb": "Best Practices",
+    "title": "Best-Practice Deployment Models",
+    "lead": "How to run SysManage in production: a public endpoint for agents beside a protected console, a hardened host, and a canary that watches the server from the outside.",
+    "internet": {
+      "title": "A Server Reachable from the Internet",
+      "intro": "Agents and administrators need different things from the server. Agents must reach it from wherever they run; the console should be reachable by administrators only. Give them separate hostnames:",
+      "agents": "<strong>A public agent hostname</strong> (for example <code>agents.example.com</code>) that agents connect to. New agents enroll with enrollment tokens, so finding the hostname is not enough to register a host, and the server limits connection attempts per agent and per address.",
+      "console": "<strong>A protected console hostname</strong> (for example <code>console.example.com</code>) that only administrators can reach: an IP allowlist, client certificates, or single sign-on through an identity provider that requires multi-factor sign-in (see <a href=\"../professional-plus/external-idp.html\">External Identity Providers</a>)."
+    },
+    "host": {
+      "title": "The Host",
+      "os": "<strong>Ubuntu 24.04 LTS</strong>: a long-term-support release with five years of security updates, and the packages SysManage publishes for it.",
+      "firewall": "<strong>A cloud firewall in front of UFW</strong>: the provider's firewall admits only HTTPS, and SSH from where you administer the server; UFW on the host does the same, so one mistake does not expose the server.",
+      "fail2ban": "<strong>fail2ban on the login paths only</strong>: ban addresses that repeatedly fail to sign in to the console. Do not point it at the agent endpoints: a fleet behind one address reconnecting after an outage looks like an attack and would be locked out.",
+      "nginx": "<strong>nginx is the only network listener</strong>: the SysManage server listens on the loopback address behind it."
+    },
+    "canary": {
+      "title": "Production Canary",
+      "intro": "Everything that alerts inside SysManage stops when the server, its database or its network is what failed. <code>sysmanage-canary</code> is a separate program that watches the server from the outside and emails when something stops working. It runs as its own service and user, with its own configuration and its own Python, never the server's virtual environment, so it keeps running when the server, its virtual environment or its database is broken. Run it on the server, or better, on another machine.",
+      "checks": {
+        "title": "What It Watches",
+        "web": "<strong>web_ui</strong>: the console URL answers, over a TLS handshake that verifies, within <code>max_response_ms</code>.",
+        "backend": "<strong>backend</strong>: <code>/api/health</code> answers within its limit.",
+        "db": "<strong>database</strong>: connects, runs <code>SELECT 1</code> within its limit, and compares the connections in use with PostgreSQL's <code>max_connections</code> (alerting above <code>max_connections_percent</code>). Give it its own read-only role.",
+        "network": "<strong>network</strong>: every name under <code>resolve</code> resolves and every <code>host:port</code> under <code>connect</code> accepts a connection, for example the license server and your package mirrors.",
+        "silence": "<strong>inbound_silence</strong>: an agent has reported within <code>max_silence_minutes</code>, read from the database, so a dead listener, a broken firewall rule or a lapsed DNS record is noticed even when every local check passes. With multi-tenancy, list each tenant database under <code>extra_dsns</code>."
+      },
+      "config": {
+        "title": "The Configuration File",
+        "p1": "<code>/etc/sysmanage-canary.yaml</code> (FreeBSD and macOS <code>/usr/local/etc/</code>, NetBSD <code>/usr/pkg/etc/</code>, Windows <code>C:\\ProgramData\\SysManage\\</code>), owned by the canary user with mode 0600 (on Windows, readable only by SYSTEM, Administrators and the service), because it holds passwords. The package installs it from a commented example. Every check has <code>enabled</code>, <code>interval_seconds</code>, <code>timeout_seconds</code> and <code>failures_before_alert</code>; the example explains the rest. A file with any problem is refused as a whole, with every problem listed."
+      },
+      "alerts": {
+        "title": "Alerts",
+        "p1": "One email when a check has failed <code>failures_before_alert</code> times in a row, a reminder every <code>email.reminder_minutes</code> while it stays down, and one when it recovers; never one per check. Emails are written in the configured <code>language</code>.",
+        "p2": "Who watches the canary: set <code>heartbeat.url</code> to a dead-man's-switch service (healthchecks.io and similar), which alerts you when the canary's pings stop, and <code>heartbeat.daily_email_hour</code> for a daily email with the state of every check."
+      },
+      "gmail": {
+        "title": "Sending Through Gmail",
+        "step1": "Turn on 2-Step Verification for the Google account that will send the alerts.",
+        "step2": "Create an App Password (Google account, Security, App passwords) and copy it.",
+        "step3": "Set <code>email.host</code> to <code>smtp.gmail.com</code>, <code>port</code> to 587, <code>security</code> to <code>starttls</code>, <code>username</code> and <code>from</code> to the address, and <code>password</code> to the App Password."
+      },
+      "test": {
+        "title": "Testing It",
+        "p1": "As the canary user, <code>sysmanage-canary --check-config</code> validates the file, <code>sysmanage-canary --test-email</code> sends a test message, and <code>sysmanage-canary --once</code> runs every enabled check once and prints the results (on Windows the command is <code>sysmanage-canary.cmd</code> in the install folder, run as an administrator). Then enable the service: <code>systemctl enable --now sysmanage-canary</code> (FreeBSD <code>sysrc sysmanage_canary_enable=YES</code>, OpenBSD <code>rcctl enable sysmanage_canary</code>, NetBSD <code>sysmanage_canary=YES</code> in <code>/etc/rc.conf</code>, macOS <code>sudo launchctl bootstrap system /Library/LaunchDaemons/org.sysmanage.canary.plist</code>, Windows <code>Set-Service SysManageCanary -StartupType Automatic</code> then <code>Start-Service SysManageCanary</code>)."
+      },
+      "install": {
+        "title": "Installing It",
+        "p1": "The canary is its own package, so it can go on a machine that runs no SysManage server: <code>sysmanage-canary</code> for Debian and Ubuntu, the <code>sysmanage-canary</code> subpackage of the RPMs, the <code>sysutils/sysmanage-canary</code> FreeBSD port, and the <code>sysmanage-canary</code> macOS package and Windows MSI (x64 and ARM64) on the release page. The FreeBSD, OpenBSD and NetBSD server packages include it. On macOS the package gives the canary a private Python environment, and on Windows the MSI carries its own Python, so neither shares anything with the server."
+      }
+    }
+  },
+  "deploy_docs": {
+    "best": {
+      "title": "Best-Practice Deployment",
+      "link": "Best-Practice Deployment Models"
     }
   }
 }
