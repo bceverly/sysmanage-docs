@@ -16780,8 +16780,9 @@
           "saml_start": "anoniem; stuurt de browser door naar de IdP",
           "saml_acs": "anoniem; verifieert de assertion en brengt de browser aangemeld naar de console",
           "saml_metadata": "anoniem; de SP-metadata van deze server, voor de IdP",
-          "sso_providers": "anoniem; de providers die de inlogpagina aanbiedt (leeg zonder de engine)",
-          "sso_session": "wisselt het eenmalige overdrachtscookie in voor de sessie"
+          "sso_providers": "anoniem; de serverbrede providers (leeg zonder de engine)",
+          "sso_session": "wisselt het eenmalige overdrachtscookie in voor de sessie",
+          "login_discover": "anoniem; stap één van de inlogpagina: het wachtwoord en de providers die een e-mailadres mag gebruiken, uitsluitend bepaald door het domein"
         },
         "breadcrumb": "Externe identiteitsproviders",
         "fallback": {
@@ -16806,7 +16807,7 @@
         "oidc": {
           "client": "<code>oidc_client_id</code> + <code>oidc_client_secret_secret_id</code> -- de applicatie die is geregistreerd bij de IdP. Het clientgeheim is opgeslagen in Vault.",
           "discovery": "<code>oidc_discovery_url</code> -- optionele overschrijving voor het bekende detectiedocument. Standaard ingesteld op <code>{issuer}/.well-known/openid-configuration</code>.",
-          "flow": "De inlogpagina toont voor elke ingeschakelde provider een knop <strong>Aanmelden met</strong>. Die stuurt de browser naar <code>/api/auth/oidc/{provider_id}/start</code>, dat met een 302 doorverwijst naar het autorisatie-eindpunt van de IdP, met een <code>state</code>-token ter bescherming tegen CSRF. Nadat de gebruiker zich heeft aangemeld, keert de IdP terug naar <code>/api/auth/oidc/{provider_id}/callback?code=…&amp;state=…</code> en wisselt de engine de code in voor een ID-token. De claim <code>sub</code> wordt vergeleken met de kolom <code>external_subject</code> van de gebruiker om het lokale account te vinden.",
+          "flow": "Na de e-mailstap toont de inlogpagina een knop <strong>Aanmelden met</strong> voor elke provider die het adres mag gebruiken. Die stuurt de browser naar <code>/api/auth/oidc/{provider_id}/start</code>, dat met een 302 doorverwijst naar het autorisatie-eindpunt van de IdP, met een <code>state</code>-token ter bescherming tegen CSRF. Nadat de gebruiker zich heeft aangemeld, keert de IdP terug naar <code>/api/auth/oidc/{provider_id}/callback?code=…&amp;state=…</code> en wisselt de engine de code in voor een ID-token. De claim <code>sub</code> wordt vergeleken met de kolom <code>external_subject</code> van de gebruiker om het lokale account te vinden.",
           "group_claim": "<code>oidc_group_claim</code> -- naam van de ID-tokenclaim die de groepen van de gebruiker vermeldt (standaard <code>groups</code>; sommige IdP's gebruiken <code>roles</code> of een aangepaste naam).",
           "intro": "Configureer voor elke OIDC-provider:",
           "issuer": "<code>oidc_issuer_url</code> -- de HTTPS-root van de IdP, bijv. <code>https://login.example.com</code>.",
@@ -16836,7 +16837,7 @@
         },
         "landing": {
           "title": "Aanmelden vanaf de inlogpagina",
-          "buttons": "De inlogpagina biedt één knop <strong>Aanmelden met</strong> per ingeschakelde OIDC- of SAML-provider die niet aan een tenant is gebonden. Op een server zonder zo'n provider blijft de inlogpagina ongewijzigd.",
+          "buttons": "De inlogpagina vraagt eerst om het e-mailadres. De volgende stap biedt het wachtwoord en een knop <strong>Aanmelden met</strong> voor elke ingeschakelde OIDC- of SAML-provider die dat adres mag gebruiken: de serverbrede providers, plus die van de tenants die het domein van het adres tot hun e-maildomeinen rekenen. Het antwoord hangt alleen af van het domein, nooit van het bestaan van een account, zodat de pagina niet kan worden gebruikt om naar accounts te zoeken. Op een server zonder zo'n provider toont de tweede stap alleen het wachtwoord.",
           "handoff": "Wanneer de IdP de browser terugstuurt, meldt sysmanage de gebruiker aan en verwijst door naar de pagina <code>/login/sso</code> van de console. De sessie reist in een HttpOnly-cookie van twee minuten dat de pagina eenmaal inwisselt -- nooit in de URL, waar die in de browsergeschiedenis en de serverlogboeken terecht zou komen.",
           "host": "Het adres van de console komt uit <code>webui.public_url</code> in <code>sysmanage.yaml</code>. Stel het in en registreer de redirect- en ACS-URL's op diezelfde hostnaam: de browser stuurt het overdrachtscookie alleen terug naar de host die het heeft ingesteld.",
           "failure": "Als de aanmelding niet wordt voltooid, komt de gebruiker op dezelfde pagina terecht met de reden (bijvoorbeeld een identiteit zonder actief sysmanage-account) en een weg terug naar het wachtwoordformulier. De details staan in het serverlogboek."
@@ -16844,9 +16845,21 @@
         "mfa": {
           "title": "Meervoudige aanmelding vereisen",
           "intro": "Bij single sign-on laat SysManage de meervoudige verificatie over aan de identiteitsprovider en accepteert het het token dat de IdP retourneert. Schakel <strong>Multi-factoraanmelding vereisen</strong> in op een OIDC- of SAML-provider, en SysManage weigert elke aanmelding waarvan het token niet aangeeft dat de gebruiker zich met meer dan één factor heeft aangemeld. Zo blijft een verkeerd geconfigureerd of omzeild IdP-beleid niet langer onopgemerkt. De optie staat standaard uit; schakel haar in voor elke console die vanaf internet bereikbaar is.",
-          "oidc": "<strong>OIDC:</strong> de <code>amr</code>-claim van het ID-token moet <code>mfa</code> bevatten (RFC 8176; Microsoft Entra ID stelt deze in wanneer de gebruiker MFA heeft voltooid). Voor een IdP die het betrouwbaarheidsniveau in plaats daarvan via <code>acr</code> uitdrukt, vermeldt u de geaccepteerde waarden in <code>oidc_acr_values</code>; deze worden ook bij het aanmelden aangevraagd.",
+          "oidc": "<strong>OIDC:</strong> de <code>amr</code>-claim van het ID-token moet <code>mfa</code> bevatten (RFC 8176). Microsoft Entra ID stelt deze alleen in v1.0-tokens in; de v2.0-tokens bevatten helemaal geen <code>amr</code>, dus gebruik de v1.0-eindpunten (zie de Microsoft 365-handleiding hieronder). Voor een IdP die het betrouwbaarheidsniveau in plaats daarvan via <code>acr</code> uitdrukt, vermeldt u de geaccepteerde waarden in <code>oidc_acr_values</code>; deze worden ook bij het aanmelden aangevraagd.",
           "saml": "<strong>SAML:</strong> de <code>AuthnContextClassRef</code> van de assertion moet een van de waarden uit <code>saml_mfa_authn_contexts</code> zijn, één per regel; leeg betekent <code>http://schemas.microsoft.com/claims/multipleauthn</code> van Microsoft Entra ID. Het AuthnRequest vraagt de IdP om die context.",
           "refused": "Een geweigerde aanmelding komt op de inlogpagina terecht met \"Uw identiteitsprovider heeft de meervoudige aanmelding niet bevestigd\", en het serverlogboek legt de provider vast en wat het token in plaats daarvan vermeldde."
+        },
+        "m365": {
+          "title": "Stapsgewijze handleiding: Microsoft 365 / Entra ID",
+          "intro": "Geverifieerd met een echte Entra ID-tenant: aanmelden, toewijzing van groepen aan rollen, just-in-time-accounts en verplichte multi-factoraanmelding. U hebt rechten nodig om toepassingen in de tenant te registreren.",
+          "register": "<strong>Registreer de app.</strong> Kies in het Microsoft Entra-beheercentrum onder App-registraties de optie Nieuwe registratie: één tenant, platform <strong>Web</strong>. Sla voor de omleidings-URI de provider op in SysManage met het veld Omleidings-URI leeg: SysManage vult het in (<code>https://CONSOLE/api/auth/oidc/PROVIDER_ID/callback</code>) en de kopieerknop van het veld geeft u de exacte waarde om te plakken. Entra accepteert gewoon <code>http://</code> alleen voor <code>localhost</code>. Noteer de toepassings-id (client) en de map-id (tenant).",
+          "secret": "<strong>Maak een clientgeheim</strong> onder Certificaten en geheimen en geef SysManage in het veld voor het clientgeheim een verwijzing ernaar: een kluispad, of voor een test <code>literal:</code> gevolgd door het geheim.",
+          "tokens": "<strong>Tokenconfiguratie:</strong> voeg een groepsclaim toe (Beveiligingsgroepen, uitgegeven als groeps-id) en de optionele ID-tokenclaim <code>email</code>, die just-in-time-accounts nodig hebben.",
+          "groups": "<strong>Groepen:</strong> maak onder Groepen beveiligingsgroepen aan (bijvoorbeeld SysManage Admins) en voeg de gebruikers toe; wijs op de provider de object-id van elke groep toe aan een SysManage-rol.",
+          "provider": "<strong>De SysManage-provider:</strong> uitgever <code>https://sts.windows.net/TENANT_ID/</code>, detectie-URL <code>https://login.microsoftonline.com/TENANT_ID/.well-known/openid-configuration</code>, scopes <code>openid profile email</code>, groepsclaim <code>groups</code>. Dit zijn de v1.0-eindpunten van Microsoft, die <strong>Multi-factoraanmelding vereisen</strong> nodig heeft: de v2.0-ID-tokens van Entra bevatten geen <code>amr</code>-claim, dus als MFA vereist is, wordt elke v2.0-aanmelding geweigerd.",
+          "jit": "<strong>Just-in-time-accounts:</strong> stel de tenant-ID van de provider in en voeg het e-maildomein van de gebruikers toe aan de e-maildomeinen van die tenant. De aanmeldingspagina biedt deze provider dan aan elk adres in dat domein aan.",
+          "mfa": "<strong>Multi-factoraanmelding:</strong> dwing deze af in Entra (standaardinstellingen voor beveiliging of een beleid voor voorwaardelijke toegang) en schakel <strong>Multi-factoraanmelding vereisen</strong> in, zodat SysManage ook elk token weigert dat dit niet aantoont.",
+          "public_url": "<strong>Het adres van de console:</strong> stel <code>webui.public_url</code> in op het adres waarvandaan gebruikers zich aanmelden. Als de host van de omleidings-URI daarvan afwijkt, bereikt de overdracht van de aanmelding de console nooit en zien gebruikers direct na het aanmelden \"De single sign-on-sessie is verlopen\"; het serverlogboek vermeldt beide hosts."
         }
       },
       "imagemode": {

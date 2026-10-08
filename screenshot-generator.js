@@ -55,6 +55,10 @@ async function generateDashboardScreenshot() {
                 console.log('📧 Filled userid field');
             }
 
+            // Two-step login: Next shows the password field.
+            await page.click('button[type="submit"]');
+            await page.waitForSelector('input[name="password"]', { timeout: 20000 });
+
             // Fill the password field
             const passwordField = await page.$('input[name="password"]');
             if (passwordField) {

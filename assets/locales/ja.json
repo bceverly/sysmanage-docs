@@ -16780,8 +16780,9 @@
           "saml_start": "匿名。ブラウザーを IdP にリダイレクトします",
           "saml_acs": "匿名。アサーションを検証し、サインイン済みの状態でブラウザーをコンソールに移動します",
           "saml_metadata": "匿名。IdP 向けの、このサーバーの SP メタデータ",
-          "sso_providers": "匿名。ログインページが提示するプロバイダー (エンジンがない場合は空)",
-          "sso_session": "1 回限りの受け渡し用 Cookie をセッションと交換します"
+          "sso_providers": "匿名。サーバー全体のプロバイダー (エンジンがない場合は空)",
+          "sso_session": "1 回限りの受け渡し用 Cookie をセッションと交換します",
+          "login_discover": "匿名。ログインページのステップ 1: パスワードと、メールアドレスが使用できるプロバイダー (ドメインのみで決定)"
         },
         "breadcrumb": "外部 ID プロバイダー",
         "fallback": {
@@ -16806,7 +16807,7 @@
         "oidc": {
           "client": "<code>oidc_client_id</code> + <code>oidc_client_secret_secret_id</code> -- IdP に登録されたアプリケーション。クライアント シークレットは Vault に保存されます。",
           "discovery": "<code>oidc_discovery_url</code> -- 既知の検出ドキュメントのオプションのオーバーライド。デフォルトは <code>{issuer}/.well-known/openid-configuration</code> です。",
-          "flow": "ログインページには、有効なプロバイダーごとに <strong>サインイン</strong> ボタンが表示されます。このボタンはブラウザーを <code>/api/auth/oidc/{provider_id}/start</code> に送り、そこから CSRF 対策用の <code>state</code> トークン付きで IdP の認可エンドポイントへ 302 リダイレクトします。ユーザーがサインインすると、IdP は <code>/api/auth/oidc/{provider_id}/callback?code=…&amp;state=…</code> に戻り、エンジンはそのコードを ID トークンと交換します。<code>sub</code> クレームをユーザーの <code>external_subject</code> 列と照合して、ローカルアカウントを特定します。",
+          "flow": "メールアドレスの入力ステップの後、ログインページには、そのアドレスが使用できるプロバイダーごとに <strong>サインイン</strong> ボタンが表示されます。このボタンはブラウザーを <code>/api/auth/oidc/{provider_id}/start</code> に送り、そこから CSRF 対策用の <code>state</code> トークン付きで IdP の認可エンドポイントへ 302 リダイレクトします。ユーザーがサインインすると、IdP は <code>/api/auth/oidc/{provider_id}/callback?code=…&amp;state=…</code> に戻り、エンジンはそのコードを ID トークンと交換します。<code>sub</code> クレームをユーザーの <code>external_subject</code> 列と照合して、ローカルアカウントを特定します。",
           "group_claim": "<code>oidc_group_claim</code> -- ユーザーのグループをリストする ID トークン クレームの名前 (デフォルト <code>groups</code> 、一部の IdP は <code>roles</code> またはカスタム名を使用します)。",
           "intro": "OIDC プロバイダーごとに、以下を構成します。",
           "issuer": "<code>oidc_issuer_url</code> -- IdP の HTTPS ルート、例: <code>https://login.example.com</code> 。",
@@ -16836,7 +16837,7 @@
         },
         "landing": {
           "title": "ログインページからのサインイン",
-          "buttons": "ログインページには、テナントに限定されていない有効な OIDC または SAML プロバイダーごとに <strong>サインイン</strong> ボタンが 1 つ表示されます。そのようなプロバイダーがないサーバーでは、ログインページは変わりません。",
+          "buttons": "ログインページは最初にメールアドレスを尋ねます。次のステップでは、パスワードと、そのアドレスが使用できる有効な OIDC または SAML プロバイダーごとの <strong>サインイン</strong> ボタンが表示されます。対象となるのは、サーバー全体のプロバイダーと、アドレスのドメインをメールドメインとして登録しているテナントのプロバイダーです。結果はドメインのみによって決まり、アカウントが存在するかどうかには左右されないため、このページを使ってアカウントの有無を探ることはできません。そのようなプロバイダーがないサーバーでは、2 番目のステップにはパスワードのみが表示されます。",
           "handoff": "IdP がブラウザーを戻すと、sysmanage はユーザーをサインインさせ、コンソールの <code>/login/sso</code> ページにリダイレクトします。セッションは、ページが一度だけ交換する有効期間 2 分の HttpOnly Cookie で受け渡されます -- URL には決して含めません。URL に含めるとブラウザーの履歴やサーバーログに残ってしまうためです。",
           "host": "コンソールのアドレスは <code>sysmanage.yaml</code> の <code>webui.public_url</code> から取得されます。これを設定し、リダイレクト URL と ACS URL を同じホスト名で登録してください。ブラウザーは受け渡し用 Cookie を、それを設定したホストにしか返しません。",
           "failure": "サインインが完了しない場合、ユーザーは理由 (たとえば、有効な sysmanage アカウントのない ID) とパスワードフォームに戻る手段が表示された同じページに移動します。詳細はサーバーログに記録されます。"
@@ -16844,9 +16845,21 @@
         "mfa": {
           "title": "多要素サインインの必須化",
           "intro": "シングル サインオンでは多要素認証は ID プロバイダーに任され、SysManage は IdP が返すトークンを受け入れます。OIDC または SAML プロバイダーで <strong>多要素サインインを必須にする</strong> をオンにすると、ユーザーが複数の要素でサインインしたことをトークンが示していないサインインを SysManage は拒否します。これにより、構成ミスや回避された IdP ポリシーが見過ごされることはなくなります。既定ではオフです。インターネットから到達可能なコンソールではオンにしてください。",
-          "oidc": "<strong>OIDC:</strong> ID トークンの <code>amr</code> クレームに <code>mfa</code> が含まれている必要があります (RFC 8176。Microsoft Entra ID はユーザーが MFA を完了したときにこれを設定します)。保証レベルを代わりに <code>acr</code> で表す IdP の場合は、受け入れる値を <code>oidc_acr_values</code> に列挙します。これらの値はサインイン時にも要求されます。",
+          "oidc": "<strong>OIDC:</strong> ID トークンの <code>amr</code> クレームに <code>mfa</code> が含まれている必要があります (RFC 8176)。Microsoft Entra ID がこれを設定するのは v1.0 トークンのみで、v2.0 トークンには <code>amr</code> がまったく含まれないため、v1.0 エンドポイントを使用してください (後述の Microsoft 365 の手順を参照)。保証レベルを代わりに <code>acr</code> で表す IdP の場合は、受け入れる値を <code>oidc_acr_values</code> に列挙します。これらの値はサインイン時にも要求されます。",
           "saml": "<strong>SAML:</strong> アサーションの <code>AuthnContextClassRef</code> は <code>saml_mfa_authn_contexts</code> のいずれか (1 行に 1 つ) である必要があります。空の場合は Microsoft Entra ID の <code>http://schemas.microsoft.com/claims/multipleauthn</code> を意味します。AuthnRequest はそのコンテキストを IdP に要求します。",
           "refused": "拒否されたサインインは「ID プロバイダーが多要素サインインを確認しませんでした」というメッセージとともにログインページに戻り、サーバーログにはプロバイダーと、トークンが代わりに示していた内容が記録されます。"
+        },
+        "m365": {
+          "title": "手順: Microsoft 365 / Entra ID",
+          "intro": "実際の Entra ID テナントで検証済みです: サインイン、グループからロールへのマッピング、Just-In-Time アカウント、多要素サインインの必須化。テナントにアプリケーションを登録する権限が必要です。",
+          "register": "<strong>アプリを登録します。</strong> Microsoft Entra 管理センターの [アプリの登録] で [新規登録] を選択します: シングル テナント、プラットフォーム <strong>Web</strong>。リダイレクト URI については、[リダイレクト URI] を空欄のままにして SysManage でプロバイダーを保存します。SysManage が値を入力し (<code>https://CONSOLE/api/auth/oidc/PROVIDER_ID/callback</code>)、フィールドのコピー ボタンで貼り付ける正確な値を取得できます。Entra でプレーンな <code>http://</code> が使えるのは <code>localhost</code> の場合のみです。アプリケーション (クライアント) ID とディレクトリ (テナント) ID を控えておきます。",
+          "secret": "<strong>クライアント シークレットを作成し</strong> ([証明書とシークレット] で作成)、SysManage のクライアント シークレット フィールドにその参照を指定します: Vault のパス、またはテスト用であれば <code>literal:</code> の後にシークレットを続けたものです。",
+          "tokens": "<strong>トークン構成:</strong> グループ クレーム (セキュリティ グループ、グループ ID として出力) と、Just-In-Time アカウントに必要な省略可能な ID トークン クレーム <code>email</code> を追加します。",
+          "groups": "<strong>グループ:</strong> [グループ] でセキュリティ グループ (たとえば SysManage Admins) を作成してユーザーを追加し、プロバイダーで各グループのオブジェクト ID を SysManage のロールにマッピングします。",
+          "provider": "<strong>SysManage のプロバイダー:</strong> 発行者 <code>https://sts.windows.net/TENANT_ID/</code>、検出 URL <code>https://login.microsoftonline.com/TENANT_ID/.well-known/openid-configuration</code>、スコープ <code>openid profile email</code>、グループ クレーム <code>groups</code>。これらは <strong>多要素サインインを必須にする</strong> に必要な Microsoft の v1.0 エンドポイントです。Entra の v2.0 ID トークンには <code>amr</code> クレームが含まれないため、MFA を必須にすると v2.0 のサインインはすべて拒否されます。",
+          "jit": "<strong>Just-In-Time アカウント:</strong> プロバイダーのテナント ID を設定し、ユーザーのメール ドメインをそのテナントのメール ドメインに追加します。これにより、ログイン ページはそのドメインのすべてのアドレスにこのプロバイダーを表示します。",
+          "mfa": "<strong>多要素サインイン:</strong> Entra で強制し (セキュリティの既定値群または条件付きアクセス ポリシー)、<strong>多要素サインインを必須にする</strong> をオンにします。これにより、多要素サインインを示さないトークンは SysManage でも拒否されます。",
+          "public_url": "<strong>コンソールのアドレス:</strong> <code>webui.public_url</code> を、ユーザーがサインインに使うアドレスに設定します。リダイレクト URI のホストがこれと異なると、サインインの引き渡しがコンソールに届かず、ユーザーにはサインイン直後に「シングル サインオン セッションの有効期限が切れました」と表示されます。サーバー ログには両方のホストが記録されます。"
         }
       },
       "imagemode": {

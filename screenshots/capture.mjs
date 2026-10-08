@@ -97,7 +97,10 @@ async function login(page) {
   await page.waitForTimeout(1500);
   const userField = await page.$('input[name="userid"]');
   if (userField) {
+    // Two steps since 2026-10-07: the email (Next), then the password.
     await page.fill('input[name="userid"]', USER);
+    await page.click('button[type="submit"]');
+    await page.waitForSelector('input[name="password"]', { timeout: 20000 });
     await page.fill('input[name="password"]', PW);
     await page.click('button[type="submit"]');
     await page.waitForTimeout(5000); // let the SPA route to the dashboard

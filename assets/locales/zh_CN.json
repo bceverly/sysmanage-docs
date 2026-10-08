@@ -16780,8 +16780,9 @@
           "saml_start": "匿名；将浏览器重定向到 IdP",
           "saml_acs": "匿名；验证断言，使浏览器以已登录状态进入控制台",
           "saml_metadata": "匿名；本服务器的 SP 元数据，供 IdP 使用",
-          "sso_providers": "匿名；登录页面提供的提供者（没有引擎时为空）",
-          "sso_session": "用一次性交接 Cookie 交换会话"
+          "sso_providers": "匿名；服务器范围的提供者（没有引擎时为空）",
+          "sso_session": "用一次性交接 Cookie 交换会话",
+          "login_discover": "匿名；登录页面的第一步：密码以及电子邮件地址可以使用的提供者，仅由其域决定"
         },
         "breadcrumb": "外部身份提供程序",
         "fallback": {
@@ -16806,7 +16807,7 @@
         "oidc": {
           "client": "<code>oidc_client_id</code> + <code>oidc_client_secret_secret_id</code> -- 向 IdP 注册的应用程序。客户端密钥存储在保管库中。",
           "discovery": "<code>oidc_discovery_url</code> -- 众所周知的发现文档的可选覆盖。默认为 <code>{issuer}/.well-known/openid-configuration</code> 。",
-          "flow": "登录页面会为每个已启用的提供者显示一个 <strong>使用以下方式登录</strong> 按钮。该按钮将浏览器发送到 <code>/api/auth/oidc/{provider_id}/start</code>，后者使用防护 CSRF 的 <code>state</code> 令牌以 302 重定向到 IdP 的授权端点。用户登录后，IdP 返回到 <code>/api/auth/oidc/{provider_id}/callback?code=…&amp;state=…</code>，引擎用该代码交换 ID 令牌。<code>sub</code> 声明与用户的 <code>external_subject</code> 列进行匹配，以找到本地帐户。",
+          "flow": "完成电子邮件步骤后，登录页面会为该地址可以使用的每个提供者显示一个 <strong>使用以下方式登录</strong> 按钮。该按钮将浏览器发送到 <code>/api/auth/oidc/{provider_id}/start</code>，后者使用防护 CSRF 的 <code>state</code> 令牌以 302 重定向到 IdP 的授权端点。用户登录后，IdP 返回到 <code>/api/auth/oidc/{provider_id}/callback?code=…&amp;state=…</code>，引擎用该代码交换 ID 令牌。<code>sub</code> 声明与用户的 <code>external_subject</code> 列进行匹配，以找到本地帐户。",
           "group_claim": "<code>oidc_group_claim</code> -- 列出用户组的 ID 令牌声明的名称（默认 <code>groups</code> ；某些 IdP 使用 <code>roles</code> 或自定义名称）。",
           "intro": "用于 每个 OIDC provider, 配置:",
           "issuer": "<code>oidc_issuer_url</code> -- IdP 的 HTTPS 根，例如 <code>https://login.example.com</code> 。",
@@ -16836,7 +16837,7 @@
         },
         "landing": {
           "title": "从登录页面登录",
-          "buttons": "登录页面为每个未限定到租户的已启用 OIDC 或 SAML 提供者提供一个 <strong>使用以下方式登录</strong> 按钮。在没有此类提供者的服务器上，登录页面保持不变。",
+          "buttons": "登录页面首先要求输入电子邮件地址。下一步会提供密码输入框，并为该地址可以使用的每个已启用 OIDC 或 SAML 提供者显示一个 <strong>使用以下方式登录</strong> 按钮：包括服务器范围的提供者，以及将该地址的域列为其电子邮件域之一的租户的提供者。结果仅取决于域，从不取决于帐户是否存在，因此无法利用该页面探测帐户。在没有此类提供者的服务器上，第二步只显示密码。",
           "handoff": "当 IdP 将浏览器返回时，sysmanage 会让用户登录并重定向到控制台的 <code>/login/sso</code> 页面。会话通过一个有效期为两分钟的 HttpOnly Cookie 传递，页面只交换一次 -- 绝不放在 URL 中，否则它会留在浏览器历史记录和服务器日志里。",
           "host": "控制台的地址来自 <code>sysmanage.yaml</code> 中的 <code>webui.public_url</code>。请设置该值，并在同一主机名上注册重定向 URL 和 ACS URL：浏览器只会将交接 Cookie 返回给设置它的主机。",
           "failure": "如果登录未完成，用户会进入同一页面，页面上显示原因（例如，某个身份没有处于活动状态的 sysmanage 帐户）以及返回密码表单的方式。详细信息记录在服务器日志中。"
@@ -16844,9 +16845,21 @@
         "mfa": {
           "title": "要求多因素登录",
           "intro": "单点登录将多因素身份验证交由身份提供者负责，SysManage 接受 IdP 返回的令牌。在 OIDC 或 SAML 提供者上开启 <strong>要求多因素身份验证登录</strong> 后，如果令牌未表明用户使用了多个因素登录，SysManage 将拒绝该登录，这样配置错误或被绕过的 IdP 策略就不会再被忽视。该选项默认关闭；对于任何可从互联网访问的控制台，请将其开启。",
-          "oidc": "<strong>OIDC：</strong>ID 令牌的 <code>amr</code> 声明必须包含 <code>mfa</code>（RFC 8176；当用户完成 MFA 时，Microsoft Entra ID 会设置该值）。对于改用 <code>acr</code> 表达保证级别的 IdP，请在 <code>oidc_acr_values</code> 中列出可接受的值；登录时也会请求这些值。",
+          "oidc": "<strong>OIDC：</strong>ID 令牌的 <code>amr</code> 声明必须包含 <code>mfa</code>（RFC 8176）。Microsoft Entra ID 仅在 v1.0 令牌中设置该声明；其 v2.0 令牌完全不带 <code>amr</code>，因此请使用 v1.0 终结点（参见下文的 Microsoft 365 演练）。对于改用 <code>acr</code> 表达保证级别的 IdP，请在 <code>oidc_acr_values</code> 中列出可接受的值；登录时也会请求这些值。",
           "saml": "<strong>SAML：</strong>断言的 <code>AuthnContextClassRef</code> 必须是 <code>saml_mfa_authn_contexts</code> 中的值之一，每行一个；为空表示使用 Microsoft Entra ID 的 <code>http://schemas.microsoft.com/claims/multipleauthn</code>。AuthnRequest 会向 IdP 请求该上下文。",
           "refused": "被拒绝的登录会返回登录页面，并显示“您的身份提供者未确认多因素登录”，服务器日志会记录该提供者以及令牌实际声明的内容。"
+        },
+        "m365": {
+          "title": "演练：Microsoft 365 / Entra ID",
+          "intro": "已在真实的 Entra ID 租户中验证：登录、组到角色的映射、即时（just-in-time）帐户以及必需的多因素登录。您需要拥有在该租户中注册应用程序的权限。",
+          "register": "<strong>注册应用。</strong>在 Microsoft Entra 管理中心的“应用注册”下，选择“新注册”：单租户，平台 <strong>Web</strong>。对于重定向 URI，请在 SysManage 中保存提供程序并将其“重定向 URI”字段留空：SysManage 会自动填写（<code>https://CONSOLE/api/auth/oidc/PROVIDER_ID/callback</code>），通过该字段的复制按钮即可获得要粘贴的确切值。Entra 仅允许将普通的 <code>http://</code> 用于 <code>localhost</code>。记下应用程序(客户端) ID 和目录(租户) ID。",
+          "secret": "<strong>创建客户端密码</strong>（在“证书和密码”下），并在 SysManage 的客户端密码字段中提供对它的引用：保管库路径，或者在测试时使用 <code>literal:</code> 后跟密码。",
+          "tokens": "<strong>令牌配置：</strong>添加组声明（安全组，以组 ID 形式发出）以及即时帐户所需的可选 ID 令牌声明 <code>email</code>。",
+          "groups": "<strong>组：</strong>在“组”下创建安全组（例如 SysManage Admins）并添加用户；在提供者上将每个组的对象 ID 映射到一个 SysManage 角色。",
+          "provider": "<strong>SysManage 提供者：</strong>颁发者 <code>https://sts.windows.net/TENANT_ID/</code>，发现 URL <code>https://login.microsoftonline.com/TENANT_ID/.well-known/openid-configuration</code>，范围 <code>openid profile email</code>，组声明 <code>groups</code>。这些是 <strong>要求多因素身份验证登录</strong> 所需的 Microsoft v1.0 终结点：Entra 的 v2.0 ID 令牌不带 <code>amr</code> 声明，因此在要求 MFA 时，所有 v2.0 登录都会被拒绝。",
+          "jit": "<strong>即时帐户：</strong>设置提供者的租户 ID，并将用户的电子邮件域添加到该租户的电子邮件域中。之后，登录页面会向该域中的每个地址提供此提供者。",
+          "mfa": "<strong>多因素登录：</strong>在 Entra 中强制执行（安全默认值或条件访问策略），并开启 <strong>要求多因素身份验证登录</strong>，这样 SysManage 也会拒绝任何未表明多因素登录的令牌。",
+          "public_url": "<strong>控制台地址：</strong>将 <code>webui.public_url</code> 设置为用户登录时使用的地址。如果重定向 URI 的主机与之不同，登录交接将永远无法到达控制台，用户在登录后会立即看到“单点登录会话已过期”；服务器日志会列出这两个主机。"
         }
       },
       "imagemode": {

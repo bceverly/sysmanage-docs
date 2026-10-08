@@ -16780,8 +16780,9 @@
           "saml_start": "匿名；將瀏覽器重新導向至 IdP",
           "saml_acs": "匿名；驗證斷言，讓瀏覽器以已登入狀態進入主控台",
           "saml_metadata": "匿名；本伺服器的 SP 中繼資料，供 IdP 使用",
-          "sso_providers": "匿名；登入頁面提供的提供者（沒有引擎時為空）",
-          "sso_session": "以一次性交接 Cookie 交換工作階段"
+          "sso_providers": "匿名；伺服器層級的提供者（沒有引擎時為空）",
+          "sso_session": "以一次性交接 Cookie 交換工作階段",
+          "login_discover": "匿名；登入頁面的第一步：密碼以及電子郵件地址可以使用的提供者，僅由其網域決定"
         },
         "breadcrumb": "外部身分提供者",
         "fallback": {
@@ -16806,7 +16807,7 @@
         "oidc": {
           "client": "<code>oidc_client_id</code> + <code>oidc_client_secret_secret_id</code> -- 在 IdP 註冊的應用程式。用戶端密碼儲存在 Vault 中。",
           "discovery": "<code>oidc_discovery_url</code> -- 可選，用於覆寫 well-known 探索文件。預設為 <code>{issuer}/.well-known/openid-configuration</code>。",
-          "flow": "登入頁面會為每個已啟用的提供者顯示一個 <strong>使用以下方式登入</strong> 按鈕。該按鈕會將瀏覽器送往 <code>/api/auth/oidc/{provider_id}/start</code>，再以 302 帶著防護 CSRF 的 <code>state</code> 權杖導向 IdP 的授權端點。使用者登入後，IdP 會返回 <code>/api/auth/oidc/{provider_id}/callback?code=…&amp;state=…</code>，由引擎以授權碼交換 ID 權杖。<code>sub</code> 宣告會與使用者的 <code>external_subject</code> 欄位比對，以找出本機帳戶。",
+          "flow": "完成電子郵件步驟後，登入頁面會為該地址可以使用的每個提供者顯示一個 <strong>使用以下方式登入</strong> 按鈕。該按鈕會將瀏覽器送往 <code>/api/auth/oidc/{provider_id}/start</code>，再以 302 帶著防護 CSRF 的 <code>state</code> 權杖導向 IdP 的授權端點。使用者登入後，IdP 會返回 <code>/api/auth/oidc/{provider_id}/callback?code=…&amp;state=…</code>，由引擎以授權碼交換 ID 權杖。<code>sub</code> 宣告會與使用者的 <code>external_subject</code> 欄位比對，以找出本機帳戶。",
           "group_claim": "<code>oidc_group_claim</code> -- 列出使用者群組的 ID 權杖宣告名稱（預設為 <code>groups</code>；部分 IdP 使用 <code>roles</code> 或自訂名稱）。",
           "intro": "用於 每個 OIDC provider, 組態:",
           "issuer": "<code>oidc_issuer_url</code> -- IdP 的 HTTPS 根網址，例如 <code>https://login.example.com</code>。",
@@ -16836,7 +16837,7 @@
         },
         "landing": {
           "title": "從登入頁面登入",
-          "buttons": "登入頁面會為每個未限定於租戶的已啟用 OIDC 或 SAML 提供者提供一個 <strong>使用以下方式登入</strong> 按鈕。在沒有此類提供者的伺服器上，登入頁面維持不變。",
+          "buttons": "登入頁面會先要求輸入電子郵件地址。下一步會提供密碼欄位，並為該地址可以使用的每個已啟用 OIDC 或 SAML 提供者顯示一個 <strong>使用以下方式登入</strong> 按鈕：包括伺服器層級的提供者，以及將該地址的網域列為其電子郵件網域之一的租戶的提供者。結果僅取決於網域，絕不取決於帳戶是否存在，因此無法利用此頁面探測帳戶。在沒有此類提供者的伺服器上，第二步只會顯示密碼。",
           "handoff": "當 IdP 將瀏覽器導回時，sysmanage 會讓使用者登入並重新導向至主控台的 <code>/login/sso</code> 頁面。工作階段透過一個有效期為兩分鐘的 HttpOnly Cookie 傳遞，頁面只會交換一次 -- 絕不放在 URL 中，否則它會留在瀏覽器歷程記錄與伺服器記錄檔裡。",
           "host": "主控台的位址來自 <code>sysmanage.yaml</code> 中的 <code>webui.public_url</code>。請設定此值，並在同一主機名稱上註冊重新導向 URL 與 ACS URL：瀏覽器只會將交接 Cookie 傳回給設定它的主機。",
           "failure": "如果登入未完成，使用者會進入同一頁面，頁面上會顯示原因（例如，某個身分沒有使用中的 sysmanage 帳戶）以及返回密碼表單的方式。詳細資訊記錄在伺服器記錄檔中。"
@@ -16844,9 +16845,21 @@
         "mfa": {
           "title": "要求多重要素登入",
           "intro": "單一登入將多重要素驗證交由身分提供者負責，SysManage 接受 IdP 傳回的權杖。在 OIDC 或 SAML 提供者上開啟 <strong>要求多重要素登入</strong> 後，若權杖未表明使用者以一個以上的要素登入，SysManage 便會拒絕該登入，如此一來，設定錯誤或遭繞過的 IdP 原則就不會再被忽略。此選項預設為關閉；對於任何可從網際網路存取的主控台，請將其開啟。",
-          "oidc": "<strong>OIDC：</strong>ID 權杖的 <code>amr</code> 宣告必須包含 <code>mfa</code>（RFC 8176；使用者完成 MFA 時，Microsoft Entra ID 會設定此值）。對於改以 <code>acr</code> 表達保證等級的 IdP，請在 <code>oidc_acr_values</code> 中列出可接受的值；登入時也會要求這些值。",
+          "oidc": "<strong>OIDC：</strong>ID 權杖的 <code>amr</code> 宣告必須包含 <code>mfa</code>（RFC 8176）。Microsoft Entra ID 只在 v1.0 權杖中設定此值；其 v2.0 權杖完全不含 <code>amr</code>，因此請使用 v1.0 端點（請參閱下方的 Microsoft 365 逐步說明）。對於改以 <code>acr</code> 表達保證等級的 IdP，請在 <code>oidc_acr_values</code> 中列出可接受的值；登入時也會要求這些值。",
           "saml": "<strong>SAML：</strong>斷言的 <code>AuthnContextClassRef</code> 必須是 <code>saml_mfa_authn_contexts</code> 中的值之一，每行一個；空白表示使用 Microsoft Entra ID 的 <code>http://schemas.microsoft.com/claims/multipleauthn</code>。AuthnRequest 會向 IdP 要求該內容。",
           "refused": "遭拒絕的登入會回到登入頁面，並顯示「您的身分提供者未確認多重要素登入」，伺服器記錄檔會記下該提供者以及權杖實際表明的內容。"
+        },
+        "m365": {
+          "title": "逐步說明：Microsoft 365 / Entra ID",
+          "intro": "已在實際的 Entra ID 租用戶中驗證：登入、群組對應角色、即時（just-in-time）帳戶以及必要的多重要素登入。您需要具備在該租用戶中註冊應用程式的權限。",
+          "register": "<strong>註冊應用程式。</strong>在 Microsoft Entra 系統管理中心的「應用程式註冊」下，選擇「新增註冊」：單一租用戶，平台 <strong>Web</strong>。關於重新導向 URI，請在 SysManage 中儲存提供者並將其「重新導向 URI」欄位留空：SysManage 會自動填入（<code>https://CONSOLE/api/auth/oidc/PROVIDER_ID/callback</code>），透過該欄位的複製按鈕即可取得要貼上的確切值。Entra 只允許將一般的 <code>http://</code> 用於 <code>localhost</code>。記下應用程式 (用戶端) 識別碼和目錄 (租用戶) 識別碼。",
+          "secret": "<strong>建立用戶端密碼</strong>（在「憑證及祕密」下），並在 SysManage 的用戶端密碼欄位中提供其參照：保存庫路徑，或在測試時使用 <code>literal:</code> 後接密碼。",
+          "tokens": "<strong>權杖設定：</strong>新增群組宣告（安全性群組，以群組識別碼發出）以及即時帳戶所需的選用 ID 權杖宣告 <code>email</code>。",
+          "groups": "<strong>群組：</strong>在「群組」下建立安全性群組（例如 SysManage Admins）並新增使用者；在提供者上將每個群組的物件識別碼對應到一個 SysManage 角色。",
+          "provider": "<strong>SysManage 提供者：</strong>簽發者 <code>https://sts.windows.net/TENANT_ID/</code>，探索 URL <code>https://login.microsoftonline.com/TENANT_ID/.well-known/openid-configuration</code>，範圍 <code>openid profile email</code>，群組宣告 <code>groups</code>。這些是 <strong>要求多重要素登入</strong> 所需的 Microsoft v1.0 端點：Entra 的 v2.0 ID 權杖不含 <code>amr</code> 宣告，因此在要求 MFA 時，所有 v2.0 登入都會遭到拒絕。",
+          "jit": "<strong>即時帳戶：</strong>設定提供者的租戶 ID，並將使用者的電子郵件網域新增到該租戶的電子郵件網域中。之後，登入頁面會向該網域中的每個地址提供此提供者。",
+          "mfa": "<strong>多重要素登入：</strong>在 Entra 中強制執行（安全性預設值或條件式存取原則），並開啟 <strong>要求多重要素登入</strong>，讓 SysManage 也拒絕任何未表明多重要素登入的權杖。",
+          "public_url": "<strong>主控台位址：</strong>將 <code>webui.public_url</code> 設定為使用者登入時使用的位址。如果重新導向 URI 的主機與之不同，登入交接永遠無法到達主控台，使用者會在登入後立即看到「單一登入工作階段已過期」；伺服器記錄檔會列出這兩個主機。"
         }
       },
       "imagemode": {

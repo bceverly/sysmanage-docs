@@ -16780,8 +16780,9 @@
           "saml_start": "anônimo; redireciona o navegador para o IdP",
           "saml_acs": "anônimo; verifica a asserção e leva o navegador ao console já conectado",
           "saml_metadata": "anônimo; os metadados de SP deste servidor, para o IdP",
-          "sso_providers": "anônimo; os provedores oferecidos pela página de login (vazio sem o mecanismo)",
-          "sso_session": "troca o cookie de transferência de uso único pela sessão"
+          "sso_providers": "anônimo; os provedores de todo o servidor (vazio sem o mecanismo)",
+          "sso_session": "troca o cookie de transferência de uso único pela sessão",
+          "login_discover": "anônimo; primeira etapa da página de login: a senha e os provedores que um endereço de e-mail pode usar, determinados apenas pelo seu domínio"
         },
         "breadcrumb": "Provedores de identidade externos",
         "fallback": {
@@ -16806,7 +16807,7 @@
         "oidc": {
           "client": "<code>oidc_client_id</code> + <code>oidc_client_secret_secret_id</code> -- o aplicativo registrado no IdP. O segredo do cliente é armazenado no Vault.",
           "discovery": "<code>oidc_discovery_url</code> -- substituição opcional para o documento de descoberta conhecido. O padrão é <code>{issuer}/.well-known/openid-configuration</code>.",
-          "flow": "A página de login mostra um botão <strong>Entrar com</strong> para cada provedor habilitado. Ele envia o navegador para <code>/api/auth/oidc/{provider_id}/start</code>, que responde com um 302 para o endpoint de autorização do IdP com um token <code>state</code> de proteção contra CSRF. Depois que o usuário faz login, o IdP retorna para <code>/api/auth/oidc/{provider_id}/callback?code=…&amp;state=…</code> e o mecanismo troca o código por um token de ID. A declaração <code>sub</code> é comparada com a coluna <code>external_subject</code> do usuário para localizar a conta local.",
+          "flow": "Após a etapa do e-mail, a página de login mostra um botão <strong>Entrar com</strong> para cada provedor que o endereço pode usar. Ele envia o navegador para <code>/api/auth/oidc/{provider_id}/start</code>, que responde com um 302 para o endpoint de autorização do IdP com um token <code>state</code> de proteção contra CSRF. Depois que o usuário faz login, o IdP retorna para <code>/api/auth/oidc/{provider_id}/callback?code=…&amp;state=…</code> e o mecanismo troca o código por um token de ID. A declaração <code>sub</code> é comparada com a coluna <code>external_subject</code> do usuário para localizar a conta local.",
           "group_claim": "<code>oidc_group_claim</code> -- nome da declaração do token de ID que lista os grupos do usuário (padrão <code>groups</code>; alguns IdPs usam <code>roles</code> ou um nome personalizado).",
           "intro": "Para cada OIDC provider, configurar:",
           "issuer": "<code>oidc_issuer_url</code> -- a raiz HTTPS do IdP, por exemplo <code>https://login.example.com</code>.",
@@ -16836,7 +16837,7 @@
         },
         "landing": {
           "title": "Entrar pela página de login",
-          "buttons": "A página de login oferece um botão <strong>Entrar com</strong> para cada provedor OIDC ou SAML habilitado que não esteja restrito a um locatário. Em um servidor sem um provedor desse tipo, a página de login não muda.",
+          "buttons": "A página de login pede primeiro o endereço de e-mail. A etapa seguinte oferece a senha e um botão <strong>Entrar com</strong> para cada provedor OIDC ou SAML habilitado que esse endereço pode usar: os provedores de todo o servidor, mais os dos locatários que incluem o domínio do endereço entre seus domínios de e-mail. A resposta depende apenas do domínio, nunca da existência de uma conta, portanto a página não pode ser usada para sondar contas. Em um servidor sem um provedor desse tipo, a segunda etapa mostra apenas a senha.",
           "handoff": "Quando o IdP devolve o navegador, o sysmanage faz o login do usuário e o redireciona para a página <code>/login/sso</code> do console. A sessão trafega em um cookie HttpOnly válido por dois minutos que a página troca uma única vez -- nunca na URL, onde acabaria no histórico do navegador e nos logs do servidor.",
           "host": "O endereço do console vem de <code>webui.public_url</code> em <code>sysmanage.yaml</code>. Defina-o e registre as URLs de redirecionamento e do ACS nesse mesmo nome de host: o navegador só devolve o cookie de transferência ao host que o definiu.",
           "failure": "Se o login não for concluído, o usuário chega à mesma página com o motivo (por exemplo, uma identidade sem uma conta sysmanage ativa) e uma forma de voltar ao formulário de senha. Os detalhes estão no log do servidor."
@@ -16844,9 +16845,21 @@
         "mfa": {
           "title": "Exigir login multifator",
           "intro": "O logon único deixa a autenticação multifator a cargo do provedor de identidade, e o SysManage aceita o token que o IdP retorna. Ative <strong>Exigir login multifator</strong> em um provedor OIDC ou SAML e o SysManage recusará qualquer login cujo token não informe que o usuário entrou com mais de um fator, de modo que uma política do IdP mal configurada ou contornada não passe mais despercebida. A opção vem desativada por padrão; ative-a em qualquer console acessível pela internet.",
-          "oidc": "<strong>OIDC:</strong> a declaração <code>amr</code> do token de ID deve conter <code>mfa</code> (RFC 8176; o Microsoft Entra ID a define quando o usuário concluiu a MFA). Para um IdP que expressa o nível de garantia por meio de <code>acr</code>, liste os valores aceitos em <code>oidc_acr_values</code>; eles também são solicitados no login.",
+          "oidc": "<strong>OIDC:</strong> a declaração <code>amr</code> do token de ID deve conter <code>mfa</code> (RFC 8176). O Microsoft Entra ID a define apenas nos tokens v1.0; os tokens v2.0 dele não trazem nenhum <code>amr</code>, portanto use os endpoints v1.0 (consulte o passo a passo do Microsoft 365 abaixo). Para um IdP que expressa o nível de garantia por meio de <code>acr</code>, liste os valores aceitos em <code>oidc_acr_values</code>; eles também são solicitados no login.",
           "saml": "<strong>SAML:</strong> o <code>AuthnContextClassRef</code> da asserção deve ser um dos valores de <code>saml_mfa_authn_contexts</code>, um por linha; vazio significa <code>http://schemas.microsoft.com/claims/multipleauthn</code> do Microsoft Entra ID. O AuthnRequest solicita esse contexto ao IdP.",
           "refused": "Um login recusado chega à página de login com a mensagem \"Seu provedor de identidade não confirmou o login multifator\", e o log do servidor registra o provedor e o que o token informou em vez disso."
+        },
+        "m365": {
+          "title": "Passo a passo: Microsoft 365 / Entra ID",
+          "intro": "Verificado em um locatário real do Entra ID: login, mapeamento de grupos para funções, contas just-in-time e login multifator obrigatório. Você precisa de permissão para registrar aplicativos no locatário.",
+          "register": "<strong>Registre o aplicativo.</strong> No centro de administração do Microsoft Entra, em Registros de aplicativo, escolha Novo registro: locatário único, plataforma <strong>Web</strong>. Para o URI de redirecionamento, salve o provedor no SysManage deixando o campo URI de redirecionamento em branco: o SysManage o preenche (<code>https://CONSOLE/api/auth/oidc/PROVIDER_ID/callback</code>) e o botão de copiar do campo fornece o valor exato para colar. O Entra aceita <code>http://</code> simples apenas para <code>localhost</code>. Anote o ID do aplicativo (cliente) e o ID do diretório (locatário).",
+          "secret": "<strong>Crie um segredo do cliente</strong> em Certificados e segredos e forneça ao SysManage uma referência a ele no campo do segredo do cliente: um caminho do cofre ou, para um teste, <code>literal:</code> seguido do segredo.",
+          "tokens": "<strong>Configuração de token:</strong> adicione uma declaração de grupos (Grupos de segurança, emitidos como ID do grupo) e a declaração opcional do token de ID <code>email</code>, necessária para as contas just-in-time.",
+          "groups": "<strong>Grupos:</strong> em Grupos, crie grupos de segurança (por exemplo, SysManage Admins) e adicione os usuários; mapeie o ID do objeto de cada grupo para uma função do SysManage no provedor.",
+          "provider": "<strong>O provedor do SysManage:</strong> emissor <code>https://sts.windows.net/TENANT_ID/</code>, URL de descoberta <code>https://login.microsoftonline.com/TENANT_ID/.well-known/openid-configuration</code>, escopos <code>openid profile email</code>, declaração de grupos <code>groups</code>. Esses são os endpoints v1.0 da Microsoft, exigidos por <strong>Exigir login multifator</strong>: os tokens de ID v2.0 do Entra não trazem a declaração <code>amr</code>, então, com MFA obrigatória, todo login v2.0 é recusado.",
+          "jit": "<strong>Contas just-in-time:</strong> defina o ID do locatário do provedor e adicione o domínio de e-mail dos usuários aos domínios de e-mail desse locatário. A página de login passa então a oferecer esse provedor a todos os endereços desse domínio.",
+          "mfa": "<strong>Login multifator:</strong> imponha-o no Entra (padrões de segurança ou uma política de Acesso Condicional) e ative <strong>Exigir login multifator</strong>, para que o SysManage também recuse qualquer token que não o comprove.",
+          "public_url": "<strong>O endereço do console:</strong> defina <code>webui.public_url</code> como o endereço a partir do qual os usuários fazem login. Se o host do URI de redirecionamento for diferente dele, a passagem do login nunca chega ao console e os usuários veem \"A sessão de logon único expirou\" logo após entrar; o log do servidor informa os dois hosts."
         }
       },
       "imagemode": {
