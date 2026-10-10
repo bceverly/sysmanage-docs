@@ -1138,7 +1138,7 @@ lint-css-fix: ensure-css-lint-tools
 	@./node_modules/.bin/stylelint "assets/css/**/*.css" --fix
 	@echo "[OK] CSS auto-fix completed"
 
-lint: lint-file-length lint-license-headers lint-python lint-security lint-js lint-css i18n-validate i18n-strict i18n-markup i18n-code i18n-html-sync translate-check
+lint: lint-file-length lint-license-headers lint-python lint-security lint-js lint-css i18n-validate i18n-strict i18n-verify i18n-markup i18n-code i18n-html-sync translate-check
 	@echo "[OK] docs lint (python + security + js + i18n) passed"
 
 # Structure gate. i18n-validate asks "is the key there?", translate-check asks
