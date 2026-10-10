@@ -209,6 +209,8 @@ GLOSSARY: Dict[str, str] = {
     "quarantine": "isolating a suspect file so it cannot run",
     "firewall": "software controlling network traffic",
     "role": "a named set of permissions. NOT a part in a play",
+    "policy": "a set of rules the product enforces on hosts or users. NOT an "
+    "insurance policy, and NOT a political program",
     "permission": "the right to perform one action",
     "secret": "a stored credential such as a password or key",
     "vault": "the encrypted store holding secrets. NOT a bank vault",
@@ -257,6 +259,10 @@ GLOSSARY: Dict[str, str] = {
     "operating system release",
     "evidence": "the data a rule reads before it can reach a verdict",
     "query pack": "a bundle of osquery queries collected together",
+    "live query": "a query run across hosts right now, with results arriving "
+    "as they come in. NOT a query that is alive",
+    "fact table": "one of the osquery-schema tables the agent answers queries "
+    "from (data-warehousing sense). NOT a table of trivia",
     "not assessable": "we could not measure this host, so there is no verdict "
     "to give. NOT a passing result, NOT a failing one, and NOT the same as "
     "finding nothing wrong",
@@ -313,6 +319,45 @@ GLOSSARY: Dict[str, str] = {
     "schema": "the structure of the database",
     "ISO": "a disc image FILE used to install an operating system. NOT the "
     "standards body",
+    # -- found by the translation verifier, 2026-10-09/10 --------------------
+    # Each of these came back from the service in its everyday sense and was
+    # caught only by the verifier plus a human review of its rejects (ROADMAP
+    # 23.4).  The wrong renderings measured are in TERMS below.
+    "canary": "a small first deployment that proves a change before it reaches "
+    "everything, or a separate watcher program that checks a server from "
+    "outside. NOT the bird",
+    "cascade": "a database change propagating to the records that depend on it. "
+    "NOT a waterfall",
+    "idempotent": "safe to repeat: running it twice has the same effect as "
+    "running it once",
+    "thundering herd": "many clients acting at the same instant and overloading "
+    "a server. NOT animals",
+    "jitter": "a small random delay added so clients do not act in step. NOT "
+    "trembling or nervousness",
+    "backoff": "waiting progressively longer between retries. NOT retreating",
+    "circuit breaker": "a guard that stops calling a failing service for a "
+    "while. NOT an electrical breaker",
+    "throughput": "how much work a system completes per unit of time. NOT a "
+    "move or a transfer",
+    "handshake": "the opening exchange in which two programs establish a "
+    "connection. NOT shaking hands",
+    "capture": "recording a host's current state so it can be compared later. "
+    "NOT catching or seizing something",
+    "grade": "a letter or number scoring a result. NOT product quality, and NOT "
+    "a school year",
+    "silo": "one tenant's fully separate database and secrets. NOT a grain silo",
+    "failover": "switching automatically to a standby server when the primary "
+    "fails. NOT making a backup copy",
+    "reconciliation": "bringing the actual state back in line with the "
+    "intended state. NOT harmony or making peace",
+    "marked down": "flagged as offline or unreachable. NOT reduced in price, "
+    "and NOT a subscript",
+    "privileged": "running with root or administrator rights. NOT socially "
+    "privileged or distinguished",
+    "pruning": "deleting old entries that are no longer needed. NOT trimming "
+    "plants or harvesting",
+    "polling": "asking repeatedly whether there is new work. NOT voting or an "
+    "opinion poll",
 }
 
 # ---------------------------------------------------------------------------
@@ -657,6 +702,7 @@ TERMS: Dict[str, Dict[str, Dict[str, object]]] = {
             "ko": "작업",
             "zh_CN": "作业",
             "zh_TW": "作業",
+            "hi": "जॉब",  # 63 uses; नौकरी is employment
             # مهمة = task. وظيفة leans to employment or a code function.
             "ar": "مهمة",
         },
@@ -748,6 +794,45 @@ TERMS: Dict[str, Dict[str, Dict[str, object]]] = {
             "ar": ["أخطاء", "الأخطاء"],
         },
     },
+    # -- measured 2026-10-09/10 by the translation verifier ----------------
+    # Every forbidden form below was written by the service and found by the
+    # verifier's human review; none has an innocent reading when the English
+    # contains the term.
+    "idempotent": {
+        "canonical": {"zh_CN": "幂等", "zh_TW": "冪等", "ja": "冪等"},
+        # The SIMPLIFIED character in a Traditional Chinese catalog.
+        "forbid": {"zh_TW": ["幂等"]},
+    },
+    "tenant": {
+        "canonical": {"hi": "टेनेंट"},  # 246 uses across the catalogs
+        "forbid": {"hi": ["टेंट"]},  # a camping tent
+    },
+    "repository": {"forbid": {"ar": ["الجمهورية"]}},  # a republic
+    "target": {
+        "canonical": {"nl": "doel"},
+        "forbid": {"nl": ["doelwit"]},  # the target of an attack
+    },
+    "engine": {
+        # движок: 51 uses in the catalogs against 7 for the motor word.
+        "canonical": {"ru": "движок"},
+        "forbid": {"ru": ["двигатель", "двигателя", "двигатели", "двигателей"]},
+    },
+    "cascade": {"forbid": {"ko": ["폭포수"]}},  # a waterfall
+    "reconciliation": {
+        "canonical": {"ko": "조정"},
+        "forbid": {"ko": ["조화"]},  # harmony
+    },
+    "handshake": {"forbid": {"fr": ["serre-main"]}},  # an invented calque
+    "capture": {
+        "canonical": {"nl": "vastleggen"},
+        "forbid": {"nl": ["vangen"]},  # catching an animal
+    },
+    "marked down": {"forbid": {"zh_TW": ["下標"]}},  # a subscript
+    "canary": {
+        "canonical": {"ko": "카나리", "zh_CN": "金丝雀", "zh_TW": "金絲雀"},
+        # 캔리: misspelled; 金鑰鳥: "key bird".
+        "forbid": {"ko": ["캔리"], "zh_TW": ["金鑰鳥"]},
+    },
 }
 
 
@@ -777,6 +862,16 @@ ALIASES: Dict[str, Tuple[str, ...]] = {
     "remedy": ("remedies",),
     "posture item": ("posture items",),
     "sample": ("samples",),
+    "canary": ("canaries",),
+    "backoff": ("back-off", "back off"),
+    "capture": ("captured", "captures", "capturing"),
+    "failover": ("fail over", "failed over", "fail-over"),
+    "reconciliation": ("reconcile", "reconciled", "reconciles"),
+    "marked down": ("mark down", "marks down"),
+    "pruning": ("prune", "pruned", "prunes"),
+    "polling": ("poll", "polled", "polls"),
+    "jitter": ("jittered",),
+    "privileged": ("privilege", "privileges"),
 }
 
 # A batch that mentions half the product should not ship half the dictionary;
@@ -807,6 +902,9 @@ def _patterns() -> List[Tuple[str, re.Pattern]]:
 _PATTERNS = _patterns()
 
 
+# Word characters for forbidden-form boundaries: \w plus the Devanagari and
+# Arabic blocks, which include their combining marks.
+_WORDCHAR = r"[\w\u0900-\u097F\u0600-\u06FF\u0750-\u077F]"
 _CJK = re.compile(r"[\u3040-\u30ff\u3400-\u4dbf\u4e00-\u9fff\uac00-\ud7af]")
 
 
@@ -825,7 +923,12 @@ def forbidden_matcher(form: str) -> re.Pattern:
     """
     if _CJK.search(form):
         return re.compile(re.escape(form))
-    return re.compile(rf"\b{re.escape(form)}\b", re.I)
+    # Not \b: Python treats combining marks (Devanagari vowel signs, Arabic
+    # diacritics) as NON-word characters, so \b fell inside words -- the
+    # forbidden Hindi टेंट (a camping tent) matched the middle of कंटेंट,
+    # "content" (2026-10-10).  A letter OR mark of the same scripts on
+    # either side means we are inside a word.
+    return re.compile(rf"(?<!{_WORDCHAR}){re.escape(form)}(?!{_WORDCHAR})", re.I)
 
 
 def patterns() -> List[Tuple[str, re.Pattern]]:
