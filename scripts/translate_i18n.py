@@ -297,7 +297,7 @@ def run_json(
     # sidecar is per KEY, not per key-per-language: recording a key after
     # translating only some locales would hide the untranslated ones from the
     # stale check.  See i18n_hashes for the full rule.
-    translated_keys: set = set()
+    translated_keys: Dict[str, set] = {}
     locale_flats: Dict[str, Dict[str, str]] = {}
 
     for lang in langs:
@@ -323,6 +323,7 @@ def run_json(
                     lang_flat.get(key)
                 ):
                     _set_dotted(doc, key, en_src)
+                    translated_keys.setdefault(key, set()).add(lang)
                     healed += 1
             if healed:
                 lang_flat = _flatten(doc)
@@ -365,6 +366,9 @@ def run_json(
             f"  {lang}: {n_gap} gap(s){extra} -- {len(uniq)} string(s) to translate",
             flush=True,
         )
+        # EVERY locale, not just ones with gaps: a real value this run does not
+        # rewrite is exactly what can block a stale hash (i18n_hashes).
+        locale_flats[lang] = lang_flat
         if not todo or service is None:
             continue
         translations = _resolve_translations(service, uniq, lang, client_batch)
@@ -381,7 +385,7 @@ def run_json(
                 continue
             _set_dotted(doc, key, cand)
             written.add(en_src)
-            translated_keys.add(key)
+            translated_keys.setdefault(key, set()).add(lang)
         path.write_text(
             json.dumps(doc, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
         )
