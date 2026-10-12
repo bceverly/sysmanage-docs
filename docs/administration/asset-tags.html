@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Asset Tags - Administration - SysManage</title>
+    <meta name="description" data-i18n="docs.admin.asset_tags.meta_description" data-i18n-attr="content" content="Give every physical machine one asset tag that survives OS reinstalls and multi-boot, with a naming scheme, entry-time checks, CSV import with a dry run, and tags held for machines not yet enrolled.">
+    <link rel="stylesheet" href="/assets/css/style.css">
+    <link rel="icon" type="image/svg+xml" href="/assets/images/favicon.svg">
+</head>
+<body data-auto-header="documentation" data-auto-footer>
+    <main class="docs-main">
+        <div class="container">
+            <div class="docs-breadcrumb"><a href="../" data-i18n="docs.admin.asset_tags.crumb_docs">Documentation</a> &gt; <a href="./" data-i18n="docs.admin.asset_tags.crumb_admin">Administration</a> &gt; <span data-i18n="docs.admin.asset_tags.crumb_page">Asset Tags</span></div>
+            <div class="docs-header">
+                <h1 data-i18n="docs.admin.asset_tags.title">Asset Tags</h1>
+                <p data-i18n="docs.admin.asset_tags.intro" data-i18n-html>An asset tag is your organization's inventory number for a piece of hardware -- usually printed on a label stuck to it. In SysManage the tag belongs to the <strong>machine</strong>, not to the operating system running on it. A laptop that boots Windows, Ubuntu and OpenBSD appears as three hosts but carries one tag, and reinstalling the OS keeps the tag.</p>
+                <figure class="docs-screenshot">
+                    <img src="/assets/images/host-machine-card.png" alt="Machine card on a host's Hardware tab">
+                    <figcaption data-i18n="docs.admin.asset_tags.fig_card">The Machine card on a host's Hardware tab: the asset tag, the hardware identity, and the other operating system installed on the same workstation.</figcaption>
+                </figure>
+            </div>
+            <div class="docs-content">
+                <section class="docs-section">
+                    <h2 data-i18n="docs.admin.asset_tags.h_machines">Hosts and machines</h2>
+                    <p data-i18n="docs.admin.asset_tags.machines_p1">Every agent reports the hardware identity of the machine it runs on: the SMBIOS system UUID, plus the system and baseboard serial numbers as corroboration. Hosts that report the same identity are linked to one machine automatically. Different operating systems print the UUID in different byte orders; SysManage treats both orders as the same machine, so a multi-boot machine is never split in two.</p>
+                    <p data-i18n="docs.admin.asset_tags.machines_p2">Where the identity comes from on each platform:</p>
+                    <ul>
+                        <li data-i18n="docs.admin.asset_tags.src_linux" data-i18n-html><strong>Linux</strong> <code>/sys/class/dmi/id</code> -- readable only by root, so the agent needs privileged mode.</li>
+                        <li data-i18n="docs.admin.asset_tags.src_windows" data-i18n-html><strong>Windows</strong> <code>Win32_ComputerSystemProduct</code>.</li>
+                        <li data-i18n="docs.admin.asset_tags.src_freebsd" data-i18n-html><strong>FreeBSD</strong> <code>kenv smbios.system.uuid</code>.</li>
+                        <li data-i18n="docs.admin.asset_tags.src_openbsd" data-i18n-html><strong>OpenBSD</strong> <code>sysctl hw.uuid</code> and <code>hw.serialno</code>.</li>
+                        <li data-i18n="docs.admin.asset_tags.src_netbsd" data-i18n-html><strong>NetBSD</strong> <code>machdep.dmi.system-uuid</code> -- readable only by root.</li>
+                        <li data-i18n="docs.admin.asset_tags.src_macos" data-i18n-html><strong>macOS</strong> the platform UUID from <code>ioreg</code>.</li>
+                    </ul>
+                    <p data-i18n="docs.admin.asset_tags.machines_p3">When an identity cannot be read, the Machine card says why -- the agent is not running in privileged mode, the read failed, or the firmware ships a vendor placeholder UUID that identifies nothing. A host with no usable identity is never guessed onto a machine.</p>
+                    <p data-i18n="docs.admin.asset_tags.machines_p4" data-i18n-html><strong>The hardware identity groups hosts; it never authenticates one.</strong> Any local user can read it, and a virtual machine can be given any UUID, so it plays no part in how an agent proves who it is.</p>
+
+                    <h2 data-i18n="docs.admin.asset_tags.h_conflicts">Clones and conflicts</h2>
+                    <p data-i18n="docs.admin.asset_tags.conflicts_p1">Some matches are held for an administrator instead of being linked:</p>
+                    <ul>
+                        <li data-i18n="docs.admin.asset_tags.conflict_clone" data-i18n-html><strong>Virtual clone</strong> A virtual machine reporting the identity of a machine another host is already on is usually a clone that kept its UUID.</li>
+                        <li data-i18n="docs.admin.asset_tags.conflict_serial" data-i18n-html><strong>Serial mismatch</strong> The same UUID with a different system serial number -- two machines whose vendor reused a UUID.</li>
+                    </ul>
+                    <p data-i18n="docs.admin.asset_tags.conflicts_p2" data-i18n-html>The host's Machine card shows the conflict with <code>Same machine</code> and <code>Different machine</code> buttons. The decision is recorded in the audit log, and a machine you mark as different keeps its own record on later reports. A container that reads its parent's hardware is not treated as another operating system on the machine.</p>
+
+                    <h2 data-i18n="docs.admin.asset_tags.h_scheme">The naming scheme</h2>
+                    <p data-i18n="docs.admin.asset_tags.scheme_p1" data-i18n-html>Under <code>Settings &gt; Asset Tags</code> you define what a valid tag looks like with a builder: a prefix, a separator, a number of digits (zero padded) and an optional suffix. The live preview shows a sample tag, tags that pass and fail, and the next free number. An advanced mode accepts a regular expression for schemes the builder cannot express.</p>
+                    <figure class="docs-screenshot">
+                        <img src="/assets/images/asset-tags-scheme.png" alt="Asset tag naming scheme settings">
+                        <figcaption data-i18n="docs.admin.asset_tags.fig_scheme">The naming-scheme builder. An existing tag from before the scheme is reported as not conforming -- and left as it is.</figcaption>
+                    </figure>
+                    <p data-i18n="docs.admin.asset_tags.scheme_p2" data-i18n-html>With <strong>Enforce at entry</strong> on, a tag that does not fit is refused when it is entered; with it off, the tag is accepted and reported. Changing the scheme never rewrites existing tags -- it lists the ones that no longer conform so you can change them yourself. Tags are unique ignoring case, so <code>NST-00042</code> and <code>nst-00042</code> are the same tag.</p>
+
+                    <h2 data-i18n="docs.admin.asset_tags.h_assign">Assigning and finding tags</h2>
+                    <p data-i18n="docs.admin.asset_tags.assign_p1" data-i18n-html>Set, change or clear a tag from the Machine card of any host on the machine; the tag is checked against the scheme as you type. The Hosts grid has an <code>Asset Tag</code> column, a search on it, and an <code>Untagged only</code> switch, and the command palette finds a host by its tag. Every change is recorded in the audit log.</p>
+
+                    <h2 data-i18n="docs.admin.asset_tags.h_import">Importing and exporting tags</h2>
+                    <p data-i18n="docs.admin.asset_tags.import_p1" data-i18n-html>A CSV file with an <code>asset_tag</code> column and a <code>system_uuid</code> or <code>system_serial</code> column assigns tags in bulk. Choosing the file shows what every row would do <em>before</em> anything is written:</p>
+                    <figure class="docs-screenshot">
+                        <img src="/assets/images/asset-tags-import-preview.png" alt="Asset tag CSV import preview">
+                        <figcaption data-i18n="docs.admin.asset_tags.fig_import">The import preview: one outcome per row, with the hosts on each matched machine.</figcaption>
+                    </figure>
+                    <ul>
+                        <li data-i18n="docs.admin.asset_tags.out_assign" data-i18n-html><strong>Will assign</strong> The machine gets the tag (replacing any tag it had).</li>
+                        <li data-i18n="docs.admin.asset_tags.out_unchanged" data-i18n-html><strong>Unchanged</strong> The machine already has it.</li>
+                        <li data-i18n="docs.admin.asset_tags.out_hold" data-i18n-html><strong>Will wait for the machine</strong> No machine has reported this identity yet; the tag becomes a pending tag.</li>
+                        <li data-i18n="docs.admin.asset_tags.out_scheme" data-i18n-html><strong>Fails the scheme</strong> The tag does not fit the naming scheme.</li>
+                        <li data-i18n="docs.admin.asset_tags.out_duplicate" data-i18n-html><strong>Duplicate</strong> Another machine or pending tag already has the tag, or the file repeats a tag or a machine.</li>
+                        <li data-i18n="docs.admin.asset_tags.out_ambiguous" data-i18n-html><strong>Ambiguous</strong> More than one machine reports the UUID; add the serial number to choose one.</li>
+                        <li data-i18n="docs.admin.asset_tags.out_invalid" data-i18n-html><strong>Invalid</strong> The row names no usable identifier -- a malformed UUID or a vendor placeholder such as <code>To Be Filled By O.E.M.</code></li>
+                        <li data-i18n="docs.admin.asset_tags.out_skipped" data-i18n-html><strong>Skipped</strong> The tag cell is blank. An import never clears a tag.</li>
+                    </ul>
+                    <p data-i18n="docs.admin.asset_tags.import_p2" data-i18n-html>Applying sends the file again and the server checks every row once more, so nothing changed since the preview can slip through. A file that swaps two machines' tags reports duplicates; clear one of the tags first. <code>Export CSV</code> writes every machine and pending tag in the same columns -- plus vendor, model and hosts -- so an exported file can be edited and imported back.</p>
+
+                    <h2 data-i18n="docs.admin.asset_tags.h_pending">Pending tags</h2>
+                    <p data-i18n="docs.admin.asset_tags.pending_p1" data-i18n-html>A tag imported for a machine that has not reported in yet is kept as a <strong>pending tag</strong>. It is applied automatically the first time a machine with that UUID or serial number reports in without a tag. It never replaces a tag the machine already has, and if another machine has taken the tag in the meantime it stays pending rather than creating a second owner.</p>
+                    <figure class="docs-screenshot">
+                        <img src="/assets/images/asset-tags-pending.png" alt="Pending asset tags">
+                        <figcaption data-i18n="docs.admin.asset_tags.fig_pending">A tag waiting for a laptop that has not been enrolled yet.</figcaption>
+                    </figure>
+                    <p data-i18n="docs.admin.asset_tags.pending_p2" data-i18n-html>This lets you tag hardware before it has an operating system. When a serial number in the file was seen by <a href="../professional-plus/provisioning-engine.html">bare-metal discovery</a>, the preview shows that box's MAC address, so a machine on the netboot parking lot can be tagged before it is installed.</p>
+
+                    <h2 data-i18n="docs.admin.asset_tags.h_reports">Reports</h2>
+                    <p data-i18n="docs.admin.asset_tags.reports_p1" data-i18n-html>The Registered Hosts report includes each host's asset tag, and the <strong>Untagged Machines</strong> report lists every machine with no tag yet -- with every operating system installed on it, its vendor, model, serial number and system UUID.</p>
+                    <figure class="docs-screenshot">
+                        <img src="/assets/images/report-untagged-machines.png" alt="Untagged Machines report">
+                        <figcaption data-i18n="docs.admin.asset_tags.fig_report">The Untagged Machines report.</figcaption>
+                    </figure>
+
+                    <h2 data-i18n="docs.admin.asset_tags.h_roles">Permissions</h2>
+                    <p data-i18n="docs.admin.asset_tags.roles_p1" data-i18n-html>Changing the scheme, setting tags, importing and removing pending tags need the <strong>Manage Asset Tags</strong> role; anyone signed in can see tags and export them. Resolving a clone or serial-mismatch conflict needs <strong>Approve Host Registration</strong>. On a server upgraded to this release, users who could already edit host tags receive Manage Asset Tags automatically.</p>
+
+                    <h2 data-i18n="docs.admin.asset_tags.h_editions">Edition Requirements</h2>
+                    <p data-i18n="docs.admin.asset_tags.editions_p1" data-i18n-html>Machines, asset tags, the naming scheme, CSV import and export, and pending tags are available in <strong>all editions</strong> of SysManage, including the Community Edition. The rendered reports (Registered Hosts with asset tags, and Untagged Machines) are part of the Professional+ reporting engine.</p>
+                </section>
+            </div>
+        </div>
+    </main>
+</body>
+</html>

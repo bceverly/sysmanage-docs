@@ -80,6 +80,27 @@ if [ -f /etc/apt/sources.list ]; then
         /etc/apt/sources.list
 fi
 
+# No DNSSEC validation in the resolver.  The vagrant box points
+# systemd-resolved at 4.2.2.x / OpenDNS and validates DNSSEC through them;
+# validation fails intermittently ("DNSSEC validation failed: missing-key")
+# although the same servers answer plain queries fine.  apt then cannot resolve
+# archive.ubuntu.com and logs nothing but "Tried to start delayed item ... but
+# failed" (2026-10-11).  A throwaway screenshot VM gains nothing from it.
+mkdir -p /etc/systemd/resolved.conf.d
+printf '[Resolve]\nDNSSEC=no\n' > /etc/systemd/resolved.conf.d/90-no-dnssec.conf
+systemctl restart systemd-resolved 2>/dev/null || true
+
+# IPv4 only.  The libvirt NAT network gives the VM no IPv6 route, but
+# archive.ubuntu.com publishes AAAA records and apt tries them first: the
+# index refresh happened to get through over IPv4 and then EVERY package
+# download failed "connect (101: Network is unreachable)" against 2620:2d:...
+# (2026-10-11).  The VM never needs IPv6 to reach a mirror.
+echo 'Acquire::ForceIPv4 "true";' > /etc/apt/apt.conf.d/99force-ipv4
+# The same trap waits for curl (NodeSource), pip and npm, which apt's setting
+# does not reach: have the resolver hand out IPv4 addresses first, system-wide.
+grep -q '^precedence ::ffff:0:0/96' /etc/gai.conf 2>/dev/null \
+    || echo 'precedence ::ffff:0:0/96  100' >> /etc/gai.conf
+
 # `apt-get update` exits 0 even when it could not refresh an index, so check
 # explicitly: continuing with stale lists is what produced the 404 storm.
 # mktemp, not a fixed /tmp name: this runs as root (MITRE "Lucky 13" #11).
@@ -162,6 +183,11 @@ registry:
 api:
   host: 0.0.0.0
   port: 8080
+  # The seeders and capture run on the HOST and reach VM_IP:8080 directly;
+  # this VM has no nginx and lives on a private libvirt NAT network.  Without
+  # this the Phase 22 bind policy turns 0.0.0.0 into 127.0.0.1 and every seed
+  # fails "Connection refused" (2026-10-12).
+  allow_public_bind: true
 webui:
   host: 0.0.0.0
   port: 3000

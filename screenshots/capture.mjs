@@ -590,6 +590,15 @@ async function captureClick(page, shot, vp) {
     );
     detail += ` » "${shot.clickButton}"`;
   }
+  // Feed a fixture file to a (hidden) <input type="file"> by its data-testid --
+  // the asset-tag CSV import shows its dry run only once a file is chosen.
+  // The path is relative to this directory, so the fixture lives in the repo.
+  if (shot.uploadFile) {
+    await page
+      .getByTestId(shot.uploadFile.testId)
+      .setInputFiles(join(__dir, shot.uploadFile.path), { timeout: 15000 });
+    detail += ` » upload ${shot.uploadFile.path}`;
+  }
   if (shot.clickRowAction) {
     const idx = shot.clickRowAction; // 1-based position within the actions cell
     await clickWithRetry(
@@ -618,6 +627,7 @@ async function captureClick(page, shot, vp) {
   }
   // Let the dialog animate in / the sub-view load its data (samples, assignments).
   await page.waitForTimeout(shot.clickSettleMs || settleFor(shot) + 1500);
+  if (!(await scrollIntoView(page, shot))) return 'skipped';
   const out = join(OUT_DIR, shot.out);
   const isNew = !existsSync(out);
   await assertNotStillLoading(page, shot);
