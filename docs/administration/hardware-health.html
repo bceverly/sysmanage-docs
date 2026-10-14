@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hardware Health - Administration - SysManage</title>
+    <meta name="description" data-i18n="docs.admin.hardware_health.meta_description" data-i18n-attr="content" content="Watch every host's drives, RAID arrays, storage pools, temperature sensors and memory from the operating system's own sources, see a failing disk the moment the host notices it, and be alerted within seconds.">
+    <link rel="stylesheet" href="/assets/css/style.css">
+    <link rel="icon" type="image/svg+xml" href="/assets/images/favicon.svg">
+</head>
+<body data-auto-header="documentation" data-auto-footer>
+    <main class="docs-main">
+        <div class="container">
+            <div class="docs-breadcrumb"><a href="../" data-i18n="docs.admin.hardware_health.crumb_docs">Documentation</a> &gt; <a href="./" data-i18n="docs.admin.hardware_health.crumb_admin">Administration</a> &gt; <span data-i18n="docs.admin.hardware_health.crumb_page">Hardware Health</span></div>
+            <div class="docs-header">
+                <h1 data-i18n="docs.admin.hardware_health.title">Hardware Health</h1>
+                <p data-i18n="docs.admin.hardware_health.intro" data-i18n-html>A disk rarely fails without warning: media errors climb, a RAID array loses a member, a storage pool degrades. SysManage has each host's own agent <strong>judge</strong> its drives, RAID arrays, storage pools, temperature sensors and memory from the operating system's own sources, and shows the whole fleet worst first -- without installing anything extra on most hosts.</p>
+                <figure class="docs-screenshot">
+                    <img src="/assets/images/hardware-health-fleet.png" alt="Hardware Health page">
+                    <figcaption data-i18n="docs.admin.hardware_health.fig_fleet">The Hardware Health page: a count per status, every host worst first with its most serious problems, and the unresolved events.</figcaption>
+                </figure>
+            </div>
+            <div class="docs-content">
+                <section class="docs-section">
+                    <h2 data-i18n="docs.admin.hardware_health.h_watch">What is watched</h2>
+                    <p data-i18n="docs.admin.hardware_health.watch_p1">The agent reads the operating system's own sources first, so most hosts need no extra package:</p>
+                    <ul>
+                        <li data-i18n="docs.admin.hardware_health.watch_linux" data-i18n-html><strong>Linux</strong> The SMART health log of NVMe drives, read through the kernel (the agent must run as root); hwmon temperature sensors; md software RAID from <code>/proc/mdstat</code>; btrfs device error counters; LVM RAID volumes; ZFS pools; EDAC memory error counts; and machine-check errors recorded by rasdaemon.</li>
+                        <li data-i18n="docs.admin.hardware_health.watch_freebsd" data-i18n-html><strong>FreeBSD</strong> NVMe drives through <code>nvmecontrol</code>; ZFS pools through <code>zpool</code>; GEOM mirror and RAID volumes; and ACPI thermal zones and CPU temperatures.</li>
+                        <li data-i18n="docs.admin.hardware_health.watch_openbsd" data-i18n-html><strong>OpenBSD</strong> The kernel's <code>hw.sensors</code>: drives, RAID volumes and temperature sensors, each with the kernel's own verdict. Each RAID volume and its disks are read from <code>bioctl</code> as well.</li>
+                        <li data-i18n="docs.admin.hardware_health.watch_netbsd" data-i18n-html><strong>NetBSD</strong> Sensors from <code>envstat</code>, judged against the limits each one declares; RAIDframe sets from <code>raidctl</code>; RAID volumes from <code>bioctl</code>; and ZFS pools.</li>
+                        <li data-i18n="docs.admin.hardware_health.watch_macos" data-i18n-html><strong>macOS</strong> Each disk's SMART verdict from <code>diskutil</code>, and the system's thermal state.</li>
+                        <li data-i18n="docs.admin.hardware_health.watch_windows" data-i18n-html><strong>Windows</strong> The storage cmdlets: physical disks with their reliability counters, Storage Spaces virtual disks, ACPI thermal zones, and the hardware errors WHEA has recorded.</li>
+                    </ul>
+                    <p data-i18n="docs.admin.hardware_health.watch_p2" data-i18n-html>SATA and SAS drives on Linux and FreeBSD can only be read with <code>smartctl</code>, from smartmontools. Without it such a drive is shown as not judged, with the reason, and SysManage recommends installing it. Virtual disks (virtio, Xen) have no SMART at all and are not listed: their health is the hypervisor's.</p>
+                    <p data-i18n="docs.admin.hardware_health.watch_vendor" data-i18n-html>Where a hardware RAID controller's own tool is installed -- <code>storcli</code> or <code>perccli</code> (Broadcom, Dell), <code>ssacli</code> (HPE) or <code>arcconf</code> (Microchip) -- its logical and physical drives, the controller and its cache battery are read too. On a server with a BMC, <code>ipmitool</code> adds the BMC's sensors and the hardware problems in its event log over the last 24 hours.</p>
+
+                    <h2 data-i18n="docs.admin.hardware_health.h_status">What each status means</h2>
+                    <ul>
+                        <li data-i18n="docs.admin.hardware_health.status_ok" data-i18n-html><strong>Healthy</strong> Every component the host reported is healthy.</li>
+                        <li data-i18n="docs.admin.hardware_health.status_warning" data-i18n-html><strong>Warning</strong> At least one component needs attention -- media errors, a degraded array, a temperature at its limit.</li>
+                        <li data-i18n="docs.admin.hardware_health.status_failed" data-i18n-html><strong>Failed</strong> At least one component has failed.</li>
+                        <li data-i18n="docs.admin.hardware_health.status_unknown" data-i18n-html><strong>Not judged</strong> The host reported its hardware, but nothing could judge at least one component.</li>
+                        <li data-i18n="docs.admin.hardware_health.status_unmeasured" data-i18n-html><strong>Not reported</strong> The host has never reported its hardware -- its agent is too old, or it has not connected.</li>
+                        <li data-i18n="docs.admin.hardware_health.status_stale" data-i18n-html><strong>No recent report</strong> The last report is more than an hour old; the host is probably not connected.</li>
+                    </ul>
+                    <p data-i18n="docs.admin.hardware_health.status_p1">A host or a component that was not measured is never shown as healthy. Each report also lists its sources -- whether each one was read, is not present on the host, or failed -- so an empty report reads as not measured, not as nothing wrong. Temperatures are judged only against the limits the hardware itself declares; a sensor that declares none is shown, never guessed at.</p>
+
+                    <h2 data-i18n="docs.admin.hardware_health.h_realtime">Problems reported as they happen</h2>
+                    <p data-i18n="docs.admin.hardware_health.realtime_p1" data-i18n-html>Where the operating system announces a hardware problem, the agent listens: the kernel log on Linux, devd on FreeBSD, and the System event log on Windows (checked every 30 seconds). A disk failure, an array losing a member or a pool degrading is reported at once -- the hardware is read again and sent with the operating system's own lines as evidence, shown as an <strong>Operating system</strong> event -- rather than on the next periodic report. Listening needs an agent running with administrator rights.</p>
+                    <p data-i18n="docs.admin.hardware_health.realtime_journal" data-i18n-html>On Linux the agent also follows what <code>smartd</code>, <code>zed</code> and <code>mdadm</code> write to the system journal, so a drive failing its SMART check, a ZFS device faulting or an md array losing a disk is caught the moment it is logged.</p>
+                    <p data-i18n="docs.admin.hardware_health.realtime_p2">Otherwise the agent reports on its own schedule: a report that has not changed is not sent again, but one is sent at least every 15 minutes. macOS, OpenBSD and NetBSD use the periodic report only.</p>
+
+                    <h2 data-i18n="docs.admin.hardware_health.h_page">The Hardware Health page</h2>
+                    <p data-i18n="docs.admin.hardware_health.page_p1" data-i18n-html><strong>Hardware Health</strong>, in the Fleet menu, shows how many hosts are in each status and lists every host worst first, with its most serious problems. Filter by status, site, tag or host name. Below the list are the unresolved events: every change in a component's state, and every problem the operating system reported. The dashboard has a tile counting the hosts whose hardware needs attention.</p>
+
+                    <h2 data-i18n="docs.admin.hardware_health.h_host">A host's hardware</h2>
+                    <p data-i18n="docs.admin.hardware_health.host_p1" data-i18n-html>The <strong>Hardware health</strong> card on a host's overview lists its components worst first, with the reason for each one that is not healthy and the values it was judged on. Healthy sensors are folded away so they do not bury the rest. The card also shows which sources were read and the host's recent events.</p>
+                    <figure class="docs-screenshot">
+                        <img src="/assets/images/hardware-health-host.png" alt="Hardware health card on a host's overview">
+                        <figcaption data-i18n="docs.admin.hardware_health.fig_host">A database server losing a disk: the drive that failed its SMART check, the degraded RAID array, and the kernel's own message.</figcaption>
+                    </figure>
+
+                    <h2 data-i18n="docs.admin.hardware_health.h_events">Acknowledging and resolving events</h2>
+                    <p data-i18n="docs.admin.hardware_health.events_p1" data-i18n-html>An event can be <strong>acknowledged</strong> -- someone has it in hand -- or <strong>resolved</strong>, each with an optional note, from the Hardware Health page or the host's card. Both need the <strong>Manage Hardware Health</strong> role.</p>
+
+                    <h2 data-i18n="docs.admin.hardware_health.h_smart">Installing smartmontools</h2>
+                    <p data-i18n="docs.admin.hardware_health.smart_p1" data-i18n-html>Where a drive cannot be read without <code>smartctl</code>, the host's card and the Hardware Health page say so, and offer to install smartmontools on that host or on every host listed. Installing needs both the <strong>Manage Hardware Health</strong> and <strong>Add Package</strong> roles. On Debian and Ubuntu it is installed without its recommended packages, so no mail server comes with it. The drives are read at the host's next report.</p>
+                    <p data-i18n="docs.admin.hardware_health.smart_p2">On Enterprise, an administrator can let SysManage install smartmontools automatically wherever it is needed. It is off until someone switches it on, and is set per tenant under multi-tenancy. An install that fails is retried with a growing delay. Every install, and every change to the setting, is recorded in the audit log.</p>
+
+                    <h2 data-i18n="docs.admin.hardware_health.h_alerts">Alerts</h2>
+                    <p data-i18n="docs.admin.hardware_health.alerts_p1" data-i18n-html>The <strong>Hardware Health</strong> alert condition is raised when a host has a component at warning or worse -- or, if you choose, only when something has failed -- optionally for some kinds of component only (drives, arrays, pools, sensors or memory). Each host has one open alert while the problem lasts; it is critical when something has failed, and it is <strong>resolved automatically</strong>, with a notification saying so, when everything is healthy again. A host that is not reporting raises nothing and clears nothing.</p>
+                    <p data-i18n="docs.admin.hardware_health.alerts_p2">The condition is evaluated the moment a report arrives, not on the next minute's check. An alert is notified again every 4 hours until someone acknowledges it. While a host is in a maintenance window its notifications are held, but the alert is still recorded. When many hosts at one site trip together, one notification names them all.</p>
+                    <p data-i18n="docs.admin.hardware_health.alerts_p3">Measured on lab hardware: when a disk of a ZFS mirror went offline, the alert was raised and its email sent 11 seconds later; the alert itself was raised within 0.2 seconds of the report reaching the server.</p>
+
+                    <h2 data-i18n="docs.admin.hardware_health.h_roles">Permissions</h2>
+                    <p data-i18n="docs.admin.hardware_health.roles_p1" data-i18n-html>Anyone signed in can see hardware health. Acknowledging and resolving events needs the <strong>Manage Hardware Health</strong> role; installing smartmontools also needs <strong>Add Package</strong>; switching automatic installation on or off needs an administrator. On a server upgraded to this release, administrators receive Manage Hardware Health automatically.</p>
+
+                    <h2 data-i18n="docs.admin.hardware_health.h_editions">Edition Requirements</h2>
+                    <p data-i18n="docs.admin.hardware_health.editions_p1" data-i18n-html>Hardware collection, the statuses, real-time reporting, the Hardware Health page, the host card, the dashboard tile, acknowledging events and installing smartmontools by hand are available in <strong>all editions</strong>, including the Community Edition. Automatic smartmontools installation and the hardware alerts are part of <strong>Enterprise</strong>.</p>
+                </section>
+            </div>
+        </div>
+    </main>
+</body>
+</html>
