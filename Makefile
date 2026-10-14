@@ -396,7 +396,7 @@ screenshot:
 # ---- Automated documentation screenshots (screenshots/ pipeline) ------------
 # Reproducible screenshots: provision a VM, seed demo data (REST + WS), drive the
 # UI with Playwright, write PNGs into assets/images/. See screenshots/README.md.
-.PHONY: screenshots screenshots-community screenshots-assettag-seed screenshots-enterprise screenshots-seed screenshots-capture screenshots-vm-up screenshots-vm-down screenshots-pro-build screenshots-pro-seed screenshots-pro-capture screenshots-ent-build screenshots-ent-seed screenshots-ent-capture screenshots-ent-roles screenshots-fleet-seed screenshots-cfg-seed screenshots-facts-seed screenshots-facts-capture screenshots-advisor-seed screenshots-advisor-capture screenshots-discovery-seed screenshots-discovery-capture screenshots-malware-seed screenshots-malware-capture
+.PHONY: screenshots screenshots-community screenshots-assettag-seed screenshots-timesync-seed screenshots-enterprise screenshots-seed screenshots-capture screenshots-vm-up screenshots-vm-down screenshots-pro-build screenshots-pro-seed screenshots-pro-capture screenshots-ent-build screenshots-ent-seed screenshots-ent-capture screenshots-ent-roles screenshots-fleet-seed screenshots-cfg-seed screenshots-facts-seed screenshots-facts-capture screenshots-advisor-seed screenshots-advisor-capture screenshots-discovery-seed screenshots-discovery-capture screenshots-malware-seed screenshots-malware-capture
 
 SHOTS_DIR := screenshots
 # Load screenshots/config.env (targets, admin + demo creds) if present.
@@ -448,11 +448,13 @@ screenshots:
 	@$(MAKE) screenshots-vm-up
 	@$(MAKE) screenshots-seed
 	@$(MAKE) screenshots-assettag-seed
+	@$(MAKE) screenshots-timesync-seed
 	@$(MAKE) screenshots-capture
 	@echo "$(BLUE)--- [2/3] Professional ---$(RESET)"
 	@$(MAKE) screenshots-pro-build
 	@$(MAKE) screenshots-seed
 	@$(MAKE) screenshots-assettag-seed
+	@$(MAKE) screenshots-timesync-seed
 	@$(MAKE) screenshots-pro-seed
 	@$(MAKE) screenshots-facts-seed
 	@$(MAKE) screenshots-pro-capture
@@ -460,6 +462,7 @@ screenshots:
 	@$(MAKE) screenshots-ent-build
 	@$(MAKE) screenshots-seed
 	@$(MAKE) screenshots-assettag-seed
+	@$(MAKE) screenshots-timesync-seed
 	@$(MAKE) screenshots-pro-seed
 	@$(MAKE) screenshots-ent-seed
 	@$(MAKE) screenshots-cfg-seed
@@ -491,6 +494,7 @@ screenshots-enterprise:
 	@$(MAKE) screenshots-ent-build
 	@$(MAKE) screenshots-seed
 	@$(MAKE) screenshots-assettag-seed
+	@$(MAKE) screenshots-timesync-seed
 	@$(MAKE) screenshots-pro-seed
 	@$(MAKE) screenshots-ent-seed
 	@$(MAKE) screenshots-cfg-seed
@@ -516,6 +520,7 @@ screenshots-community:
 	@$(MAKE) screenshots-vm-up
 	@$(MAKE) screenshots-seed
 	@$(MAKE) screenshots-assettag-seed
+	@$(MAKE) screenshots-timesync-seed
 	@$(MAKE) screenshots-capture
 	@echo "$(GREEN)✓ Community Edition screenshots refreshed in assets/images/$(RESET)"
 	@if [ "$(FRESH)" = "1" ]; then \
@@ -704,6 +709,17 @@ screenshots-assettag-seed:
 		echo "$(BLUE)Seeding machines + asset tags (in-VM ORM)...$(RESET)"; \
 		cat seed_assettags.py | vagrant ssh -c "cd /opt/sysmanage && sudo env PYTHONPATH=/opt/sysmanage /opt/sysmanage/.venv/bin/python - 2>&1" 2>/dev/null \
 			| sed 's/^/  /' || echo "$(YELLOW)asset tag seed failed (is the VM up and OSS-seeded?)$(RESET)"
+
+# Time sync (Phase 23.3): clocks, time services, a week of offset history,
+# tag bounds, resyncs, a fleet NTP policy and clock alerts.  OSS data (the
+# policy and alerts only render where their engines are licensed), so it runs
+# in every pass.  Run after screenshots-seed.
+screenshots-timesync-seed:
+	@cd $(SHOTS_DIR) && VMIP=$$(vagrant ssh -c 'hostname -I' 2>/dev/null | awk '{print $$1}' | tr -d '\r'); \
+		[ -n "$$VMIP" ] || { echo "$(RED)Screenshot VM not running. Run 'make screenshots' first.$(RESET)"; exit 1; }; \
+		echo "$(BLUE)Seeding clocks + time sync (in-VM ORM)...$(RESET)"; \
+		cat seed_timesync.py | vagrant ssh -c "cd /opt/sysmanage && sudo env PYTHONPATH=/opt/sysmanage /opt/sysmanage/.venv/bin/python - 2>&1" 2>/dev/null \
+			| sed 's/^/  /' || echo "$(YELLOW)time sync seed failed (is the VM up and OSS-seeded?)$(RESET)"
 
 screenshots-facts-seed:
 	@cd $(SHOTS_DIR) && VMIP=$$(vagrant ssh -c 'hostname -I' 2>/dev/null | awk '{print $$1}' | tr -d '\r'); \
@@ -1052,7 +1068,7 @@ lint-file-length:
 # .js seeders (real-screenshot.js etc.) are covered by eslint below, not here.
 LINT_PY := add_test_user.py scripts/ screenshots/seed.py screenshots/seed_pro.py \
 	screenshots/seed_ent.py screenshots/seed_ent_config.py \
-	screenshots/seed_fleet.py screenshots/seed_assettags.py screenshots/seed_advisor.py screenshots/seed_discovery.py screenshots/seed_malware.py screenshots/set_roles.py \
+	screenshots/seed_fleet.py screenshots/seed_assettags.py screenshots/seed_timesync.py screenshots/seed_advisor.py screenshots/seed_discovery.py screenshots/seed_malware.py screenshots/set_roles.py \
 	screenshots/pro_keygen.py screenshots/fixture_agent.py screenshots/gen_seed_sql.py \
 	assets/locales/
 
