@@ -396,7 +396,7 @@ screenshot:
 # ---- Automated documentation screenshots (screenshots/ pipeline) ------------
 # Reproducible screenshots: provision a VM, seed demo data (REST + WS), drive the
 # UI with Playwright, write PNGs into assets/images/. See screenshots/README.md.
-.PHONY: screenshots screenshots-community screenshots-assettag-seed screenshots-timesync-seed screenshots-hardware-seed screenshots-enterprise screenshots-seed screenshots-capture screenshots-vm-up screenshots-vm-down screenshots-pro-build screenshots-pro-seed screenshots-pro-capture screenshots-ent-build screenshots-ent-seed screenshots-ent-capture screenshots-ent-roles screenshots-fleet-seed screenshots-cfg-seed screenshots-facts-seed screenshots-facts-capture screenshots-advisor-seed screenshots-advisor-capture screenshots-discovery-seed screenshots-discovery-capture screenshots-malware-seed screenshots-malware-capture
+.PHONY: screenshots screenshots-community screenshots-assettag-seed screenshots-timesync-seed screenshots-hardware-seed screenshots-enterprise screenshots-seed screenshots-capture screenshots-vm-up screenshots-vm-down screenshots-pro-build screenshots-pro-seed screenshots-pro-capture screenshots-ent-build screenshots-ent-seed screenshots-ent-capture screenshots-ent-roles screenshots-fleet-seed screenshots-cfg-seed screenshots-facts-seed screenshots-facts-capture screenshots-advisor-seed screenshots-advisor-capture screenshots-discovery-seed screenshots-discovery-capture screenshots-malware-seed screenshots-malware-capture screenshots-hardware-capture
 
 SHOTS_DIR := screenshots
 # Load screenshots/config.env (targets, admin + demo creds) if present.
@@ -829,6 +829,12 @@ screenshots-advisor-capture:
 screenshots-discovery-capture:
 	@$(MAKE) screenshots-ent-capture \
 		SCREENSHOT_ONLY=ent-asset-discovery,ent-asset-discovery-known,ent-asset-discovery-static,ent-asset-discovery-sweeps
+
+# Re-capture ONLY the Hardware Health shots (23.1), against an OSS VM that is
+# up and seeded (screenshots-vm-up, screenshots-seed, screenshots-hardware-seed).
+screenshots-hardware-capture:
+	@$(MAKE) screenshots-capture \
+		SCREENSHOT_ONLY=hardware-health-fleet,hardware-health-host
 
 # Re-capture ONLY the Malware Detection shots (21.3), against an Enterprise VM
 # that is built and seeded (through screenshots-malware-seed).
