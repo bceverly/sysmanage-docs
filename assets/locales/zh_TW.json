@@ -11513,8 +11513,8 @@
           "034": "<strong>在您的高可用性 PostgreSQL 叢集上佈建登錄資料庫與登入角色。</strong>在叢集目前的主要節點上，建立 <code>sysmanage</code> 角色以及由其擁有的登錄資料庫（請參閱<a href=\"../server/installation.html\">伺服器安裝</a>中的資料庫步驟）。伺服器會以此角色連線；它<em>不是</em>超級使用者。角色與資料庫是叢集全域物件，因此串流複寫會自動將它們複製到每個待命節點。如果您尚未建立叢集，請先完成這項工作 -- 請參閱 <a href=\"../administration/postgresql-ha.html\">PostgreSQL 高可用性</a>。",
           "035": "建立 OpenBAO 並配置其資料庫機密引擎，使其能夠發行短期、按租戶分隔的 PostgreSQL 函數。OpenBAO 是一個代理，確保伺服器永遠不會持有長期共享的資料庫密碼。（使用存儲庫中的 scripts/build-openbao.sh 和 scripts/start-openbao.sh 腳本建立和啟動它，或使用您自己的管理實例。）",
           "036": "<strong>設定 <code>/etc/sysmanage.yaml</code></strong> -- 將 registry 區塊指向登錄資料庫、啟用多租戶，並設定 vault： <pre><code>registry: # Point at the cluster's stable read-write endpoint, never one node. # libpq multi-host list (tries each, keeps the writable primary): host: \"db1.internal,db2.internal\" port: 5432 name: sysmanage_registry user: sysmanage password: &lt;from your secret store&gt; options: \"target_session_attrs=read-write\" multitenancy: enabled: true self_service_provisioning: true vault: url: https://openbao.internal:8200 # token / auth configured per your OpenBAO setup # NB: configure the database secrets engine's own connection_url at the # SAME cluster endpoint (see PostgreSQL High Availability) so tenant # credential leasing keeps working across a primary failover.</code></pre> <div class=\"note warn\"><strong>授權說明：</strong>依租戶路由需要取得授權的多租戶引擎（<code>MULTITENANT_SAAS</code> 層級）。若沒有此引擎，伺服器會拒絕以多租戶模式執行，而不是在無聲無息中誤路由請求 -- 這是刻意的設計。</div>",
-          "037": "使用操作員工具運行遷移。make migrate（或 scripts/sysmanage_migrate.py 直接）應用註冊、共享和租戶鏈，並顯示每個資料庫的進度；啟用多租戶時自動將 OpenBAO 上線以進行扇出：make migrate",
-          "038": "配置最少權限供應者身分，以便在沒有集群超級用戶權限的情況下進行自助式租戶創建：make provision-bootstrap ARGS='--bao-token $BAO_TOKEN'",
+          "037": "使用套件隨附的指令<strong>執行遷移</strong>。它會套用 registry、shared 與 tenant 鏈，並顯示每個資料庫的進度。依租戶執行的部分會向 OpenBAO 取得憑證，因此 OpenBAO 必須正在執行：",
+          "038": "<strong>建立最小權限的佈建身分</strong>，讓租戶自助建立不需要叢集超級使用者權限。在伺服器上以 root 身分執行一次：它會從設備的初始化資料讀取 OpenBAO 根權杖，並透過本機超級使用者建立 Postgres 角色。若 OpenBAO 或 Postgres 位於遠端，請傳入 <code>--bao-token</code> 與 <code>--pg-host</code>：",
           "039": "從控制台UI（設置 → 租戶）為您的租戶創建。每個租戶都有一個自己的數據庫和OpenBAO協商的憑證。將每個租戶的數據庫放置在需要的位置 -- 由主機、區域或管轄區決定。",
           "040": "將租戶鏈路擴展到每個已配置的租戶數據庫（OpenBAO 必須運行）：執行 migrate-tenants 命令",
           "041": "將主機綁定到租戶。為每個租戶（租戶 → 代碼）生成一個租戶範圍的入駐令牌，並將其放入該主機代理配置下的 security.enrollment_token 中，然後註冊代理。從此之後，主機的數據會自動存儲在該租戶的數據庫中。",
@@ -15660,36 +15660,6 @@
           "206": "容器化：支持 Docker 和 Kubernetes 部署",
           "207": "雲原生：雲平台集成和服務",
           "208": "混合：複雜環境中的混合部署模型"
-        },
-        "installation": {
-          "001": "Python 3.12+: 從python.org下載 ✅ Python 3.12, 3.13, 或 3.14 推薦 ✅ 安裝期間選擇“將Python添加到PATH”",
-          "002": "Node.js 20.x：從 nodejs.org 下載",
-          "003": "PostgreSQL 14+: postgresql.org 下載",
-          "004": "Git for Windows: 從git-scm.com下載",
-          "005": "Visual Studio Build Tools：從 Microsoft 下載",
-          "006": "NetBSD 完整設置指南",
-          "007": "NetBSD 使用者 - 臨界設置要求",
-          "008": "開始安裝前，NetBSD 用戶必須：",
-          "009": "安裝所有必要的套件，包括jpeg（而不僅僅是libjpeg-turbo）",
-          "010": "設置環境變量：{{c1}}",
-          "011": "使用 gmake 代替 make 命令",
-          "012": "如果不存在，手動創建PostgreSQL用戶",
-          "013": "如果需要增加 /tmp 大小：{{c1}}",
-          "014": "請參閱上方先決條件中的NetBSD選項卡以獲取完整的設置說明。",
-          "015": "NetBSD 特定問題",
-          "016": "缺少 PostgreSQL 用戶：NetBSD 可能不會自動創建 postgres/pgsql 用戶。使用以下命令創建：sudo useradd -m -d /var/db/postgresql -s /bin/sh postgres",
-          "017": "PostgreSQL 無法啟動：確保 /etc/rc.conf 中有 pgsql=YES，然後運行 sudo /etc/rc.d/pgsql start",
-          "018": "在 pip 安裝期間設備空間不足：NetBSD 的 /tmp 限制為默認值 1GB。使用 mount -t tmpfs -o -s=4g tmpfs /tmp 或 export TMPDIR=$HOME/tmp 增加容量。",
-          "019": "gmake install-dev 用於開發：請使用 gmake 而不是 make 。Makefile 包含了 NetBSD 特定的 C 追蹤器依賴檢查（gcc13, py312-cffi）",
-          "020": "找不到 PostgreSQL 套接字：NetBSD 的 PostgreSQL 往往使用 TCP 而不是 Unix 套接字。連接時始終使用 -h localhost",
-          "021": "OpenTelemetry Collector 构建失败：NetBSD 使用 BSD 版本的 find/xargs/dirname，這些與 OTEL 收集器 Makefile 不兼容。安裝 GNU 工具：sudo pkgin install findutils coreutils 安裝-telemetry.py 脚本将自动检测并使用 gfind/gxargs/gdirname 在 NetBSD 上。",
-          "022": "瀏覽器/WebDriver錯誤：安裝瀏覽器進行UI測試： # 安裝Chromium（包括ChromeDriver） doas pkgin install chromium # 安裝Firefox（需要特定版本名稱） doas pkgin install firefox-138.0.4 # 安裝Firefox UI測試的GeckoDriver doas pkgin install geckodriver-0.36.0 # 驗證安裝 which chromium firefox geckodriver 注意：NetBSD Firefox包通常需要明確指定版本號，而其他BSD系統則不需要。由於NetBSD上的Firefox WebDriver兼容性問題，UI測試套件自動排除Firefox測試並僅運行Chrome測試。這確保了清潔的測試結果，沒有失敗或跳過的測試。",
-          "023": "Pillow構建失敗：安裝圖像庫並設置路徑：pkgin install jpeg libjpeg-turbo tiff png freetype2 lcms2 libwebp openjpeg zlib export CFLAGS=\"-I/usr/pkg/include\" export LDFLAGS=\"-L/usr/pkg/lib -Wl,-R/usr/pkg/lib\"",
-          "024": "後端無法啟動：\"libjpeg.so.9 not found\": 這是當 Pillow 在 JPEG 庫之前安裝或路徑不正確時發生的情況。gmake install-dev 目標會自動重新建立 Pillow 以適用於 NetBSD。手動修正方法： .venv/bin/activate export CFLAGS=\"-I/usr/pkg/include\" export LDFLAGS=\"-L/usr/pkg/lib -Wl,-R/usr/pkg/lib\" pip uninstall -y Pillow pip install --no-binary=:all: Pillow",
-          "025": "OpenBAO 安裝：NetBSD 沒有預建的 OpenBAO 套件。選項：從源碼構建（推薦）：pkgin install go git gmake # NetBSD 將 Go 安裝為 go124 - 創建符號鏈接：sudo ln -sf /usr/pkg/bin/go124 /usr/pkg/bin/go # 將 ~/.local/bin 添加到 PATH 中：echo 'export PATH=\"$HOME/.local/bin:$PATH\"' >> ~/.profile . ~/.profile # 然後運行：gmake install-dev # 它將提示您從源碼構建 OpenBAO 使用 Linux 模擬：嘗試在 NetBSD 的 Linux 兼容模式下運行 Linux 二進制文件 跳過 OpenBAO：它是可選的 - 在配置中設置 vault.enabled=false 注意：OpenBAO 是開發時可選的。系統沒有它也能完美工作。",
-          "026": "OpenBAO 'bao' 命令未找到：確保 ~/.local/bin 在您的PATH中：echo 'export PATH=\"$HOME/.local/bin:$PATH\"' >> ~/.profile && . ~/.profile",
-          "027": "如何設置多租戶？",
-          "028": "上述步驟創建了由社區、專業和企業版使用的單一應用程序數據庫。多租戶企業SaaS部署還需要一個註冊數據庫，OpenBAO以及每個租戶的隔離數據庫。請參閱《部署多租戶》以獲取完整的開發和生產數據庫設置。"
         },
         "reports": {
           "001": "文檔",
@@ -22886,7 +22856,8 @@
     "what_it_does": {
       "description": "此腳本會自動將您的SysManage安裝轉換為企業級安全平台：",
       "title": "腳本完成的任務"
-    }
+    },
+    "package_note": "<strong>是透過套件安裝的嗎？</strong>您不需要此指令碼。套件會自行產生機密並初始化 OpenBAO；請改為依照<a href=\"installation.html#after-installing\">安裝之後</a>的步驟操作。此指令碼用於原始碼簽出目錄，而且會重建資料庫。"
   },
   "security": {
     "authentication": {
@@ -23406,7 +23377,8 @@
         "title": "生產配置"
       },
       "installation": {
-        "title": "安裝步驟"
+        "title": "安裝步驟",
+        "see_guide": "<a href=\"installation.html\">伺服器安裝指南</a>詳細說明了每個步驟，包括 TLS 憑證、防火牆以及其他平台的套件。"
       },
       "requirements": {
         "component": "元件",
@@ -23529,203 +23501,43 @@
   },
   "server_installation": {
     "breadcrumb_installation": "安裝",
-    "description": "SysManage 伺服器的完整安裝指南，包括先決條件、資料庫設定和配置。",
     "header": {
-      "subtitle": "在您的基礎設施上設定 SysManage 伺服器的完整逐步安裝指南。",
-      "title": "伺服器安裝指南"
-    },
-    "installation_steps": {
-      "step1": {
-        "title": "步驟 1：複製和設定"
-      },
-      "step2": {
-        "description": "建立 PostgreSQL 資料庫和使用者：",
-        "linux_macos_freebsd": "Linux /macOS/FreeBSD",
-        "netbsd": "NetBSD",
-        "openbsd": "OpenBSD",
-        "security_notes": {
-          "change_password": "在 PostgreSQL 和配置檔案中都要變更密碼",
-          "dev_password": "開發密碼 <code>abc123</code> 與 <code>sysmanage-dev.yaml</code> 相符",
-          "never_production": "絕不要在生產環境中使用此密碼",
-          "title": "安全注意事項"
-        },
-        "title": "步驟 2：資料庫設定",
-        "windows": "Windows"
-      },
-      "step3": {
-        "title": "步驟 3：安裝後端相依性"
-      },
-      "step4": {
-        "title": "步驟 4：測試資料庫連接"
-      },
-      "step5": {
-        "title": "步驟 5：安裝前端相依性"
-      },
-      "step6": {
-        "config_generator": {
-          "description": "使用 the interactive",
-          "link": "配置生成器工具",
-          "title": "設定產生器可用"
-        },
-        "description": "建立配置檔案於：",
-        "linux_macos_bsd": "Linux/macOS/BSD：",
-        "security_steps": {
-          "file_permissions": "設定適當的檔案權限：<code>chmod 600 /etc/sysmanage.yaml</code>",
-          "generate_secrets": "產生新的機密值：<code>openssl rand -base64 32</code>",
-          "never_commit": "永遠不要將配置檔案提交到版本控制",
-          "strong_passwords": "使用強密碼（12 個字元以上）",
-          "title": "必需的安全步驟",
-          "installer_generated": "安裝套件（deb、rpm、FreeBSD、NetBSD、macOS、Windows、snap）在建立設定檔時會產生 <code>jwt_secret</code>、<code>password_salt</code> 以及復原用的 <code>admin_password</code>；復原密碼存放在該檔案中。佔位值或 <code>admin</code> 這類眾所周知的密碼在登入時絕不會被接受。手動安裝時，請執行 <code>python -m backend.config.install_secrets --apply /etc/sysmanage.yaml</code>。"
-        },
-        "title": "步驟 6：配置",
-        "windows_path": "Windows："
-      },
-      "step7": {
-        "features": {
-          "admin_user": "建立初始管理使用者帳戶",
-          "config_hardening": "對設定檔應用安全強化",
-          "jwt_secret": "產生唯一的 JWT 金鑰進行身份驗證",
-          "password_salt": "產生唯一的密碼鹽以實現安全密碼雜湊",
-          "prevents_defaults": "防止使用預設/範例安全令牌",
-          "title": "這個腳本做什麼："
-        },
-        "security_note": {
-          "description": "必須執行安全安裝腳本來建立初始管理員使用者並為您的安裝配置唯一的安全性令牌。",
-          "title": "新安裝需要"
-        },
-        "title": "步驟 7：執行資料庫遷移",
-        "warning": {
-          "backup_config": "運行此腳本後備份您的配置文件",
-          "required": "這個步驟是**必須的**",
-          "required_desc": "如果沒有它，應用程式將無法安全地運行",
-          "run_once": "每次安裝僅執行此腳本一次",
-          "title": "重要安全性注意事項",
-          "unique_tokens": "每個安裝都會獲得唯一的安全令牌，以防止憑證重複使用"
-        }
-      },
-      "step8": {
-        "access_description": "訪問該應用程式：",
-        "http": "HTTP：",
-        "http_url": "HTTP：//localhost：3000 (fallback)",
-        "https": "HTTPS：",
-        "https_url": "https://sysmanage.org:7443（如果 SSL 憑證存在）",
-        "title": "步驟8：執行安全安裝腳本"
-      },
-      "title": "安裝步驟"
+      "title": "伺服器安裝指南",
+      "subtitle_packages": "使用適用於您平台的套件安裝 SysManage 伺服器，然後透過幾個簡短的步驟完成設定。只有在開發時才需要從原始碼建置。"
     },
     "navigation": {
       "config_guide": "配置指南 →",
       "server_docs": "← 伺服器文件"
     },
-    "note": "注意：",
     "prerequisites": {
       "alpine": {
-        "note_edge": "邊緣存儲庫:",
-        "note_memory": "記憶：",
-        "note_musl": "musl libc：Alpine 使用 musl 而不是 glibc - 某些軟體包可能需要編譯",
-        "note_openrc": "OpenRC:",
-        "note_title": "Alpine Linux 備註",
-        "tab_title": "Alpine Linux",
-        "title": "Alpine Linux 3.20, 3.21, 3.22"
-      },
-      "centos": {
-        "tab_title": "CentOS / RHEL",
-        "title": "CentOS/RHEL/Fedora"
+        "tab_title": "Alpine Linux"
       },
       "centos_rhel": "CentOS/RHEL",
       "freebsd": {
-        "tab_title": "FreeBSD",
-        "title": "FreeBSD"
+        "tab_title": "FreeBSD"
       },
       "macos": {
-        "tab_title": "macOS",
-        "title": "macOS"
+        "tab_title": "macOS"
       },
       "netbsd": {
         "tab_title": "NetBSD",
         "title": "NetBSD 完整設定指南"
       },
       "openbsd": {
-        "pkg_intro": "每個受支持的 OpenBSD 發行版都有一個預建包。它捆綁了後端、構建好的網頁介面以及所有 Python 依賴項，因此可以快速安裝且不需要編譯器。",
-        "pkg_title": "推薦：預先構建的套件（OpenBSD 7.8、7.9）",
-        "src_intro": "對於開發或自行構建端口，請安裝以下工具鏈並遵循一般的安裝步驟。",
-        "src_title": "替代方案：從源代碼構建",
-        "tab_title": "OpenBSD",
-        "title": "OpenBSD"
+        "tab_title": "OpenBSD"
       },
       "opensuse": {
-        "note_leap": "openSUSE Leap:",
-        "note_nodejs": "Node.js 版本：",
-        "note_postgresql": "PostgreSQL:",
-        "note_title": "套件管理器說明",
-        "note_tumbleweed": "openSUSE Tumbleweed：滾動發布，包含最新套件",
-        "tab_title": "openSUSE",
-        "title": "openSUSE 跳躍/風滾草"
+        "tab_title": "openSUSE"
       },
-      "sles": {
-        "note_firewall": "防火牆:",
-        "note_modules": "模組：",
-        "note_selinux": "SELinux:",
-        "note_sles12": "SLES 12：可能需要新版 Python 的軟體集合 (SCL)",
-        "note_sles15": "SLES 15:",
-        "note_subscription": "訂閱：",
-        "note_title": "企業考量因素",
-        "tab_title": "SLES",
-        "title": "SUSE Linux 企業伺服器 (SLES)"
-      },
-      "title": "平台特定的先決條件",
-      "ubuntu": {
-        "title": "Ubuntu 22.04 - 26.04 (推薦)"
-      },
-      "ubuntu25": {
-        "note": "Ubuntu 25.04 提供 Python 3.13，Ubuntu 25.10 提供 Python 3.13，Ubuntu 26.04 提供 Python 3.14。所有版本均完全支援。請使用標準 Ubuntu 安裝說明。",
-        "tab_title": "Ubuntu 25.04 +",
-        "title": "Ubuntu 25.04+ 注意事項"
-      },
-      "ubuntu_debian": "Ubuntu / Debian",
       "windows": {
-        "nginx": "<strong>nginx:</strong> 已由 MSI 安裝器自動安裝，無需手動步驟。安裝程式下載固定版本，在解壓前驗證 SHA-256 雜湊值，然後將其註冊為 <code>SysManageNginx</code> 服務。在隔離主機上，使用隔離主機套件：它包含 nginx 檔案，因此安裝不需要網路連線。",
-        "nginx_note": "<strong>nginx 是必要元件，而非選用。</strong>SysManage 後端只提供 REST API 與代理 WebSocket -- 它沒有靜態檔案處理常式。nginx 負責提供 Web 主控台、在 443 連接埠終止 TLS，並將 <code>/api/</code> 與 <code>/ws</code> 代理轉送至回送介面 8080 連接埠上的後端。沒有它，就無法連上主控台。",
-        "tab_title": "Windows",
-        "title": "Windows"
+        "tab_title": "Windows"
       }
-    },
-    "requirements": {
-      "nodejs": {
-        "description": "用於建構 React 前端",
-        "title": "節點.js",
-        "version": "20.x 或更高版本"
-      },
-      "os": {
-        "description": "跨平台部署",
-        "platforms": "Linux、macOS、Windows、FreeBSD、OpenBSD, NetBSD",
-        "title": "作業系統"
-      },
-      "postgresql": {
-        "description": "所有應用程式資料的主要資料庫",
-        "title": "PostgreSQL",
-        "version": "14 或更高版本"
-      },
-      "python": {
-        "note": "注意：Python 3.10 的支援是為了 Ubuntu 22.04 LTS 相容性",
-        "title": "Python",
-        "version": "3.11 至 3.14"
-      },
-      "required": "必須：",
-      "supported": "支援的：",
-      "title": "系統需求"
-    },
-    "ssl": {
-      "config_path": "將 nginx 指向您的證書和金鑰。配置文件在每個平台上都位於不同的位置，因此安裝後消息會為您的系統打印出確切路徑以及需要更改的兩行：",
-      "description": "SysManage 從 HTTPS 的端口 443 提供 Web 界面和 API。nginx 終止 TLS 並將請求代理到迴圈回路後端，這就是為什麼代理需要出站 443 到此主機才能訪問它。在伺服器提供生產流量之前必須有證書到位。",
-      "dev_mode": "對於本地開發，您可以在 <code>dev_mode: true</code> 中設置 <code>/etc/sysmanage.yaml</code> 以完全跳過憑證。然後伺服器將通過純 HTTP 在 8080 上提供 API 和在 3000 上提供 web 界面，並綁定所有接口以便 LAN 上的其他代理可以無需進一步配置即可連接到它。絕不能在生產主機上啟用開發模式。",
-      "title": "TLS 證書（生產環境所需）"
     },
     "title": "伺服器安裝指南 - SysManage",
     "troubleshooting": {
       "db_issues": {
         "check_credentials": "檢查憑證是否與配置檔案相符",
-        "test_connection": "使用上述 psql 命令測試連接",
         "title": "資料庫連接問題",
         "verify_postgresql": "驗證 PostgreSQL 是否正在運作： <code>sudo systemctl status postgresql</code>"
       },
@@ -23733,28 +23545,16 @@
         "httptools_errors": "httptools 建構錯誤：",
         "install_libpq": "安裝 <code>libpq-dev</code> ( Ubuntu ) 或 <code>postgresql-devel</code> ( RHEL )",
         "install_libuv": "安裝 <code>libuv1-dev</code> ( Ubuntu ) 或 <code>libuv-devel</code> ( RHEL )",
-        "missing_libpq": "缺少 libpq-fe.h：",
-        "python313_issues": "Python 版本問題：",
-        "title": "套件建構錯誤",
-        "use_older_python": "確保使用 Python 3.10 或更新版本"
-      },
-      "permission_issues": {
-        "check_venv": "檢查虛擬環境啟用",
-        "ensure_ownership": "確保目錄的適當所有權",
-        "set_config_permissions": "設定設定檔權限：<code>chmod 600 /etc/sysmanage.yaml</code>",
-        "title": "權限問題"
+        "missing_libpq": "缺少 libpq-fe.h："
       },
       "port_conflicts": {
         "check_services": "檢查是否已有監聽程式：<code>ss -tlnp | grep -E ':(80|443|8080)'</code>",
         "ensure_ports": "在生產環境中，確保端口 443 空閒（以及端口 80，它只會重定向到 443）。後端在 nginx 後面監聽於 127.0.0.1:8080，並且不會被公開。",
-        "modify_ports": "在開發模式下，API 在 8080 端口運行，而 web 界面在 3000 端口運行；如果它們衝突，請在 <code>api</code> 和 <code>webui</code> 中更改它們，位置為 <code>/etc/sysmanage.yaml</code>。",
         "title": "連接埠衝突"
       },
       "title": "疑難排解"
     },
     "dev": {
-      "title": "執行開發伺服器",
-      "intro": "開發伺服器從原始碼簽出目錄執行，Web 介面由 Vite 而非 nginx 提供。以下提示用於建立開發伺服器，並使其與您在正式環境中執行的任何內容保持隔離。",
       "tools": "一次性安裝開發工具（測試執行器、程式碼檢查工具、Playwright 和遙測堆疊）：",
       "config": "在專案根目錄中依據 <code>sysmanage-dev.yaml.example</code> 建立 <code>sysmanage-dev.yaml</code>；當 <code>/etc/sysmanage.yaml</code> 不存在時，伺服器會讀取該檔案。若要使用其他檔案，請將 <code>SYSMANAGE_CONFIG_PATH</code> 指向該檔案。對開發最重要的設定：",
       "dev_mode": "<code>dev_mode: true</code> 告訴伺服器其前方沒有 TLS 代理伺服器：電子郵件中的連結使用 <code>http://host:3000</code>，綁定到所有介面時也不會發出警告。在實際部署中請省略此項；缺少該旗標即表示正式環境。",
@@ -23764,18 +23564,183 @@
       "run": "執行遷移，然後使用以下命令啟動和停止所有元件：",
       "ports": "API 監聽連接埠 8080，Vite Web 介面監聽連接埠 3000。資料庫遷移使用的工具與維運人員在正式環境中執行的工具相同。",
       "second": "需要第二台拋棄式伺服器（例如在不觸及您自己資料的情況下測試某些內容）？規模測試工具會啟動一台擁有獨立 PostgreSQL 容器、設定和連接埠的伺服器，並在之後將其刪除："
+    },
+    "meta_description": "使用適用於您平台的套件安裝 SysManage 伺服器，然後設定資料庫、TLS 憑證、防火牆和首次登入。",
+    "before": {
+      "title": "開始之前",
+      "host": "<strong>一台具有 DNS 名稱的主機。</strong>代理程式會連線到該名稱，TLS 憑證必須與該名稱相符。",
+      "postgres": "<strong>PostgreSQL 12 或更新版本</strong>，可位於同一台主機或遠端主機上。套件不會為您建立資料庫。",
+      "ports": "<strong>對內連接埠 443</strong>，以及用於 HTTPS 轉址和 Let's Encrypt 的連接埠 80。除此之外，不需要從網路存取其他任何連接埠。",
+      "root": "主機上的 <strong>root 或 sudo 權限</strong>。",
+      "no_toolchain": "您不需要自行安裝 Python、Node.js 或任何建置工具。套件會帶來伺服器所需的一切，包括 nginx 和 OpenBAO。"
+    },
+    "packages": {
+      "title": "從套件安裝（建議）",
+      "ubuntu": {
+        "title": "Ubuntu（透過 Launchpad PPA）",
+        "intro": "SysManage 伺服器發布於 <code>ppa:bceverly/sysmanage</code> Launchpad PPA，適用於 Ubuntu 22.04 LTS、24.04 LTS 和 26.04 LTS。這是執行伺服器的建議方式。",
+        "what": "套件會將伺服器安裝到 <code>/opt/sysmanage</code>，並將其 Python 相依套件下載到該處的專用環境中，因此主機在安裝期間需要能存取網際網路。它也會建立 <code>/etc/sysmanage.yaml</code>，其中包含為此次安裝產生的機密，並安裝 OpenBAO 及將其解封，以及設定 nginx。SysManage 服務會被啟用，但在您完成<a href=\"#after-installing\">安裝之後</a>中的步驟前會維持停止狀態。",
+        "upgrade": "之後的版本透過 <code>sudo apt upgrade</code> 取得。升級會保留您的設定和資料庫，並列出之後要執行的兩個命令：資料庫遷移和重新啟動服務。"
+      },
+      "other": {
+        "title": "其他平台",
+        "intro": "其他平台的套件發布於 <a href=\"https://github.com/bceverly/sysmanage/releases\">GitHub 版本發布頁面</a>以及下方的儲存庫中。請將 <code>X.Y.Z</code> 替換為您要安裝的版本。每個套件都會列出各自的安裝後說明，並已填入該平台的路徑。"
+      },
+      "debian": {
+        "tab": "Debian",
+        "intro": "Debian 12 及更新版本從 SysManage APT 儲存庫安裝。Ubuntu 也可以使用此儲存庫，但在 Ubuntu 上建議使用上述 PPA。"
+      },
+      "rhel": {
+        "tab": "RHEL",
+        "intro": "RHEL、Rocky Linux、AlmaLinux、Oracle Linux 和 CentOS Stream 8、9、10（x86_64 和 aarch64）從 <code>bceverly/sysmanage</code> Fedora Copr 專案安裝。目前沒有為 Fedora 本身建置伺服器；在 Fedora 上請使用<a href=\"#from-source\">從原始碼建置</a>。"
+      },
+      "arch": {
+        "tab": "Arch Linux",
+        "intro": "Arch Linux 可使用任何 AUR 輔助工具，從 AUR 安裝 <code>sysmanage</code> 套件："
+      },
+      "snap": {
+        "tab": "Snap",
+        "intro": "伺服器以嚴格限制（strict confinement）模式發布於 Snap Store 的 stable 頻道："
+      },
+      "opensuse": {
+        "intro": "openSUSE Leap 15.6 和 Tumbleweed 從 openSUSE Build Service 專案 <code>home:bryaneverly</code> 安裝。"
+      },
+      "alpine": {
+        "intro": "Alpine Linux 3.20、3.21 和 3.22 的套件需從版本發布頁面直接下載。請選擇符合您 Alpine 版本的檔案（<code>alpine320</code>、<code>alpine321</code> 或 <code>alpine322</code>），並在安裝前核對其 <code>.sha256</code>。"
+      },
+      "macos": {
+        "intro": "從版本發布頁面下載 <code>sysmanage-X.Y.Z-macos.pkg</code> 並安裝。如果缺少 nginx，安裝程式會使用 Homebrew 加入它。",
+        "start": "完成<a href=\"#after-installing\">安裝之後</a>中的步驟後，使用 <code>sudo launchctl load /Library/LaunchDaemons/com.sysmanage.server.plist</code> 啟動伺服器。"
+      },
+      "windows": {
+        "intro": "從版本發布頁面下載 <code>sysmanage-X.Y.Z-windows-x64.msi</code>（ARM 上為 <code>sysmanage-X.Y.Z-windows-arm64.msi</code>），並以系統管理員身分執行。它會將伺服器安裝到 <code>C:\\Program Files\\SysManage Server</code>，並註冊 <code>SysManageServer</code>、<code>SysManageNginx</code> 和 <code>SysManageOpenBAO</code> 服務。nginx 會在安裝期間下載，使用前會驗證其 SHA-256。",
+        "start": "伺服器會維持停止狀態。完成<a href=\"#after-installing\">安裝之後</a>中的步驟後，在系統管理員 PowerShell 中執行 <code>Set-Service SysManageServer -StartupType Automatic</code>、<code>Start-Service SysManageServer</code> 和 <code>Restart-Service SysManageNginx</code> 來啟動它。"
+      },
+      "freebsd": {
+        "intro": "從版本發布頁面下載 <code>sysmanage-X.Y.Z.pkg</code> 並安裝：",
+        "start": "使用 <code>sysrc sysmanage_enable=YES</code>、<code>sysrc nginx_enable=YES</code>、<code>service sysmanage start</code> 和 <code>service nginx start</code> 啟動服務。"
+      },
+      "openbsd": {
+        "intro": "已為 OpenBSD 7.8 和 7.9 發布預先建置的套件。它內含後端、Web 介面和 Python 相依套件，因此不需要編譯器。請依您的版本使用 <code>openbsd78</code> 或 <code>openbsd79</code>。",
+        "start": "使用 <code>doas rcctl enable openbao sysmanage</code> 和 <code>doas rcctl start openbao sysmanage</code> 啟動服務。"
+      },
+      "netbsd": {
+        "intro": "從版本發布頁面下載 <code>sysmanage-X.Y.Z-netbsd.tgz</code> 及其 <code>.sha256</code>，核對後以 root 身分安裝："
+      },
+      "airgap": "<strong>伺服器無法存取網際網路？</strong>請使用<a href=\"/air-gapped/\">離線（氣隙）安裝</a>，它將所有套件和相依套件打包在同一個組合包中。"
+    },
+    "after": {
+      "title": "安裝之後",
+      "intro": "以下步驟以 Ubuntu 和 Debian 為例撰寫。這些步驟在每個平台上都相同，只有路徑和服務命令不同，本節末尾的表格列出了每個平台的路徑。",
+      "db": {
+        "title": "步驟 1：建立資料庫",
+        "body": "若要使用本機 PostgreSQL 伺服器，請安裝它並建立 <code>sysmanage</code> 使用者和資料庫。請選擇一組強密碼；接下來您會將它填入設定檔。",
+        "remote": "遠端 PostgreSQL 伺服器同樣適用。在該伺服器上建立相同的使用者和資料庫，並在設定中使用其主機名稱。"
+      },
+      "config": {
+        "title": "步驟 2：編輯設定",
+        "body": "套件已建立 <code>/etc/sysmanage.yaml</code>，並已為此次安裝產生 <code>jwt_secret</code>、<code>password_salt</code> 和用於復原的 <code>admin_password</code>。請設定資料庫密碼，並將 <code>admin_userid</code> 設為您自己的電子郵件地址：",
+        "builder": "請將 <code>api: host</code> 保持為 <code>localhost</code>：伺服器只能透過 nginx 存取。若您想設定更多選項，<a href=\"/config-builder.html\">設定產生器</a>可以產生完整的檔案，<a href=\"configuration.html\">設定指南</a>則說明了每一項設定。"
+      },
+      "migrate": {
+        "title": "步驟 3：執行資料庫遷移",
+        "body": "遷移會建立資料庫結構描述。<code>--status</code> 會顯示待處理的項目；第二個命令則套用它們。每次升級後都要執行同樣的兩個命令。"
+      },
+      "tls": {
+        "title": "步驟 4：安裝 TLS 憑證",
+        "body": "SysManage 在連接埠 443 上提供 Web 介面、API 和代理程式連線，在憑證就緒之前 nginx 會拒絕啟動。這是刻意的設計：管理主控台絕不能以明文方式啟動，而且代理程式預設會驗證憑證。預設情況下，nginx 會讀取：",
+        "edit": "若要使用存放在其他位置的憑證，請修改 <code>/etc/nginx/sites-available/sysmanage-nginx.conf</code> 中的這兩行：",
+        "le_http_title": "使用 certbot 的 Let's Encrypt（HTTP 驗證）",
+        "le_http_body": "如果此主機的連接埠 80 可從網際網路存取，certbot 可以自行回應驗證。nginx 執行後會佔用連接埠 80，因此掛鉤會在每次續期時停止 nginx，之後再重新啟動它。certbot 會儲存這些掛鉤並自動續期。",
+        "le_dns_title": "使用 DNS 驗證的 Let's Encrypt（DigitalOcean DNS）",
+        "le_dns_body": "如果您網域的 DNS 託管於 DigitalOcean，certbot 可以改為透過 DNS 證明擁有權。連接埠 80 不需要可供存取，續期期間 nginx 也會持續執行。請建立具有 DNS 寫入權限的 DigitalOcean API 權杖，並將其存放在只有 root 能讀取的檔案中：",
+        "le_point": "無論使用哪種方法，都要將 nginx 的這兩行指向 certbot 寫入的檔案，然後檢查設定："
+      },
+      "start": {
+        "title": "步驟 5：啟動服務",
+        "logs": "伺服器會將記錄寫入 <code>/var/log/sysmanage/</code>。如果它在啟動後立即停止，請檢查 <code>/etc/sysmanage.yaml</code> 中的資料庫設定，並確認遷移已執行。"
+      },
+      "firewall": {
+        "title": "步驟 6：開放防火牆",
+        "body": "nginx 是唯一在網路上接聽的服務。只開放連接埠 443 和 80，其他一律不開放：SysManage API 留在迴路連接埠 8080 上，OpenBAO 留在迴路連接埠 8200 上，PostgreSQL 也不應對外公開。"
+      },
+      "login": {
+        "title": "步驟 7：登入",
+        "body": "開啟 <code>https://sysmanage.example.com/</code>，使用您設定的 <code>admin_userid</code> 和產生的復原密碼登入。您可以用以下命令讀取該密碼：",
+        "next": "此復原帳戶只存在於設定檔中，只要它存在，主控台就會向您發出警告。請設定電子郵件、建立您自己的管理員使用者，然後從檔案中移除 <code>admin_userid</code> 和 <code>admin_password</code> 並重新啟動伺服器。"
+      },
+      "openbao": {
+        "title": "步驟 8：備份 OpenBAO 解封資料",
+        "body": "套件會將機密代管服務 OpenBAO 安裝在迴路連接埠 8200 上。首次安裝時會將其初始化並解封，之後每次開機都會再次解封，並將 SysManage 使用的權杖寫入 <code>/etc/sysmanage/openbao-token</code>。解封金鑰和根權杖位於 <code>/var/lib/openbao/init.json</code>。",
+        "backup": "<strong>請將 <code>/var/lib/openbao/init.json</code> 複製到這台機器以外的安全儲存位置。</strong>沒有它，一旦主機重建，存放在 OpenBAO 中的機密將無法復原。",
+        "enable": "若要讓 SysManage 將其機密保存在 OpenBAO 中，請在 <code>/etc/sysmanage.yaml</code> 中設定 <code>vault: enabled: true</code>。多租戶需要此設定。使用 <code>systemctl status openbao sysmanage-openbao-init</code> 檢查其狀態。"
+      },
+      "agents": {
+        "title": "步驟 9：連線代理程式",
+        "body": "代理程式只需要連到伺服器的對外連接埠 443。將每個代理程式指向簽發憑證時所用的相同主機名稱，並保持憑證驗證為開啟：",
+        "link": "如需代理程式套件，請參閱<a href=\"../agent/installation.html\">代理程式安裝</a>。"
+      },
+      "paths": {
+        "title": "各平台的路徑",
+        "platform": "平台",
+        "config": "設定檔",
+        "nginx": "nginx 設定",
+        "tls": "憑證和金鑰"
+      }
+    },
+    "optional": {
+      "title": "選用功能",
+      "telemetry": {
+        "title": "遙測",
+        "body": "OpenTelemetry 預設為關閉。若要將追蹤和指標傳送到您的收集器，請在 <code>/etc/sysmanage.yaml</code> 中設定 <code>telemetry: enabled: true</code> 和 <code>telemetry: otlp_endpoint</code>，或設定環境變數 <code>OTEL_ENABLED=true</code> 和 <code>OTEL_EXPORTER_OTLP_ENDPOINT</code>。遙測開啟期間，Prometheus 指標會在 <code>127.0.0.1:9090</code> 上提供，僅限迴路存取。"
+      },
+      "mt": {
+        "title": "多租戶",
+        "body": "除非您以 <code>multitenancy: enabled: true</code> 開啟多租戶並接著執行資料庫遷移，否則伺服器會以單一租戶模式執行。多租戶需要 OpenBAO，且每個租戶需要獨立的資料庫；請參閱<a href=\"../deployment/multi-tenancy.html\">部署多租戶</a>。"
+      }
+    },
+    "trouble": {
+      "install": {
+        "title": "套件安裝之後",
+        "nginx": "<strong>nginx 無法啟動：</strong>幾乎都是因為憑證遺失或無法讀取。<code>sudo nginx -t</code> 會指出它無法讀取的檔案。",
+        "service": "<strong>服務啟動後又結束：</strong>請檢查設定檔中的資料庫設定，並確認遷移已執行。",
+        "login": "<strong>登入遭拒：</strong><code>admin_userid</code> 必須是完整的電子郵件地址，而不能只是一個名稱。",
+        "openbao": "<strong>OpenBAO 處於密封狀態或未執行：</strong>執行 <code>sudo systemctl restart openbao sysmanage-openbao-init</code>，並查看 <code>systemctl status sysmanage-openbao-init</code> 的輸出。"
+      }
+    },
+    "source": {
+      "title": "從原始碼建置（開發）",
+      "intro": "如需開發 SysManage 本身，或在沒有套件的平台上使用，請從原始碼建置。開發伺服器從原始碼簽出目錄執行，Web 介面由 Vite 而非 nginx 提供。請勿將其用於正式環境。",
+      "prereq": {
+        "title": "先決條件",
+        "list": "Python 3.10 至 3.14 及其開發標頭檔、Node.js 20 或更新版本、PostgreSQL 12 或更新版本、C 編譯器，以及 libffi、OpenSSL 和 libpq 開發套件。",
+        "bsd": "在 FreeBSD、OpenBSD 和 NetBSD 上，請使用 <code>gmake</code> 取代 <code>make</code>。在 NetBSD 上，請在安裝前設定 <code>CFLAGS=\"-I/usr/pkg/include\"</code> 和 <code>LDFLAGS=\"-L/usr/pkg/lib -Wl,-R/usr/pkg/lib\"</code>，讓含有 C 擴充功能的 Python 套件能找到其程式庫。",
+        "ubuntu": "在 Ubuntu 上："
+      },
+      "setup": {
+        "title": "複製並設定",
+        "db": "依照上方<a href=\"#after-installing\">步驟 1</a> 的相同方式，建立開發用的資料庫和使用者。"
+      },
+      "run": {
+        "title": "執行",
+        "secure": "若要在原始碼簽出目錄中建立管理員使用者並初始化 OpenBAO，請執行 <code>scripts/sysmanage_secure_installation</code>；請參閱<a href=\"secure-installation.html\">安全安裝</a>。它會重建資料庫，因此切勿對含有您想保留之資料的伺服器執行，也切勿在以套件安裝的環境上執行。"
+      },
+      "trouble": {
+        "title": "建置問題",
+        "netbsd_tmp": "<strong>NetBSD 在 pip install 期間出現 \"No space left on device\"：</strong><code>/tmp</code> 預設為 1 GB 的 tmpfs。請使用 <code>mount -t tmpfs -o -s=4g tmpfs /tmp</code> 擴大它，或將 <code>TMPDIR</code> 設為磁碟上的某個目錄。"
+      }
     }
   },
   "server_quickstart": {
     "before": {
-      "body": "本指南從為您的平台構建的包安裝伺服器。對於完整的平臺矩陣、從源代碼構建說明以及每個發行版的先決條件，請參閱 <a href=\"/docs/server/installation.html\">Server Installation</a> 指南。",
       "cert": "伺服器主機名稱所需的 <strong>TLS 憑證與私密金鑰</strong>。沒有憑證時 nginx 會拒絕啟動 -- 這是刻意的設計，因為管理主控台不應該只因為缺少憑證就以明文方式啟動。",
       "ports": "<strong>對內開放 443</strong>（如需轉址請再加上 80）。其他連接埠都不需要開放：代理程式透過對外 443 連線到伺服器，後端則留在 nginx 後方的迴路位址上。",
       "postgres": "<strong>PostgreSQL 12 或更新版本</strong>，在本機或遠端伺服器上。SysManage 在沒有它的前提下無法啟動。",
       "root": "<strong>根或sudo</strong>在目標主機上。",
       "tip": "包會將以下每一步作為安裝後消息打印出來，路徑已經根據您的平台填入。如果您遺失了它，可以在包管理器的日誌中找到。",
       "tip_label": "提示：",
-      "title": "開始之前"
+      "title": "開始之前",
+      "body_pkg": "本指南使用為您的平台建置的套件安裝伺服器。如需每個平台的套件以及從原始碼建置的說明，請參閱<a href=\"/docs/server/installation.html\">伺服器安裝</a>指南。"
     },
     "intro": "從原生套件安裝 SysManage 伺服器，指向 PostgreSQL，給 nginx 指定一個證書，然後打開控制台。在一台新的主機上大約需要十五分鐘。",
     "next": {
@@ -23787,12 +23752,12 @@
       "title": "下一步"
     },
     "step1": {
-      "body": "從<a href=\"https://github.com/bceverly/sysmanage/releases\">發行版本頁面</a>下載適用於您平台的套件並安裝。將 <code>X.Y.Z</code> 替換為您要安裝的版本。",
-      "debian": "Debian / Ubuntu",
       "other": "其他平台",
-      "other_body": "openSUSE、Alpine、FreeBSD、OpenBSD、NetBSD、macOS 和 Windows 包在相同的發行頁面中發布。以下步驟在每個平台上都是相同的；僅安裝命令和 nginx 設置路徑不同，並且安裝後消息會為您打印正確的路徑。",
-      "rhel": "RHEL / CentOS / Fedora",
-      "title": "安裝套件"
+      "title": "安裝套件",
+      "ubuntu": "Ubuntu",
+      "body_pkg": "在 Ubuntu 上，從 SysManage Launchpad PPA 安裝伺服器：",
+      "rhel_copr": "RHEL 及相容發行版",
+      "other_pkg": "Debian、openSUSE、Arch Linux、Alpine、Snap、macOS、Windows 和各 BSD 系統都有各自的套件；<a href=\"/docs/server/installation.html#packages\">伺服器安裝</a>指南列出了每個平台的命令。接下來的步驟在每個平台上都相同。只有路徑不同，而安裝後訊息會為您列出這些路徑。"
     },
     "step2": {
       "body": "要使用本地 PostgreSQL 實例：",
@@ -23800,9 +23765,9 @@
       "title": "建立資料庫"
     },
     "step3": {
-      "body": "伺服器讀取 <code>/etc/sysmanage.yaml</code>。 <a href=\"/config-builder.html\">配置生成器</a> 會生成一個完整的文件 -- 資料庫連接、主機名、TLS、身份驗證和日誌記錄 -- 這比手動編寫更快且更不易出錯。",
-      "perms": "該文件包含資料庫憑據，因此僅允許 root 讀取它。",
-      "title": "編寫配置"
+      "title": "編寫配置",
+      "body_pkg": "套件已建立 <code>/etc/sysmanage.yaml</code>，並已為此次安裝產生機密。請設定步驟 2 中的資料庫密碼，並將 <code>admin_userid</code> 設為您的電子郵件地址。若您想設定更多選項，<a href=\"/config-builder.html\">設定產生器</a>可以產生完整的檔案。",
+      "perms_pkg": "此檔案包含機密，因此套件將其設為只有 <code>sysmanage</code> 服務帳戶可以讀取。請維持此設定。"
     },
     "step4": {
       "body": "檢查是否有待處理的項目，然後應用它。這會遷移控制平面模式，如果啟用了多租戶功能，還會遷移每個租戶的資料庫。",

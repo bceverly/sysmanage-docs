@@ -141,60 +141,48 @@
 
                     <h3 data-i18n="server_deployment.single_server.installation.title" data-i18n-html>Installation Steps</h3>
                     <div class="code-block">
-                        <pre><code># 1. Update system packages
-sudo apt update && sudo apt upgrade -y
+                        <pre><code># 1. Install the server from the Launchpad PPA, with a local PostgreSQL
+sudo add-apt-repository ppa:bceverly/sysmanage
+sudo apt update
+sudo apt install sysmanage postgresql
 
-# 2. Install dependencies
-sudo apt install -y python3.12 python3.12-venv python3-pip postgresql postgresql-contrib nginx
+# 2. Create the database
+sudo -u postgres createuser sysmanage
+sudo -u postgres createdb sysmanage -O sysmanage
+sudo -u postgres psql -c "ALTER USER sysmanage WITH PASSWORD 'choose-a-strong-password';"
 
-# 3. Create application user
-sudo useradd -m -s /bin/bash sysmanage
+# 3. Set the database password and admin_userid
+sudo vim /etc/sysmanage.yaml
 
-# 4. Clone repository
-sudo -u sysmanage git clone https://github.com/bceverly/sysmanage.git /home/sysmanage/sysmanage
+# 4. Create the database schema
+sudo sysmanage-migrate
 
-# 5. Setup Python environment
-cd /home/sysmanage/sysmanage
-sudo -u sysmanage python3.12 -m venv .venv
-sudo -u sysmanage .venv/bin/pip install -r requirements.txt
-
-# 6. Install Node.js and frontend dependencies
-curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
-sudo apt install -y nodejs
-cd frontend && sudo -u sysmanage npm install && sudo -u sysmanage npm run build
-
-# 7. Configure PostgreSQL
-sudo -u postgres createuser -P sysmanage
-sudo -u postgres createdb -O sysmanage sysmanage</code></pre>
+# 5. Install the TLS certificate (see the installation guide), then start
+sudo systemctl start sysmanage
+sudo systemctl restart nginx</code></pre>
                     </div>
+                    <p data-i18n="server_deployment.single_server.installation.see_guide" data-i18n-html>The <a href="installation.html">Server Installation Guide</a> covers every step in detail, including the TLS certificate, the firewall and the packages for other platforms.</p>
 
                     <h3 data-i18n="server_deployment.single_server.config.title" data-i18n-html>Production Configuration</h3>
                     <div class="code-block">
-                        <pre><code># /etc/sysmanage.yaml
-database:
+                        <pre><code># /etc/sysmanage.yaml (created by the package; the settings to review)
+api:
+  host: "localhost"       # nginx is the only network listener
+  port: 8080
+
+registry:
   host: localhost
   port: 5432
   name: sysmanage
   user: sysmanage
   password: "your_secure_password"
 
-webui:
-  host: 0.0.0.0
-  port: 6443
-  https: true
-  ssl_cert: "/etc/ssl/certs/sysmanage.crt"
-  ssl_key: "/etc/ssl/private/sysmanage.key"
-
 security:
-  # v3.0: secure-installation generates jwt_secret/password_salt into OpenBAO and
-  # seeds the admin user in the database. This YAML form remains a supported
-  # fallback (deprecation warning) for manual, non-OpenBAO setups.
-  jwt_secret: "your_jwt_secret_key_here"
-  jwt_auth_timeout: 600
+  admin_userid: "you@example.com"
+  # jwt_secret, password_salt and admin_password are generated at install
 
 logging:
-  level: INFO
-  file: "/var/log/sysmanage/sysmanage.log"</code></pre>
+  level: INFO</code></pre>
                     </div>
                 </section>
 

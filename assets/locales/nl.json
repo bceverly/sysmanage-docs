@@ -11513,8 +11513,8 @@
           "034": "<strong>Zorg voor de registratie database en een inlogrol op je HA PostgreSQL cluster.</strong> Op het huidige primaire knooppunt van het cluster, maak de <code>sysmanage</code> rol en de registratie database die deze rol bezit (zie de stap voor het installeren van de server in de <a href=\"../server/installation.html\">Server Installatie</a> database). De server verbindt als deze rol; het is <em>geen</em> supergebruiker. Rollen en databases zijn cluster-globale objecten, dus streaming replicatie kopieert ze automatisch naar elk standby knooppunt. Als je het cluster nog niet hebt opgezet, doe dat dan eerst - zie <a href=\"../administration/postgresql-ha.html\">PostgreSQL High Availability</a>.",
           "035": "Installeer OpenBAO en configureer zijn database secrets engine zodat het korte, per-tenant PostgreSQL referenties kan uitgiften. OpenBAO is de broker die ervoor zorgt dat de server nooit een langlopende, gedeelde databasewachtwoord beheert. (Installeer en start het met scripts/build-openbao.sh en scripts/start-openbao.sh in de repository of gebruik je eigen gebeheerde instantie.)",
           "036": "<strong><code>/etc/sysmanage.yaml</code> configureren</strong> -- laat het registry-blok naar de registry-database verwijzen, schakel multi-tenancy in en configureer de vault: <pre><code>registry: # Point at the cluster's stable read-write endpoint, never one node. # libpq multi-host list (tries each, keeps the writable primary): host: \"db1.internal,db2.internal\" port: 5432 name: sysmanage_registry user: sysmanage password: &lt;from your secret store&gt; options: \"target_session_attrs=read-write\" multitenancy: enabled: true self_service_provisioning: true vault: url: https://openbao.internal:8200 # token / auth configured per your OpenBAO setup # NB: configure the database secrets engine's own connection_url at the # SAME cluster endpoint (see PostgreSQL High Availability) so tenant # credential leasing keeps working across a primary failover.</code></pre> <div class=\"note warn\"><strong>Licenties:</strong> routering per tenant vereist de gelicentieerde multitenancy-engine (de <code>MULTITENANT_SAAS</code>-laag). Zonder deze engine weigert de server multi-tenant te draaien in plaats van verzoeken ongemerkt verkeerd te routeren -- dit is bewust zo.</div>",
-          "037": "Voer de migraties uit met de operator tool. make migrate (of scripts/sysmanage_migrate.py rechtstreeks) toepast de registry, shared en tenant ketens en laat per-database voortgang zien; bij meerdere tenants draait het OpenBAO op voor de fan-out: make migrate",
-          "038": "Provisioneer de identiteit van de minimale-rechten provisioner zodat zelfbediende tenantcreatie werkt zonder cluster-supergebruikersrechten: make provision-bootstrap ARGS='--bao-token $BAO_TOKEN'",
+          "037": "<strong>Voer de migraties uit</strong> met de meegeleverde opdracht. Deze past de registry-, shared- en tenant-ketens toe en toont de voortgang per database. De ronde per tenant haalt referenties op bij OpenBAO, dus OpenBAO moet draaien:",
+          "038": "<strong>Richt de provisioner-identiteit met minimale rechten in</strong>, zodat tenants via selfservice kunnen worden aangemaakt zonder superuser-rechten op het cluster. Voer dit eenmaal als root op de server uit: het leest het OpenBAO-roottoken uit het init-materiaal van de appliance en maakt de Postgres-rol aan via de lokale superuser. Geef voor een externe OpenBAO of Postgres <code>--bao-token</code> en <code>--pg-host</code> mee:",
           "039": "Maak uw tenants aan via het control-paneel (Instellingen → Tenants). Elke tenant krijgt zijn eigen database en OpenBAO-brokerde referenties. Plaats elke tenantsdatabase waar deze hoort -- per host, regio of jurisdictie.",
           "040": "Fan de tenantketen uit naar elke geïmplementeerde tenantdatabase (OpenBAO moet actief zijn): maak migrate-tenants",
           "041": "Bind hosts aan tenants. Issuer een tenant-gespecificeerd inschrijftoken per tenant (Tenants → token), plaats het in de agentconfiguratie van die host onder security.enrollment_token, en registreer de agent. Daarna belandt de data van de host automatisch in de database van zijn tenant.",
@@ -15660,36 +15660,6 @@
           "206": "Containerisatie: Ondersteuning voor Docker en Kubernetes-deployement",
           "207": "Cloud-native: Cloud-platformintegratie en -diensten",
           "208": "Hybride: Gemengde implementatiemodellen voor complexe omgevingen"
-        },
-        "installation": {
-          "001": "Python 3.12+: Download van python.org ✅ Python 3.12, 3.13 of 3.14 aanbevolen ✅ Controleer \"Add Python to PATH\" tijdens installatie",
-          "002": "Node.js 20.x: Download van nodejs.org",
-          "003": "PostgreSQL 14+: Download van postgresql.org",
-          "004": "Git voor Windows: Download van git-scm.com",
-          "005": "Visual Studio Build Tools: Download van Microsoft",
-          "006": "NetBSD Compleet Installatiehandleiding",
-          "007": "NetBSD-gebruikers - Critieke instellingsvereisten",
-          "008": "Voor het starten van de installatie moeten NetBSD-gebruikers:",
-          "009": "Installeer ALLE vereiste pakketten, waaronder jpeg (niet alleen libjpeg-turbo)",
-          "010": "Omgevingsvariabelen instellen: {{c1}}",
-          "011": "Gebruik gmake in plaats van make voor alle make-opdrachten",
-          "012": "Handmatig een PostgreSQL-gebruiker aanmaken indien deze niet bestaat",
-          "013": "Verhoog /tmp-grootte indien nodig: {{c1}}",
-          "014": "Zie de NetBSD tabblad in de Vereisten boven voor volledige installatie-instructies.",
-          "015": "NetBSD-Specifieke Problemen",
-          "016": "PostgreSQL-gebruiker ontbreekt: NetBSD maakt de postgres/pgsql-gebruiker mogelijk niet automatisch aan. Maak deze met: sudo useradd -m -d /var/db/postgresql -s /bin/sh postgres",
-          "017": "PostgreSQL start niet op: Zorg ervoor dat pgsql=YES in /etc/rc.conf staat, en voer vervolgens uit: sudo /etc/rc.d/pgsql start",
-          "018": "Geen ruimte beschikbaar tijdens pip install: NetBSD's /tmp is standaard beperkt tot 1GB. Verhoog met: mount -t tmpfs -o -s=4g tmpfs /tmp of gebruik export TMPDIR=$HOME/tmp",
-          "019": "gmake install-dev voor ontwikkeling: Gebruik gmake in plaats van make. Het Makefile bevat NetBSD-specifieke C tracer afhankelijkheidscontroles (gcc13, py312-cffi)",
-          "020": "PostgreSQL socket niet gevonden: NetBSD PostgreSQL gebruikt vaak TCP in plaats van Unix sockets. Gebruik altijd -h localhost bij verbinden",
-          "021": "OpenTelemetry Collector build-fouten: NetBSD gebruikt BSD-versies van find/xargs/dirname die niet compatibel zijn met het OTEL Collector Makefile. Installeer GNU-utilities: sudo pkgin install findutils coreutils Het install-telemetry.py-script detecteert en gebruikt automatisch gfind/gxargs/gdirname op NetBSD.",
-          "022": "Browser/WebDriver fouten: Installatie van browsers voor UI-testen: # Installeer Chromium (bevat ChromeDriver) doas pkgin install chromium # Installeer Firefox (vereist versie-specifieke naam) doas pkgin install firefox-138.0.4 # Installeer GeckoDriver voor Firefox UI-testen doas pkgin install geckodriver-0.36.0 # Controleer de installaties met which chromium firefox geckodriver Opmerking: NetBSD Firefox pakketten vereisen vaak expliciete versienummers in tegenstelling tot andere BSD-systemen. Vanwege WebDriver-compatibiliteitsproblemen van Firefox op NetBSD, sluiten het UI-testsuite automatisch de Firefox-tests uit en voert alleen Chrome-tests uit. Dit zorgt voor schoon testresultaat zonder mislukkingen of overgeslagen tests.",
-          "023": "Pillow build fouten: Installeer afbeeldingbibliotheken en stel paden in: pkgin install jpeg libjpeg-turbo tiff png freetype2 lcms2 libwebp openjpeg zlib export CFLAGS=\"-I/usr/pkg/include\" export LDFLAGS=\"-L/usr/pkg/lib -Wl,-R/usr/pkg/lib\"",
-          "024": "Backend kan niet starten met \"libjpeg.so.9 niet gevonden\": Dit gebeurt wanneer Pillow is geïnstalleerd voordat de JPEG-bibliotheek of met incorrecte paden. Het gmake install-dev doel herbouwt automatisch Pillow voor NetBSD. Voor handmatige fix: . .venv/bin/activate export CFLAGS=\"-I/usr/pkg/include\" export LDFLAGS=\"-L/usr/pkg/lib -Wl,-R/usr/pkg/lib\" pip uninstall -y Pillow pip install --no-binary=:all: Pillow",
-          "025": "OpenBAO-installatie: NetBSD heeft geen vooraf gebouwde OpenBAO-pakketten. Opties: Bouw van broncode (aanbevolen): pkgin install go git gmake # NetBSD installeert Go als go124 - maak een symlink: sudo ln -sf /usr/pkg/bin/go124 /usr/pkg/bin/go # Voeg ~/.local/bin toe aan PATH: echo 'export PATH=\"$HOME/.local/bin:$PATH\"' >> ~/.profile . ~/.profile # Dan voer uit: gmake install-dev # Het zal u vragen om OpenBAO van broncode te bouwen Gebruik Linux-emulatie: Probeer Linux-binaries uit te voeren onder NetBSD's Linux-compatibiliteit Skip OpenBAO: Het is optioneel - stel vault.enabled=false in de configuratie. Let op: OpenBAO is optioneel voor ontwikkeling. Het systeem werkt perfect zonder het.",
-          "026": "OpenBAO 'bao' commando niet gevonden: Zorg ervoor dat ~/.local/bin in uw PATH staat: echo 'export PATH=\"$HOME/.local/bin:$PATH\"' >> ~/.profile && . ~/.profile",
-          "027": "Hoe multi-tenancy op te zetten?",
-          "028": "De stappen hierboven creëren de enige applicatiedatabase die wordt gebruikt door de Community, Professional en Enterprise edities. Een multi-tenant Enterprise SaaS implementatie heeft ook een registry-database nodig, OpenBAO, en een geïsoleerde database per tenant. Zie Deploying Multi-Tenancy voor het volledige ontwikkelings- en productiedatabasestandaard."
         },
         "reports": {
           "001": "Documentatie",
@@ -22886,7 +22856,8 @@
     "what_it_does": {
       "description": "Dit script automatisert het volledige omzetten van jouw SysManage-installatie naar een enterprise-gradus veiligheidsplatform:",
       "title": "Wat het Script Bereikt"
-    }
+    },
+    "package_note": "<strong>Geïnstalleerd vanuit een pakket?</strong> Dan hebt u dit script niet nodig. De pakketten genereren de geheimen en initialiseren OpenBAO zelf; volg in plaats daarvan <a href=\"installation.html#after-installing\">Na de Installatie</a>. Dit script is bedoeld voor broncode-checkouts, en het bouwt de database opnieuw op."
   },
   "security": {
     "authentication": {
@@ -23406,7 +23377,8 @@
         "title": "Productie Configuratie"
       },
       "installation": {
-        "title": "Installatiestappen"
+        "title": "Installatiestappen",
+        "see_guide": "De <a href=\"installation.html\">Serverinstallatiehandleiding</a> behandelt elke stap in detail, inclusief het TLS-certificaat, de firewall en de pakketten voor andere platforms."
       },
       "requirements": {
         "component": "Onderdeel",
@@ -23529,203 +23501,43 @@
   },
   "server_installation": {
     "breadcrumb_installation": "Installatie",
-    "description": "Complete installatiegids voor SysManage server inclusief vereisten, database-installatie en configuratie.",
     "header": {
-      "subtitle": "Complete stap-voor-stap installatiegids voor het opzetten van de SysManage server op uw infrastructuur.",
-      "title": "Installatiehandleiding voor servers"
-    },
-    "installation_steps": {
-      "step1": {
-        "title": "Stap 1: Klonen en Opzetten"
-      },
-      "step2": {
-        "description": "PostgreSQL database en gebruiker aanmaken:",
-        "linux_macos_freebsd": "Linux /macOS/FreeBSD",
-        "netbsd": "NetBSD",
-        "openbsd": "OpenBSD",
-        "security_notes": {
-          "change_password": "Wijzig het wachtwoord in zowel PostgreSQL ALS uw configuratiebestand",
-          "dev_password": "Ontwikkelingswachtwoord <code>abc123</code> komt overeen met <code>sysmanage-dev.yaml</code>",
-          "never_production": "Gebruik dit wachtwoord NOOIT in productie",
-          "title": "Veiligheidsopmerkingen"
-        },
-        "title": "Stap 2: Database Setup",
-        "windows": "Windows"
-      },
-      "step3": {
-        "title": "Stap 3: Backend-afhankelijkheden installeren"
-      },
-      "step4": {
-        "title": "Stap 4: Database Verbinding Testen"
-      },
-      "step5": {
-        "title": "Stap 5: Frontend-afhankelijkheden installeren"
-      },
-      "step6": {
-        "config_generator": {
-          "description": "Gebruik de interactieve",
-          "link": "Configuratiebouwertool",
-          "title": "Configuratie Generator Beschikbaar"
-        },
-        "description": "Configuratiebestand aanmaken op:",
-        "linux_macos_bsd": "Linux /macOS/BSD:",
-        "security_steps": {
-          "file_permissions": "Juiste bestandsrechten instellen: <code>chmod 600 /etc/sysmanage.yaml</code>",
-          "generate_secrets": "Genereer nieuwe geheimen: <code>openssl rand -base64 32</code>",
-          "never_commit": "Configuratiebestanden nooit committen naar versiecontrole",
-          "strong_passwords": "Sterke wachtwoorden gebruiken (12+ karakters)",
-          "title": "Vereiste Veiligheidsstappen",
-          "installer_generated": "De pakketten (deb, rpm, FreeBSD, NetBSD, macOS, Windows, snap) genereren <code>jwt_secret</code>, <code>password_salt</code> en het herstelwachtwoord <code>admin_password</code> wanneer ze het configuratiebestand aanmaken; het herstelwachtwoord staat in dat bestand. Een tijdelijke aanduiding of een bekend wachtwoord zoals <code>admin</code> wordt bij het aanmelden nooit geaccepteerd. Voer bij een handmatige installatie <code>python -m backend.config.install_secrets --apply /etc/sysmanage.yaml</code> uit."
-        },
-        "title": "Stap 6: Configuratie",
-        "windows_path": "Windows:"
-      },
-      "step7": {
-        "features": {
-          "admin_user": "Creëert het initiële beheerdersgebruikersaccount",
-          "config_hardening": "Past beveiligingsverharding toe op configuratiebestanden",
-          "jwt_secret": "Genereert een uniek JWT-geheim voor authenticatie",
-          "password_salt": "Genereert een uniek wachtwoordzout voor veilige wachtwoordhashing",
-          "prevents_defaults": "Voorkomt het gebruik van standaard-/voorbeeldbeveiligingstokens",
-          "title": "Wat dit script doet:"
-        },
-        "security_note": {
-          "description": "Het beveiligde installatiescript moet worden uitgevoerd om de initiële beheerdersgebruiker aan te maken en unieke beveiligingstokens voor uw installatie te configureren.",
-          "title": "VEREIST voor nieuwe installaties"
-        },
-        "title": "Stap 7: Voer beveiligde installatiescript uit",
-        "warning": {
-          "backup_config": "Maak een back-up van uw configuratiebestand nadat u dit script hebt uitgevoerd",
-          "required": "Deze stap is VERPLICHT",
-          "required_desc": "zonder dit zal de applicatie niet veilig functioneren",
-          "run_once": "Voer dit script slechts één keer per installatie uit",
-          "title": "️ Belangrijke beveiligingsopmerkingen",
-          "unique_tokens": "Elke installatie krijgt unieke beveiligingstokens om hergebruik van inloggegevens te voorkomen"
-        }
-      },
-      "step8": {
-        "access_description": "Ga naar de applicatie op:",
-        "http": "HTTP:",
-        "http_url": "http://localhost:3000 (reserve)",
-        "https": "HTTPS:",
-        "https_url": "https://sysmanage.org:7443 (als SSL-certificaten bestaan)",
-        "title": "Stap 8: Beveiligd Installatiescript Uitvoeren"
-      },
-      "title": "Installatiestappen"
+      "title": "Installatiehandleiding voor servers",
+      "subtitle_packages": "Installeer de SysManage-server vanuit het pakket voor uw platform en rond de installatie daarna af in een paar korte stappen. Bouwen vanuit de broncode is alleen nodig voor ontwikkeling."
     },
     "navigation": {
       "config_guide": "Configuratiegids →",
       "server_docs": "← Server Documentatie"
     },
-    "note": "Let op:",
     "prerequisites": {
       "alpine": {
-        "note_edge": "Randrepository:",
-        "note_memory": "Geheugen:",
-        "note_musl": "musl libc: Alpine gebruikt musl in plaats van glibc - voor sommige pakketten is mogelijk compilatie nodig",
-        "note_openrc": "OpenRC: Alpine gebruikt OpenRC in plaats van systemd voor servicebeheer",
-        "note_title": "Alpine Linux Opmerkingen",
-        "tab_title": "Alpine Linux",
-        "title": "Alpine Linux 3.20, 3.21, 3.22"
-      },
-      "centos": {
-        "tab_title": "CentOS / RHEL",
-        "title": "CentOS/RHEL/Fedora"
+        "tab_title": "Alpine Linux"
       },
       "centos_rhel": "CentOS/RHEL",
       "freebsd": {
-        "tab_title": "FreeBSD",
-        "title": "FreeBSD"
+        "tab_title": "FreeBSD"
       },
       "macos": {
-        "tab_title": "macOS",
-        "title": "macOS"
+        "tab_title": "macOS"
       },
       "netbsd": {
         "tab_title": "NetBSD",
         "title": "NetBSD Volledige installatiehandleiding"
       },
       "openbsd": {
-        "pkg_intro": "Een vooraf gemaakte pakket is gepubliceerd voor elke ondersteunde OpenBSD-release. Het bundelt de backend, de gebouwde webinterface en alle Python-afhankelijkheden, zodat het snel wordt geïnstalleerd en geen compilators vereist.",
-        "pkg_title": "Aanbevolen: Vooraf Gemaakte Pakketten (OpenBSD 7.8, 7.9)",
-        "src_intro": "Voor ontwikkeling, of om de poort zelf te bouwen, installeer het gereedschap hieronder en volg de algemene Installatiestappen.",
-        "src_title": "Alternatief: Bouwen van broncode",
-        "tab_title": "OpenBSD",
-        "title": "OpenBSD"
+        "tab_title": "OpenBSD"
       },
       "opensuse": {
-        "note_leap": "openSUSE Leap:",
-        "note_nodejs": "Node.js versies:",
-        "note_postgresql": "PostgreSQL:",
-        "note_title": "Pakketbeheerder notities",
-        "note_tumbleweed": "openSUSE Tumbleweed: Rolling release met de nieuwste pakketten",
-        "tab_title": "openSUSE",
-        "title": "openSUSE Sprong/Tumbleweed"
+        "tab_title": "openSUSE"
       },
-      "sles": {
-        "note_firewall": "Firewall:",
-        "note_modules": "Modules:",
-        "note_selinux": "SELinux: Kan beleid aanpassingen vereisen indien ingeschakeld",
-        "note_sles12": "SLES 12: Mogelijk zijn Software Collections (SCL) vereist voor nieuwere Python",
-        "note_sles15": "SLES 15:",
-        "note_subscription": "Abonnement:",
-        "note_title": "Enterprise-overwegingen",
-        "tab_title": "SLES",
-        "title": "SUSE Linux Enterprise-server (SLES)"
-      },
-      "title": "Platformspecifieke Vereisten",
-      "ubuntu": {
-        "title": "Ubuntu 22.04 - 26.04 (Aanbevolen)"
-      },
-      "ubuntu25": {
-        "note": "Ubuntu 25.04 levert Python 3.13, Ubuntu 25.10 levert Python 3.13 en Ubuntu 26.04 levert Python 3.14. Alle worden volledig ondersteund. Gebruik de standaard Ubuntu installatie-instructies.",
-        "tab_title": "Ubuntu 25.04 +",
-        "title": "Ubuntu 25.04+ Opmerkingen"
-      },
-      "ubuntu_debian": "Ubuntu / Debian",
       "windows": {
-        "nginx": "<strong>nginx:</strong> wordt automatisch geïnstalleerd door de MSI -- geen handmatige stap. Het installatieprogramma downloadt een vastgezette versie, controleert de SHA-256 ervan vóór het uitpakken en registreert deze als de service <code>SysManageNginx</code>. Gebruik op een air-gapped host een air-gap-bundel: die bevat nginx, zodat de installatie geen netwerk nodig heeft.",
-        "nginx_note": "<strong>nginx is vereist, niet optioneel.</strong> De SysManage-backend levert alleen de REST-API en de WebSocket voor agents -- er is geen handler voor statische bestanden. nginx levert de webconsole, beëindigt TLS op poort 443 en stuurt <code>/api/</code> en <code>/ws</code> door naar de backend op loopback-poort 8080. Zonder nginx is er geen console bereikbaar.",
-        "tab_title": "Windows",
-        "title": "Windows"
+        "tab_title": "Windows"
       }
-    },
-    "requirements": {
-      "nodejs": {
-        "description": "Voor het bouwen van de React frontend",
-        "title": "Node.js",
-        "version": "20.x of hoger"
-      },
-      "os": {
-        "description": "Implementatie op meerdere platforms",
-        "platforms": "Linux, macOS, Windows, FreeBSD, OpenBSD, NetBSD",
-        "title": "Besturingssysteem"
-      },
-      "postgresql": {
-        "description": "Primaire database voor alle applicatiegegevens",
-        "title": "PostgreSQL",
-        "version": "14 of hoger"
-      },
-      "python": {
-        "note": "Let op: Python 3.10 wordt ondersteund voor Ubuntu 22.04 LTS compatibiliteit",
-        "title": "Python",
-        "version": "3.11 tot 3.14"
-      },
-      "required": "Verplicht:",
-      "supported": "Ondersteund:",
-      "title": "Systeemvereisten"
-    },
-    "ssl": {
-      "config_path": "Punt nginx naar uw certificaat en sleutel. De configuratiebestand bevindt zich op een verschillende locatie op elk platform, dus de post-installatietoets drukt de exacte pad voor uw systeem samen met de twee regels om te wijzigen:",
-      "description": "SysManage serveert de webinterface en de API van één oorsprong over HTTPS op poort 443. nginx beëindigt TLS en proxy's naar de backend op loopback, waarom agents externe toegang nodig hebben tot deze host via poort 443.",
-      "dev_mode": "Voor lokale ontwikkeling kun je helemaal zonder certificaten door <code>dev_mode: true</code> in te stellen in <code>/etc/sysmanage.yaml</code>. De server serveert dan de API op poort 8080 en de webinterface op poort 3000 over plain HTTP, en bindt elke interface zodat agents elders op je LAN het zonder verdere configuratie kunnen bereiken. Nooit dev mode inschakelen op een productie-host.",
-      "title": "TLS Certificaten (Verplicht voor Productie)"
     },
     "title": "Serverinstallatiehandleiding - SysManage",
     "troubleshooting": {
       "db_issues": {
         "check_credentials": "Controleer of inloggegevens overeenkomen met configuratiebestand",
-        "test_connection": "Test verbinding met psql commando hierboven getoond",
         "title": "Problemen met databaseverbindingen",
         "verify_postgresql": "Controleer of PostgreSQL actief is: <code>sudo systemctl status postgresql</code>"
       },
@@ -23733,28 +23545,16 @@
         "httptools_errors": "httptools build fouten:",
         "install_libpq": "Installeer <code>libpq-dev</code> (Ubuntu) of <code>postgresql-devel</code> (RHEL)",
         "install_libuv": "Installeer <code>libuv1-dev</code> (Ubuntu) of <code>libuv-devel</code> (RHEL)",
-        "missing_libpq": "Ontbrekende libpq-fe.h:",
-        "python313_issues": "Python versie problemen:",
-        "title": "Pakket Build Fouten",
-        "use_older_python": "Zorg ervoor dat u Python 3.10 of nieuwer gebruikt"
-      },
-      "permission_issues": {
-        "check_venv": "Controleer virtuele omgeving activatie",
-        "ensure_ownership": "Zorg voor juiste eigendom van mappen",
-        "set_config_permissions": "Configuratiebestand rechten instellen: <code>chmod 600 /etc/sysmanage.yaml</code>",
-        "title": "Rechten Problemen"
+        "missing_libpq": "Ontbrekende libpq-fe.h:"
       },
       "port_conflicts": {
         "check_services": "Controleer of er al een luisteraar is: <code>ss -tlnp | grep -E ':(80|443|8080)'</code>",
         "ensure_ports": "In productie, zorg ervoor dat poort 443 vrij is (en 80, die alleen redirect naar het eerste). Het backend luistert op 127.0.0.1:8080 achter nginx en wordt niet geëxposeerd.",
-        "modify_ports": "In dev mode is de API op poort 8080 en de webinterface op poort 3000; pas ze aan onder <code>api</code> en <code>webui</code> in <code>/etc/sysmanage.yaml</code> als ze botsen.",
         "title": "Poort Conflicten"
       },
       "title": "Probleemoplossing"
     },
     "dev": {
-      "title": "Een ontwikkelserver draaien",
-      "intro": "Een ontwikkelserver draait vanuit de broncode-checkout, waarbij de webinterface door Vite wordt geleverd in plaats van door nginx. Met deze tips zet u er een op en houdt u hem gescheiden van alles wat u in productie draait.",
       "tools": "Installeer eenmalig de ontwikkeltools (testrunners, linters, Playwright en de telemetriestack):",
       "config": "Maak <code>sysmanage-dev.yaml</code> aan in de hoofdmap van het project op basis van <code>sysmanage-dev.yaml.example</code>; de server leest dit bestand wanneer <code>/etc/sysmanage.yaml</code> niet bestaat. Laat <code>SYSMANAGE_CONFIG_PATH</code> naar een bestand wijzen om een ander bestand te gebruiken. De belangrijkste instellingen voor ontwikkeling:",
       "dev_mode": "<code>dev_mode: true</code> vertelt de server dat er geen TLS-proxy voor hem staat: links in e-mails gebruiken <code>http://host:3000</code> en er wordt niet gewaarschuwd voor binden aan alle interfaces. Laat het weg bij een echte implementatie; een ontbrekende vlag betekent productie.",
@@ -23764,18 +23564,183 @@
       "run": "Voer de migraties uit en start en stop daarna alles met:",
       "ports": "De API luistert op poort 8080 en de Vite-webinterface op poort 3000. De databasemigraties gebruiken dezelfde tool die beheerders in productie uitvoeren.",
       "second": "Een tweede wegwerpserver nodig (bijvoorbeeld om iets te testen zonder uw eigen gegevens aan te raken)? De schaaltestomgeving start er een met een eigen PostgreSQL-container, configuratie en poort, en verwijdert hem daarna:"
+    },
+    "meta_description": "Installeer de SysManage-server vanuit het pakket voor uw platform en richt daarna de database, het TLS-certificaat, de firewall en de eerste aanmelding in.",
+    "before": {
+      "title": "Voordat U Begint",
+      "host": "<strong>Een host met een DNS-naam.</strong> Agents maken verbinding met die naam, en het TLS-certificaat moet ermee overeenkomen.",
+      "postgres": "<strong>PostgreSQL 12 of nieuwer</strong>, op dezelfde host of op een externe host. De pakketten maken de database niet voor u aan.",
+      "ports": "<strong>Inkomende poort 443</strong>, plus poort 80 voor de HTTPS-omleiding en voor Let's Encrypt. Verder hoeft niets bereikbaar te zijn vanaf het netwerk.",
+      "root": "<strong>Root- of sudo-toegang</strong> op de host.",
+      "no_toolchain": "U hoeft zelf geen Python, Node.js of andere buildtools te installeren. Het pakket levert alles wat de server nodig heeft, inclusief nginx en OpenBAO."
+    },
+    "packages": {
+      "title": "Installeren vanuit Pakketten (Aanbevolen)",
+      "ubuntu": {
+        "title": "Ubuntu (Launchpad-PPA)",
+        "intro": "De SysManage-server wordt gepubliceerd in de Launchpad PPA <code>ppa:bceverly/sysmanage</code> voor Ubuntu 22.04 LTS, 24.04 LTS en 26.04 LTS. Dit is de aanbevolen manier om de server te draaien.",
+        "what": "Het pakket installeert de server in <code>/opt/sysmanage</code> en downloadt de Python-afhankelijkheden naar een eigen omgeving daar, dus de host heeft tijdens de installatie internettoegang nodig. Het maakt ook <code>/etc/sysmanage.yaml</code> aan met geheimen die voor deze installatie zijn gegenereerd, installeert OpenBAO en ontzegelt het, en configureert nginx. De SysManage-service wordt ingeschakeld maar blijft gestopt totdat u de stappen onder <a href=\"#after-installing\">Na de Installatie</a> hebt afgerond.",
+        "upgrade": "Latere releases komen binnen via <code>sudo apt upgrade</code>. Een upgrade behoudt uw configuratie en database, en toont de twee opdrachten die u daarna moet uitvoeren: de databasemigraties en een herstart van de service."
+      },
+      "other": {
+        "title": "Andere Platforms",
+        "intro": "Pakketten voor de andere platforms worden gepubliceerd op de <a href=\"https://github.com/bceverly/sysmanage/releases\">pagina met GitHub-releases</a> en in de repositories hieronder. Vervang <code>X.Y.Z</code> door de release die u installeert. Elk pakket toont zijn eigen instructies na de installatie, met de paden voor dat platform al ingevuld."
+      },
+      "debian": {
+        "tab": "Debian",
+        "intro": "Debian 12 en nieuwer installeren vanuit de APT-repository van SysManage. Ubuntu kan die ook gebruiken, maar op Ubuntu is de PPA hierboven de aanbevolen bron."
+      },
+      "rhel": {
+        "tab": "RHEL",
+        "intro": "RHEL, Rocky Linux, AlmaLinux, Oracle Linux en CentOS Stream 8, 9 en 10 (x86_64 en aarch64) installeren vanuit het Fedora Copr-project <code>bceverly/sysmanage</code>. Voor Fedora zelf wordt de server momenteel niet gebouwd; gebruik daar <a href=\"#from-source\">Bouwen vanuit de Broncode</a>."
+      },
+      "arch": {
+        "tab": "Arch Linux",
+        "intro": "Arch Linux installeert het pakket <code>sysmanage</code> uit de AUR, met een AUR-helper naar keuze:"
+      },
+      "snap": {
+        "tab": "Snap",
+        "intro": "De server wordt gepubliceerd in de Snap Store, in het stabiele kanaal, met strikte afscherming:"
+      },
+      "opensuse": {
+        "intro": "openSUSE Leap 15.6 en Tumbleweed installeren vanuit het openSUSE Build Service-project <code>home:bryaneverly</code>."
+      },
+      "alpine": {
+        "intro": "Pakketten voor Alpine Linux 3.20, 3.21 en 3.22 zijn directe downloads van de releasepagina. Kies het bestand voor uw Alpine-release (<code>alpine320</code>, <code>alpine321</code> of <code>alpine322</code>) en controleer de <code>.sha256</code> ervan voordat u installeert."
+      },
+      "macos": {
+        "intro": "Download <code>sysmanage-X.Y.Z-macos.pkg</code> van de releasepagina en installeer het. Het installatieprogramma gebruikt Homebrew om nginx toe te voegen als het ontbreekt.",
+        "start": "Start de server na de stappen onder <a href=\"#after-installing\">Na de Installatie</a> met <code>sudo launchctl load /Library/LaunchDaemons/com.sysmanage.server.plist</code>."
+      },
+      "windows": {
+        "intro": "Download <code>sysmanage-X.Y.Z-windows-x64.msi</code> (of <code>sysmanage-X.Y.Z-windows-arm64.msi</code> op ARM) van de releasepagina en voer het uit als beheerder. Het installeert de server in <code>C:\\Program Files\\SysManage Server</code> en registreert de services <code>SysManageServer</code>, <code>SysManageNginx</code> en <code>SysManageOpenBAO</code>. nginx wordt tijdens de installatie gedownload en de SHA-256 ervan wordt gecontroleerd voordat het wordt gebruikt.",
+        "start": "De server blijft gestopt. Start hem na de stappen onder <a href=\"#after-installing\">Na de Installatie</a> vanuit een PowerShell met beheerdersrechten met <code>Set-Service SysManageServer -StartupType Automatic</code>, <code>Start-Service SysManageServer</code> en <code>Restart-Service SysManageNginx</code>."
+      },
+      "freebsd": {
+        "intro": "Download <code>sysmanage-X.Y.Z.pkg</code> van de releasepagina en installeer het:",
+        "start": "Start de services met <code>sysrc sysmanage_enable=YES</code>, <code>sysrc nginx_enable=YES</code>, <code>service sysmanage start</code> en <code>service nginx start</code>."
+      },
+      "openbsd": {
+        "intro": "Voor OpenBSD 7.8 en 7.9 wordt een kant-en-klaar pakket gepubliceerd. Het bevat de backend, de webinterface en de Python-afhankelijkheden, dus er is geen compiler nodig. Gebruik <code>openbsd78</code> of <code>openbsd79</code>, afhankelijk van uw release.",
+        "start": "Start de services met <code>doas rcctl enable openbao sysmanage</code> en <code>doas rcctl start openbao sysmanage</code>."
+      },
+      "netbsd": {
+        "intro": "Download <code>sysmanage-X.Y.Z-netbsd.tgz</code> en de bijbehorende <code>.sha256</code> van de releasepagina, controleer het bestand en installeer het als root:"
+      },
+      "airgap": "<strong>Heeft de server geen internettoegang?</strong> Gebruik de <a href=\"/air-gapped/\">air-gapped installatie</a>, die elk pakket en elke afhankelijkheid in één bundel meelevert."
+    },
+    "after": {
+      "title": "Na de Installatie",
+      "intro": "Deze stappen zijn geschreven voor Ubuntu en Debian. Ze zijn op elk platform hetzelfde; alleen de paden en de serviceopdrachten verschillen, en de tabel aan het einde van deze sectie toont de paden per platform.",
+      "db": {
+        "title": "Stap 1: De Database Aanmaken",
+        "body": "Om een lokale PostgreSQL-server te gebruiken, installeert u deze en maakt u de gebruiker en database <code>sysmanage</code> aan. Kies een sterk wachtwoord; dat zet u in de volgende stap in het configuratiebestand.",
+        "remote": "Een externe PostgreSQL-server werkt net zo goed. Maak daar dezelfde gebruiker en database aan en gebruik de hostnaam ervan in de configuratie."
+      },
+      "config": {
+        "title": "Stap 2: De Configuratie Bewerken",
+        "body": "Het pakket heeft <code>/etc/sysmanage.yaml</code> aangemaakt en voor deze installatie al de <code>jwt_secret</code>, de <code>password_salt</code> en het herstelwachtwoord <code>admin_password</code> gegenereerd. Stel het databasewachtwoord in, en stel <code>admin_userid</code> in op uw eigen e-mailadres:",
+        "builder": "Laat <code>api: host</code> ingesteld op <code>localhost</code>: de server is alleen via nginx bereikbaar. De <a href=\"/config-builder.html\">configuratiebouwer</a> kan een volledig bestand genereren als u meer opties wilt instellen, en de <a href=\"configuration.html\">Configuratiehandleiding</a> beschrijft elke instelling."
+      },
+      "migrate": {
+        "title": "Stap 3: De Databasemigraties Uitvoeren",
+        "body": "De migraties maken het databaseschema aan. <code>--status</code> toont wat er nog openstaat; de tweede opdracht voert het uit. Voer dezelfde twee opdrachten na elke upgrade uit."
+      },
+      "tls": {
+        "title": "Stap 4: Een TLS-certificaat Installeren",
+        "body": "SysManage biedt de webinterface, de API en de agentverbindingen aan op poort 443, en nginx weigert te starten zolang er geen certificaat aanwezig is. Dat is bewust: een beheerconsole mag nooit onversleuteld opstarten, en agents verifiëren het certificaat standaard. Standaard leest nginx:",
+        "edit": "Om een certificaat te gebruiken dat ergens anders is opgeslagen, wijzigt u deze twee regels in <code>/etc/nginx/sites-available/sysmanage-nginx.conf</code>:",
+        "le_http_title": "Let's Encrypt met certbot (HTTP-verificatie)",
+        "le_http_body": "Als poort 80 op deze host bereikbaar is vanaf internet, kan certbot de verificatie zelf beantwoorden. Zodra nginx draait, bezet het poort 80, dus de hooks stoppen het tijdens elke vernieuwing en starten het daarna weer. certbot slaat de hooks op en vernieuwt automatisch.",
+        "le_dns_title": "Let's Encrypt met een DNS-verificatie (DigitalOcean DNS)",
+        "le_dns_body": "Als de DNS van uw domein bij DigitalOcean wordt gehost, kan certbot het eigendom in plaats daarvan via DNS aantonen. Poort 80 hoeft dan niet bereikbaar te zijn, en nginx blijft draaien tijdens vernieuwingen. Maak een DigitalOcean API-token met schrijftoegang tot DNS en sla het op in een bestand dat alleen root kan lezen:",
+        "le_point": "Laat bij beide methoden de twee nginx-regels verwijzen naar de bestanden die certbot heeft geschreven, en controleer daarna de configuratie:"
+      },
+      "start": {
+        "title": "Stap 5: De Services Starten",
+        "logs": "De server schrijft zijn logboeken naar <code>/var/log/sysmanage/</code>. Als hij direct na het starten stopt, controleer dan de database-instellingen in <code>/etc/sysmanage.yaml</code> en ga na of de migraties zijn uitgevoerd."
+      },
+      "firewall": {
+        "title": "Stap 6: De Firewall Openzetten",
+        "body": "nginx is de enige service die op het netwerk luistert. Open de poorten 443 en 80 en verder niets: de SysManage API blijft op loopbackpoort 8080 en OpenBAO op loopbackpoort 8200, en ook PostgreSQL mag niet blootgesteld worden."
+      },
+      "login": {
+        "title": "Stap 7: Aanmelden",
+        "body": "Open <code>https://sysmanage.example.com/</code> en meld u aan als de <code>admin_userid</code> die u hebt ingesteld, met het gegenereerde herstelwachtwoord. U kunt het lezen met:",
+        "next": "Dit herstelaccount bestaat alleen in het configuratiebestand, en de console waarschuwt u zolang het daar staat. Configureer e-mail, maak uw eigen beheerdersgebruiker aan, verwijder daarna <code>admin_userid</code> en <code>admin_password</code> uit het bestand en herstart de server."
+      },
+      "openbao": {
+        "title": "Stap 8: Het OpenBAO-ontzegelmateriaal Back-uppen",
+        "body": "Het pakket installeert OpenBAO, de beheerder van geheimen, op loopbackpoort 8200. Bij de eerste installatie initialiseert en ontzegelt het OpenBAO, ontzegelt het opnieuw bij elke opstart, en schrijft het het token dat SysManage gebruikt naar <code>/etc/sysmanage/openbao-token</code>. De ontzegelsleutel en het root-token staan in <code>/var/lib/openbao/init.json</code>.",
+        "backup": "<strong>Kopieer <code>/var/lib/openbao/init.json</code> naar een veilige opslaglocatie buiten deze machine.</strong> Zonder dit bestand kunnen de geheimen die in OpenBAO zijn opgeslagen niet worden hersteld als de host opnieuw wordt opgebouwd.",
+        "enable": "Om SysManage zijn geheimen in OpenBAO te laten bewaren, stelt u <code>vault: enabled: true</code> in in <code>/etc/sysmanage.yaml</code>. Multi-tenancy vereist dit. Controleer de status met <code>systemctl status openbao sysmanage-openbao-init</code>."
+      },
+      "agents": {
+        "title": "Stap 9: Agents Verbinden",
+        "body": "Agents hebben alleen uitgaande poort 443 naar de server nodig. Laat elke agent verwijzen naar dezelfde hostnaam waarvoor het certificaat is uitgegeven, en laat certificaatverificatie ingeschakeld:",
+        "link": "Zie <a href=\"../agent/installation.html\">Agentinstallatie</a> voor de agentpakketten."
+      },
+      "paths": {
+        "title": "Paden per Platform",
+        "platform": "Doelplatform",
+        "config": "Configuratiebestand",
+        "nginx": "nginx-configuratie",
+        "tls": "Certificaat en sleutel"
+      }
+    },
+    "optional": {
+      "title": "Optionele Functies",
+      "telemetry": {
+        "title": "Telemetrie",
+        "body": "OpenTelemetry staat standaard uit. Om traces en metrics naar uw collector te sturen, stelt u <code>telemetry: enabled: true</code> en <code>telemetry: otlp_endpoint</code> in in <code>/etc/sysmanage.yaml</code>, of de omgevingsvariabelen <code>OTEL_ENABLED=true</code> en <code>OTEL_EXPORTER_OTLP_ENDPOINT</code>. Zolang telemetrie aan staat, worden Prometheus-metrics aangeboden op <code>127.0.0.1:9090</code>, alleen op loopback."
+      },
+      "mt": {
+        "title": "Multi-tenancy-modus",
+        "body": "Een server draait als één tenant, tenzij u multi-tenancy inschakelt met <code>multitenancy: enabled: true</code>, gevolgd door de databasemigraties. Hiervoor zijn OpenBAO en een aparte database per tenant nodig; zie <a href=\"../deployment/multi-tenancy.html\">Multi-tenant implementeren</a>."
+      }
+    },
+    "trouble": {
+      "install": {
+        "title": "Na een Pakketinstallatie",
+        "nginx": "<strong>nginx start niet:</strong> bijna altijd een ontbrekend of onleesbaar certificaat. <code>sudo nginx -t</code> noemt het bestand dat het niet kon lezen.",
+        "service": "<strong>De service start en stopt daarna:</strong> controleer de database-instellingen in het configuratiebestand en ga na of de migraties zijn uitgevoerd.",
+        "login": "<strong>Aanmelden wordt geweigerd:</strong> <code>admin_userid</code> moet een volledig e-mailadres zijn, geen losse naam.",
+        "openbao": "<strong>OpenBAO is verzegeld of draait niet:</strong> voer <code>sudo systemctl restart openbao sysmanage-openbao-init</code> uit en lees <code>systemctl status sysmanage-openbao-init</code>."
+      }
+    },
+    "source": {
+      "title": "Bouwen vanuit de Broncode (Ontwikkeling)",
+      "intro": "Bouw vanuit de broncode om aan SysManage zelf te werken, of op een platform zonder pakket. Een ontwikkelserver draait vanuit de broncode-checkout, waarbij de webinterface door Vite wordt aangeboden in plaats van door nginx. Gebruik deze niet voor productie.",
+      "prereq": {
+        "title": "Vereisten",
+        "list": "Python 3.10 tot en met 3.14 met de bijbehorende ontwikkelheaders, Node.js 20 of nieuwer, PostgreSQL 12 of nieuwer, een C-compiler, en de ontwikkelpakketten voor libffi, OpenSSL en libpq.",
+        "bsd": "Gebruik op FreeBSD, OpenBSD en NetBSD <code>gmake</code> in plaats van <code>make</code>. Stel op NetBSD vóór de installatie <code>CFLAGS=\"-I/usr/pkg/include\"</code> en <code>LDFLAGS=\"-L/usr/pkg/lib -Wl,-R/usr/pkg/lib\"</code> in, zodat Python-pakketten met C-extensies hun bibliotheken vinden.",
+        "ubuntu": "Op Ubuntu:"
+      },
+      "setup": {
+        "title": "Klonen en Inrichten",
+        "db": "Maak een database en gebruiker voor ontwikkeling aan, op dezelfde manier als in <a href=\"#after-installing\">Stap 1</a> hierboven."
+      },
+      "run": {
+        "title": "Uitvoeren",
+        "secure": "Om in een broncode-checkout een beheerdersgebruiker aan te maken en OpenBAO te initialiseren, voert u <code>scripts/sysmanage_secure_installation</code> uit; zie <a href=\"secure-installation.html\">Veilige Installatie</a>. Het bouwt de database opnieuw op, dus voer het nooit uit tegen een server met gegevens die u wilt behouden, en nooit op een pakketinstallatie."
+      },
+      "trouble": {
+        "title": "Bouwproblemen",
+        "netbsd_tmp": "<strong>NetBSD, \"No space left on device\" tijdens pip install:</strong> <code>/tmp</code> is standaard een tmpfs van 1 GB. Vergroot het met <code>mount -t tmpfs -o -s=4g tmpfs /tmp</code>, of stel <code>TMPDIR</code> in op een map op schijf."
+      }
     }
   },
   "server_quickstart": {
     "before": {
-      "body": "Deze gids installeert de server vanuit het pakket dat is gebouwd voor uw platform. Voor de volledige platformmatrix, instructies om zelf te bouwen en per-distributie vereisten, zie de <a href=\"/docs/server/installation.html\">Server Installatie</a> handleiding.",
       "cert": "<strong>Een TLS-certificaat en privé-sleutel</strong> voor de servers hostname. nginx weigert om op te starten zonder een certificaat -- doelbewust, omdat een beheerconsole niet mag opkomen in cleartekst alleen maar omdat er geen certificaat was.",
       "ports": "<strong>Inkomende 443</strong> (plus 80 als je de redirect wilt). Niets anders hoeft geopend te worden: agents bereiken de server over uitgaande 443 en het backend blijft op loopback achter nginx.",
       "postgres": "<strong>PostgreSQL 12 of nieuwer</strong>, op deze host of een externe. SysManage start niet zonder dit.",
       "root": "<strong>Root of sudo</strong> op de doel-host.",
       "tip": "Het pakket drukt elke stap hieronder als zijn post-installatietoets, met de paden al ingevuld voor uw platform. Als u het verliest, is het in het logboek van de package manager.",
       "tip_label": "TIP:",
-      "title": "Voordat Je Begint"
+      "title": "Voordat Je Begint",
+      "body_pkg": "Deze handleiding installeert de server vanuit het pakket dat voor uw platform is gebouwd. Voor het pakket op elk platform, en voor bouwen vanuit de broncode, zie de handleiding <a href=\"/docs/server/installation.html\">Serverinstallatie</a>."
     },
     "intro": "Installeer de SysManage-server vanuit een native package, wijst het aan PostgreSQL, geeft nginx een certificaat, en open de console. Ongeveer vijfentwintig minuten op een versie-host.",
     "next": {
@@ -23787,12 +23752,12 @@
       "title": "Volgende Stappen"
     },
     "step1": {
-      "body": "Download het pakket voor je platform van de <a href=\"https://github.com/bceverly/sysmanage/releases\">releases pagina</a> en installeer het. Vervang <code>X.Y.Z</code> met de release die je installeert.",
-      "debian": "Debian / Ubuntu",
       "other": "Andere platforms",
-      "other_body": "openSUSE, Alpine, FreeBSD, OpenBSD, NetBSD, macOS en Windows pakketten worden gepubliceerd op dezelfde releases pagina. De stappen hieronder zijn identiek op elk platform; alleen de installatiecommando en het nginx configuratiepad verschillen, en de post-installatietoets drukt het juiste pad voor u.",
-      "rhel": "RHEL / CentOS / Fedora",
-      "title": "Het Pakket Installeren"
+      "title": "Het Pakket Installeren",
+      "ubuntu": "Ubuntu",
+      "body_pkg": "Installeer de server op Ubuntu vanuit de SysManage Launchpad PPA:",
+      "rhel_copr": "RHEL en compatibele distributies",
+      "other_pkg": "Debian, openSUSE, Arch Linux, Alpine, Snap, macOS, Windows en de BSD's hebben hun eigen pakketten; de handleiding <a href=\"/docs/server/installation.html#packages\">Serverinstallatie</a> geeft de opdracht voor elk ervan. De stappen hierna zijn op elk platform hetzelfde. Alleen de paden verschillen, en het bericht na de installatie toont ze voor u."
     },
     "step2": {
       "body": "Om een lokale PostgreSQL instantie te gebruiken:",
@@ -23800,9 +23765,9 @@
       "title": "Maak de Database aan"
     },
     "step3": {
-      "body": "De server leest <code>/etc/sysmanage.yaml</code>. De <a href=\"/config-builder.html\">configuratiebuilder</a> genereert een volledig bestand -- databaseverbinding, hostname, TLS, authenticatie en logging -- wat sneller en foutlozer is dan het handmatig schrijven.",
-      "perms": "Het bestand bevat database-credentials, dus houd het alleen leesbaar door root.",
-      "title": "Schrijf de Configuratie"
+      "title": "Schrijf de Configuratie",
+      "body_pkg": "Het pakket heeft <code>/etc/sysmanage.yaml</code> aangemaakt en de geheimen voor deze installatie al gegenereerd. Stel het databasewachtwoord uit stap 2 in, en stel <code>admin_userid</code> in op uw e-mailadres. De <a href=\"/config-builder.html\">configuratiebouwer</a> kan een volledig bestand genereren als u meer opties wilt instellen.",
+      "perms_pkg": "Het bestand bevat geheimen, dus het pakket maakt het alleen leesbaar voor het serviceaccount <code>sysmanage</code>. Houd dat zo."
     },
     "step4": {
       "body": "Controleer wat er nog moet worden aangebracht, en voer dit uit. Dit migratie de schema van het beheersysteem en, als multi-tenanting is ingeschakeld, elke tenant-database ook.",

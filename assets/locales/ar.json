@@ -11532,8 +11532,8 @@
           "034": "<strong>جهّز قاعدة بيانات السجل ودور تسجيل دخول على مجموعة PostgreSQL عالية التوفر لديك.</strong> على الخادم الأساسي الحالي للمجموعة، أنشئ الدور <code>sysmanage</code> وقاعدة بيانات السجل التي يملكها (راجع خطوة قاعدة البيانات في <a href=\"../server/installation.html\">تثبيت الخادم</a>). يتصل الخادم بصفته هذا الدور؛ وهو <em>ليس</em> مستخدمًا فائق الصلاحيات. الأدوار وقواعد البيانات كائنات على مستوى المجموعة بأكملها، لذا ينسخها النسخ المتماثل المتدفق إلى كل خادم احتياطي تلقائيًا. إذا لم تكن قد أعددت المجموعة بعد، فافعل ذلك أولًا -- راجع <a href=\"../administration/postgresql-ha.html\">التوفر العالي لـ PostgreSQL</a>.",
           "035": "قم بإنشاء OpenBAO وتكوين محرك سر قاعدة البيانات الخاص به بحيث يمكنه إصدار بيانات اعتماد PostgreSQL مؤقتة لكل مستأجر. يعمل OpenBAO كوسيط يمنع الخادم من الاحتفاظ بأي كلمة مرور لقاعدة البيانات طويلة الأجل مشتركة. (قم ببناء وإطلاقه باستخدام scrips/build-openbao.sh وscrips/start-openbao.sh ، أو مثيلك الخاص المدارة.)",
           "036": "<strong>اضبط <code>/etc/sysmanage.yaml</code></strong> -- وجّه كتلة registry إلى قاعدة بيانات السجل، وفعّل تعدد المستأجرين، واضبط الخزنة: <pre><code>registry: # Point at the cluster's stable read-write endpoint, never one node. # libpq multi-host list (tries each, keeps the writable primary): host: \"db1.internal,db2.internal\" port: 5432 name: sysmanage_registry user: sysmanage password: &lt;from your secret store&gt; options: \"target_session_attrs=read-write\" multitenancy: enabled: true self_service_provisioning: true vault: url: https://openbao.internal:8200 # token / auth configured per your OpenBAO setup # NB: configure the database secrets engine's own connection_url at the # SAME cluster endpoint (see PostgreSQL High Availability) so tenant # credential leasing keeps working across a primary failover.</code></pre> <div class=\"note warn\"><strong>الترخيص:</strong> يتطلب التوجيه لكل مستأجر محرك تعدد المستأجرين المرخَّص (فئة <code>MULTITENANT_SAAS</code>). بدونه، يرفض الخادم العمل بوضع تعدد المستأجرين بدلًا من التوجيه الخاطئ بصمت -- وهذا مقصود.</div>",
-          "037": "تنفيذ الهجرات باستخدام أداة المستخدم. make migrate (أو scripts/sysmanage_migrate.py مباشرة) تطبق سلسلة التسجيل، المشتركة، والمستأجر وتشير إلى التقدم لكل قاعدة بيانات بشكل منفصل؛ مع تمكين متعددة المستأجرين تقوم بتشغيل OpenBAO للانتشار لكل مستأجر: make migrate",
-          "038": "قم بتوفير الهوية الخاصة بالمشغل بحقوق الأقلية بحيث يمكن إنشاء المستأجر ذاتيًا دون حقوق super-user للكلستر: اجعل provision-bootstrap الحجج='--bao-token $BAO_TOKEN'",
+          "037": "<strong>شغّل عمليات الترحيل</strong> باستخدام الأمر المرفق بالحزمة. يطبّق سلاسل registry وshared وtenant ويعرض التقدم لكل قاعدة بيانات. تحصل مرحلة كل مستأجر على بيانات الاعتماد من OpenBAO، لذا يجب أن يكون OpenBAO قيد التشغيل:",
+          "038": "<strong>أنشئ هوية أداة التجهيز بأقل الصلاحيات</strong> حتى يعمل إنشاء المستأجرين بالخدمة الذاتية دون صلاحيات المستخدم الأعلى للمجموعة. شغّله مرة واحدة بصلاحيات root على الخادم: يقرأ رمز الجذر الخاص بـ OpenBAO من مواد التهيئة الخاصة بالجهاز وينشئ دور Postgres عبر المستخدم الأعلى المحلي. في حالة OpenBAO أو Postgres بعيد، مرّر <code>--bao-token</code> و<code>--pg-host</code>:",
           "039": " إنشاء المستأجرين من واجهة لوحة التحكم (الإعدادات → المستأجرون). يحصل كل مستأجر على قاعدة بيانات خاصة به ومصادقة OpenBAO الخاصة به. ضع قاعدة البيانات لكل مستأجر حيث يجب أن تكون -- حسب المضيف، المنطقة، أو الولاية. ",
           "040": "قم بتوزيع سلسلة المستخدمين إلى كل قاعدة بيانات مستخدم مجهزة (يجب تشغيل OpenBAO): make migrate-tenants",
           "041": "ربط الأجهزة بالمستأجرين. أصدر بطاقة تسجيل محدودة للمستأجر (المستأجرون \\u2192 البطاقة)، ضعها في إعدادات الوكيل الخاص بالجهاز تحت security.enrollment_token، وسجل الوكيل. من ذلك الوقت فصاعدًا يتم وضع بيانات الجهاز تلقائيًا في قاعدة البيانات الخاصة بالمستأجر.",
@@ -15679,36 +15679,6 @@
           "206": "مدعوم للحاويات: دعم نشر Docker و Kubernetes",
           "207": "المنصات السحابية_native: تكامل المنصة السحابية وخدماتها",
           "208": "هجين: نماذج نشر مختلطة للبيئات المعقدة"
-        },
-        "installation": {
-          "001": "Python 3.12+: تحميل من python.org ✅ يوصى بـ Python 3.12، 3.13 أو 3.14 ✅ التحقق من خيار \"إضافة Python إلى PATH\" أثناء التثبيت",
-          "002": "Node.js 20.x: قم بتحميله من nodejs.org",
-          "003": "تحميل PostgreSQL 14+: من postgresql.org",
-          "004": "Git for Windows: تحميل من git-scm.com",
-          "005": "أدوات بناء Visual Studio: تنزيل من Microsoft",
-          "006": "دليل التثبيت الكامل لـ NetBSD",
-          "007": "مستخدمي NetBSD - متطلبات التهيئة الحرجة",
-          "008": "قبل بدء التثبيت، يجب على مستخدمي NetBSD:",
-          "009": "تثبيت جميع الحزم المطلوبة بما في ذلك jpeg (وليس فقط libjpeg-turbo)",
-          "010": "تعيين المتغيرات البيئية: {{c1}}",
-          "011": "استخدم gmake بدلاً من make لكل أوامر make",
-          "012": "إنشاء مستخدم PostgreSQL يدويًا إذا لم يكن موجوداً",
-          "013": "زيادة حجم /tmp إذا لزم الأمر: {{c1}}",
-          "014": "انظر علامة التبويب NetBSD في المتطلبات أعلاه للحصول على إرشادات الإعداد الكامل.",
-          "015": "مشكلات محددة لنظام NetBSD",
-          "016": "مستخدم PostgreSQL مفقود: قد لا ينشئ NetBSD المستخدم postgres/pgsql تلقائيًا. انشئه باستخدام: sudo useradd -m -d /var/db/postgresql -s /bin/sh postgres",
-          "017": "لم يتم بدء PostgreSQL: تأكد من وجود pgsql=YES في /etc/rc.conf، ثم قم بتشغيل sudo /etc/rc.d/pgsql start",
-          "018": "لا يوجد مساحة كافية أثناء تركيب pip: يتم تحديد /tmp في NetBSD بـ 1GB كحد أقصى. قم بالزيادة باستخدام: mount -t tmpfs -o -s=4g tmpfs /tmp أو استخدم export TMPDIR=$HOME/tmp",
-          "019": "gmake install-dev للتطوير: استخدم gmake بدلاً من make. ملف Makefile يحتوي على فحوصات الاعتماد الخاصة بنظام NetBSD (gcc13, py312-cffi)",
-          "020": "لم يتم العثور على منفذ PostgreSQL: يستخدم PostgreSQL على NetBSD TCP بدلاً من Unix sockets. استخدم دائمًا -h localhost عند الاتصال",
-          "021": "فشل تجميع مجمّع OpenTelemetry: NetBSD يستخدم إصدارات BSD من find/xargs/dirname والتي غير متوافقة مع ملف Makefile الخاص بمجمّع OTEL. قم بتثبيت الأدوات الأساسية: sudo pkgin install findutils coreutils سيسجل البرنامج النصي install-telemetry.py تلقائيًا استخدام gfind/gxargs/gdirname على NetBSD.",
-          "022": "أخطاء المتصفح/WebDriver: تثبيت متصفحات للاختبارات المرئية: # تثبيت Chromium (يشمل ChromeDriver) doas pkgin install chromium # تثبيت Firefox (يتطلب اسمًا خاصًا بالرقم الاصداري) doas pkgin install firefox-138.0.4 # تثبيت GeckoDriver لاختبارات Firefox المرئية doas pkgin install geckodriver-0.36.0 # التحقق من التثبيتات التي chromium firefox geckodriver ملاحظة: تتطلب حزم Firefox على NetBSD عادةً أرقام إصدار صريحة، بخلاف أنظمة BSD الأخرى. بسبب مشاكل متوافقة مع WebDriver على NetBSD، يتم استبعاد تلقائيًا اختبارات Firefox من مجموعة الاختبار المرئية ويتم تشغيل اختبارات Chrome فقط. هذا يضمن نتائج اختبار نظيفة بدون فشل أو اختبارات مستبعدة.",
-          "023": "فشل تثبيت Pillow: قم بتثبيت مكتبات الصور وتعيين المسارات: pkgin install jpeg libjpeg-turbo tiff png freetype2 lcms2 libwebp openjpeg zlib export CFLAGS=\"-I/usr/pkg/include\" export LDFLAGS=\"-L/usr/pkg/lib -Wl,-R/usr/pkg/lib\"",
-          "024": "فشل البدء في الخلفية بـ \"libjpeg.so.9 غير موجود\": يحدث هذا عندما يتم تثبيت Pillow قبل مكتبة JPEG أو مع المسارات غير الصحيحة. يعيد هدف gmake install-dev بناء Pillow تلقائيًا لـ NetBSD. للتصحيح اليدوي: . .venv/bin/activate export CFLAGS=\"-I/usr/pkg/include\" export LDFLAGS=\"-L/usr/pkg/lib -Wl,-R/usr/pkg/lib\" pip uninstall -y Pillow pip install --no-binary=:all: Pillow",
-          "025": "تثبيت OpenBAO: NetBSD ليس لديه حزم OpenBAO مبنية مسبقًا. الخيارات المتاحة: بناء من المصدر (الموصى به): pkgin install go git gmake # NetBSD ينصب Go كـ go124 - خلق رابط simlink: sudo ln -sf /usr/pkg/bin/go124 /usr/pkg/bin/go # أضف ~/.local/bin إلى PATH: echo 'export PATH=\"$HOME/.local/bin:$PATH\"' >> ~/.profile . ~/.profile # ثم اتبع الأمر التالي: gmake install-dev # سيطلب منك بناء OpenBAO من المصدر استخدم تعاون Linux: حاول تشغيل ملفات Linux تحت NetBSD's Linux التوافق تخطي OpenBAO: هو اختياري - قم بتعيين vault.enabled=false في config ملاحظة: OpenBAO اختياري للتطوير. النظام يعمل بشكل كامل بدونه.",
-          "026": "OpenBAO 'bao' الأمر غير موجود: تأكد من أن ~/.local/bin في مسارك PATH: echo 'export PATH=\"$HOME/.local/bin:$PATH\"' >> ~/.profile && . ~/.profile",
-          "027": "إعداد متعددة المستأجرين؟",
-          "028": "الخطوات أعلاه تقوم بإنشاء قاعدة البيانات المستخدمة من قبل إصدارات Community, Professional, و Enterprise. نشر Enterprise SaaS المتعدد المستخدمين يحتاج أيضًا إلى قاعدة بيانات تسجيل، OpenBAO، وقاعدة بيانات مفصولة لكل مستخدم. راجع نشر Multi-Tenancy للحصول على تكوينات التطوير والإنتاج الكاملة."
         },
         "reports": {
           "001": "التوثيق",
@@ -22905,7 +22875,8 @@
     "what_it_does": {
       "description": "يقوم هذا النص الآلي بتغيير نظامك في SysManage بالكامل إلى منصة أمنية على مستوى المؤسسة:",
       "title": "ما ينجزه النص"
-    }
+    },
+    "package_note": "<strong>هل ثبّت من حزمة؟</strong> لا تحتاج إلى هذا البرنامج النصي. تولّد الحزم الأسرار وتهيّئ OpenBAO بنفسها؛ اتبع <a href=\"installation.html#after-installing\">بعد التثبيت</a> بدلًا من ذلك. هذا البرنامج النصي مخصص لنسخ المصدر، وهو يعيد بناء قاعدة البيانات."
   },
   "security": {
     "authentication": {
@@ -23425,7 +23396,8 @@
         "title": "تكوين الإنتاج"
       },
       "installation": {
-        "title": "خطوات التثبيت"
+        "title": "خطوات التثبيت",
+        "see_guide": "يغطي <a href=\"installation.html\">دليل تثبيت الخادم</a> كل خطوة بالتفصيل، بما في ذلك شهادة TLS وجدار الحماية والحزم الخاصة بالمنصات الأخرى."
       },
       "requirements": {
         "component": "المكون",
@@ -23548,203 +23520,43 @@
   },
   "server_installation": {
     "breadcrumb_installation": "التثبيت",
-    "description": "دليل تثبيت شامل لخادم SysManage يتضمن المتطلبات الأساسية وإعداد قاعدة البيانات والتكوين.",
     "header": {
-      "subtitle": "دليل تثبيت مفصل خطوة بخطوة لإعداد خادم SysManage على بنيتك التحتية.",
-      "title": "دليل تثبيت الخادم"
-    },
-    "installation_steps": {
-      "step1": {
-        "title": "الخطوة 1: الاستنساخ والإعداد"
-      },
-      "step2": {
-        "description": "إنشاء قاعدة بيانات PostgreSQL ومستخدم:",
-        "linux_macos_freebsd": "لينكس/macOS/FreeBSD",
-        "netbsd": "NetBSD",
-        "openbsd": "OpenBSD",
-        "security_notes": {
-          "change_password": "غيّر كلمة المرور في PostgreSQL وفي ملف التكوين الخاص بك",
-          "dev_password": "كلمة مرور التطوير <code>abc123</code> تطابق <code>sysmanage-dev.yaml</code>",
-          "never_production": "لا تستخدم هذه كلمة المرور في الإنتاج أبداً",
-          "title": "ملاحظات الأمان"
-        },
-        "title": "الخطوة 2: إعداد قاعدة البيانات",
-        "windows": "Windows"
-      },
-      "step3": {
-        "title": "الخطوة 3: تثبيت تبعيات الخلفية"
-      },
-      "step4": {
-        "title": "الخطوة 4: اختبار اتصال قاعدة البيانات"
-      },
-      "step5": {
-        "title": "الخطوة 5: تثبيت تبعيات الواجهة الأمامية"
-      },
-      "step6": {
-        "config_generator": {
-          "description": "استخدم التفاعلية",
-          "link": "أداة بناء التكوين",
-          "title": "مولد التكوين متاح"
-        },
-        "description": "إنشاء ملف التكوين في:",
-        "linux_macos_bsd": "لينكس/macOS/BSD:",
-        "security_steps": {
-          "file_permissions": "تعيين صلاحيات الملف المناسبة: <code>chmod 600 /etc/sysmanage.yaml</code>",
-          "generate_secrets": "توليد أسرار جديدة: <code>openssl rand -base64 32</code>",
-          "never_commit": "لا تُرسل ملفات التكوين إلى نظام التحكم في الإصدار أبداً",
-          "strong_passwords": "استخدام كلمات مرور قوية (12+ أحرف)",
-          "title": "خطوات الأمان المطلوبة",
-          "installer_generated": "تُنشئ الحزم (deb وrpm وFreeBSD وNetBSD وmacOS وWindows وsnap) القيم <code>jwt_secret</code> و<code>password_salt</code> وكلمة مرور الاسترداد <code>admin_password</code> عند إنشاء ملف الإعدادات، وتوجد كلمة مرور الاسترداد في ذلك الملف. لا تُقبل عند تسجيل الدخول أبدًا أي قيمة مؤقتة أو كلمة مرور معروفة مثل <code>admin</code>. في التثبيت اليدوي، شغّل <code>python -m backend.config.install_secrets --apply /etc/sysmanage.yaml</code>."
-        },
-        "title": "الخطوة 6: التكوين",
-        "windows_path": "Windows:"
-      },
-      "step7": {
-        "features": {
-          "admin_user": "إنشاء حساب المستخدم الإداري الأولي",
-          "config_hardening": "يطبق تشديد الأمان على ملفات التكوين",
-          "jwt_secret": "ينشئ سر JWT فريدًا للمصادقة",
-          "password_salt": "يُنشئ ملحًا فريدًا لكلمة المرور لتجزئة كلمة المرور بشكل آمن",
-          "prevents_defaults": "يمنع استخدام رموز الأمان الافتراضية/المثالية",
-          "title": "ماذا يفعل هذا البرنامج النصي:"
-        },
-        "security_note": {
-          "description": "يجب تشغيل البرنامج النصي للتثبيت الآمن لإنشاء مستخدم المسؤول الأولي وتكوين رموز الأمان الفريدة للتثبيت الخاص بك.",
-          "title": "مطلوب للمنشآت الجديدة"
-        },
-        "title": "الخطوة 7: تشغيل نص التثبيت الآمن",
-        "warning": {
-          "backup_config": "قم بعمل نسخة احتياطية من ملف التكوين الخاص بك بعد تشغيل هذا البرنامج النصي",
-          "required": "هذه الخطوة مطلوبة",
-          "required_desc": "لن يعمل التطبيق بشكل آمن بدونه",
-          "run_once": "قم بتشغيل هذا البرنامج النصي مرة واحدة فقط لكل عملية تثبيت",
-          "title": "ملاحظات أمنية مهمة",
-          "unique_tokens": "يحصل كل تثبيت على رموز أمان فريدة لمنع إعادة استخدام بيانات الاعتماد"
-        }
-      },
-      "step8": {
-        "access_description": "الوصول إلى التطبيق على:",
-        "http": "HTTP",
-        "http_url": "http://localhost:3000 (احتياطي)",
-        "https": "HTTPS",
-        "https_url": "https://sysmanage.org:7443 (في حالة وجود شهادات SSL)",
-        "title": "الخطوة 8: تنفيذ نص التثبيت الآمن"
-      },
-      "title": "خطوات التثبيت"
+      "title": "دليل تثبيت الخادم",
+      "subtitle_packages": "ثبّت خادم SysManage من الحزمة الخاصة بمنصتك، ثم أكمل الإعداد في بضع خطوات قصيرة. لا يلزم البناء من المصدر إلا للتطوير."
     },
     "navigation": {
       "config_guide": "دليل التكوين →",
       "server_docs": "← توثيق الخادم"
     },
-    "note": "ملاحظة:",
     "prerequisites": {
       "alpine": {
-        "note_edge": "مستودع الحافة:",
-        "note_memory": "ذاكرة:",
-        "note_musl": "musl libc: يستخدم Alpine musl بدلاً من glibc - قد تحتاج بعض الحزم إلى تجميع",
-        "note_openrc": "OpenRC: يستخدم Alpine OpenRC بدلاً من systemd لإدارة الخدمة",
-        "note_title": "ملاحظات جبال الألب لينكس",
-        "tab_title": "جبال الألب لينكس",
-        "title": "Alpine Linux 3.20, 3.21, 3.22"
-      },
-      "centos": {
-        "tab_title": "CentOS/ RHEL",
-        "title": "CentOS /RHEL/Fedora"
+        "tab_title": "جبال الألب لينكس"
       },
       "centos_rhel": " CentOS/RHEL",
       "freebsd": {
-        "tab_title": "FreeBSD",
-        "title": "FreeBSD"
+        "tab_title": "FreeBSD"
       },
       "macos": {
-        "tab_title": "macOS",
-        "title": "macOS"
+        "tab_title": "macOS"
       },
       "netbsd": {
         "tab_title": "NetBSD",
         "title": "دليل إعداد NetBSD الكامل"
       },
       "openbsd": {
-        "pkg_intro": "يتم نشر حزمة مسبقة البناء لكل إصدار مدعوم من OpenBSD. وهي تربط الخلفية، واجهة الويب المبنية، وجميع الاعتماديات بايثون، لذلك يتم تثبيتها بسرعة ولا تحتاج إلى مترجمات.",
-        "pkg_title": "الموصى به: حزمة مبنية مسبقاً (OpenBSD 7.8, 7.9)",
-        "src_intro": "لتطوير أو لبناء الحزمة بنفسك، قم بتثبيت سلسلة الأدوات أدناه واتبع الخطوات العامة للتركيب.",
-        "src_title": "بدون: بناء من المصدر",
-        "tab_title": "OpenBSD",
-        "title": "OpenBSD"
+        "tab_title": "OpenBSD"
       },
       "opensuse": {
-        "note_leap": "openSUSE Leap:",
-        "note_nodejs": "إصدارات Node.js:",
-        "note_postgresql": "PostgreSQL:",
-        "note_title": "ملاحظات مدير الحزم",
-        "note_tumbleweed": "openSUSE Tumbleweed: إصدار متجدد مع أحدث الحزم",
-        "tab_title": "openSUSE",
-        "title": "openSUSE قفزة/Tumbleweed"
+        "tab_title": "openSUSE"
       },
-      "sles": {
-        "note_firewall": "جدار الحماية:",
-        "note_modules": "الوحدات:",
-        "note_selinux": "SELinux: قد يتطلب تعديلات السياسة إذا كان مُفعّلاً",
-        "note_sles12": "SLES 12: قد يتطلب الأمر مجموعات برامج (SCL) لـ Python الأحدث",
-        "note_sles15": "SLES 15:",
-        "note_subscription": "الاشتراك:",
-        "note_title": "اعتبارات المؤسسة",
-        "tab_title": "SLES",
-        "title": "SUSE Linux Enterprise Server ( SLES )"
-      },
-      "title": "المتطلبات الخاصة بالمنصة",
-      "ubuntu": {
-        "title": "Ubuntu 22.04 - 26.04 (مُوصى به)"
-      },
-      "ubuntu25": {
-        "note": "Ubuntu 25.04 يأتي مع Python 3.13، Ubuntu 25.10 يأتي مع Python 3.13، و Ubuntu 26.04 يأتي مع Python 3.14. جميعها مدعومة بالكامل. استخدم تعليمات تثبيت Ubuntu القياسية.",
-        "tab_title": "Ubuntu 25.04 +",
-        "title": "ملاحظات Ubuntu 25.04+"
-      },
-      "ubuntu_debian": "Ubuntu / Debian",
       "windows": {
-        "nginx": "<strong>nginx:</strong> يتم تثبيته تلقائيًا بواسطة MSI -- لا خطوة يدوية مطلوبة. يقوم المثبت بتنزيل نسخة مثبتة، والتحقق من SHA-256 الخاص بها قبل استخراجها، وتسجيلها كخدمة <code>SysManageNginx</code>. على مضيف معزول عن الشبكة، استخدم حزمة معزولة عن الشبكة: فهي تشحن nginx لذا لا يتطلب التثبيت أي اتصال بالشبكة.",
-        "nginx_note": "<strong>nginx مطلوب، وليس اختياريًا.</strong> لا تقدم الواجهة الخلفية لـ SysManage إلا واجهة REST API واتصال WebSocket الخاص بالوكيل -- وليس لديها معالج للملفات الثابتة. يقدم nginx وحدة تحكم الويب، وينهي TLS على المنفذ 443، ويمرر <code>/api/</code> و<code>/ws</code> إلى الواجهة الخلفية على loopback 8080. بدونه لا توجد وحدة تحكم يمكن الوصول إليها.",
-        "tab_title": "Windows",
-        "title": "Windows"
+        "tab_title": "Windows"
       }
-    },
-    "requirements": {
-      "nodejs": {
-        "description": "لبناء الواجهة الأمامية React",
-        "title": "Node.js",
-        "version": "20.x أو أحدث"
-      },
-      "os": {
-        "description": "نشر متعدد المنصات",
-        "platforms": "لينكس، macOS، ويندوز، FreeBSD، OpenBSD، NetBSD",
-        "title": "نظام التشغيل"
-      },
-      "postgresql": {
-        "description": "قاعدة البيانات الأساسية لجميع بيانات التطبيق",
-        "title": "PostgreSQL",
-        "version": "14 أو أحدث"
-      },
-      "python": {
-        "note": "ملاحظة: Python 3.10 مدعوم لتوافق Ubuntu 22.04 LTS",
-        "title": "Python",
-        "version": "3.11 حتى 3.14"
-      },
-      "required": "مطلوب:",
-      "supported": "توزيعات LXD المدعومة",
-      "title": "متطلبات النظام"
-    },
-    "ssl": {
-      "config_path": "قم بتوجيه خادم Nginx إلى شهادتك ومفتاحك. يعيش ملف التكوين في مكان مختلف على كل نظام أساسي، لذلك يعرض رسالة ما بعد التثبيت المسار الدقيق لنظامك بالإضافة إلى السطرين اللازمين للتغيير:",
-      "description": "يقدم SysManage واجهة الويب والـ API من مصدر واحد عبر HTTPS على المنفذ 443. ينهي nginx TLS ويقوم بالتعويض إلى الخلفي على loopback، ولذلك تحتاج الوكالات إلى خروج 443 لهذا النظام فقط. يجب أن تكون شهادة موجودة قبل أن يقدم الخادم حركة مرور إنتاجية.",
-      "dev_mode": "لتطوير محلي يمكنك القفز تماماً عن الشهادات بالسماح بـ <code>dev_mode: true</code> في <code>/etc/sysmanage.yaml</code>. الخادم ثم يخدم API على 8080 والواجهة عبر HTTP العادي، وينضم إلى كل مدخل بحيث يمكن للوكيل الآخر على LAN الخاص بك الوصول إليه بدون تكوين إضافي. لا تفعّل وضع التطوير أبداً على المضيف الإنتاج.",
-      "title": "شهادات TLS (المطلوبة للإنتاج)"
     },
     "title": "دليل تثبيت الخادم - SysManage",
     "troubleshooting": {
       "db_issues": {
         "check_credentials": "التحقق من مطابقة بيانات الاعتماد لملف التكوين",
-        "test_connection": "اختبار الاتصال بأمر psql المعروض أعلاه",
         "title": "مشاكل اتصال قاعدة البيانات",
         "verify_postgresql": "تحقق من تشغيل PostgreSQL: <code>sudo systemctl status postgresql</code>"
       },
@@ -23752,28 +23564,16 @@
         "httptools_errors": "أخطاء بناء httptools:",
         "install_libpq": "ثبّت <code>libpq-dev</code> (Ubuntu) أو <code>postgresql-devel</code> (RHEL)",
         "install_libuv": "ثبّت <code>libuv1-dev</code> (Ubuntu) أو <code>libuv-devel</code> (RHEL)",
-        "missing_libpq": "libpq-fe.h مفقود:",
-        "python313_issues": "مشاكل إصدار Python:",
-        "title": "أخطاء بناء الحزم",
-        "use_older_python": "تأكد من استخدام Python 3.10 أو أحدث"
-      },
-      "permission_issues": {
-        "check_venv": "فحص تفعيل البيئة الافتراضية",
-        "ensure_ownership": "ضمان الملكية المناسبة للمجلدات",
-        "set_config_permissions": "تعيين صلاحيات ملف التكوين: <code>chmod 600 /etc/sysmanage.yaml</code>",
-        "title": "مشاكل الصلاحيات"
+        "missing_libpq": "libpq-fe.h مفقود:"
       },
       "port_conflicts": {
         "check_services": "تحقق من المستمع الحالي: <code>ss -tlnp | grep -E ':(80|443|8080)'</code>",
         "ensure_ports": "في الإنتاج، تأكد من أن 443 مفتوح (و80، الذي يعيد التوجيه فقط إليه). الخلفي يستمع على 127.0.0.1:8080 خلف nginx ولا يتم عرضه.",
-        "modify_ports": "في وضع التطوير، يكون API على 8080 والواجهة عبر 3000؛ قم بتغييرهما تحت <code>api</code> و <code>webui</code> في <code>/etc/sysmanage.yaml</code> إذا تعارض.",
         "title": "تعارضات المنافذ"
       },
       "title": "استكشاف الأخطاء"
     },
     "dev": {
-      "title": "تشغيل خادم تطوير",
-      "intro": "يعمل خادم التطوير من نسخة الشيفرة المصدرية، مع تقديم واجهة الويب بواسطة Vite بدلًا من nginx. تساعدك هذه النصائح على إعداد خادم تطوير وإبقائه منفصلًا عن أي شيء تشغّله في بيئة الإنتاج.",
       "tools": "ثبّت أدوات التطوير مرة واحدة (مشغّلات الاختبارات، وأدوات الفحص، وPlaywright، وحزمة القياس عن بُعد):",
       "config": "أنشئ <code>sysmanage-dev.yaml</code> في جذر المشروع انطلاقًا من <code>sysmanage-dev.yaml.example</code>؛ يقرأه الخادم عندما لا يكون <code>/etc/sysmanage.yaml</code> موجودًا. اجعل <code>SYSMANAGE_CONFIG_PATH</code> يشير إلى ملف لاستخدام أي ملف آخر. أهم الإعدادات للتطوير:",
       "dev_mode": "يُعلم <code>dev_mode: true</code> الخادم بعدم وجود وكيل TLS أمامه: تستخدم الروابط في رسائل البريد الإلكتروني <code>http://host:3000</code>، ولا يُصدر تحذير بشأن الربط بجميع الواجهات. احذفه في عمليات النشر الفعلية؛ فغياب هذه العلامة يعني بيئة الإنتاج.",
@@ -23783,18 +23583,183 @@
       "run": "شغّل الترحيلات، ثم ابدأ كل شيء وأوقفه باستخدام:",
       "ports": "تستمع واجهة API على المنفذ 8080 وواجهة الويب الخاصة بـ Vite على المنفذ 3000. تستخدم ترحيلات قاعدة البيانات الأداة نفسها التي يشغّلها المشغلون في بيئة الإنتاج.",
       "second": "هل تحتاج إلى خادم ثانٍ مؤقت (مثلًا لاختبار شيء دون المساس ببياناتك)؟ تبدأ أداة اختبار التوسع خادمًا بحاوية PostgreSQL وإعدادات ومنفذ خاصة به، ثم تحذفه بعد ذلك:"
+    },
+    "meta_description": "ثبّت خادم SysManage من الحزمة الخاصة بمنصتك، ثم أعدّ قاعدة البيانات وشهادة TLS وجدار الحماية وتسجيل الدخول الأول.",
+    "before": {
+      "title": "قبل أن تبدأ",
+      "host": "<strong>مضيف له اسم DNS.</strong> يتصل الوكلاء بهذا الاسم، ويجب أن تطابقه شهادة TLS.",
+      "postgres": "<strong>PostgreSQL 12 أو أحدث</strong>، على المضيف نفسه أو على مضيف بعيد. لا تنشئ الحزم قاعدة البيانات نيابةً عنك.",
+      "ports": "<strong>المنفذ الوارد 443</strong>، إضافةً إلى المنفذ 80 لإعادة التوجيه إلى HTTPS ولـ Let's Encrypt. لا يلزم أن يكون أي شيء آخر قابلًا للوصول من الشبكة.",
+      "root": "<strong>صلاحيات الجذر أو sudo</strong> على المضيف.",
+      "no_toolchain": "لا تحتاج إلى تثبيت Python أو Node.js أو أي أدوات بناء بنفسك. توفّر الحزمة كل ما يحتاجه الخادم، بما في ذلك nginx وOpenBAO."
+    },
+    "packages": {
+      "title": "التثبيت من الحزم (موصى به)",
+      "ubuntu": {
+        "title": "Ubuntu (عبر Launchpad PPA)",
+        "intro": "يُنشر خادم SysManage في Launchpad PPA <code>ppa:bceverly/sysmanage</code> لـ Ubuntu 22.04 LTS و24.04 LTS و26.04 LTS. وهذه هي الطريقة الموصى بها لتشغيل الخادم.",
+        "what": "تثبّت الحزمة الخادم في <code>/opt/sysmanage</code> وتنزّل اعتماديات Python الخاصة به إلى بيئة خاصة هناك، لذا يحتاج المضيف إلى الوصول إلى الإنترنت أثناء التثبيت. كما تنشئ <code>/etc/sysmanage.yaml</code> مع أسرار مولّدة لهذا التثبيت، وتثبّت OpenBAO وتفك ختمه، وتكوّن nginx. تُفعَّل خدمة SysManage لكنها تبقى متوقفة حتى تُكمل الخطوات الواردة في <a href=\"#after-installing\">بعد التثبيت</a>.",
+        "upgrade": "تصل الإصدارات اللاحقة عبر <code>sudo apt upgrade</code>. تحافظ الترقية على التكوين وقاعدة البيانات، وتطبع الأمرين اللذين يجب تشغيلهما بعدها: ترحيلات قاعدة البيانات وإعادة تشغيل الخدمة."
+      },
+      "other": {
+        "title": "منصات أخرى",
+        "intro": "تُنشر حزم المنصات الأخرى في <a href=\"https://github.com/bceverly/sysmanage/releases\">صفحة الإصدارات على GitHub</a> وفي المستودعات أدناه. استبدل <code>X.Y.Z</code> بالإصدار الذي تثبّته. تطبع كل حزمة تعليمات ما بعد التثبيت الخاصة بها، مع مسارات تلك المنصة معبأة مسبقًا."
+      },
+      "debian": {
+        "tab": "Debian",
+        "intro": "يُثبَّت Debian 12 والإصدارات الأحدث من مستودع APT الخاص بـ SysManage. يمكن لـ Ubuntu استخدامه أيضًا، لكن الـ PPA أعلاه هو المصدر الموصى به على Ubuntu."
+      },
+      "rhel": {
+        "tab": "RHEL",
+        "intro": "تُثبَّت RHEL وRocky Linux وAlmaLinux وOracle Linux وCentOS Stream 8 و9 و10 (x86_64 وaarch64) من مشروع Fedora Copr <code>bceverly/sysmanage</code>. لا يُبنى الخادم لـ Fedora نفسه حاليًا؛ استخدم <a href=\"#from-source\">البناء من المصدر</a> هناك."
+      },
+      "arch": {
+        "tab": "Arch Linux",
+        "intro": "يثبّت Arch Linux الحزمة <code>sysmanage</code> من AUR، باستخدام أي أداة مساعدة لـ AUR:"
+      },
+      "snap": {
+        "tab": "Snap",
+        "intro": "يُنشر الخادم في Snap Store على القناة المستقرة، مع حصر صارم (strict confinement):"
+      },
+      "opensuse": {
+        "intro": "يُثبَّت openSUSE Leap 15.6 وTumbleweed من مشروع openSUSE Build Service <code>home:bryaneverly</code>."
+      },
+      "alpine": {
+        "intro": "حزم Alpine Linux 3.20 و3.21 و3.22 هي تنزيلات مباشرة من صفحة الإصدارات. اختر الملف المناسب لإصدار Alpine لديك (<code>alpine320</code> أو <code>alpine321</code> أو <code>alpine322</code>) وتحقق من <code>.sha256</code> الخاص به قبل التثبيت."
+      },
+      "macos": {
+        "intro": "نزّل <code>sysmanage-X.Y.Z-macos.pkg</code> من صفحة الإصدارات وثبّته. يستخدم المثبّت Homebrew لإضافة nginx إذا لم يكن موجودًا.",
+        "start": "بعد الخطوات الواردة في <a href=\"#after-installing\">بعد التثبيت</a>، شغّل الخادم باستخدام <code>sudo launchctl load /Library/LaunchDaemons/com.sysmanage.server.plist</code>."
+      },
+      "windows": {
+        "intro": "نزّل <code>sysmanage-X.Y.Z-windows-x64.msi</code> (أو <code>sysmanage-X.Y.Z-windows-arm64.msi</code> على ARM) من صفحة الإصدارات وشغّله بصفة المسؤول. يثبّت الخادم في <code>C:\\Program Files\\SysManage Server</code> ويسجّل الخدمات <code>SysManageServer</code> و<code>SysManageNginx</code> و<code>SysManageOpenBAO</code>. يُنزَّل nginx أثناء التثبيت ويُتحقق من SHA-256 الخاص به قبل الاستخدام.",
+        "start": "يبقى الخادم متوقفًا. بعد الخطوات الواردة في <a href=\"#after-installing\">بعد التثبيت</a>، شغّله من PowerShell بصلاحيات المسؤول باستخدام <code>Set-Service SysManageServer -StartupType Automatic</code> و<code>Start-Service SysManageServer</code> و<code>Restart-Service SysManageNginx</code>."
+      },
+      "freebsd": {
+        "intro": "نزّل <code>sysmanage-X.Y.Z.pkg</code> من صفحة الإصدارات وثبّته:",
+        "start": "شغّل الخدمات باستخدام <code>sysrc sysmanage_enable=YES</code> و<code>sysrc nginx_enable=YES</code> و<code>service sysmanage start</code> و<code>service nginx start</code>."
+      },
+      "openbsd": {
+        "intro": "تُنشر حزمة مبنية مسبقًا لـ OpenBSD 7.8 و7.9. وهي تضم الواجهة الخلفية وواجهة الويب واعتماديات Python، لذا لا تحتاج إلى مترجم برمجي. استخدم <code>openbsd78</code> أو <code>openbsd79</code> بما يطابق إصدارك.",
+        "start": "شغّل الخدمات باستخدام <code>doas rcctl enable openbao sysmanage</code> و<code>doas rcctl start openbao sysmanage</code>."
+      },
+      "netbsd": {
+        "intro": "نزّل <code>sysmanage-X.Y.Z-netbsd.tgz</code> وملف <code>.sha256</code> الخاص به من صفحة الإصدارات، وتحقق منه، ثم ثبّته بصفة الجذر:"
+      },
+      "airgap": "<strong>لا يوجد وصول إلى الإنترنت على الخادم؟</strong> استخدم <a href=\"/air-gapped/\">التثبيت المعزول عن الشبكة</a>، الذي يحمل كل حزمة واعتمادية في حزمة مجمّعة واحدة."
+    },
+    "after": {
+      "title": "بعد التثبيت",
+      "intro": "هذه الخطوات مكتوبة لـ Ubuntu وDebian. وهي نفسها على كل منصة؛ لا تختلف إلا المسارات وأوامر الخدمة، ويسرد الجدول في نهاية هذا القسم المسارات لكل منصة.",
+      "db": {
+        "title": "الخطوة 1: إنشاء قاعدة البيانات",
+        "body": "لاستخدام خادم PostgreSQL محلي، ثبّته وأنشئ المستخدم <code>sysmanage</code> وقاعدة البيانات. اختر كلمة مرور قوية؛ ستضعها في ملف التكوين في الخطوة التالية.",
+        "remote": "يعمل خادم PostgreSQL بعيد بالكفاءة نفسها. أنشئ المستخدم وقاعدة البيانات نفسيهما هناك واستخدم اسم مضيفه في التكوين."
+      },
+      "config": {
+        "title": "الخطوة 2: تحرير التكوين",
+        "body": "أنشأت الحزمة <code>/etc/sysmanage.yaml</code> وولّدت بالفعل <code>jwt_secret</code> و<code>password_salt</code> و<code>admin_password</code> للاسترداد الخاصة بهذا التثبيت. اضبط كلمة مرور قاعدة البيانات، واضبط <code>admin_userid</code> على عنوان بريدك الإلكتروني:",
+        "builder": "اترك <code>api: host</code> مضبوطًا على <code>localhost</code>: لا يُوصل إلى الخادم إلا عبر nginx. يمكن لـ <a href=\"/config-builder.html\">منشئ التكوين</a> توليد ملف كامل إذا أردت ضبط خيارات أكثر، ويصف <a href=\"configuration.html\">دليل التكوين</a> كل إعداد."
+      },
+      "migrate": {
+        "title": "الخطوة 3: تشغيل ترحيلات قاعدة البيانات",
+        "body": "تنشئ الترحيلات مخطط قاعدة البيانات. يعرض <code>--status</code> ما هو معلّق؛ ويطبّقه الأمر الثاني. شغّل الأمرين نفسيهما بعد كل ترقية."
+      },
+      "tls": {
+        "title": "الخطوة 4: تثبيت شهادة TLS",
+        "body": "يقدّم SysManage واجهة الويب وواجهة API واتصالات الوكلاء على المنفذ 443، ويرفض nginx البدء حتى تكون الشهادة في مكانها. وهذا مقصود: يجب ألا تعمل وحدة تحكم الإدارة أبدًا بنص غير مشفّر، والوكلاء يتحققون من الشهادة افتراضيًا. افتراضيًا يقرأ nginx:",
+        "edit": "لاستخدام شهادة مخزّنة في مكان آخر، غيّر هذين السطرين في <code>/etc/nginx/sites-available/sysmanage-nginx.conf</code>:",
+        "le_http_title": "Let's Encrypt مع certbot (تحدي HTTP)",
+        "le_http_body": "إذا كان المنفذ 80 على هذا المضيف قابلًا للوصول من الإنترنت، فيمكن لـ certbot الرد على التحدي بنفسه. يشغل nginx المنفذ 80 بمجرد تشغيله، لذا توقفه الخطافات أثناء كل تجديد ثم تشغّله مرة أخرى بعده. يحفظ certbot الخطافات ويجدد تلقائيًا.",
+        "le_dns_title": "Let's Encrypt مع تحدي DNS (DigitalOcean DNS)",
+        "le_dns_body": "إذا كان DNS لنطاقك مستضافًا لدى DigitalOcean، فيمكن لـ certbot إثبات الملكية عبر DNS بدلًا من ذلك. لا يلزم أن يكون المنفذ 80 قابلًا للوصول، ويستمر nginx في العمل أثناء التجديدات. أنشئ رمز API في DigitalOcean بصلاحية كتابة على DNS وخزّنه في ملف لا يقرؤه إلا الجذر:",
+        "le_point": "بأيّ من الطريقتين، وجّه سطري nginx إلى الملفات التي كتبها certbot، ثم تحقق من التكوين:"
+      },
+      "start": {
+        "title": "الخطوة 5: تشغيل الخدمات",
+        "logs": "يكتب الخادم سجلاته في <code>/var/log/sysmanage/</code>. إذا توقف مباشرة بعد بدء تشغيله، فتحقق من إعدادات قاعدة البيانات في <code>/etc/sysmanage.yaml</code> وتأكد من تشغيل الترحيلات."
+      },
+      "firewall": {
+        "title": "الخطوة 6: فتح جدار الحماية",
+        "body": "nginx هو الخدمة الوحيدة التي تستمع على الشبكة. افتح المنفذين 443 و80 ولا شيء غيرهما: تبقى واجهة SysManage API على منفذ loopback رقم 8080 وOpenBAO على منفذ loopback رقم 8200، ولا ينبغي كشف PostgreSQL أيضًا."
+      },
+      "login": {
+        "title": "الخطوة 7: تسجيل الدخول",
+        "body": "افتح <code>https://sysmanage.example.com/</code> وسجّل الدخول باسم <code>admin_userid</code> الذي ضبطته، مع كلمة مرور الاسترداد المولّدة. يمكنك قراءتها باستخدام:",
+        "next": "لا يوجد حساب الاسترداد هذا إلا في ملف التكوين، وتحذّرك وحدة التحكم ما دام موجودًا هناك. كوّن البريد الإلكتروني، وأنشئ مستخدمًا مسؤولًا خاصًا بك، ثم احذف <code>admin_userid</code> و<code>admin_password</code> من الملف وأعد تشغيل الخادم."
+      },
+      "openbao": {
+        "title": "الخطوة 8: النسخ الاحتياطي لمواد فك ختم OpenBAO",
+        "body": "تثبّت الحزمة OpenBAO، وسيط الأسرار، على منفذ loopback رقم 8200. عند التثبيت الأول تهيّئه وتفك ختمه، وتفك ختمه مجددًا عند كل إقلاع، وتكتب الرمز الذي يستخدمه SysManage في <code>/etc/sysmanage/openbao-token</code>. مفتاح فك الختم ورمز الجذر موجودان في <code>/var/lib/openbao/init.json</code>.",
+        "backup": "<strong>انسخ <code>/var/lib/openbao/init.json</code> إلى مكان تخزين آمن خارج هذا الجهاز.</strong> بدونه، لا يمكن استرداد الأسرار المخزّنة في OpenBAO إذا أُعيد بناء المضيف.",
+        "enable": "لجعل SysManage يحفظ أسراره في OpenBAO، اضبط <code>vault: enabled: true</code> في <code>/etc/sysmanage.yaml</code>. يتطلب تعدد المستأجرين ذلك. تحقق من حالته باستخدام <code>systemctl status openbao sysmanage-openbao-init</code>."
+      },
+      "agents": {
+        "title": "الخطوة 9: توصيل الوكلاء",
+        "body": "يحتاج الوكلاء إلى المنفذ الصادر 443 نحو الخادم ولا شيء غيره. وجّه كل وكيل إلى اسم المضيف نفسه الذي صدرت له الشهادة، وأبقِ التحقق من الشهادة مفعّلًا:",
+        "link": "راجع <a href=\"../agent/installation.html\">تثبيت الوكيل</a> للاطلاع على حزم الوكيل."
+      },
+      "paths": {
+        "title": "المسارات على كل منصة",
+        "platform": "المنصة",
+        "config": "ملف التكوين",
+        "nginx": "تكوين nginx",
+        "tls": "الشهادة والمفتاح"
+      }
+    },
+    "optional": {
+      "title": "ميزات اختيارية",
+      "telemetry": {
+        "title": "القياس عن بُعد",
+        "body": "يكون OpenTelemetry معطلًا افتراضيًا. لإرسال التتبعات والمقاييس إلى المجمّع الخاص بك، اضبط <code>telemetry: enabled: true</code> و<code>telemetry: otlp_endpoint</code> في <code>/etc/sysmanage.yaml</code>، أو متغيرات البيئة <code>OTEL_ENABLED=true</code> و<code>OTEL_EXPORTER_OTLP_ENDPOINT</code>. أثناء تفعيل القياس عن بُعد، تُقدَّم مقاييس Prometheus على <code>127.0.0.1:9090</code>، على loopback فقط."
+      },
+      "mt": {
+        "title": "تعدد المستأجرين",
+        "body": "يعمل الخادم كمستأجر واحد ما لم تفعّل تعدد المستأجرين باستخدام <code>multitenancy: enabled: true</code>، متبوعًا بترحيلات قاعدة البيانات. ويحتاج إلى OpenBAO وقاعدة بيانات منفصلة لكل مستأجر؛ راجع <a href=\"../deployment/multi-tenancy.html\">نشر تعدد المستأجرين</a>."
+      }
+    },
+    "trouble": {
+      "install": {
+        "title": "بعد التثبيت من حزمة",
+        "nginx": "<strong>لا يبدأ nginx:</strong> السبب في الغالب شهادة مفقودة أو غير قابلة للقراءة. يذكر <code>sudo nginx -t</code> اسم الملف الذي تعذّرت قراءته.",
+        "service": "<strong>تبدأ الخدمة ثم تخرج:</strong> تحقق من إعدادات قاعدة البيانات في ملف التكوين وتأكد من تشغيل الترحيلات.",
+        "login": "<strong>يُرفض تسجيل الدخول:</strong> يجب أن يكون <code>admin_userid</code> عنوان بريد إلكتروني كاملًا، لا مجرد اسم.",
+        "openbao": "<strong>OpenBAO مختوم أو لا يعمل:</strong> شغّل <code>sudo systemctl restart openbao sysmanage-openbao-init</code> واقرأ <code>systemctl status sysmanage-openbao-init</code>."
+      }
+    },
+    "source": {
+      "title": "البناء من المصدر (للتطوير)",
+      "intro": "ابنِ من المصدر للعمل على SysManage نفسه، أو على منصة لا توجد لها حزمة. يعمل خادم التطوير من نسخة المصدر، مع تقديم واجهة الويب عبر Vite بدلًا من nginx. لا تستخدمه في بيئة الإنتاج.",
+      "prereq": {
+        "title": "المتطلبات الأساسية",
+        "list": "Python من 3.10 حتى 3.14 مع ملفات الترويسة الخاصة بالتطوير، وNode.js 20 أو أحدث، وPostgreSQL 12 أو أحدث، ومترجم C، وحزم التطوير الخاصة بـ libffi وOpenSSL وlibpq.",
+        "bsd": "على FreeBSD وOpenBSD وNetBSD، استخدم <code>gmake</code> بدلًا من <code>make</code>. على NetBSD، اضبط <code>CFLAGS=\"-I/usr/pkg/include\"</code> و<code>LDFLAGS=\"-L/usr/pkg/lib -Wl,-R/usr/pkg/lib\"</code> قبل التثبيت، حتى تجد حزم Python ذات امتدادات C مكتباتها.",
+        "ubuntu": "على Ubuntu:"
+      },
+      "setup": {
+        "title": "نسخ المستودع وإعداده",
+        "db": "أنشئ قاعدة بيانات ومستخدمًا للتطوير، بالطريقة نفسها الواردة في <a href=\"#after-installing\">الخطوة 1</a> أعلاه."
+      },
+      "run": {
+        "title": "تشغيل الخادم",
+        "secure": "لإنشاء مستخدم مسؤول وتهيئة OpenBAO في نسخة مصدر، شغّل <code>scripts/sysmanage_secure_installation</code>؛ راجع <a href=\"secure-installation.html\">التثبيت الآمن</a>. فهو يعيد بناء قاعدة البيانات، لذا لا تشغّله أبدًا على خادم يحتوي على بيانات تريد الاحتفاظ بها، ولا على تثبيت من حزمة أبدًا."
+      },
+      "trouble": {
+        "title": "مشكلات البناء",
+        "netbsd_tmp": "<strong>NetBSD، \"No space left on device\" أثناء pip install:</strong> <code>/tmp</code> هو tmpfs بحجم 1 GB افتراضيًا. كبّره باستخدام <code>mount -t tmpfs -o -s=4g tmpfs /tmp</code>، أو اضبط <code>TMPDIR</code> على دليل على القرص."
+      }
     }
   },
   "server_quickstart": {
     "before": {
-      "body": "يقوم هذا الدليل بتثبيت الخادم من الحزمة المبنية لنظامك. للحصول على مصفوفة المنصات الكاملة، والتعليمات لإنشاء المصدر، ومتطلبات التوزيع لكل منها، راجع دليل <a href=\"/docs/server/installation.html\">تثبيت الخادم</a>.",
       "cert": "<strong>شهادة TLS ومفتاح خاص</strong> لاسم مضيف الخادم. يرفض nginx البدء بدونهما -- وذلك عن قصد، لأن وحدة تحكم الإدارة يجب ألا تعمل بنص واضح لمجرد أن الشهادة كانت مفقودة.",
       "ports": "<strong>443 الداخل</strong> (مع 80 إذا كنت تريد إعادة التوجيه). لا شيء آخر يحتاج إلى فتح: الوكلاء يصلون إلى الخادم عبر الخارج 443 والخلفي يبقى على loopback خلف nginx.",
       "postgres": "<strong>PostgreSQL 12 أو أحدث</strong>، على هذا المضيف أو واحد بعيد. لن يبدأ SysManage بدونه.",
       "root": "<strong>الجذر أو sudo</strong> على المضيف المستهدف.",
       "tip": "الحزمة تطبع كل خطوة أدناه كرسالة بعد التركيب، مع المسارات معبأة بالفعل لنظامك. إذا فقدتها، فهي موجودة في سجل مدير الحزم.",
       "tip_label": "نصيحة:",
-      "title": "قبل أن تبدأ"
+      "title": "قبل أن تبدأ",
+      "body_pkg": "يثبّت هذا الدليل الخادم من الحزمة المبنية لمنصتك. للاطلاع على الحزمة على كل منصة، وعلى البناء من المصدر، راجع دليل <a href=\"/docs/server/installation.html\">تثبيت الخادم</a>."
     },
     "intro": "تثبيت خادم SysManage من حزمة محلية، أشر إلى PostgreSQL، أعط nginx شهادة، وافتح لوحة التحكم. حوالي خمسة عشر دقيقة على مضيف جديد.",
     "next": {
@@ -23806,12 +23771,12 @@
       "title": "خطوات التالية"
     },
     "step1": {
-      "body": "قم بتنزيل الحزمة لمنصةك من <a href=\"https://github.com/bceverly/sysmanage/releases\">صفحة الإصدارات</a> وثبّتها. استبدل <code>X.Y.Z</code> بالإصدار الذي تقوم بتثبيته.",
-      "debian": "Debian / Ubuntu",
       "other": "منصات أخرى",
-      "other_body": "تتوفر حزم openSUSE، Alpine، FreeBSD، OpenBSD، NetBSD، macOS و Windows على نفس صفحة الإصدارات. الخطوات التي تلي هي متطابقة على كل منصة؛ فقط الأمر الخاص بتثبيت الحزمة وموقع ملف التكوين nginx يختلفان، والرسالة بعد التركيب تطبع المسار الصحيح لك.",
-      "rhel": "RHEL / CentOS / Fedora",
-      "title": "تثبيت الحزمة"
+      "title": "تثبيت الحزمة",
+      "ubuntu": "Ubuntu",
+      "body_pkg": "على Ubuntu، ثبّت الخادم من Launchpad PPA الخاص بـ SysManage:",
+      "rhel_copr": "RHEL والتوزيعات المتوافقة",
+      "other_pkg": "لدى Debian وopenSUSE وArch Linux وAlpine وSnap وmacOS وWindows وأنظمة BSD حزمها الخاصة؛ ويعطي دليل <a href=\"/docs/server/installation.html#packages\">تثبيت الخادم</a> الأمر لكل منها. الخطوات التالية هي نفسها على كل منصة. لا تختلف إلا المسارات، وتطبعها لك رسالة ما بعد التثبيت."
     },
     "step2": {
       "body": "للاستخدام مع PostgreSQL المحلية:",
@@ -23819,9 +23784,9 @@
       "title": "إنشاء قاعدة البيانات"
     },
     "step3": {
-      "body": "يقرأ الخادم <code>/etc/sysmanage.yaml</code>. يولد <a href=\"/config-builder.html\">المكون التكويني</a> ملفاً كاملاً - اتصال قاعدة البيانات، الاسم المضيف، TLS، التحقق من الهوية والتسجيل - وهو أسرع وأقل خطأ مما يمكن كتابته باليد.",
-      "perms": "يحتوي الملف على بيانات اعتماد قاعدة البيانات، لذا حافظ على قابليته للقراءة فقط من قبل root.",
-      "title": "كتابة التكوين"
+      "title": "كتابة التكوين",
+      "body_pkg": "أنشأت الحزمة <code>/etc/sysmanage.yaml</code> وولّدت بالفعل الأسرار الخاصة بهذا التثبيت. اضبط كلمة مرور قاعدة البيانات من الخطوة 2، واضبط <code>admin_userid</code> على عنوان بريدك الإلكتروني. يمكن لـ <a href=\"/config-builder.html\">منشئ التكوين</a> توليد ملف كامل إذا أردت ضبط خيارات أكثر.",
+      "perms_pkg": "يحتوي الملف على أسرار، لذا تجعله الحزمة قابلًا للقراءة فقط من حساب الخدمة <code>sysmanage</code>. أبقِه على هذا النحو."
     },
     "step4": {
       "body": "تحقق مما هو معلق، ثم قم بتطبيقه. يقوم هذا بتهيئة مخطط التحكم، وإذا تم تمكين متعدد المستأجرين، فإن كل قاعدة بيانات مستأجر أيضاً. ",

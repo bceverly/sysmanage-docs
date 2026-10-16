@@ -11513,8 +11513,8 @@
           "034": "<strong>HA PostgreSQL クラスター上にレジストリデータベースとログインロールをプロビジョニングします。</strong> クラスターの現在のプライマリで、<code>sysmanage</code> ロールと、そのロールが所有するレジストリデータベースを作成します (<a href=\"../server/installation.html\">サーバーのインストール</a> のデータベース手順を参照)。サーバーはこのロールとして接続します。このロールはスーパーユーザーでは<em>ありません</em>。ロールとデータベースはクラスター全体のオブジェクトであるため、ストリーミングレプリケーションによってすべてのスタンバイに自動的に複製されます。クラスターをまだ構築していない場合は、先に構築してください -- <a href=\"../administration/postgresql-ha.html\">PostgreSQL 高可用性</a> を参照してください。",
           "035": "OpenBAOを立ち上げ、データベースシークレットエンジンを設定して、短時間有効のテナントごとのPostgreSQL資格情報を発行できるようにする。OpenBAOはサーバーが長期間共有データベースパスワードを持つことを防ぐブローカーである。（リポジトリのスクリプト/build-openbao.shとscripts/start-openbao.shを使用してビルドおよび起動、または独自に管理されたインスタンスを使用する。）",
           "036": "<strong><code>/etc/sysmanage.yaml</code> を設定します</strong> -- registry ブロックをレジストリデータベースに向け、マルチテナンシーを有効にし、vault を設定します: <pre><code>registry: # Point at the cluster's stable read-write endpoint, never one node. # libpq multi-host list (tries each, keeps the writable primary): host: \"db1.internal,db2.internal\" port: 5432 name: sysmanage_registry user: sysmanage password: &lt;from your secret store&gt; options: \"target_session_attrs=read-write\" multitenancy: enabled: true self_service_provisioning: true vault: url: https://openbao.internal:8200 # token / auth configured per your OpenBAO setup # NB: configure the database secrets engine's own connection_url at the # SAME cluster endpoint (see PostgreSQL High Availability) so tenant # credential leasing keeps working across a primary failover.</code></pre> <div class=\"note warn\"><strong>ライセンス:</strong> テナントごとのルーティングには、ライセンスされたマルチテナンシーエンジン (<code>MULTITENANT_SAAS</code> ティア) が必要です。これがない場合、サーバーは誤ったルーティングを黙って行うのではなく、マルチテナントでの実行を拒否します -- これは意図された動作です。</div>",
-          "037": "オペレーターツールを使用してマイグレーションを実行します。make migrate（またはscripts/sysmanage_migrate.py直接）はリジストリ、共有、およびテナントチェーンを適用し、データベースごとの進行状況を表示します；マルチテナンシーがオンの場合、OpenBAOのファンアウト用にOpenBAOを起動します：make migrate",
-          "038": "最小権限のプロビジョナーIDをプロビジョニングする -- クラスタスーパーユーザ権限なしでセルフサービスによるテナント作成が可能になります：make provision-bootstrap ARGS='--bao-token $BAO_TOKEN'",
+          "037": "パッケージ付属のコマンドで<strong>マイグレーションを実行します</strong>。registry、shared、tenant の各チェーンを適用し、データベースごとの進行状況を表示します。テナントごとの処理は OpenBAO から認証情報を取得するため、OpenBAO が起動している必要があります:",
+          "038": "クラスターのスーパーユーザー権限なしでセルフサービスのテナント作成が行えるよう、<strong>最小権限のプロビジョナー ID を用意します</strong>。サーバー上で root として一度だけ実行します。アプライアンスの初期化データから OpenBAO のルートトークンを読み取り、ローカルのスーパーユーザーで Postgres ロールを作成します。リモートの OpenBAO または Postgres を使う場合は <code>--bao-token</code> と <code>--pg-host</code> を指定します:",
           "039": "コントロールプレーンUI（設定 → テナント）からテナントを作成します。各テナントは独自のデータベースとOpenBAOによってブローカーされた資格情報を持ちます。各テナントのデータベースをホスト、リージョン、または管轄区域に配置します。",
           "040": "テナントチェーンをすべてのプロビジョニングされたテナントデータベースに展開する（OpenBAOが実行されていることを確認してください）：make migrate-tenants",
           "041": "ホストをテナントにバインド。各テナントに対してテナントスコープの登録トークンを発行し（テナント → トークン）、そのホストのエージェント設定ファイルのsecurity.enrollment_token下に置き、エージェントを登録します。それ以降、ホストのデータは自動的にそのテナントのデータベースに保存されます。",
@@ -15660,36 +15660,6 @@
           "206": "コンテナ化：Docker と Kubernetes のデプロイメントサポート",
           "207": "クラウドネイティブ: クラウドプラットフォームの統合とサービス",
           "208": "ハイブリッド：複雑な環境向けに混在するデプロイメントモデル"
-        },
-        "installation": {
-          "001": "Python 3.12+: python.orgからダウンロード ✅ Python 3.12, 3.13, or 3.14をお勧めします ✅ インストール時に\"PATHにPythonを追加\"を選択",
-          "002": "Node.js 20.x: nodejs.orgからダウンロード",
-          "003": "PostgreSQL 14+: postgresql.orgからダウンロード",
-          "004": "Git for Windows: git-scm.comからダウンロード",
-          "005": "Visual Studio Build Tools：Microsoftからダウンロード",
-          "006": "NetBSD 完全セットアップガイド",
-          "007": "NetBSDユーザー向け - 臨急設定要件",
-          "008": "インストールを開始する前に、NetBSDユーザーは以下を行う必要があります:",
-          "009": "jpeg（libjpeg-turboだけでなく）を含むすべての必要なパッケージをインストールする",
-          "010": "環境変数を設定: {{c1}}",
-          "011": "すべてのmakeコマンドでgmakeを使用",
-          "012": "PostgreSQLユーザーが存在しない場合は手動で作成する",
-          "013": "必要に応じて/tmpのサイズを増やす: {{c1}}",
-          "014": "NetBSD の設定手順については、上記の前提条件タブを参照してください。",
-          "015": "NetBSD 特有の問題",
-          "016": "PostgreSQLユーザーが欠落しています：NetBSDは自動的にpostgres/pgsqlユーザーを作成しない場合があります。次のコマンドで作成してください：sudo useradd -m -d /var/db/postgresql -s /bin/sh postgres",
-          "017": "PostgreSQLが起動しません: /etc/rc.conf に pgsql=YES があることを確認し、sudo /etc/rc.d/pgsql start を実行してください",
-          "018": "pip install 中に No space left on device が発生する: NetBSD の /tmp はデフォルトで 1GB に制限されています。mount -t tmpfs -o -s=4g tmpfs /tmp で容量を増やすか、export TMPDIR=$HOME/tmp を使用してください",
-          "019": "gmake install-dev for development: gmakeを使用して開発用にインストールします。Makefileには、NetBSD固有のCトレーサー依存関係チェック（gcc13, py312-cffi）が含まれています",
-          "020": "PostgreSQLソケットが見つかりません：NetBSDのPostgreSQLはUnixソケットではなくTCPを使用することが多いです。接続する際には常に-h localhostを指定してください",
-          "021": "NetBSDでのOpenTelemetry Collectorビルド失敗：NetBSDはfind/xargs/dirnameのBSDバージョンを使用しており、OTEL Collector Makefileと互換性がありません。GNUユーティリティをインストールしてください: sudo pkgin install findutils coreutils The install-telemetry.pyスクリプトは自動的にgfind/gxargs/gdirnameを使用します。",
-          "022": "ブラウザ/WebDriverエラー：UIテスト用にブラウザをインストールします: # Chromium（ChromeDriverも含む）をインストール doas pkgin install chromium # Firefox（バージョン指定が必要な場合）をインストール doas pkgin install firefox-138.0.4 # Firefox UIテスト用のGeckoDriverをインストール doas pkgin install geckodriver-0.36.0 # インストール確認 which chromium firefox geckodriver ノート：NetBSDのFirefoxパッケージは他のBSDシステムとは異なり、明示的なバージョン番号が必要な場合があります。NetBSD上のFirefox WebDriver互換性問題により、UIテストスイートは自動的にFirefoxテストを除外し、Chromeのみのテストを実行します。これによりクリーンなテスト結果を得ることができます。",
-          "023": "Pillowビルド失敗：画像ライブラリとパスをインストール：pkgin install jpeg libjpeg-turbo tiff png freetype2 lcms2 libwebp openjpeg zlib export CFLAGS=\"-I/usr/pkg/include\" export LDFLAGS=\"-L/usr/pkg/lib -Wl,-R/usr/pkg/lib\"",
-          "024": "バックエンドが \"libjpeg.so.9 が見つかりません\" エラーで起動失敗: Pillow を JPEG ライブラリのインストール前にインストールしたか、またはパスが間違っている場合に発生します。gmake install-dev ターゲットは自動的に NetBSD 用に Pillow を再ビルドします。手動修正の場合: .venv/bin/activate export CFLAGS=\"-I/usr/pkg/include\" export LDFLAGS=\"-L/usr/pkg/lib -Wl,-R/usr/pkg/lib\" pip uninstall -y Pillow pip install --no-binary=:all: Pillow",
-          "025": "NetBSD用の事前ビルドされたOpenBAOパッケージはありません。オプション：\n- ソースからビルド（推奨）: pkgin install go git gmake # NetBSDはGoをgo124としてインストールします - リンクを作成: sudo ln -sf /usr/pkg/bin/go124 /usr/pkg/bin/go # ~/.local/binをPATHに追加: echo 'export PATH=\"$HOME/.local/bin:$PATH\"' >> ~/.profile . ~/.profile # その後、gmake install-dev を実行します。ソースからOpenBAOをビルドするよう促されます。\n- Linuxエミュレーション：NetBSDのLinux互換性を使用してLinuxバイナリを実行\n- OpenBAOスキップ: オプションです - configで vault.enabled=false に設定してください。注意：開発では必須ではありません。このシステムはOpenBAOなしでも完全に動作します。",
-          "026": "OpenBAO 'bao' コマンドが見つかりません：~/.local/binをPATHに追加してください: echo 'export PATH=\"$HOME/.local/bin:$PATH\"' >> ~/.profile && . ~/.profile",
-          "027": "マルチテナントの設定方法？",
-          "028": "上記の手順により、コミュニティ版、プロフェッショナル版、エンタープライズ版で使用される単一アプリケーションデータベースが作成されます。マルチテナントエンタープライズSaaSデプロイには、レジストリデータベースとOpenBAOが必要です。各テナントごとに隔離されたデータベースも必要となります。詳細は「マルチテナンシーの展開」を参照してください。"
         },
         "reports": {
           "001": "ドキュメンテーション",
@@ -22886,7 +22856,8 @@
     "what_it_does": {
       "description": "このスクリプトは、SysManageインストールをエンタープライズクラスのセキュリティプラットフォームに完全に変換します：",
       "title": "スクリプトが達成すること"
-    }
+    },
+    "package_note": "<strong>パッケージからインストールしましたか?</strong> その場合、このスクリプトは不要です。パッケージがシークレットを生成し、OpenBAO を自ら初期化します。代わりに<a href=\"installation.html#after-installing\">インストール後の作業</a>に従ってください。このスクリプトはソースのチェックアウト用で、データベースを再構築します。"
   },
   "security": {
     "authentication": {
@@ -23406,7 +23377,8 @@
         "title": "本番設定"
       },
       "installation": {
-        "title": "インストール手順"
+        "title": "インストール手順",
+        "see_guide": "<a href=\"installation.html\">サーバーインストールガイド</a>では、TLS 証明書、ファイアウォール、その他のプラットフォーム向けのパッケージを含め、すべての手順を詳しく説明しています。"
       },
       "requirements": {
         "component": "コンポーネント",
@@ -23529,203 +23501,43 @@
   },
   "server_installation": {
     "breadcrumb_installation": "インストール",
-    "description": "前提条件、データベース設定、設定を含むSysManageサーバーの完全なインストールガイド。",
     "header": {
-      "subtitle": "お客様のインフラストラクチャにSysManageサーバーを設定するための完全なステップバイステップインストールガイド。",
-      "title": "サーバーインストールガイド"
-    },
-    "installation_steps": {
-      "step1": {
-        "title": "ステップ1：クローンとセットアップ"
-      },
-      "step2": {
-        "description": "PostgreSQLデータベースとユーザーを作成：",
-        "linux_macos_freebsd": "Linux /macOS/FreeBSD",
-        "netbsd": "NetBSD",
-        "openbsd": "OpenBSD",
-        "security_notes": {
-          "change_password": "PostgreSQLと設定ファイルの両方でパスワードを変更してください",
-          "dev_password": "開発パスワード<code>abc123</code>は<code>sysmanage-dev.yaml</code>と一致します",
-          "never_production": "本番環境では絶対にこのパスワードを使用しないでください",
-          "title": "セキュリティ注意事項"
-        },
-        "title": "ステップ2：データベースセットアップ",
-        "windows": "Windows"
-      },
-      "step3": {
-        "title": "ステップ3：バックエンド依存関係のインストール"
-      },
-      "step4": {
-        "title": "ステップ4：データベース接続のテスト"
-      },
-      "step5": {
-        "title": "ステップ5：フロントエンド依存関係のインストール"
-      },
-      "step6": {
-        "config_generator": {
-          "description": "インタラクティブを使用",
-          "link": "構成ビルダーツール",
-          "title": "構成 Generator 利用可能"
-        },
-        "description": "設定ファイルを作成：",
-        "linux_macos_bsd": "Linux/macOS/BSD：",
-        "security_steps": {
-          "file_permissions": "適切なファイル権限を設定します: <code>chmod 600 /etc/sysmanage.yaml</code>",
-          "generate_secrets": "新しいシークレットを生成します: <code>openssl rand -base64 32</code>",
-          "never_commit": "設定ファイルをバージョン管理にコミットしないでください",
-          "strong_passwords": "強力なパスワードを使用（12文字以上）",
-          "title": "必要なセキュリティ手順",
-          "installer_generated": "パッケージ (deb、rpm、FreeBSD、NetBSD、macOS、Windows、snap) は、設定ファイルを作成するときに <code>jwt_secret</code>、<code>password_salt</code>、および復旧用の <code>admin_password</code> を生成します。復旧用パスワードはそのファイルに記載されています。プレースホルダーや <code>admin</code> のようなよく知られたパスワードは、サインイン時に決して受け付けられません。手動インストールの場合は <code>python -m backend.config.install_secrets --apply /etc/sysmanage.yaml</code> を実行してください。"
-        },
-        "title": "ステップ6：設定",
-        "windows_path": "Windows："
-      },
-      "step7": {
-        "features": {
-          "admin_user": "初期管理ユーザーアカウントを作成します",
-          "config_hardening": "設定ファイルにセキュリティ強化を適用します",
-          "jwt_secret": "認証用に一意の JWT シークレットを生成します",
-          "password_salt": "安全なパスワードハッシュのための一意のパスワードソルトを生成します",
-          "prevents_defaults": "デフォルト/サンプルのセキュリティ トークンの使用を防止します",
-          "title": "このスクリプトが行うこと:"
-        },
-        "security_note": {
-          "description": "安全なインストール スクリプトを実行して、初期管理者ユーザーを作成し、インストール用に固有のセキュリティ トークンを構成する必要があります。",
-          "title": "新規インストールには が必要"
-        },
-        "title": "ステップ7：データベースマイグレーションの実行",
-        "warning": {
-          "backup_config": "このスクリプトを実行した後、構成ファイルをバックアップします。",
-          "required": "このステップは必須です",
-          "required_desc": "これなしではアプリケーションは安全に機能しません",
-          "run_once": "このスクリプトはインストールごとに 1 回のみ実行します",
-          "title": "重要 セキュリティ 注記s",
-          "unique_tokens": "各インストールでは、資格情報の再利用を防ぐために固有のセキュリティ トークンを取得します。"
-        }
-      },
-      "step8": {
-        "access_description": "次の場所からアプリケーションにアクセスします。",
-        "http": "HTTP:",
-        "http_url": "http://localhost:3000 (フォールバック)",
-        "https": "HTTPS:",
-        "https_url": "https://sysmanage.org:7443 (SSL 証明書が存在する場合)",
-        "title": "ステップ8: セキュアインストールスクリプトの実行"
-      },
-      "title": "インストール手順"
+      "title": "サーバーインストールガイド",
+      "subtitle_packages": "お使いのプラットフォーム向けのパッケージから SysManage サーバーをインストールし、いくつかの短い手順でセットアップを完了します。ソースからのビルドは開発時にのみ必要です。"
     },
     "navigation": {
       "config_guide": "設定ガイド →",
       "server_docs": "← サーバードキュメント"
     },
-    "note": "注意:",
     "prerequisites": {
       "alpine": {
-        "note_edge": "エッジリポジトリ:",
-        "note_memory": "メモリ:",
-        "note_musl": "musl libc: Alpine は glibc の代わりに musl を使用します - 一部のパッケージはコンパイルが必要な場合があります",
-        "note_openrc": "OpenRC: Alpine はサービス管理に systemd の代わりに OpenRC を使用します",
-        "note_title": "Alpine Linux 注意事項",
-        "tab_title": "Alpine Linux",
-        "title": "Alpine Linux 3.20, 3.21, 3.22"
-      },
-      "centos": {
-        "tab_title": "CentOS / RHEL",
-        "title": "CentOS/RHEL/Fedora"
+        "tab_title": "Alpine Linux"
       },
       "centos_rhel": "CentOS/RHEL",
       "freebsd": {
-        "tab_title": "FreeBSD",
-        "title": "FreeBSD"
+        "tab_title": "FreeBSD"
       },
       "macos": {
-        "tab_title": "macOS",
-        "title": "macOS"
+        "tab_title": "macOS"
       },
       "netbsd": {
         "tab_title": "NetBSD",
         "title": "NetBSD完全セットアップガイド"
       },
       "openbsd": {
-        "pkg_intro": "各サポートされているOpenBSDリリースごとに、事前構築されたパッケージが公開されます。このパッケージにはバックエンド、ビルトインのウェブインターフェイス、およびすべてのPython依存関係が含まれており、素早くインストールでき、コンパイラを必要としません。",
-        "pkg_title": "推奨：事前構築パッケージ（OpenBSD 7.8, 7.9）",
-        "src_intro": "開発用、または自分でポートをビルドする場合は、以下のツールチェインをインストールし、一般的なインストール手順に従ってください。",
-        "src_title": "代替：ソースからビルドする",
-        "tab_title": "OpenBSD",
-        "title": "OpenBSD"
+        "tab_title": "OpenBSD"
       },
       "opensuse": {
-        "note_leap": "openSUSE Leap: 安定版パッケージ、Python 3.11が通常利用可能",
-        "note_nodejs": "Node.js バージョン:",
-        "note_postgresql": "PostgreSQL: 互換性のためにバージョン（postgresql14）を指定してください",
-        "note_title": "パッケージマネージャーのメモ",
-        "note_tumbleweed": "openSUSE Tumbleweed: 最新パッケージを含むローリング リリース",
-        "tab_title": "openSUSE",
-        "title": "openSUSE リープ/タンブルウィード"
+        "tab_title": "openSUSE"
       },
-      "sles": {
-        "note_firewall": "ファイアウォール:",
-        "note_modules": "モジュール:",
-        "note_selinux": "SELinux: 有効にした場合、ポリシーの調整が必要になる場合があります",
-        "note_sles12": "SLES 12: 新しいPythonにはSoftware Collections（SCL）が必要な場合があります",
-        "note_sles15": "SLES 15:",
-        "note_subscription": "サブスクリプション:",
-        "note_title": "エンタープライズに関する考慮事項",
-        "tab_title": "SLES",
-        "title": "SUSE Linux エンタープライズ サーバー ( SLES )"
-      },
-      "title": "プラットフォーム固有の前提条件",
-      "ubuntu": {
-        "title": "Ubuntu 22.04 - 26.04 (推奨)"
-      },
-      "ubuntu25": {
-        "note": "Ubuntu 25.04はPython 3.13を提供し、Ubuntu 25.10はPython 3.13を提供し、Ubuntu 26.04はPython 3.14を提供します。すべて完全にサポートされています。標準のUbuntuインストール手順を使用してください。",
-        "tab_title": "Ubuntu 25.04 +",
-        "title": "Ubuntu 25.04+ ノート"
-      },
-      "ubuntu_debian": "Ubuntu / Debian",
       "windows": {
-        "nginx": "<strong>nginx:</strong>はMSIインストーラーによって自動的にインストールされます。手動操作は必要ありません。インストーラーは固定バージョンをダウンロードし、SHA-256を検証してから抽出し、<code>SysManageNginx</code>サービスとして登録します。隔離されたホストでは、隔離されたバンドルを使用してください。これはnginxを同梱しているため、インストールにはネットワーク接続は必要ありません。",
-        "nginx_note": "<strong>nginx は任意ではなく必須です。</strong> SysManage バックエンドが提供するのは REST API とエージェントの WebSocket のみで、静的ファイルのハンドラーはありません。nginx は Web コンソールを配信し、443 で TLS を終端し、<code>/api/</code> と <code>/ws</code> をループバックの 8080 上のバックエンドへプロキシします。nginx がなければ、アクセスできるコンソールはありません。",
-        "tab_title": "Windows",
-        "title": "Windows"
+        "tab_title": "Windows"
       }
-    },
-    "requirements": {
-      "nodejs": {
-        "description": "Reactフロントエンドの構築用",
-        "title": "Node.js",
-        "version": "20.x以上"
-      },
-      "os": {
-        "description": "クロスプラットフォーム展開",
-        "platforms": "Linux、macOS、Windows、FreeBSD、OpenBSD, NetBSD",
-        "title": "オペレーティングシステム"
-      },
-      "postgresql": {
-        "description": "すべてのアプリケーションデータのメインデータベース",
-        "title": "PostgreSQL",
-        "version": "14以上"
-      },
-      "python": {
-        "note": "注意：Python 3.10はUbuntu 22.04 LTS互換性のためにサポートされています",
-        "title": "Python",
-        "version": "3.11から3.14"
-      },
-      "required": "必須：",
-      "supported": "サポートされています:",
-      "title": "システム要件"
-    },
-    "ssl": {
-      "config_path": "nginxの証明書と秘密鍵を指定してください。設定ファイルはプラットフォームによって異なる場所に存在しますので、インストール後メッセージでシステム固有のパスとともに変更すべき2行が表示されます:",
-      "description": "SysManageはHTTPSポート443からウェブインターフェースとAPIを1つのオリジンから提供します。nginxはTLSを終端し、ループバック上のバックエンドにプロキシングしますので、エージェントはこのホストへのポート443のアウトバウンド接続が必要です。サーバが生産トラフィックを提供するためには証明書が必要です。",
-      "dev_mode": "ローカル開発では、<code>dev_mode: true</code> を <code>/etc/sysmanage.yaml</code> に設定することで証明書を完全にスキップできます。サーバーは API を 8080 で提供し、ウェブインターフェースを HTTP 上の 3000 で提供します。バックエンドはすべてのインターフェースにバインドされるため、LAN 上の他のエージェントが到達する必要はありません。生産ホストではデバッグモードを有効にしないでください。",
-      "title": "TLS証明書（生産用必須）"
     },
     "title": "サーバーインストールガイド - SysManage",
     "troubleshooting": {
       "db_issues": {
         "check_credentials": "認証情報が設定ファイルと一致することを確認",
-        "test_connection": "上記のpsqlコマンドで接続をテスト",
         "title": "データベース接続の問題",
         "verify_postgresql": "PostgreSQL が実行されていることを確認します: <code>sudo systemctl status postgresql</code>"
       },
@@ -23733,28 +23545,16 @@
         "httptools_errors": "httptoolsビルドエラー：",
         "install_libpq": "<code>libpq-dev</code> ( Ubuntu ) または <code>postgresql-devel</code> ( RHEL ) をインストールします。",
         "install_libuv": "<code>libuv1-dev</code> ( Ubuntu ) または <code>libuv-devel</code> ( RHEL ) をインストールします。",
-        "missing_libpq": "libpq-fe.hがありません：",
-        "python313_issues": "Pythonバージョンの問題：",
-        "title": "パッケージビルドエラー",
-        "use_older_python": "Python 3.10以降を使用していることを確認してください"
-      },
-      "permission_issues": {
-        "check_venv": "仮想環境のアクティベーションを確認",
-        "ensure_ownership": "ディレクトリの適切な所有権を確保",
-        "set_config_permissions": "構成ファイルのアクセス許可を設定します: <code>chmod 600 /etc/sysmanage.yaml</code>",
-        "title": "権限の問題"
+        "missing_libpq": "libpq-fe.hがありません："
       },
       "port_conflicts": {
         "check_services": "既存のリッスナーを確認する: <code>ss -tlnp | grep -E ':(80|443|8080)'</code>",
         "ensure_ports": "生産環境では、443 が空いていることを確認してください（80 も必要であれば）。バックエンドは nginx の後ろの 127.0.0.1:8080 上でリッスンし、公開されていません。",
-        "modify_ports": "デバッグモードでは API が 8080 に、ウェブインターフェースが 3000 にあります；これらが衝突する場合は <code>api</code> と <code>webui</code> の下で <code>/etc/sysmanage.yaml</code> を変更します。",
         "title": "ポートの競合"
       },
       "title": "トラブルシューティング"
     },
     "dev": {
-      "title": "開発サーバーの実行",
-      "intro": "開発サーバーはソースのチェックアウトから実行され、Web UI は nginx ではなく Vite によって提供されます。以下のヒントは、開発サーバーをセットアップし、本番環境で実行しているものから切り離しておくためのものです。",
       "tools": "開発ツール (テストランナー、リンター、Playwright、テレメトリースタック) を一度インストールします:",
       "config": "プロジェクトのルートに <code>sysmanage-dev.yaml.example</code> から <code>sysmanage-dev.yaml</code> を作成します。<code>/etc/sysmanage.yaml</code> が存在しない場合、サーバーはこのファイルを読み込みます。別のファイルを使うには、<code>SYSMANAGE_CONFIG_PATH</code> でそのファイルを指定します。開発で最も重要な設定:",
       "dev_mode": "<code>dev_mode: true</code> は、サーバーの前段に TLS プロキシがないことをサーバーに伝えます。メール内のリンクは <code>http://host:3000</code> を使用し、すべてのインターフェースへのバインドについて警告されません。実際のデプロイでは省略してください。フラグがない場合は本番環境を意味します。",
@@ -23764,18 +23564,183 @@
       "run": "移行を実行してから、次のコマンドですべてを起動および停止します:",
       "ports": "API はポート 8080 で、Vite の Web UI はポート 3000 で待ち受けます。データベースの移行には、オペレーターが本番環境で実行するのと同じツールを使用します。",
       "second": "2 台目の使い捨てサーバーが必要ですか (たとえば自分のデータに触れずに何かをテストするため)? スケールテスト用ハーネスは、専用の PostgreSQL コンテナー、設定、ポートを持つサーバーを起動し、終了後に削除します:"
+    },
+    "meta_description": "お使いのプラットフォーム向けのパッケージから SysManage サーバーをインストールし、データベース、TLS 証明書、ファイアウォール、最初のサインインを設定します。",
+    "before": {
+      "title": "始める前に",
+      "host": "<strong>DNS 名を持つホスト。</strong>エージェントはその名前に接続し、TLS 証明書はその名前と一致している必要があります。",
+      "postgres": "<strong>PostgreSQL 12 以降</strong>。同じホストでもリモートホストでも構いません。パッケージはデータベースを作成しません。",
+      "ports": "<strong>インバウンドのポート 443</strong>、および HTTPS リダイレクトと Let's Encrypt 用のポート 80。それ以外はネットワークから到達可能である必要はありません。",
+      "root": "ホスト上の<strong>root または sudo によるアクセス</strong>。",
+      "no_toolchain": "Python、Node.js、ビルドツールをご自身でインストールする必要はありません。nginx や OpenBAO を含め、サーバーに必要なものはすべてパッケージに含まれています。"
+    },
+    "packages": {
+      "title": "パッケージからインストールする (推奨)",
+      "ubuntu": {
+        "title": "Ubuntu (Launchpad PPA 経由)",
+        "intro": "SysManage サーバーは、Ubuntu 22.04 LTS、24.04 LTS、26.04 LTS 向けに <code>ppa:bceverly/sysmanage</code> Launchpad PPA で公開されています。これがサーバーを運用する推奨の方法です。",
+        "what": "パッケージはサーバーを <code>/opt/sysmanage</code> にインストールし、Python の依存関係をそこにある専用環境にダウンロードするため、インストール中はホストがインターネットにアクセスできる必要があります。また、このインストール用に生成したシークレットを含む <code>/etc/sysmanage.yaml</code> を作成し、OpenBAO をインストールしてアンシールし、nginx を設定します。SysManage サービスは有効化されますが、<a href=\"#after-installing\">インストール後の作業</a>の手順を完了するまで停止したままです。",
+        "upgrade": "以降のリリースは <code>sudo apt upgrade</code> で届きます。アップグレードでは設定とデータベースが保持され、その後に実行する 2 つのコマンド (データベースマイグレーションとサービスの再起動) が表示されます。"
+      },
+      "other": {
+        "title": "その他のプラットフォーム",
+        "intro": "その他のプラットフォーム向けのパッケージは、<a href=\"https://github.com/bceverly/sysmanage/releases\">GitHub のリリースページ</a>と以下のリポジトリで公開されています。<code>X.Y.Z</code> はインストールするリリースに置き換えてください。各パッケージは、そのプラットフォームのパスを記入済みのインストール後の手順を表示します。"
+      },
+      "debian": {
+        "tab": "Debian",
+        "intro": "Debian 12 以降は SysManage APT リポジトリからインストールします。Ubuntu でも利用できますが、Ubuntu では上記の PPA が推奨のインストール元です。"
+      },
+      "rhel": {
+        "tab": "RHEL",
+        "intro": "RHEL、Rocky Linux、AlmaLinux、Oracle Linux、CentOS Stream 8、9、10 (x86_64 および aarch64) は、Fedora Copr プロジェクト <code>bceverly/sysmanage</code> からインストールします。Fedora 自体向けのサーバーは現在ビルドされていないため、Fedora では<a href=\"#from-source\">ソースからのビルド</a>を使用してください。"
+      },
+      "arch": {
+        "tab": "Arch Linux",
+        "intro": "Arch Linux では、任意の AUR ヘルパーを使って AUR から <code>sysmanage</code> パッケージをインストールします:"
+      },
+      "snap": {
+        "tab": "Snap",
+        "intro": "サーバーは Snap Store の stable チャネルで、strict confinement により公開されています:"
+      },
+      "opensuse": {
+        "intro": "openSUSE Leap 15.6 と Tumbleweed は、openSUSE Build Service のプロジェクト <code>home:bryaneverly</code> からインストールします。"
+      },
+      "alpine": {
+        "intro": "Alpine Linux 3.20、3.21、3.22 のパッケージは、リリースページから直接ダウンロードします。お使いの Alpine リリースに合ったファイル (<code>alpine320</code>、<code>alpine321</code> または <code>alpine322</code>) を選び、インストール前に <code>.sha256</code> を確認してください。"
+      },
+      "macos": {
+        "intro": "リリースページから <code>sysmanage-X.Y.Z-macos.pkg</code> をダウンロードしてインストールします。nginx がない場合、インストーラーは Homebrew を使って追加します。",
+        "start": "<a href=\"#after-installing\">インストール後の作業</a>の手順を終えたら、<code>sudo launchctl load /Library/LaunchDaemons/com.sysmanage.server.plist</code> でサーバーを起動します。"
+      },
+      "windows": {
+        "intro": "リリースページから <code>sysmanage-X.Y.Z-windows-x64.msi</code> (ARM では <code>sysmanage-X.Y.Z-windows-arm64.msi</code>) をダウンロードし、管理者として実行します。サーバーは <code>C:\\Program Files\\SysManage Server</code> にインストールされ、<code>SysManageServer</code>、<code>SysManageNginx</code>、<code>SysManageOpenBAO</code> の各サービスが登録されます。nginx はインストール中にダウンロードされ、使用前に SHA-256 が検証されます。",
+        "start": "サーバーは停止したままになっています。<a href=\"#after-installing\">インストール後の作業</a>の手順を終えたら、管理者の PowerShell から <code>Set-Service SysManageServer -StartupType Automatic</code>、<code>Start-Service SysManageServer</code>、<code>Restart-Service SysManageNginx</code> を実行して起動します。"
+      },
+      "freebsd": {
+        "intro": "リリースページから <code>sysmanage-X.Y.Z.pkg</code> をダウンロードしてインストールします:",
+        "start": "<code>sysrc sysmanage_enable=YES</code>、<code>sysrc nginx_enable=YES</code>、<code>service sysmanage start</code>、<code>service nginx start</code> でサービスを起動します。"
+      },
+      "openbsd": {
+        "intro": "OpenBSD 7.8 と 7.9 向けにビルド済みパッケージが公開されています。バックエンド、Web インターフェース、Python の依存関係が同梱されているため、コンパイラーは不要です。お使いのリリースに合わせて <code>openbsd78</code> または <code>openbsd79</code> を使用してください。",
+        "start": "<code>doas rcctl enable openbao sysmanage</code> と <code>doas rcctl start openbao sysmanage</code> でサービスを起動します。"
+      },
+      "netbsd": {
+        "intro": "リリースページから <code>sysmanage-X.Y.Z-netbsd.tgz</code> とその <code>.sha256</code> をダウンロードして確認し、root としてインストールします:"
+      },
+      "airgap": "<strong>サーバーからインターネットにアクセスできませんか?</strong> すべてのパッケージと依存関係を 1 つのバンドルにまとめた<a href=\"/air-gapped/\">エアギャップ環境へのインストール</a>を使用してください。"
+    },
+    "after": {
+      "title": "インストール後の作業",
+      "intro": "以下の手順は Ubuntu と Debian 向けに書かれています。手順はどのプラットフォームでも同じで、異なるのはパスとサービスのコマンドだけです。このセクションの最後にある表に、各プラットフォームのパスを記載しています。",
+      "db": {
+        "title": "ステップ 1: データベースを作成する",
+        "body": "ローカルの PostgreSQL サーバーを使用する場合は、PostgreSQL をインストールし、<code>sysmanage</code> ユーザーとデータベースを作成します。強力なパスワードを選んでください。このパスワードは次の手順で設定ファイルに記入します。",
+        "remote": "リモートの PostgreSQL サーバーでも同様に動作します。そこで同じユーザーとデータベースを作成し、設定にはそのホスト名を使用してください。"
+      },
+      "config": {
+        "title": "ステップ 2: 設定を編集する",
+        "body": "パッケージによって <code>/etc/sysmanage.yaml</code> が作成され、このインストール用の <code>jwt_secret</code>、<code>password_salt</code>、およびリカバリー用の <code>admin_password</code> がすでに生成されています。データベースのパスワードを設定し、<code>admin_userid</code> にご自身のメールアドレスを設定してください:",
+        "builder": "<code>api: host</code> は <code>localhost</code> のままにしてください。サーバーには nginx 経由でのみアクセスします。さらに多くのオプションを設定したい場合は<a href=\"/config-builder.html\">設定ビルダー</a>で完全なファイルを生成でき、すべての設定項目は<a href=\"configuration.html\">設定ガイド</a>で説明しています。"
+      },
+      "migrate": {
+        "title": "ステップ 3: データベースマイグレーションを実行する",
+        "body": "マイグレーションによってデータベーススキーマが作成されます。<code>--status</code> で保留中の内容を表示し、2 つ目のコマンドでそれを適用します。アップグレードのたびに同じ 2 つのコマンドを実行してください。"
+      },
+      "tls": {
+        "title": "ステップ 4: TLS 証明書をインストールする",
+        "body": "SysManage はポート 443 で Web インターフェース、API、エージェント接続を提供しており、証明書が配置されるまで nginx は起動を拒否します。これは意図的な設計です。管理コンソールが平文で起動することがあってはならず、エージェントはデフォルトで証明書を検証します。デフォルトでは nginx は次のファイルを読み込みます:",
+        "edit": "別の場所に保存した証明書を使用するには、<code>/etc/nginx/sites-available/sysmanage-nginx.conf</code> の次の 2 行を変更します:",
+        "le_http_title": "certbot による Let's Encrypt (HTTP チャレンジ)",
+        "le_http_body": "このホストのポート 80 にインターネットから到達できる場合、certbot はチャレンジに自分で応答できます。nginx は稼働するとポート 80 を占有するため、フックによって更新のたびに nginx を停止し、その後再び起動します。certbot はフックを保存し、自動的に更新します。",
+        "le_dns_title": "DNS チャレンジによる Let's Encrypt (DigitalOcean DNS)",
+        "le_dns_body": "ドメインの DNS を DigitalOcean でホストしている場合、certbot は代わりに DNS で所有権を証明できます。ポート 80 に到達できる必要はなく、更新中も nginx は稼働し続けます。DNS への書き込みアクセス権を持つ DigitalOcean API トークンを作成し、root だけが読み取れるファイルに保存します:",
+        "le_point": "どちらの方法でも、nginx の 2 行を certbot が書き出したファイルに向けてから、設定を確認します:"
+      },
+      "start": {
+        "title": "ステップ 5: サービスを起動する",
+        "logs": "サーバーはログを <code>/var/log/sysmanage/</code> に書き込みます。起動直後に停止する場合は、<code>/etc/sysmanage.yaml</code> のデータベース設定を確認し、マイグレーションが実行されたことを確認してください。"
+      },
+      "firewall": {
+        "title": "ステップ 6: ファイアウォールを開放する",
+        "body": "ネットワーク上で待ち受けるサービスは nginx だけです。ポート 443 と 80 だけを開放し、それ以外は開放しないでください。SysManage API はループバックのポート 8080、OpenBAO はループバックのポート 8200 にとどまり、PostgreSQL も公開すべきではありません。"
+      },
+      "login": {
+        "title": "ステップ 7: サインインする",
+        "body": "<code>https://sysmanage.example.com/</code> を開き、設定した <code>admin_userid</code> と、生成されたリカバリー用パスワードでサインインします。パスワードは次のコマンドで確認できます:",
+        "next": "このリカバリー用アカウントは設定ファイルにのみ存在し、存在する間はコンソールに警告が表示されます。メールを設定し、ご自身の管理者ユーザーを作成したら、ファイルから <code>admin_userid</code> と <code>admin_password</code> を削除してサーバーを再起動してください。"
+      },
+      "openbao": {
+        "title": "ステップ 8: OpenBAO のアンシール情報をバックアップする",
+        "body": "パッケージは、シークレットブローカーである OpenBAO をループバックのポート 8200 にインストールします。初回インストール時に OpenBAO を初期化してアンシールし、以後は起動のたびに再びアンシールして、SysManage が使用するトークンを <code>/etc/sysmanage/openbao-token</code> に書き込みます。アンシールキーとルートトークンは <code>/var/lib/openbao/init.json</code> にあります。",
+        "backup": "<strong><code>/var/lib/openbao/init.json</code> をこのマシンの外にある安全な保管場所にコピーしてください。</strong>このファイルがないと、ホストを再構築した場合に OpenBAO に保存したシークレットを復旧できません。",
+        "enable": "SysManage のシークレットを OpenBAO で保管するには、<code>/etc/sysmanage.yaml</code> で <code>vault: enabled: true</code> を設定します。マルチテナントにはこの設定が必要です。状態は <code>systemctl status openbao sysmanage-openbao-init</code> で確認します。"
+      },
+      "agents": {
+        "title": "ステップ 9: エージェントを接続する",
+        "body": "エージェントに必要なのは、サーバーへのアウトバウンドのポート 443 だけです。各エージェントを、証明書が発行されたものと同じホスト名に向け、証明書の検証は有効のままにしてください:",
+        "link": "エージェントのパッケージについては<a href=\"../agent/installation.html\">エージェントのインストール</a>を参照してください。"
+      },
+      "paths": {
+        "title": "各プラットフォームのパス",
+        "platform": "プラットフォーム",
+        "config": "設定ファイル",
+        "nginx": "nginx の設定",
+        "tls": "証明書と鍵"
+      }
+    },
+    "optional": {
+      "title": "オプション機能",
+      "telemetry": {
+        "title": "テレメトリー",
+        "body": "OpenTelemetry はデフォルトで無効です。トレースとメトリクスをコレクターに送信するには、<code>/etc/sysmanage.yaml</code> で <code>telemetry: enabled: true</code> と <code>telemetry: otlp_endpoint</code> を設定するか、環境変数 <code>OTEL_ENABLED=true</code> と <code>OTEL_EXPORTER_OTLP_ENDPOINT</code> を設定します。テレメトリーが有効な間、Prometheus メトリクスは <code>127.0.0.1:9090</code> でループバックのみに提供されます。"
+      },
+      "mt": {
+        "title": "マルチテナント",
+        "body": "<code>multitenancy: enabled: true</code> でマルチテナントを有効にし、続けてデータベースマイグレーションを実行しない限り、サーバーは単一のテナントとして動作します。マルチテナントには OpenBAO と、テナントごとに個別のデータベースが必要です。<a href=\"../deployment/multi-tenancy.html\">マルチテナントのデプロイ</a>を参照してください。"
+      }
+    },
+    "trouble": {
+      "install": {
+        "title": "パッケージのインストール後",
+        "nginx": "<strong>nginx が起動しない:</strong> ほとんどの場合、証明書がないか読み取れないことが原因です。<code>sudo nginx -t</code> で読み取れなかったファイルの名前が表示されます。",
+        "service": "<strong>サービスが起動した後に終了する:</strong> 設定ファイルのデータベース設定を確認し、マイグレーションが実行されたことを確認してください。",
+        "login": "<strong>サインインが拒否される:</strong> <code>admin_userid</code> は単なる名前ではなく、完全なメールアドレスである必要があります。",
+        "openbao": "<strong>OpenBAO がシールされている、または動作していない:</strong> <code>sudo systemctl restart openbao sysmanage-openbao-init</code> を実行し、<code>systemctl status sysmanage-openbao-init</code> の出力を確認してください。"
+      }
+    },
+    "source": {
+      "title": "ソースからのビルド (開発用)",
+      "intro": "SysManage 自体の開発を行う場合や、パッケージのないプラットフォームでは、ソースからビルドします。開発用サーバーはソースのチェックアウトから動作し、Web インターフェースは nginx ではなく Vite によって提供されます。本番環境では使用しないでください。",
+      "prereq": {
+        "title": "前提条件",
+        "list": "開発用ヘッダーを含む Python 3.10 から 3.14、Node.js 20 以降、PostgreSQL 12 以降、C コンパイラー、および libffi、OpenSSL、libpq の開発用パッケージ。",
+        "bsd": "FreeBSD、OpenBSD、NetBSD では、<code>make</code> の代わりに <code>gmake</code> を使用します。NetBSD では、C 拡張を持つ Python パッケージがライブラリを見つけられるよう、インストール前に <code>CFLAGS=\"-I/usr/pkg/include\"</code> と <code>LDFLAGS=\"-L/usr/pkg/lib -Wl,-R/usr/pkg/lib\"</code> を設定してください。",
+        "ubuntu": "Ubuntu の場合:"
+      },
+      "setup": {
+        "title": "クローンとセットアップ",
+        "db": "上記の<a href=\"#after-installing\">ステップ 1</a> と同じ方法で、開発用のデータベースとユーザーを作成します。"
+      },
+      "run": {
+        "title": "実行する",
+        "secure": "ソースのチェックアウトで管理者ユーザーを作成して OpenBAO を初期化するには、<code>scripts/sysmanage_secure_installation</code> を実行します。<a href=\"secure-installation.html\">セキュアインストール</a>を参照してください。このスクリプトはデータベースを再構築するため、保持したいデータがあるサーバーに対しては絶対に実行せず、パッケージでインストールした環境でも決して実行しないでください。"
+      },
+      "trouble": {
+        "title": "ビルドの問題",
+        "netbsd_tmp": "<strong>NetBSD で pip install 中に \"No space left on device\" が発生する:</strong> <code>/tmp</code> はデフォルトで 1 GB の tmpfs です。<code>mount -t tmpfs -o -s=4g tmpfs /tmp</code> で拡張するか、<code>TMPDIR</code> にディスク上のディレクトリを設定してください。"
+      }
     }
   },
   "server_quickstart": {
     "before": {
-      "body": "このガイドではあなたのプラットフォーム用にビルドされたパッケージを使用してサーバをインストールします。完全なプラットフォームマトリックス、ソースからのビルド手順、および各ディストリビューションの前提条件については <a href=\"/docs/server/installation.html\">Server Installation</a> ガイドをご覧ください。",
       "cert": "<strong>TLS 証明書と秘密鍵</strong> が必要です。nginx はこれを欠いている場合、意図的に起動を拒否します。管理コンソールが証明書がないだけでクリアテキストで立ち上がることを防ぐためです。",
       "ports": "<strong>443 のインバウンド接続</strong> (80 も必要であれば)。それ以外のポートは開けません：エージェントはサーバーに 443 をアウトバウンドで到達し、バックエンドは nginx の後ろでループバック上に留まります。",
       "postgres": "<strong>PostgreSQL 12 以降のバージョンが必要です</strong> -- このホストまたはリモートホスト上にインストールされています。SysManage はこれがないと起動しません。",
       "root": "<strong>ターゲットホスト上のルート権限または sudo 权限</strong>。",
       "tip": "パッケージはインストール後メッセージとして次の手順を表示し、プラットフォーム固有のパスを埋め込みます。失われた場合はパッケージマネージャーのログにあります。",
       "tip_label": "ヒント:",
-      "title": "はじめに"
+      "title": "はじめに",
+      "body_pkg": "このガイドでは、お使いのプラットフォーム向けにビルドされたパッケージからサーバーをインストールします。すべてのプラットフォームのパッケージと、ソースからのビルドについては、<a href=\"/docs/server/installation.html\">サーバーのインストール</a>ガイドを参照してください。"
     },
     "intro": "ネイティブパッケージから SysManage サーバーをインストールし、PostgreSQL を指すように設定します。nginx に証明書を提供し、コンソールを開きます。新規ホスト上では約15分かかります。",
     "next": {
@@ -23787,12 +23752,12 @@
       "title": "次のステップ"
     },
     "step1": {
-      "body": "あなたのプラットフォーム用のパッケージを <a href=\"https://github.com/bceverly/sysmanage/releases\">リリースページ</a> からダウンロードし、インストールします。インストールするバージョンを <code>X.Y.Z</code> に置き換えます。",
-      "debian": "Debian / Ubuntu",
       "other": "他のプラットフォーム",
-      "other_body": "openSUSE、Alpine、FreeBSD、OpenBSD、NetBSD、macOSおよびWindows用のパッケージは同じリリースページで公開されます。以下の手順はすべてのプラットフォームで同一ですが、インストールコマンドとnginx設定パスのみが異なります。インストール後メッセージでは正しいパスを表示します。",
-      "rhel": "RHEL / CentOS / Fedora",
-      "title": "パッケージをインストールする"
+      "title": "パッケージをインストールする",
+      "ubuntu": "Ubuntu",
+      "body_pkg": "Ubuntu では、SysManage の Launchpad PPA からサーバーをインストールします:",
+      "rhel_copr": "RHEL と互換ディストリビューション",
+      "other_pkg": "Debian、openSUSE、Arch Linux、Alpine、Snap、macOS、Windows、各 BSD には専用のパッケージがあります。それぞれのコマンドは<a href=\"/docs/server/installation.html#packages\">サーバーのインストール</a>ガイドに記載しています。以降の手順はどのプラットフォームでも同じです。異なるのはパスだけで、インストール後のメッセージにそのパスが表示されます。"
     },
     "step2": {
       "body": "ローカルのPostgreSQLインスタンスを使用するには:",
@@ -23800,9 +23765,9 @@
       "title": "データベースを作成する"
     },
     "step3": {
-      "body": "サーバは <code>/etc/sysmanage.yaml</code> を読み取ります。 <a href=\"/config-builder.html\">設定ビルダー</a> はデータベース接続、ホスト名、TLS、認証およびロギングを含む完全なファイルを生成します -- 手動で書くよりも速く、エラーが少なくなります。",
-      "perms": "/etc/sysmanage.yaml はデータベース資格情報を保持するため、rootのみが読み取り可能であることを確認してください。",
-      "title": "設定を書く"
+      "title": "設定を書く",
+      "body_pkg": "パッケージによって <code>/etc/sysmanage.yaml</code> が作成され、このインストール用のシークレットがすでに生成されています。ステップ 2 のデータベースのパスワードを設定し、<code>admin_userid</code> にメールアドレスを設定してください。さらに多くのオプションを設定したい場合は、<a href=\"/config-builder.html\">設定ビルダー</a>で完全なファイルを生成できます。",
+      "perms_pkg": "このファイルにはシークレットが含まれるため、パッケージは <code>sysmanage</code> サービスアカウントだけが読み取れるようにしています。この状態を維持してください。"
     },
     "step4": {
       "body": "適用すべきものを確認してから適用します。これによりコントロールプレーンスキーマがマイグレートされ、マルチテナントが有効な場合、すべてのテナントデータベースもマイグレートされます。",

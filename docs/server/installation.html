@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title data-i18n="server_installation.title" data-i18n-html>Server Installation Guide - SysManage</title>
-    <meta name="description" content="Complete installation guide for SysManage server including prerequisites, database setup, and configuration." data-i18n-attr="content" data-i18n="server_installation.description" data-i18n-html>
+    <meta name="description" content="Install the SysManage server from the package for your platform, then set up the database, TLS certificate, firewall and first sign-in." data-i18n-attr="content" data-i18n="server_installation.meta_description">
     <link rel="stylesheet" href="/assets/css/style.css">
     <link rel="icon" type="image/svg+xml" href="/assets/images/favicon.svg">
 </head>
@@ -19,738 +19,353 @@
 
             <div class="docs-header">
                 <h1 data-i18n="server_installation.header.title" data-i18n-html>Server Installation Guide</h1>
-                <p data-i18n="server_installation.header.subtitle" data-i18n-html>Complete step-by-step installation guide for setting up the SysManage server on your infrastructure.</p>
+                <p data-i18n="server_installation.header.subtitle_packages" data-i18n-html>Install the SysManage server from the package for your platform, then finish the setup in a few short steps. Building from source is only needed for development.</p>
             </div>
 
             <div class="docs-content">
                 <section class="docs-section">
-                    <h2 data-i18n="server_installation.requirements.title" data-i18n-html>System Requirements</h2>
-                    <div class="requirement-grid">
-                        <div class="requirement-item">
-                            <h3 data-i18n="server_installation.requirements.python.title" data-i18n-html>Python</h3>
-                            <p><strong data-i18n="server_installation.requirements.required" data-i18n-html>Required:</strong> <span data-i18n="server_installation.requirements.python.version" data-i18n-html>3.11 through 3.14</span></p>
-                            <p><em data-i18n="server_installation.requirements.python.note" data-i18n-html>Note: Python 3.10 is supported for Ubuntu 22.04 LTS compatibility</em></p>
-                        </div>
-                        <div class="requirement-item">
-                            <h3 data-i18n="server_installation.requirements.nodejs.title" data-i18n-html>Node.js</h3>
-                            <p><strong data-i18n="server_installation.requirements.required" data-i18n-html>Required:</strong> <span data-i18n="server_installation.requirements.nodejs.version" data-i18n-html>20.x or higher</span></p>
-                            <p data-i18n="server_installation.requirements.nodejs.description" data-i18n-html>For building the React frontend</p>
-                        </div>
-                        <div class="requirement-item">
-                            <h3 data-i18n="server_installation.requirements.postgresql.title" data-i18n-html>PostgreSQL</h3>
-                            <p><strong data-i18n="server_installation.requirements.required" data-i18n-html>Required:</strong> <span data-i18n="server_installation.requirements.postgresql.version" data-i18n-html>14 or higher</span></p>
-                            <p data-i18n="server_installation.requirements.postgresql.description" data-i18n-html>Primary database for all application data</p>
-                        </div>
-                        <div class="requirement-item">
-                            <h3 data-i18n="server_installation.requirements.os.title" data-i18n-html>Operating System</h3>
-                            <p><strong data-i18n="server_installation.requirements.supported" data-i18n-html>Supported:</strong> <span data-i18n="server_installation.requirements.os.platforms" data-i18n-html>Linux, macOS, Windows, FreeBSD, OpenBSD, NetBSD</span></p>
-                            <p data-i18n="server_installation.requirements.os.description" data-i18n-html>Cross-platform deployment</p>
-                        </div>
-                    </div>
+                    <h2 data-i18n="server_installation.before.title" data-i18n-html>Before You Begin</h2>
+                    <ul>
+                        <li data-i18n="server_installation.before.host" data-i18n-html><strong>A host with a DNS name.</strong> Agents connect to that name, and the TLS certificate must match it.</li>
+                        <li data-i18n="server_installation.before.postgres" data-i18n-html><strong>PostgreSQL 12 or newer</strong>, on the same host or a remote one. The packages do not create the database for you.</li>
+                        <li data-i18n="server_installation.before.ports" data-i18n-html><strong>Inbound port 443</strong>, plus port 80 for the HTTPS redirect and for Let's Encrypt. Nothing else needs to be reachable from the network.</li>
+                        <li data-i18n="server_installation.before.root" data-i18n-html><strong>Root or sudo access</strong> on the host.</li>
+                    </ul>
+                    <p data-i18n="server_installation.before.no_toolchain" data-i18n-html>You do not need to install Python, Node.js or any build tools yourself. The package brings everything the server needs, including nginx and OpenBAO.</p>
                 </section>
 
-                <section class="docs-section">
-                    <h2 data-i18n="server_installation.prerequisites.title" data-i18n-html>Platform-Specific Prerequisites</h2>
+                <section class="docs-section" id="packages">
+                    <h2 data-i18n="server_installation.packages.title" data-i18n-html>Install from Packages (Recommended)</h2>
+
+                    <h3 data-i18n="server_installation.packages.ubuntu.title" data-i18n-html>Ubuntu (Launchpad PPA)</h3>
+                    <p data-i18n="server_installation.packages.ubuntu.intro" data-i18n-html>The SysManage server is published in the <code>ppa:bceverly/sysmanage</code> Launchpad PPA for Ubuntu 22.04 LTS, 24.04 LTS and 26.04 LTS. This is the recommended way to run the server.</p>
+                    <pre><code>sudo add-apt-repository ppa:bceverly/sysmanage
+sudo apt update
+sudo apt install sysmanage</code></pre>
+                    <p data-i18n="server_installation.packages.ubuntu.what" data-i18n-html>The package installs the server in <code>/opt/sysmanage</code> and downloads its Python dependencies into a private environment there, so the host needs internet access while it installs. It also creates <code>/etc/sysmanage.yaml</code> with secrets generated for this installation, installs and unseals OpenBAO, and configures nginx. The SysManage service is enabled but left stopped until you finish the steps under <a href="#after-installing">After Installing</a>.</p>
+                    <p data-i18n="server_installation.packages.ubuntu.upgrade" data-i18n-html>Later releases arrive through <code>sudo apt upgrade</code>. An upgrade keeps your configuration and database, and prints the two commands to run afterward: the database migrations and a service restart.</p>
+
+                    <h3 data-i18n="server_installation.packages.other.title" data-i18n-html>Other Platforms</h3>
+                    <p data-i18n="server_installation.packages.other.intro" data-i18n-html>Packages for the other platforms are published on the <a href="https://github.com/bceverly/sysmanage/releases">GitHub releases page</a> and in the repositories below. Replace <code>X.Y.Z</code> with the release you are installing. Every package prints its own post-install instructions, with the paths for that platform already filled in.</p>
 
                     <div class="platform-tabs">
                         <div class="tab-header">
-                            <button class="tab-button active" data-tab="ubuntu" data-i18n="server_installation.prerequisites.ubuntu_debian" data-i18n-html>Ubuntu/Debian</button>
-                            <button class="tab-button" data-tab="ubuntu25" data-i18n="server_installation.prerequisites.ubuntu25.tab_title" data-i18n-html>Ubuntu 25.04+</button>
-                            <button class="tab-button" data-tab="centos" data-i18n="server_installation.prerequisites.centos.tab_title" data-i18n-html>CentOS/RHEL</button>
+                            <button class="tab-button active" data-tab="debian" data-i18n="server_installation.packages.debian.tab" data-i18n-html>Debian</button>
+                            <button class="tab-button" data-tab="rhel" data-i18n="server_installation.packages.rhel.tab" data-i18n-html>RHEL</button>
+                            <button class="tab-button" data-tab="opensuse" data-i18n="server_installation.prerequisites.opensuse.tab_title" data-i18n-html>openSUSE</button>
+                            <button class="tab-button" data-tab="arch" data-i18n="server_installation.packages.arch.tab" data-i18n-html>Arch Linux</button>
+                            <button class="tab-button" data-tab="alpine" data-i18n="server_installation.prerequisites.alpine.tab_title" data-i18n-html>Alpine Linux</button>
+                            <button class="tab-button" data-tab="snap" data-i18n="server_installation.packages.snap.tab" data-i18n-html>Snap</button>
                             <button class="tab-button" data-tab="macos" data-i18n="server_installation.prerequisites.macos.tab_title" data-i18n-html>macOS</button>
                             <button class="tab-button" data-tab="windows" data-i18n="server_installation.prerequisites.windows.tab_title" data-i18n-html>Windows</button>
                             <button class="tab-button" data-tab="freebsd" data-i18n="server_installation.prerequisites.freebsd.tab_title" data-i18n-html>FreeBSD</button>
                             <button class="tab-button" data-tab="openbsd" data-i18n="server_installation.prerequisites.openbsd.tab_title" data-i18n-html>OpenBSD</button>
                             <button class="tab-button" data-tab="netbsd" data-i18n="server_installation.prerequisites.netbsd.tab_title" data-i18n-html>NetBSD</button>
-                            <button class="tab-button" data-tab="opensuse" data-i18n="server_installation.prerequisites.opensuse.tab_title" data-i18n-html>openSUSE</button>
-                            <button class="tab-button" data-tab="sles" data-i18n="server_installation.prerequisites.sles.tab_title" data-i18n-html>SLES</button>
-                            <button class="tab-button" data-tab="alpine" data-i18n="server_installation.prerequisites.alpine.tab_title" data-i18n-html>Alpine Linux</button>
                         </div>
 
                         <div class="tab-content">
-                            <div class="tab-pane active" id="ubuntu">
-                                <h3 data-i18n="server_installation.prerequisites.ubuntu.title" data-i18n-html>Ubuntu 22.04 - 26.04 (Recommended)</h3>
-                                <pre><code># Update package manager
+                            <div class="tab-pane active" id="debian">
+                                <p data-i18n="server_installation.packages.debian.intro" data-i18n-html>Debian 12 and newer install from the SysManage APT repository. Ubuntu can use it too, but the PPA above is the recommended source on Ubuntu.</p>
+                                <pre><code># Install the archive signing key
+sudo install -d -m 0755 /usr/share/keyrings
+curl -fsSL https://repo.sysmanage.org/server/sysmanage-archive-keyring.gpg \
+  | sudo tee /usr/share/keyrings/sysmanage-archive-keyring.gpg &gt; /dev/null
+
+# Add the repository, verified against that key
+echo "deb [signed-by=/usr/share/keyrings/sysmanage-archive-keyring.gpg] https://repo.sysmanage.org/server/deb stable main" \
+  | sudo tee /etc/apt/sources.list.d/sysmanage-server.list
+
 sudo apt update
-
-# Install Python 3 (system default is fine for all supported Ubuntu versions)
-sudo apt install python3 python3-venv python3-dev python3-pip
-
-# Install Node.js 20.x
-curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
-sudo apt install -y nodejs
-
-# Install PostgreSQL 14+
-sudo apt install postgresql postgresql-contrib
-sudo systemctl start postgresql
-sudo systemctl enable postgresql
-
-# Install build tools and development libraries
-sudo apt install build-essential libffi-dev libssl-dev libpq-dev
-sudo apt install libuv1-dev python3-setuptools</code></pre>
+sudo apt install sysmanage</code></pre>
                             </div>
 
-                            <div class="tab-pane" id="ubuntu25">
-                                <h3 data-i18n="server_installation.prerequisites.ubuntu25.title" data-i18n-html>Ubuntu 25.04+ Notes</h3>
-                                <p><strong data-i18n="server_installation.note" data-i18n-html>Note:</strong> <span data-i18n="server_installation.prerequisites.ubuntu25.note" data-i18n-html>Ubuntu 25.04 ships Python 3.13, Ubuntu 25.10 ships Python 3.13, and Ubuntu 26.04 ships Python 3.14. All are fully supported. Use the standard Ubuntu installation instructions.</span></p>
-                            </div>
-
-                            <div class="tab-pane" id="centos">
-                                <h3 data-i18n="server_installation.prerequisites.centos.title" data-i18n-html>CentOS/RHEL/Fedora</h3>
-                                <pre><code># Install Python 3.12+
-sudo dnf install python3 python3-devel python3-pip
-
-# Install Node.js 20.x
-curl -fsSL https://rpm.nodesource.com/setup_20.x | sudo bash -
-sudo dnf install -y nodejs
-
-# Install PostgreSQL 14+
-sudo dnf install postgresql postgresql-server postgresql-contrib
-sudo postgresql-setup --initdb
-sudo systemctl start postgresql
-sudo systemctl enable postgresql
-
-# Install build tools and libraries
-sudo dnf groupinstall "Development Tools"
-sudo dnf install libffi-devel openssl-devel postgresql-devel
-sudo dnf install libuv-devel python3-setuptools
-
-# Configure firewall -- SysManage needs 443, and 80 only to redirect to it.
-# The API and the web UI are served on the same origin behind nginx, so
-# 8080 and 3000 stay on loopback and must NOT be opened.
-sudo firewall-cmd --permanent --add-service=https
-sudo firewall-cmd --permanent --add-service=http
-sudo firewall-cmd --reload</code></pre>
-                            </div>
-
-                            <div class="tab-pane" id="macos">
-                                <h3 data-i18n="server_installation.prerequisites.macos.title" data-i18n-html>macOS</h3>
-                                <pre><code># Install Homebrew (if not already installed)
-/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
-
-# Install Python 3.12
-brew install python@3.12
-
-# Install Node.js 20.x
-brew install node@20
-brew link node@20
-
-# Install PostgreSQL 14+
-brew install postgresql@14
-brew services start postgresql@14
-
-# Install Xcode Command Line Tools
-xcode-select --install</code></pre>
-                            </div>
-
-                            <div class="tab-pane" id="windows">
-                                <h3 data-i18n="server_installation.prerequisites.windows.title" data-i18n-html>Windows</h3>
-                                <div class="windows-install">
-                                    <ol>
-                                        <li data-i18n="docs.auto.server.installation.001"><strong>Python 3.12+:</strong> Download from <a href="https://python.org/downloads/" target="_blank">python.org</a>
-                                            <ul><li>✅ Python 3.12, 3.13, or 3.14 recommended</li>
-                                            <li>✅ Check "Add Python to PATH" during installation</li></ul>
-                                        </li>
-                                        <li data-i18n="docs.auto.server.installation.002"><strong>Node.js 20.x:</strong> Download from <a href="https://nodejs.org/" target="_blank">nodejs.org</a></li>
-                                        <li data-i18n="docs.auto.server.installation.003"><strong>PostgreSQL 14+:</strong> Download from <a href="https://www.postgresql.org/download/windows/" target="_blank">postgresql.org</a></li>
-                                        <li data-i18n="docs.auto.server.installation.004"><strong>Git for Windows:</strong> Download from <a href="https://git-scm.com/download/win" target="_blank">git-scm.com</a></li>
-                                        <li data-i18n="docs.auto.server.installation.005"><strong>Visual Studio Build Tools:</strong> Download from <a href="https://visualstudio.microsoft.com/downloads/#build-tools-for-visual-studio-2022" target="_blank">Microsoft</a></li>
-                                        <li data-i18n="server_installation.prerequisites.windows.nginx" data-i18n-html><strong>nginx:</strong> installed automatically by the MSI -- no manual step. The installer downloads a pinned version, verifies its SHA-256 before extracting, and registers it as the <code>SysManageNginx</code> service. On an air-gapped host, use an air-gap bundle: it ships nginx so the install needs no network.</li>
-                                    </ol>
-                                    <p data-i18n="server_installation.prerequisites.windows.nginx_note" data-i18n-html><strong>nginx is required, not optional.</strong> The SysManage backend serves the REST API and the agent WebSocket only -- it has no static-file handler. nginx serves the web console, terminates TLS on 443, and proxies <code>/api/</code> and <code>/ws</code> to the backend on loopback 8080. Without it there is no console to reach.</p>
-                                </div>
-                            </div>
-
-                            <div class="tab-pane" id="freebsd">
-                                <h3 data-i18n="server_installation.prerequisites.freebsd.title" data-i18n-html>FreeBSD</h3>
-                                <pre><code># Update package manager
-sudo pkg update
-
-# Install Python 3.12+
-sudo pkg install python312 py312-pip py312-sqlite3
-
-# Install Node.js 20.x
-sudo pkg install node20 npm
-
-# Install PostgreSQL 14+
-sudo pkg install postgresql14-server postgresql14-client
-sudo service postgresql enable
-sudo service postgresql initdb
-sudo service postgresql start
-
-# Install Go (required for OpenBAO)
-sudo pkg install go
-
-# Install build tools
-sudo pkg install gcc cmake make</code></pre>
-                            </div>
-
-                            <div class="tab-pane" id="openbsd">
-                                <h3 data-i18n="server_installation.prerequisites.openbsd.title" data-i18n-html>OpenBSD</h3>
-
-                                <h4 data-i18n="server_installation.prerequisites.openbsd.pkg_title" data-i18n-html>Recommended: Pre-built Package (OpenBSD 7.8, 7.9)</h4>
-                                <p data-i18n="server_installation.prerequisites.openbsd.pkg_intro" data-i18n-html>A pre-built package is published for each supported OpenBSD release. It bundles the backend, the built web interface, and all Python dependencies, so it installs quickly and needs no compilers.</p>
-                                <pre><code># 1. Download the package for your release (79 = 7.9, 78 = 7.8).
-#    Replace X.Y.Z with the release version.
-ftp https://github.com/bceverly/sysmanage/releases/download/vX.Y.Z/sysmanage-X.Y.Z-openbsd79.tgz
-
-# 2. Install it. pkg_add resolves the dependency packages (py3-cryptography,
-#    py3-pydantic, postgresql-client, ...) from the OpenBSD mirror.
-doas pkg_add sysmanage-X.Y.Z-openbsd79.tgz
-
-# 3. Provide a PostgreSQL database (local example; a remote DB works too).
-doas pkg_add postgresql-server
-doas rcctl enable postgresql
-doas su - _postgresql -c "initdb -D /var/postgresql/data -U postgres -E UTF8"
-doas rcctl start postgresql
-doas -u _postgresql createuser -P sysmanage       # set a password
-doas -u _postgresql createdb -O sysmanage sysmanage
-
-# 4. First start seeds a default config and then stops with instructions.
-doas rcctl enable openbao sysmanage
-doas rcctl start sysmanage
-
-# 5. Edit the config: set the postgresql:// connection string, TLS, admin user.
-doas vi /etc/sysmanage.yaml
-
-# 6. Initialize the database schema (PYTHONPATH points at the bundled deps).
-cd /usr/local/libexec/sysmanage
-doas env PYTHONPATH=/usr/local/libexec/sysmanage:/usr/local/libexec/sysmanage/pip-packages \
-    python3 -m alembic upgrade head
-
-# 7. Start the services (OpenBAO secrets broker + the server on port 8080).
-doas rcctl start openbao sysmanage
-
-# The web UI is served from /usr/local/share/sysmanage/frontend -- front it with
-# your preferred web server (e.g. relayd/nginx) proxying to 127.0.0.1:8080.</code></pre>
-
-                                <h4 data-i18n="server_installation.prerequisites.openbsd.src_title" data-i18n-html>Alternative: Build from Source</h4>
-                                <p data-i18n="server_installation.prerequisites.openbsd.src_intro" data-i18n-html>For development, or to build the port yourself, install the toolchain below and follow the general Installation Steps.</p>
-                                <pre><code># Update package manager
-doas pkg_add -u
-
-# Install Python 3.12+
-doas pkg_add python-3.12 py3-pip
-
-# Install Node.js 20.x
-doas pkg_add node
-
-# Install PostgreSQL 14+
-doas pkg_add postgresql-server postgresql-client
-doas rcctl enable postgresql
-doas su - _postgresql -c "initdb -D /var/postgresql/data"
-doas rcctl start postgresql
-
-# Install build tools (required for cryptography packages)
-doas pkg_add rust gcc cmake gmake pkgconf
-
-# Install additional tools for telemetry and gRPC compilation
-# Note: These are required for building grpcio and OpenTelemetry from source
-doas pkg_add gcc-11.2.0p15 findutils coreutils grpc
-
-# IMPORTANT: OpenBSD requires building some Python packages from source
-# The SysManage build system will automatically handle this during 'make install-dev'
-# This includes: grpcio, cffi, and all OpenTelemetry packages</code></pre>
-                            </div>
-
-                            <div class="tab-pane" id="netbsd">
-                                <h3 data-i18n="docs.auto.server.installation.006">NetBSD Complete Setup Guide</h3>
-                                <pre><code># ===== QUICK INSTALL: All packages in one command =====
-# Required + Optional packages for full development environment:
-pkgin install python312 py312-pip py312-sqlite3 nodejs npm \
-    postgresql14-server postgresql14-client gcc13 cmake gmake pkgconf \
-    rust py312-cffi jpeg libjpeg-turbo tiff png freetype2 lcms2 \
-    libwebp openjpeg zlib findutils coreutils go git chromium firefox
-
-# ===== OR STEP BY STEP INSTALLATION =====
-# ===== STEP 1: Update package manager =====
-pkgin update
-
-# ===== STEP 2: Install all required packages =====
-# Install Python 3.12
-pkgin install python312 py312-pip py312-sqlite3
-
-# Install Node.js and npm
-pkgin install nodejs npm
-
-# Install PostgreSQL 14+
-pkgin install postgresql14-server postgresql14-client
-
-# Install ALL required build tools and libraries:
-# IMPORTANT: jpeg package is required in addition to libjpeg-turbo!
-pkgin install gcc13 cmake gmake pkgconf rust py312-cffi \
-    jpeg libjpeg-turbo tiff png freetype2 lcms2 libwebp openjpeg zlib
-
-# Install GNU utilities (REQUIRED for OpenTelemetry Collector build from source)
-# Provides: gfind, gxargs (findutils) and gdirname (coreutils)
-pkgin install findutils coreutils
-
-# Optional: Install Go if you want to build OpenBAO or OpenTelemetry from source
-# (Both are optional - the system works without them)
-pkgin install go git  # Only needed if you want OpenBAO or OTEL Collector
-
-# NetBSD installs Go as go124 - create a symlink for compatibility:
-sudo ln -sf /usr/pkg/bin/go124 /usr/pkg/bin/go
-
-# Install browsers for UI testing and screenshots
-pkgin install chromium firefox  # Needed for browser automation tests
-
-# ===== STEP 3: Set environment variables (CRITICAL for NetBSD) =====
-# NetBSD installs packages in /usr/pkg, not standard locations
-# These MUST be set before installing Python packages with C extensions
-
-# Set for current session:
-export CFLAGS="-I/usr/pkg/include"
-export LDFLAGS="-L/usr/pkg/lib -Wl,-R/usr/pkg/lib"
-
-# Make permanent (add to ~/.profile for sh/ksh or ~/.bashrc for bash):
-echo 'export CFLAGS="-I/usr/pkg/include"' >> ~/.profile
-echo 'export LDFLAGS="-L/usr/pkg/lib -Wl,-R/usr/pkg/lib"' >> ~/.profile
-
-# Source the profile to apply changes:
-. ~/.profile
-
-# ===== STEP 4: Set up PATH for local binaries =====
-# Add ~/.local/bin to PATH (needed for OpenBAO and other local tools)
-echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.profile
-. ~/.profile
-
-# PostgreSQL Setup on NetBSD
-# IMPORTANT: NetBSD may not have the pgsql user created automatically
-
-# Create the postgres user and group (if not already present)
-sudo useradd -m -d /var/db/postgresql -s /bin/sh postgres
-sudo groupadd postgres   # only if group not auto-created
-
-# Set ownership of the database directory
-sudo mkdir -p /var/db/postgresql/data
-sudo chown -R postgres:postgres /var/db/postgresql
-
-# Initialize the database as postgres user
-sudo -u postgres /usr/pkg/bin/initdb -D /var/db/postgresql/data
-# Note: Path might be /usr/pkg/postgresql14/bin/initdb - run 'which initdb' to confirm
-
-# Copy rc.d script and configure startup
-sudo cp /usr/pkg/share/examples/rc.d/pgsql /etc/rc.d/
-sudo chmod 755 /etc/rc.d/pgsql
-
-# Enable PostgreSQL to start at boot
-echo 'pgsql=YES' | sudo tee -a /etc/rc.conf
-
-# Start PostgreSQL
-sudo /etc/rc.d/pgsql start
-
-# Verify PostgreSQL is running
-sudo /etc/rc.d/pgsql status
-
-# IMPORTANT: /tmp filesystem considerations
-# NetBSD uses tmpfs for /tmp with a default 1GB limit
-# If you encounter "No space left on device" errors during pip installs:
-#
-# Option 1: Increase /tmp size (as root):
-mount -t tmpfs -o -s=4g tmpfs /tmp
-#
-# Option 2: Make permanent in /etc/fstab:
-# tmpfs /tmp tmpfs rw,-s=4g 0 0
-#
-# Option 3: Use alternate temp directory:
-export TMPDIR=$HOME/tmp
-mkdir -p $HOME/tmp</code></pre>
+                            <div class="tab-pane" id="rhel">
+                                <p data-i18n="server_installation.packages.rhel.intro" data-i18n-html>RHEL, Rocky Linux, AlmaLinux, Oracle Linux and CentOS Stream 8, 9 and 10 (x86_64 and aarch64) install from the <code>bceverly/sysmanage</code> Fedora Copr project. Fedora itself is not built for the server at the moment; use <a href="#from-source">Building from Source</a> there.</p>
+                                <pre><code>sudo dnf install epel-release
+sudo dnf copr enable bceverly/sysmanage
+sudo dnf install sysmanage</code></pre>
                             </div>
 
                             <div class="tab-pane" id="opensuse">
-                                <h3 data-i18n="server_installation.prerequisites.opensuse.title" data-i18n-html>openSUSE Leap/Tumbleweed</h3>
-                                <pre><code># Update package manager
+                                <p data-i18n="server_installation.packages.opensuse.intro" data-i18n-html>openSUSE Leap 15.6 and Tumbleweed install from the openSUSE Build Service project <code>home:bryaneverly</code>.</p>
+                                <pre><code># openSUSE Leap 15.6
+sudo zypper addrepo https://download.opensuse.org/repositories/home:/bryaneverly/15.6/home:bryaneverly.repo
+
+# openSUSE Tumbleweed
+sudo zypper addrepo https://download.opensuse.org/repositories/home:/bryaneverly/openSUSE_Tumbleweed/home:bryaneverly.repo
+
 sudo zypper refresh
-
-# Install Python 3.11 or newer
-sudo zypper install python311 python311-pip python311-devel
-
-# Install Node.js 20.x
-sudo zypper install nodejs20 npm20
-
-# Install PostgreSQL 14+
-sudo zypper install postgresql14-server postgresql14-contrib
-sudo systemctl enable postgresql
-sudo systemctl start postgresql
-
-# Install build tools and development libraries
-sudo zypper install gcc gcc-c++ make cmake pkg-config
-sudo zypper install libopenssl-devel libffi-devel postgresql14-devel
-sudo zypper install libuv-devel python311-setuptools
-
-# Configure firewall -- SysManage needs 443, and 80 only to redirect to it.
-# The API and the web UI are served on the same origin behind nginx, so
-# 8080 and 3000 stay on loopback and must NOT be opened.
-sudo firewall-cmd --permanent --add-service=https
-sudo firewall-cmd --permanent --add-service=http
-sudo firewall-cmd --reload</code></pre>
-
-                                <div class="opensuse-note">
-                                    <h4 data-i18n="server_installation.prerequisites.opensuse.note_title" data-i18n-html>Package Manager Notes</h4>
-                                    <ul>
-                                        <li><strong data-i18n="server_installation.prerequisites.opensuse.note_leap" data-i18n-html>openSUSE Leap:</strong> Stable packages, Python 3.11 typically available</li>
-                                        <li><strong data-i18n="server_installation.prerequisites.opensuse.note_tumbleweed" data-i18n-html>openSUSE Tumbleweed:</strong> Rolling release with latest packages</li>
-                                        <li><strong data-i18n="server_installation.prerequisites.opensuse.note_nodejs" data-i18n-html>Node.js versions:</strong> May need to specify version (nodejs20) explicitly</li>
-                                        <li><strong data-i18n="server_installation.prerequisites.opensuse.note_postgresql" data-i18n-html>PostgreSQL:</strong> Specify version (postgresql14) for compatibility</li>
-                                    </ul>
-                                </div>
+sudo zypper install sysmanage</code></pre>
                             </div>
 
-                            <div class="tab-pane" id="sles">
-                                <h3 data-i18n="server_installation.prerequisites.sles.title" data-i18n-html>SUSE Linux Enterprise Server (SLES)</h3>
-                                <pre><code># Update package manager
-sudo zypper refresh
-
-# Install Python 3.11 or 3.12 and development tools
-sudo zypper install python311 python311-pip python311-devel
-sudo zypper install gcc gcc-c++ make cmake pkg-config
-
-# Install Node.js 20.x (may require additional repository)
-# For SLES 15 SP4+:
-sudo SUSEConnect -p sle-module-web-scripting/15.4/x86_64
-sudo zypper install nodejs20 npm20
-
-# Install PostgreSQL 14+
-sudo zypper install postgresql14-server postgresql14-contrib postgresql14-devel
-sudo systemctl enable postgresql
-sudo systemctl start postgresql
-
-# Install development libraries
-sudo zypper install libopenssl-devel libffi-devel libpq5
-sudo zypper install libuv-devel python311-setuptools
-
-# For SLES 15 SP4+, you may also need:
-sudo zypper install glibc-devel kernel-devel
-
-# Configure firewall (SuSEfirewall2 or firewalld) -- 443, plus 80 to redirect.
-# 8080 and 3000 stay on loopback behind nginx and must NOT be opened.
-sudo firewall-cmd --permanent --add-service=https
-sudo firewall-cmd --permanent --add-service=http
-sudo firewall-cmd --reload</code></pre>
-
-                                <div class="sles-note">
-                                    <h4 data-i18n="server_installation.prerequisites.sles.note_title" data-i18n-html>Enterprise Considerations</h4>
-                                    <ul>
-                                        <li><strong data-i18n="server_installation.prerequisites.sles.note_sles12" data-i18n-html>SLES 12:</strong> May require Software Collections (SCL) for newer Python</li>
-                                        <li><strong data-i18n="server_installation.prerequisites.sles.note_sles15" data-i18n-html>SLES 15:</strong> Python 3.6+ included, but 3.11+ recommended</li>
-                                        <li><strong data-i18n="server_installation.prerequisites.sles.note_modules" data-i18n-html>Modules:</strong> Some packages require enabling additional modules via SUSEConnect</li>
-                                        <li><strong data-i18n="server_installation.prerequisites.sles.note_firewall" data-i18n-html>Firewall:</strong> May use SuSEfirewall2 (older) or firewalld (newer)</li>
-                                        <li><strong data-i18n="server_installation.prerequisites.sles.note_selinux" data-i18n-html>SELinux:</strong> May require policy adjustments if enabled</li>
-                                        <li><strong data-i18n="server_installation.prerequisites.sles.note_subscription" data-i18n-html>Subscription:</strong> Active SLES subscription required for full package access</li>
-                                    </ul>
-                                </div>
+                            <div class="tab-pane" id="arch">
+                                <p data-i18n="server_installation.packages.arch.intro" data-i18n-html>Arch Linux installs the <code>sysmanage</code> package from the AUR, with any AUR helper:</p>
+                                <pre><code>yay -S sysmanage</code></pre>
                             </div>
 
                             <div class="tab-pane" id="alpine">
-                                <h3 data-i18n="server_installation.prerequisites.alpine.title" data-i18n-html>Alpine Linux 3.20, 3.21, 3.22</h3>
-                                <pre><code># Update package manager
-apk update
+                                <p data-i18n="server_installation.packages.alpine.intro" data-i18n-html>Alpine Linux 3.20, 3.21 and 3.22 packages are direct downloads from the releases page. Pick the file for your Alpine release (<code>alpine320</code>, <code>alpine321</code> or <code>alpine322</code>) and check its <code>.sha256</code> before installing.</p>
+                                <pre><code>sha256sum -c sysmanage-X.Y.Z-alpine321.apk.sha256
+apk add --allow-untrusted ./sysmanage-X.Y.Z-alpine321.apk</code></pre>
+                            </div>
 
-# Install Python 3
-apk add python3 python3-dev py3-pip py3-virtualenv
+                            <div class="tab-pane" id="snap">
+                                <p data-i18n="server_installation.packages.snap.intro" data-i18n-html>The server is published to the Snap Store in the stable channel, with strict confinement:</p>
+                                <pre><code>sudo snap install sysmanage</code></pre>
+                            </div>
 
-# Install Node.js 20.x
-apk add nodejs npm
+                            <div class="tab-pane" id="macos">
+                                <p data-i18n="server_installation.packages.macos.intro" data-i18n-html>Download <code>sysmanage-X.Y.Z-macos.pkg</code> from the releases page and install it. The installer uses Homebrew to add nginx if it is missing.</p>
+                                <pre><code>sudo installer -pkg sysmanage-X.Y.Z-macos.pkg -target /
+sudo cp /etc/sysmanage.yaml.example /etc/sysmanage.yaml</code></pre>
+                                <p data-i18n="server_installation.packages.macos.start" data-i18n-html>After the steps under <a href="#after-installing">After Installing</a>, start the server with <code>sudo launchctl load /Library/LaunchDaemons/com.sysmanage.server.plist</code>.</p>
+                            </div>
 
-# Install PostgreSQL 14+
-apk add postgresql postgresql-client postgresql-contrib
-rc-service postgresql start
-rc-update add postgresql
+                            <div class="tab-pane" id="windows">
+                                <p data-i18n="server_installation.packages.windows.intro" data-i18n-html>Download <code>sysmanage-X.Y.Z-windows-x64.msi</code> (or <code>sysmanage-X.Y.Z-windows-arm64.msi</code> on ARM) from the releases page and run it as an administrator. It installs the server in <code>C:\Program Files\SysManage Server</code> and registers the <code>SysManageServer</code>, <code>SysManageNginx</code> and <code>SysManageOpenBAO</code> services. nginx is downloaded during the install and its SHA-256 is checked before use.</p>
+                                <pre><code>msiexec /i sysmanage-X.Y.Z-windows-x64.msi</code></pre>
+                                <p data-i18n="server_installation.packages.windows.start" data-i18n-html>The server is left stopped. After the steps under <a href="#after-installing">After Installing</a>, start it from an administrator PowerShell with <code>Set-Service SysManageServer -StartupType Automatic</code>, <code>Start-Service SysManageServer</code> and <code>Restart-Service SysManageNginx</code>.</p>
+                            </div>
 
-# Initialize PostgreSQL if first time
-/etc/init.d/postgresql setup
+                            <div class="tab-pane" id="freebsd">
+                                <p data-i18n="server_installation.packages.freebsd.intro" data-i18n-html>Download <code>sysmanage-X.Y.Z.pkg</code> from the releases page and install it:</p>
+                                <pre><code>sudo pkg add ./sysmanage-X.Y.Z.pkg</code></pre>
+                                <p data-i18n="server_installation.packages.freebsd.start" data-i18n-html>Start the services with <code>sysrc sysmanage_enable=YES</code>, <code>sysrc nginx_enable=YES</code>, <code>service sysmanage start</code> and <code>service nginx start</code>.</p>
+                            </div>
 
-# Install build tools and development libraries
-apk add build-base gcc g++ make cmake pkgconf
-apk add libffi-dev openssl-dev postgresql-dev
-apk add libuv-dev python3-setuptools
+                            <div class="tab-pane" id="openbsd">
+                                <p data-i18n="server_installation.packages.openbsd.intro" data-i18n-html>A pre-built package is published for OpenBSD 7.8 and 7.9. It bundles the backend, the web interface and the Python dependencies, so it needs no compiler. Use <code>openbsd78</code> or <code>openbsd79</code> to match your release.</p>
+                                <pre><code>ftp https://github.com/bceverly/sysmanage/releases/download/vX.Y.Z/sysmanage-X.Y.Z-openbsd79.tgz
+doas pkg_add sysmanage-X.Y.Z-openbsd79.tgz</code></pre>
+                                <p data-i18n="server_installation.packages.openbsd.start" data-i18n-html>Start the services with <code>doas rcctl enable openbao sysmanage</code> and <code>doas rcctl start openbao sysmanage</code>.</p>
+                            </div>
 
-# Install Rust (required for cryptography)
-apk add rust cargo
-
-# Configure firewall (if using iptables)
-apk add iptables
-iptables -A INPUT -p tcp --dport 8080 -j ACCEPT  # Backend API
-iptables -A INPUT -p tcp --dport 3000 -j ACCEPT  # Frontend UI</code></pre>
-
-                                <div class="alpine-note">
-                                    <h4 data-i18n="server_installation.prerequisites.alpine.note_title" data-i18n-html>Alpine Linux Notes</h4>
-                                    <ul>
-                                        <li><strong data-i18n="server_installation.prerequisites.alpine.note_musl" data-i18n-html>musl libc:</strong> Alpine uses musl instead of glibc - some packages may need compilation</li>
-                                        <li><strong data-i18n="server_installation.prerequisites.alpine.note_openrc" data-i18n-html>OpenRC:</strong> Alpine uses OpenRC instead of systemd for service management</li>
-                                        <li><strong data-i18n="server_installation.prerequisites.alpine.note_edge" data-i18n-html>Edge repository:</strong> Some packages may require enabling the Edge repository for latest versions</li>
-                                        <li><strong data-i18n="server_installation.prerequisites.alpine.note_memory" data-i18n-html>Memory:</strong> Alpine's minimal footprint makes it ideal for containers and VMs</li>
-                                    </ul>
-                                </div>
+                            <div class="tab-pane" id="netbsd">
+                                <p data-i18n="server_installation.packages.netbsd.intro" data-i18n-html>Download <code>sysmanage-X.Y.Z-netbsd.tgz</code> and its <code>.sha256</code> from the releases page, check it, and install it as root:</p>
+                                <pre><code>sha256 -c sysmanage-X.Y.Z-netbsd.tgz.sha256 sysmanage-X.Y.Z-netbsd.tgz
+pkg_add sysmanage-X.Y.Z-netbsd.tgz</code></pre>
                             </div>
                         </div>
                     </div>
+
+                    <p data-i18n="server_installation.packages.airgap" data-i18n-html><strong>No internet access on the server?</strong> Use the <a href="/air-gapped/">air-gapped installation</a>, which carries every package and dependency on one bundle.</p>
                 </section>
 
-                <section class="docs-section">
-                    <h2 data-i18n="server_installation.installation_steps.title" data-i18n-html>Installation Steps</h2>
-
-                    <div class="platform-notice" style="background-color: #fff3cd; border: 1px solid #ffc107; padding: 15px; margin-bottom: 20px; border-radius: 5px;">
-                        <h4 style="margin-top: 0;" data-i18n="docs.auto.server.installation.007">NetBSD Users - Critical Setup Requirements</h4>
-                        <p><strong data-i18n="docs.auto.server.installation.008">Before starting installation, NetBSD users MUST:</strong></p>
-                        <ol>
-                            <li data-i18n="docs.auto.server.installation.009">Install ALL required packages including <code>jpeg</code> (not just libjpeg-turbo)</li>
-                            <li data-i18n="docs.auto.server.installation.010">Set environment variables: <code>export CFLAGS="-I/usr/pkg/include" LDFLAGS="-L/usr/pkg/lib -Wl,-R/usr/pkg/lib"</code></li>
-                            <li data-i18n="docs.auto.server.installation.011">Use <code>gmake</code> instead of <code>make</code> for all make commands</li>
-                            <li data-i18n="docs.auto.server.installation.012">Manually create PostgreSQL user if not present</li>
-                            <li data-i18n="docs.auto.server.installation.013">Increase /tmp size if needed: <code>mount -t tmpfs -o -s=4g tmpfs /tmp</code></li>
-                        </ol>
-                        <p data-i18n="docs.auto.server.installation.014">See the NetBSD tab in Prerequisites above for complete setup instructions.</p>
-                    </div>
+                <section class="docs-section" id="after-installing">
+                    <h2 data-i18n="server_installation.after.title" data-i18n-html>After Installing</h2>
+                    <p data-i18n="server_installation.after.intro" data-i18n-html>These steps are written for Ubuntu and Debian. They are the same on every platform; only the paths and the service commands differ, and the table at the end of this section lists the paths for each one.</p>
 
                     <div class="install-steps">
                         <div class="step">
-                            <h3 data-i18n="server_installation.installation_steps.step1.title" data-i18n-html>Step 1: Clone and Setup</h3>
-                            <pre><code>git clone https://github.com/bceverly/sysmanage.git
-cd sysmanage
-
-# NetBSD ONLY: Set environment variables BEFORE creating venv
-# (Required for building Python packages with C extensions)
-export CFLAGS="-I/usr/pkg/include"
-export LDFLAGS="-L/usr/pkg/lib -Wl,-R/usr/pkg/lib"
-
-# Create Python virtual environment (use specific version)
-python3 -m venv .venv  # Or specify version: python3.12 -m venv .venv
-source .venv/bin/activate  # Windows: .venv\Scripts\activate
-                           # FreeBSD/OpenBSD/NetBSD: . .venv/bin/activate
-
-# Upgrade pip to latest version
-pip install --upgrade pip</code></pre>
+                            <h3 data-i18n="server_installation.after.db.title" data-i18n-html>Step 1: Create the Database</h3>
+                            <p data-i18n="server_installation.after.db.body" data-i18n-html>To use a local PostgreSQL server, install it and create the <code>sysmanage</code> user and database. Choose a strong password; you will put it in the configuration file next.</p>
+                            <pre><code>sudo apt install postgresql
+sudo -u postgres createuser sysmanage
+sudo -u postgres createdb sysmanage -O sysmanage
+sudo -u postgres psql -c "ALTER USER sysmanage WITH PASSWORD 'choose-a-strong-password';"</code></pre>
+                            <p data-i18n="server_installation.after.db.remote" data-i18n-html>A remote PostgreSQL server works just as well. Create the same user and database there and use its host name in the configuration.</p>
                         </div>
 
                         <div class="step">
-                            <h3 data-i18n="server_installation.installation_steps.step2.title" data-i18n-html>Step 2: Database Setup</h3>
-                            <p data-i18n="server_installation.installation_steps.step2.description" data-i18n-html>Create PostgreSQL database and user:</p>
-
-                            <div class="db-setup-tabs">
-                                <div class="tab-header">
-                                    <button class="tab-button active" data-tab="db-linux" data-i18n="server_installation.installation_steps.step2.linux_macos_freebsd" data-i18n-html>Linux/macOS/FreeBSD</button>
-                                    <button class="tab-button" data-tab="db-openbsd" data-i18n="server_installation.installation_steps.step2.openbsd" data-i18n-html>OpenBSD</button>
-                                    <button class="tab-button" data-tab="db-netbsd" data-i18n="server_installation.installation_steps.step2.netbsd" data-i18n-html>NetBSD</button>
-                                    <button class="tab-button" data-tab="db-windows" data-i18n="server_installation.installation_steps.step2.windows" data-i18n-html>Windows</button>
-                                </div>
-
-                                <div class="tab-content">
-                                    <div class="tab-pane active" id="db-linux">
-                                        <pre><code># Switch to postgres user
-sudo su - postgres
-
-# Start psql
-psql
-
-# In PostgreSQL prompt (using dev credentials):
-CREATE USER sysmanage WITH PASSWORD 'abc123';
-CREATE DATABASE sysmanage OWNER sysmanage;
-GRANT ALL PRIVILEGES ON DATABASE sysmanage TO sysmanage;
-
-# Grant schema permissions
-\c sysmanage
-GRANT ALL ON SCHEMA public TO sysmanage;
-
-# Exit PostgreSQL
-\q</code></pre>
-                                    </div>
-
-                                    <div class="tab-pane" id="db-openbsd">
-                                        <pre><code># Switch to _postgresql user
-doas -u _postgresql psql postgres
-
-# Run the same SQL commands as Linux/macOS
-CREATE USER sysmanage WITH PASSWORD 'abc123';
-CREATE DATABASE sysmanage OWNER sysmanage;
-GRANT ALL PRIVILEGES ON DATABASE sysmanage TO sysmanage;
-\c sysmanage
-GRANT ALL ON SCHEMA public TO sysmanage;
-\q</code></pre>
-                                    </div>
-
-                                    <div class="tab-pane" id="db-netbsd">
-                                        <pre><code># Note: PostgreSQL on NetBSD often uses TCP/IP connections
-# Connect as the postgres user (created during setup above)
-sudo su - postgres
-psql -h localhost postgres
-
-# Alternative: If using pgsql user instead of postgres:
-psql -h localhost -U pgsql postgres
-
-# Run the same SQL commands as Linux/macOS
-CREATE USER sysmanage WITH PASSWORD 'abc123';
-CREATE DATABASE sysmanage OWNER sysmanage;
-GRANT ALL PRIVILEGES ON DATABASE sysmanage TO sysmanage;
-\c sysmanage
-GRANT ALL ON SCHEMA public TO sysmanage;
-\q
-
-# Test the connection with the new user:
-PGPASSWORD=abc123 psql -h localhost -U sysmanage -d sysmanage -c "SELECT version();"</code></pre>
-                                    </div>
-
-                                    <div class="tab-pane" id="db-windows">
-                                        <pre><code># Open "SQL Shell (psql)" from Start Menu
-# Or use Command Prompt:
-psql -U postgres -h localhost
-
-# Run the same SQL commands:
-CREATE USER sysmanage WITH PASSWORD 'abc123';
-CREATE DATABASE sysmanage OWNER sysmanage;
-GRANT ALL PRIVILEGES ON DATABASE sysmanage TO sysmanage;
-\c sysmanage
-GRANT ALL ON SCHEMA public TO sysmanage;
-\q</code></pre>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div class="security-warning">
-                                <h4 data-i18n="server_installation.installation_steps.step2.security_notes.title" data-i18n-html>Security Notes</h4>
-                                <ul>
-                                    <li data-i18n="server_installation.installation_steps.step2.security_notes.dev_password" data-i18n-html>Development password <code>abc123</code> matches <code>sysmanage-dev.yaml</code></li>
-                                    <li><strong data-i18n="server_installation.installation_steps.step2.security_notes.never_production" data-i18n-html>NEVER use this password in production</strong></li>
-                                    <li data-i18n="server_installation.installation_steps.step2.security_notes.change_password" data-i18n-html>Change password in both PostgreSQL AND your configuration file</li>
-                                </ul>
-                            </div>
-
-                            <div style="background:#ede7f6;border-left:4px solid #5e35b1;padding:0.9rem 1.2rem;border-radius:0 8px 8px 0;margin-top:1rem;">
-                                <h4 style="margin:0 0 0.4rem;color:#4527a0;" data-i18n="docs.auto.server.installation.027">Setting up multi-tenancy?</h4>
-                                <p style="margin:0;" data-i18n="docs.auto.server.installation.028">The steps above create the single application database used by the Community, Professional, and Enterprise editions. A multi-tenant <strong>Enterprise SaaS</strong> deployment also needs a registry database, OpenBAO, and an isolated database per tenant. See <a href="../deployment/multi-tenancy.html">Deploying Multi-Tenancy</a> for the full development and production database setup.</p>
-                            </div>
-                        </div>
-
-                        <div class="step">
-                            <h3 data-i18n="server_installation.installation_steps.step3.title" data-i18n-html>Step 3: Install Backend Dependencies</h3>
-                            <pre><code>pip install -r requirements.txt
-
-# For development installation with testing tools:
-# Linux/macOS: make install-dev
-# BSD systems: gmake install-dev</code></pre>
-                        </div>
-
-                        <div class="step">
-                            <h3 data-i18n="server_installation.installation_steps.step4.title" data-i18n-html>Step 4: Test Database Connection</h3>
-                            <pre><code># Test connection with development credentials
-PGPASSWORD=abc123 psql -U sysmanage -d sysmanage -h localhost -c "SELECT version();"</code></pre>
-                        </div>
-
-                        <div class="step">
-                            <h3 data-i18n="server_installation.installation_steps.step5.title" data-i18n-html>Step 5: Install Frontend Dependencies</h3>
-                            <pre><code>cd frontend
-npm install</code></pre>
-                        </div>
-
-                        <div class="step">
-                            <h3 data-i18n="server_installation.installation_steps.step6.title" data-i18n-html>Step 6: Configuration</h3>
-                            <p data-i18n="server_installation.installation_steps.step6.description" data-i18n-html>Create configuration file at:</p>
-
-                            <div class="config-generator-note">
-                                <h4 data-i18n="server_installation.installation_steps.step6.config_generator.title" data-i18n-html>Configuration Generator Available</h4>
-                                <p data-i18n="server_installation.installation_steps.step6.config_generator.description" data-i18n-html>Use the interactive <a href="/config-builder.html" target="_blank" data-i18n="server_installation.installation_steps.step6.config_generator.link" data-i18n-html>Configuration Builder Tool</a> to generate customized configuration files for your environment.</p>
-                            </div>
-                            <ul>
-                                <li><strong data-i18n="server_installation.installation_steps.step6.linux_macos_bsd" data-i18n-html>Linux/macOS/FreeBSD/OpenBSD/NetBSD:</strong> <code>/etc/sysmanage.yaml</code></li>
-                                <li><strong data-i18n="server_installation.installation_steps.step6.windows_path" data-i18n-html>Windows:</strong> <code>C:\ProgramData\SysManage\sysmanage.yaml</code></li>
-                            </ul>
-
-                            <pre><code>api:
-  host: "localhost"
-  port: 8080
-
-database:
+                            <h3 data-i18n="server_installation.after.config.title" data-i18n-html>Step 2: Edit the Configuration</h3>
+                            <p data-i18n="server_installation.after.config.body" data-i18n-html>The package created <code>/etc/sysmanage.yaml</code> and already generated this installation's <code>jwt_secret</code>, <code>password_salt</code> and recovery <code>admin_password</code>. Set the database password, and set <code>admin_userid</code> to your own email address:</p>
+                            <pre><code>sudo vim /etc/sysmanage.yaml</code></pre>
+                            <pre><code>registry:
   user: "sysmanage"
-  password: "abc123"  # CHANGE FOR PRODUCTION!
-  host: "localhost"
+  password: "choose-a-strong-password"   # the password from step 1
+  host: "localhost"                      # or your remote PostgreSQL host
   port: 5432
   name: "sysmanage"
 
 security:
-  # v3.0: the secure-installation step (below) generates these secrets into
-  # OpenBAO and seeds the admin user in the database; JWT timeouts move to
-  # Settings -> Configuration. These YAML fields remain a supported fallback
-  # (deprecation warning) for manual setups that are not OpenBAO-backed.
-  password_salt: "GENERATE_NEW_BASE64_STRING"
-  admin_userid: "admin@yourdomain.com"
-  admin_password: "CHANGE_THIS_PASSWORD"
-  jwt_secret: "GENERATE_NEW_JWT_SECRET"
-  jwt_algorithm: "HS256"
-  jwt_auth_timeout: 6000
-  jwt_refresh_timeout: 60000
-
-webui:
-  host: "localhost"
-  port: 3000</code></pre>
-
-                            <div class="security-steps">
-                                <h4 data-i18n="server_installation.installation_steps.step6.security_steps.title" data-i18n-html>Required Security Steps</h4>
-                                <ol>
-                                    <li data-i18n="server_installation.installation_steps.step6.security_steps.installer_generated" data-i18n-html>The packages (deb, rpm, FreeBSD, NetBSD, macOS, Windows, snap) generate <code>jwt_secret</code>, <code>password_salt</code> and the recovery <code>admin_password</code> when they create the configuration file; the recovery password is in that file. A placeholder or well-known password such as <code>admin</code> is never accepted at sign-in. For a manual install, run <code>python -m backend.config.install_secrets --apply /etc/sysmanage.yaml</code>.</li>
-                                    <li data-i18n="server_installation.installation_steps.step6.security_steps.generate_secrets" data-i18n-html>Generate new secrets: <code>openssl rand -base64 32</code></li>
-                                    <li data-i18n="server_installation.installation_steps.step6.security_steps.strong_passwords" data-i18n-html>Use strong passwords (12+ characters)</li>
-                                    <li data-i18n="server_installation.installation_steps.step6.security_steps.file_permissions" data-i18n-html>Set proper file permissions: <code>chmod 600 /etc/sysmanage.yaml</code></li>
-                                    <li data-i18n="server_installation.installation_steps.step6.security_steps.never_commit" data-i18n-html>Never commit configuration files to version control</li>
-                                </ol>
-                            </div>
+  admin_userid: "you@example.com"        # must be an email address
+  # admin_password was generated at install time; leave it as it is</code></pre>
+                            <p data-i18n="server_installation.after.config.builder" data-i18n-html>Leave <code>api: host</code> set to <code>localhost</code>: the server is reached only through nginx. The <a href="/config-builder.html">configuration builder</a> can generate a complete file if you want to set more options, and the <a href="configuration.html">Configuration Guide</a> describes every setting.</p>
                         </div>
 
                         <div class="step">
-                            <h3 data-i18n="server_installation.installation_steps.step7.title" data-i18n-html>Step 7: Run Secure Installation Script</h3>
-                            <div class="security-highlight">
-                                <h4 data-i18n="server_installation.installation_steps.step7.security_note.title" data-i18n-html>REQUIRED for New Installations</h4>
-                                <p data-i18n="server_installation.installation_steps.step7.security_note.description" data-i18n-html>The secure installation script must be run to create the initial admin user and configure unique security tokens for your installation.</p>
-                            </div>
+                            <h3 data-i18n="server_installation.after.migrate.title" data-i18n-html>Step 3: Run the Database Migrations</h3>
+                            <p data-i18n="server_installation.after.migrate.body" data-i18n-html>The migrations create the database schema. <code>--status</code> shows what is pending; the second command applies it. Run the same two commands after every upgrade.</p>
+                            <pre><code>sudo sysmanage-migrate --status
+sudo sysmanage-migrate
 
-                            <pre><code># Run the secure installation script
-scripts/sysmanage_secure_installation</code></pre>
-
-                            <div class="script-features">
-                                <h4 data-i18n="server_installation.installation_steps.step7.features.title" data-i18n-html>What this script does:</h4>
-                                <ul>
-                                    <li data-i18n="server_installation.installation_steps.step7.features.admin_user" data-i18n-html>Creates the initial administrative user account</li>
-                                    <li data-i18n="server_installation.installation_steps.step7.features.jwt_secret" data-i18n-html>Generates unique JWT secret for authentication</li>
-                                    <li data-i18n="server_installation.installation_steps.step7.features.password_salt" data-i18n-html>Generates unique password salt for secure password hashing</li>
-                                    <li data-i18n="server_installation.installation_steps.step7.features.config_hardening" data-i18n-html>Applies security hardening to configuration files</li>
-                                    <li data-i18n="server_installation.installation_steps.step7.features.prevents_defaults" data-i18n-html>Prevents use of default/example security tokens</li>
-                                </ul>
-                            </div>
-
-                            <div class="security-warning">
-                                <h4 data-i18n="server_installation.installation_steps.step7.warning.title" data-i18n-html>Important Security Notes</h4>
-                                <ul>
-                                    <li><strong data-i18n="server_installation.installation_steps.step7.warning.required" data-i18n-html>This step is REQUIRED</strong> - <span data-i18n="server_installation.installation_steps.step7.warning.required_desc" data-i18n-html>the application will not function securely without it</span></li>
-                                    <li data-i18n="server_installation.installation_steps.step7.warning.unique_tokens" data-i18n-html>Each installation gets unique security tokens to prevent credential reuse</li>
-                                    <li data-i18n="server_installation.installation_steps.step7.warning.run_once" data-i18n-html>Only run this script once per installation</li>
-                                    <li data-i18n="server_installation.installation_steps.step7.warning.backup_config" data-i18n-html>Backup your configuration file after running this script</li>
-                                </ul>
-                            </div>
+# Packages without the sysmanage-migrate command (BSD, macOS, older releases):
+cd /opt/sysmanage
+sudo -u sysmanage .venv/bin/python scripts/sysmanage_migrate.py --status
+sudo -u sysmanage .venv/bin/python scripts/sysmanage_migrate.py</code></pre>
                         </div>
 
                         <div class="step">
-                            <h3 data-i18n="server_installation.installation_steps.step8.title" data-i18n-html>Step 8: Start the Application</h3>
-                            <pre><code># Start backend API server
-uvicorn backend.main:app --reload --host 0.0.0.0 --port 6443
+                            <h3 data-i18n="server_installation.after.tls.title" data-i18n-html>Step 4: Install a TLS Certificate</h3>
+                            <p data-i18n="server_installation.after.tls.body" data-i18n-html>SysManage serves the web interface, the API and the agent connections on port 443, and nginx refuses to start until a certificate is in place. This is deliberate: a management console must never come up in cleartext, and agents verify the certificate by default. By default nginx reads:</p>
+                            <pre><code>/etc/sysmanage/tls/server.crt
+/etc/sysmanage/tls/server.key</code></pre>
+                            <p data-i18n="server_installation.after.tls.edit" data-i18n-html>To use a certificate stored elsewhere, change these two lines in <code>/etc/nginx/sites-available/sysmanage-nginx.conf</code>:</p>
+                            <pre><code>ssl_certificate     /etc/sysmanage/tls/server.crt;
+ssl_certificate_key /etc/sysmanage/tls/server.key;</code></pre>
 
-# In another terminal, start frontend (development)
-cd frontend
-npm run dev</code></pre>
+                            <h4 data-i18n="server_installation.after.tls.le_http_title" data-i18n-html>Let's Encrypt with certbot (HTTP challenge)</h4>
+                            <p data-i18n="server_installation.after.tls.le_http_body" data-i18n-html>If port 80 on this host is reachable from the internet, certbot can answer the challenge itself. nginx holds port 80 once it runs, so the hooks stop it during each renewal and start it again afterward. certbot saves the hooks and renews automatically.</p>
+                            <pre><code>sudo apt install certbot
+sudo certbot certonly --standalone -d sysmanage.example.com \
+  --pre-hook "systemctl stop nginx" --post-hook "systemctl start nginx"</code></pre>
 
-                            <p data-i18n="server_installation.installation_steps.step8.access_description" data-i18n-html>Access the application at:</p>
+                            <h4 data-i18n="server_installation.after.tls.le_dns_title" data-i18n-html>Let's Encrypt with a DNS challenge (DigitalOcean DNS)</h4>
+                            <p data-i18n="server_installation.after.tls.le_dns_body" data-i18n-html>If your domain's DNS is hosted at DigitalOcean, certbot can prove ownership through DNS instead. Port 80 does not need to be reachable, and nginx keeps running during renewals. Create a DigitalOcean API token with write access to DNS and store it in a file only root can read:</p>
+                            <pre><code>sudo apt install certbot python3-certbot-dns-digitalocean
+sudo mkdir -p /etc/letsencrypt
+sudo install -m 600 /dev/null /etc/letsencrypt/digitalocean.ini
+sudo vim /etc/letsencrypt/digitalocean.ini
+#   dns_digitalocean_token = your-api-token
+
+sudo certbot certonly --dns-digitalocean \
+  --dns-digitalocean-credentials /etc/letsencrypt/digitalocean.ini \
+  -d sysmanage.example.com \
+  --deploy-hook "systemctl reload nginx"</code></pre>
+
+                            <p data-i18n="server_installation.after.tls.le_point" data-i18n-html>With either method, point the two nginx lines at the files certbot wrote, then check the configuration:</p>
+                            <pre><code>ssl_certificate     /etc/letsencrypt/live/sysmanage.example.com/fullchain.pem;
+ssl_certificate_key /etc/letsencrypt/live/sysmanage.example.com/privkey.pem;</code></pre>
+                            <pre><code>sudo nginx -t</code></pre>
+                        </div>
+
+                        <div class="step">
+                            <h3 data-i18n="server_installation.after.start.title" data-i18n-html>Step 5: Start the Services</h3>
+                            <pre><code>sudo systemctl start sysmanage
+sudo systemctl restart nginx
+sudo systemctl status sysmanage</code></pre>
+                            <p data-i18n="server_installation.after.start.logs" data-i18n-html>The server writes its logs to <code>/var/log/sysmanage/</code>. If it stops right after starting, check the database settings in <code>/etc/sysmanage.yaml</code> and confirm the migrations ran.</p>
+                        </div>
+
+                        <div class="step">
+                            <h3 data-i18n="server_installation.after.firewall.title" data-i18n-html>Step 6: Open the Firewall</h3>
+                            <p data-i18n="server_installation.after.firewall.body" data-i18n-html>nginx is the only service that listens on the network. Open ports 443 and 80 and nothing else: the SysManage API stays on loopback port 8080 and OpenBAO on loopback port 8200, and PostgreSQL should not be exposed either.</p>
+                            <pre><code># Ubuntu / Debian (ufw)
+sudo ufw allow 443/tcp
+sudo ufw allow 80/tcp
+
+# RHEL / openSUSE (firewalld)
+sudo firewall-cmd --permanent --add-service=https
+sudo firewall-cmd --permanent --add-service=http
+sudo firewall-cmd --reload</code></pre>
+                        </div>
+
+                        <div class="step">
+                            <h3 data-i18n="server_installation.after.login.title" data-i18n-html>Step 7: Sign In</h3>
+                            <p data-i18n="server_installation.after.login.body" data-i18n-html>Open <code>https://sysmanage.example.com/</code> and sign in as the <code>admin_userid</code> you set, with the generated recovery password. You can read it with:</p>
+                            <pre><code>sudo grep admin_password /etc/sysmanage.yaml</code></pre>
+                            <p data-i18n="server_installation.after.login.next" data-i18n-html>This recovery account lives only in the configuration file, and the console warns you while it is there. Configure email, create your own administrator user, then remove <code>admin_userid</code> and <code>admin_password</code> from the file and restart the server.</p>
+                        </div>
+
+                        <div class="step">
+                            <h3 data-i18n="server_installation.after.openbao.title" data-i18n-html>Step 8: Back Up the OpenBAO Unseal Material</h3>
+                            <p data-i18n="server_installation.after.openbao.body" data-i18n-html>The package installs OpenBAO, the secrets broker, on loopback port 8200. On first install it initializes and unseals it, unseals it again at every boot, and writes the token SysManage uses to <code>/etc/sysmanage/openbao-token</code>. The unseal key and root token are in <code>/var/lib/openbao/init.json</code>.</p>
+                            <p data-i18n="server_installation.after.openbao.backup" data-i18n-html><strong>Copy <code>/var/lib/openbao/init.json</code> to safe storage off this machine.</strong> Without it, the secrets stored in OpenBAO cannot be recovered if the host is rebuilt.</p>
+                            <p data-i18n="server_installation.after.openbao.enable" data-i18n-html>To have SysManage keep its secrets in OpenBAO, set <code>vault: enabled: true</code> in <code>/etc/sysmanage.yaml</code>. Multi-tenancy requires it. Check its state with <code>systemctl status openbao sysmanage-openbao-init</code>.</p>
+                        </div>
+
+                        <div class="step">
+                            <h3 data-i18n="server_installation.after.agents.title" data-i18n-html>Step 9: Connect Agents</h3>
+                            <p data-i18n="server_installation.after.agents.body" data-i18n-html>Agents need outbound port 443 to the server and nothing else. Point each agent at the same host name the certificate was issued for, and leave certificate verification on:</p>
+                            <pre><code>server:
+  url: "https://sysmanage.example.com"
+  verify_ssl: true</code></pre>
+                            <p data-i18n="server_installation.after.agents.link" data-i18n-html>See <a href="../agent/installation.html">Agent Installation</a> for the agent packages.</p>
+                        </div>
+                    </div>
+
+                    <h3 data-i18n="server_installation.after.paths.title" data-i18n-html>Paths on Each Platform</h3>
+                    <div class="table-container">
+                        <table class="docs-table">
+                            <thead>
+                                <tr>
+                                    <th data-i18n="server_installation.after.paths.platform" data-i18n-html>Platform</th>
+                                    <th data-i18n="server_installation.after.paths.config" data-i18n-html>Configuration file</th>
+                                    <th data-i18n="server_installation.after.paths.nginx" data-i18n-html>nginx configuration</th>
+                                    <th data-i18n="server_installation.after.paths.tls" data-i18n-html>Certificate and key</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr><td>Ubuntu, Debian</td><td><code>/etc/sysmanage.yaml</code></td><td><code>/etc/nginx/sites-available/sysmanage-nginx.conf</code></td><td><code>/etc/sysmanage/tls/</code></td></tr>
+                                <tr><td>RHEL, openSUSE, Arch</td><td><code>/etc/sysmanage.yaml</code></td><td><code>/etc/nginx/conf.d/sysmanage-nginx.conf</code></td><td><code>/etc/sysmanage/tls/</code></td></tr>
+                                <tr><td>Alpine</td><td><code>/etc/sysmanage/sysmanage.yaml</code></td><td><code>/etc/nginx/http.d/sysmanage-nginx.conf</code></td><td><code>/etc/sysmanage/tls/</code></td></tr>
+                                <tr><td>Snap</td><td><code>/var/snap/sysmanage/common/sysmanage.yaml</code></td><td><code>/var/snap/sysmanage/current/nginx/sysmanage-nginx.conf</code></td><td><code>/var/snap/sysmanage/current/tls/</code></td></tr>
+                                <tr><td>macOS</td><td><code>/etc/sysmanage.yaml</code></td><td><code>$(brew --prefix)/etc/nginx/servers/sysmanage-nginx.conf</code></td><td><code>/usr/local/etc/sysmanage/tls/</code></td></tr>
+                                <tr><td>Windows</td><td><code>C:\ProgramData\SysManage\sysmanage.yaml</code></td><td><code>C:\Program Files\SysManage Server\nginx\conf\sysmanage-nginx.conf</code></td><td><code>C:\ProgramData\SysManage\tls\</code></td></tr>
+                                <tr><td>FreeBSD</td><td><code>/usr/local/etc/sysmanage/config.yaml</code></td><td><code>/usr/local/etc/nginx/sysmanage-nginx.conf</code></td><td><code>/usr/local/etc/sysmanage/tls/</code></td></tr>
+                                <tr><td>OpenBSD</td><td><code>/etc/sysmanage.yaml</code></td><td><code>/etc/nginx/conf.d/sysmanage-nginx.conf</code></td><td><code>/etc/sysmanage/tls/</code></td></tr>
+                                <tr><td>NetBSD</td><td><code>/usr/pkg/etc/sysmanage/config.yaml</code></td><td><code>/usr/pkg/etc/nginx/conf.d/sysmanage-nginx.conf</code></td><td><code>/usr/pkg/etc/sysmanage/tls/</code></td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </section>
+
+                <section class="docs-section" id="optional">
+                    <h2 data-i18n="server_installation.optional.title" data-i18n-html>Optional Features</h2>
+
+                    <h3 data-i18n="server_installation.optional.telemetry.title" data-i18n-html>Telemetry</h3>
+                    <p data-i18n="server_installation.optional.telemetry.body" data-i18n-html>OpenTelemetry is off by default. To send traces and metrics to your collector, set <code>telemetry: enabled: true</code> and <code>telemetry: otlp_endpoint</code> in <code>/etc/sysmanage.yaml</code>, or the environment variables <code>OTEL_ENABLED=true</code> and <code>OTEL_EXPORTER_OTLP_ENDPOINT</code>. While telemetry is on, Prometheus metrics are served on <code>127.0.0.1:9090</code>, on loopback only.</p>
+                    <pre><code>telemetry:
+  enabled: true
+  otlp_endpoint: "http://localhost:4317"</code></pre>
+
+                    <h3 data-i18n="server_installation.optional.mt.title" data-i18n-html>Multi-Tenancy</h3>
+                    <p data-i18n="server_installation.optional.mt.body" data-i18n-html>A server runs as a single tenant unless you turn multi-tenancy on with <code>multitenancy: enabled: true</code>, followed by the database migrations. It needs OpenBAO and a separate database for each tenant; see <a href="../deployment/multi-tenancy.html">Deploying Multi-Tenancy</a>.</p>
+                </section>
+
+                <section class="docs-section">
+                    <h2 data-i18n="server_installation.troubleshooting.title" data-i18n-html>Troubleshooting</h2>
+
+                    <div class="troubleshooting-grid">
+                        <div class="trouble-item">
+                            <h3 data-i18n="server_installation.trouble.install.title" data-i18n-html>After a Package Install</h3>
                             <ul>
-                                <li><strong data-i18n="server_installation.installation_steps.step8.https" data-i18n-html>HTTPS:</strong> <span data-i18n="server_installation.installation_steps.step8.https_url" data-i18n-html>https://sysmanage.org:7443 (if SSL certs exist)</span></li>
-                                <li><strong data-i18n="server_installation.installation_steps.step8.http" data-i18n-html>HTTP:</strong> <span data-i18n="server_installation.installation_steps.step8.http_url" data-i18n-html>http://localhost:3000 (fallback)</span></li>
+                                <li data-i18n="server_installation.trouble.install.nginx" data-i18n-html><strong>nginx will not start:</strong> almost always a missing or unreadable certificate. <code>sudo nginx -t</code> names the file it could not read.</li>
+                                <li data-i18n="server_installation.trouble.install.service" data-i18n-html><strong>The service starts, then exits:</strong> check the database settings in the configuration file and confirm the migrations ran.</li>
+                                <li data-i18n="server_installation.trouble.install.login" data-i18n-html><strong>Sign-in is rejected:</strong> <code>admin_userid</code> must be a full email address, not a bare name.</li>
+                                <li data-i18n="server_installation.trouble.install.openbao" data-i18n-html><strong>OpenBAO is sealed or not running:</strong> run <code>sudo systemctl restart openbao sysmanage-openbao-init</code> and read <code>systemctl status sysmanage-openbao-init</code>.</li>
+                            </ul>
+                        </div>
+
+                        <div class="trouble-item">
+                            <h3 data-i18n="server_installation.troubleshooting.db_issues.title" data-i18n-html>Database Connection Issues</h3>
+                            <ul>
+                                <li data-i18n="server_installation.troubleshooting.db_issues.verify_postgresql" data-i18n-html>Verify PostgreSQL is running: <code>sudo systemctl status postgresql</code></li>
+                                <li data-i18n="server_installation.troubleshooting.db_issues.check_credentials" data-i18n-html>Check credentials match configuration file</li>
+                            </ul>
+                        </div>
+
+                        <div class="trouble-item">
+                            <h3 data-i18n="server_installation.troubleshooting.port_conflicts.title" data-i18n-html>Port Conflicts</h3>
+                            <ul>
+                                <li data-i18n="server_installation.troubleshooting.port_conflicts.ensure_ports" data-i18n-html>In production, ensure 443 is free (and 80, which only redirects to it). The backend listens on 127.0.0.1:8080 behind nginx and is not exposed.</li>
+                                <li data-i18n="server_installation.troubleshooting.port_conflicts.check_services" data-i18n-html>Check for an existing listener: <code>ss -tlnp | grep -E ':(80|443|8080)'</code></li>
                             </ul>
                         </div>
                     </div>
                 </section>
 
-                <section class="docs-section">
-                    <h2 data-i18n="server_installation.dev.title" data-i18n-html>Running a Development Server</h2>
-                    <p data-i18n="server_installation.dev.intro" data-i18n-html>A development server runs from the source checkout, with the web UI served by Vite instead of nginx. These tips set one up and keep it apart from anything you run in production.</p>
+                <section class="docs-section" id="from-source">
+                    <h2 data-i18n="server_installation.source.title" data-i18n-html>Building from Source (Development)</h2>
+                    <p data-i18n="server_installation.source.intro" data-i18n-html>Build from source to work on SysManage itself, or on a platform with no package. A development server runs from the source checkout, with the web interface served by Vite instead of nginx. Do not use it for production.</p>
+
+                    <h3 data-i18n="server_installation.source.prereq.title" data-i18n-html>Prerequisites</h3>
+                    <ul>
+                        <li data-i18n="server_installation.source.prereq.list" data-i18n-html>Python 3.10 through 3.14 with its development headers, Node.js 20 or newer, PostgreSQL 12 or newer, a C compiler, and the libffi, OpenSSL and libpq development packages.</li>
+                        <li data-i18n="server_installation.source.prereq.bsd" data-i18n-html>On FreeBSD, OpenBSD and NetBSD, use <code>gmake</code> instead of <code>make</code>. On NetBSD, set <code>CFLAGS="-I/usr/pkg/include"</code> and <code>LDFLAGS="-L/usr/pkg/lib -Wl,-R/usr/pkg/lib"</code> before installing, so Python packages with C extensions find their libraries.</li>
+                    </ul>
+                    <p data-i18n="server_installation.source.prereq.ubuntu" data-i18n-html>On Ubuntu:</p>
+                    <pre><code>sudo apt install python3 python3-venv python3-dev python3-pip \
+  build-essential libffi-dev libssl-dev libpq-dev libuv1-dev postgresql
+curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
+sudo apt install -y nodejs</code></pre>
+
+                    <h3 data-i18n="server_installation.source.setup.title" data-i18n-html>Clone and Set Up</h3>
                     <p data-i18n="server_installation.dev.tools" data-i18n-html>Install the development tools once (test runners, linters, Playwright and the telemetry stack):</p>
-                    <pre><code>make install-dev</code></pre>
+                    <pre><code>git clone https://github.com/bceverly/sysmanage.git
+cd sysmanage
+make install-dev</code></pre>
+                    <p data-i18n="server_installation.source.setup.db" data-i18n-html>Create a database and user for development, the same way as in <a href="#after-installing">Step 1</a> above.</p>
                     <p data-i18n="server_installation.dev.config" data-i18n-html>Create <code>sysmanage-dev.yaml</code> in the project root from <code>sysmanage-dev.yaml.example</code>; the server reads it when <code>/etc/sysmanage.yaml</code> does not exist. Point <code>SYSMANAGE_CONFIG_PATH</code> at a file to use any other. The settings that matter most for development:</p>
                     <pre><code>cp sysmanage-dev.yaml.example sysmanage-dev.yaml
 # then edit it:
@@ -767,123 +382,24 @@ registry:            # the database (the older name database: also works)
                         <li data-i18n="server_installation.dev.vault" data-i18n-html>OpenBAO: <code>make start</code> starts a local development OpenBAO alongside the server. To run without it, set <code>vault: enabled: false</code> and put secrets such as <code>jwt_secret</code> directly in the file (development only).</li>
                         <li data-i18n="server_installation.dev.multitenancy" data-i18n-html>Multi-tenancy stays off unless <code>multitenancy: enabled: true</code>; the environment variable <code>SYSMANAGE_MULTITENANCY=false</code> forces it off for a single run.</li>
                     </ul>
+
+                    <h3 data-i18n="server_installation.source.run.title" data-i18n-html>Run It</h3>
                     <p data-i18n="server_installation.dev.run" data-i18n-html>Run the migrations, then start and stop everything with:</p>
                     <pre><code>make migrate     # create or upgrade the database schema
 make start       # API + web UI + local OpenBAO
 make stop</code></pre>
                     <p data-i18n="server_installation.dev.ports" data-i18n-html>The API listens on port 8080 and the Vite web UI on port 3000. The database migrations use the same tool operators run in production.</p>
+                    <p data-i18n="server_installation.source.run.secure" data-i18n-html>To create an administrator user and initialize OpenBAO in a source checkout, run <code>scripts/sysmanage_secure_installation</code>; see <a href="secure-installation.html">Secure Installation</a>. It rebuilds the database, so never run it against a server with data you want to keep, and never on a package install.</p>
                     <p data-i18n="server_installation.dev.second" data-i18n-html>Need a second, disposable server (for example to test something without touching your own data)? The scale harness starts one with its own PostgreSQL container, configuration and port, and deletes it afterwards:</p>
                     <pre><code>python tests/load/stack.py up      # its own PostgreSQL + server on port 18080
 python tests/load/stack.py down    # remove it</code></pre>
-                </section>
-                <section class="docs-section">
-                    <h2 data-i18n="server_installation.ssl.title" data-i18n-html>TLS Certificates (Required for Production)</h2>
-                    <p data-i18n="server_installation.ssl.description" data-i18n-html>SysManage serves the web interface and the API from one origin over HTTPS on port 443. nginx terminates TLS and proxies to the backend on loopback, which is why agents need outbound 443 to this host and nothing else. A certificate must be in place before the server will serve production traffic.</p>
-                    <p data-i18n="server_installation.ssl.config_path" data-i18n-html>Point nginx at your certificate and key. The configuration file lives in a different place on every platform, so the post-install message prints the exact path for your system together with the two lines to change:</p>
-                    <pre><code>ssl_certificate     /path/to/fullchain.pem;
-ssl_certificate_key /path/to/privkey.pem;</code></pre>
-                    <p data-i18n="server_installation.ssl.dev_mode" data-i18n-html>For local development you can skip certificates entirely by setting <code>dev_mode: true</code> in <code>/etc/sysmanage.yaml</code>. The server then serves the API on 8080 and the web interface on 3000 over plain HTTP, and binds every interface so agents elsewhere on your LAN can reach it without further configuration. Never enable dev mode on a production host.</p>
-                </section>
 
-                <section class="docs-section">
-                    <h2 data-i18n="server_installation.troubleshooting.title" data-i18n-html>Troubleshooting</h2>
-
-                    <div class="troubleshooting-grid">
-                        <div class="trouble-item">
-                            <h3 data-i18n="server_installation.troubleshooting.package_errors.title" data-i18n-html>Package Build Errors</h3>
-                            <ul>
-                                <li><strong data-i18n="server_installation.troubleshooting.package_errors.missing_libpq" data-i18n-html>Missing libpq-fe.h:</strong> <span data-i18n="server_installation.troubleshooting.package_errors.install_libpq" data-i18n-html>Install <code>libpq-dev</code> (Ubuntu) or <code>postgresql-devel</code> (RHEL)</span></li>
-                                <li><strong data-i18n="server_installation.troubleshooting.package_errors.httptools_errors" data-i18n-html>httptools build errors:</strong> <span data-i18n="server_installation.troubleshooting.package_errors.install_libuv" data-i18n-html>Install <code>libuv1-dev</code> (Ubuntu) or <code>libuv-devel</code> (RHEL)</span></li>
-                                <li><strong data-i18n="server_installation.troubleshooting.package_errors.python313_issues" data-i18n-html>Python version issues:</strong> <span data-i18n="server_installation.troubleshooting.package_errors.use_older_python" data-i18n-html>Ensure you are using Python 3.10 or newer</span></li>
-                            </ul>
-                        </div>
-
-                        <div class="trouble-item">
-                            <h3 data-i18n="server_installation.troubleshooting.db_issues.title" data-i18n-html>Database Connection Issues</h3>
-                            <ul>
-                                <li data-i18n="server_installation.troubleshooting.db_issues.verify_postgresql" data-i18n-html>Verify PostgreSQL is running: <code>sudo systemctl status postgresql</code></li>
-                                <li data-i18n="server_installation.troubleshooting.db_issues.check_credentials" data-i18n-html>Check credentials match configuration file</li>
-                                <li data-i18n="server_installation.troubleshooting.db_issues.test_connection" data-i18n-html>Test connection with psql command shown above</li>
-                            </ul>
-                        </div>
-
-                        <div class="trouble-item">
-                            <h3 data-i18n="server_installation.troubleshooting.port_conflicts.title" data-i18n-html>Port Conflicts</h3>
-                            <ul>
-                                <li data-i18n="server_installation.troubleshooting.port_conflicts.ensure_ports" data-i18n-html>In production, ensure 443 is free (and 80, which only redirects to it). The backend listens on 127.0.0.1:8080 behind nginx and is not exposed.</li>
-                                <li data-i18n="server_installation.troubleshooting.port_conflicts.check_services" data-i18n-html>Check for an existing listener: <code>ss -tlnp | grep -E ':(80|443|8080)'</code></li>
-                                <li data-i18n="server_installation.troubleshooting.port_conflicts.modify_ports" data-i18n-html>In dev mode the API is on 8080 and the web interface on 3000; change them under <code>api</code> and <code>webui</code> in <code>/etc/sysmanage.yaml</code> if they clash.</li>
-                            </ul>
-                        </div>
-
-                        <div class="trouble-item">
-                            <h3 data-i18n="server_installation.troubleshooting.permission_issues.title" data-i18n-html>Permission Issues</h3>
-                            <ul>
-                                <li data-i18n="server_installation.troubleshooting.permission_issues.set_config_permissions" data-i18n-html>Set configuration file permissions: <code>chmod 600 /etc/sysmanage.yaml</code></li>
-                                <li data-i18n="server_installation.troubleshooting.permission_issues.ensure_ownership" data-i18n-html>Ensure proper ownership of directories</li>
-                                <li data-i18n="server_installation.troubleshooting.permission_issues.check_venv" data-i18n-html>Check virtual environment activation</li>
-                            </ul>
-                        </div>
-
-                        <div class="trouble-item">
-                            <h3 data-i18n="docs.auto.server.installation.015">NetBSD-Specific Issues</h3>
-                            <ul>
-                                <li data-i18n="docs.auto.server.installation.016"><strong>PostgreSQL user missing:</strong> NetBSD may not create the postgres/pgsql user automatically. Create it with: <code>sudo useradd -m -d /var/db/postgresql -s /bin/sh postgres</code></li>
-                                <li data-i18n="docs.auto.server.installation.017"><strong>PostgreSQL won't start:</strong> Ensure <code>pgsql=YES</code> is in /etc/rc.conf, then run <code>sudo /etc/rc.d/pgsql start</code></li>
-                                <li data-i18n="docs.auto.server.installation.018"><strong>No space left on device during pip install:</strong> NetBSD's /tmp is limited to 1GB by default. Increase with: <code>mount -t tmpfs -o -s=4g tmpfs /tmp</code> or use <code>export TMPDIR=$HOME/tmp</code></li>
-                                <li data-i18n="docs.auto.server.installation.019"><strong>gmake install-dev for development:</strong> Use <code>gmake</code> instead of <code>make</code>. The Makefile includes NetBSD-specific C tracer dependency checks (gcc13, py312-cffi)</li>
-                                <li data-i18n="docs.auto.server.installation.020"><strong>PostgreSQL socket not found:</strong> NetBSD PostgreSQL often uses TCP instead of Unix sockets. Always use <code>-h localhost</code> when connecting</li>
-                                <li data-i18n="docs.auto.server.installation.021"><strong>OpenTelemetry Collector build failures:</strong> NetBSD uses BSD versions of find/xargs/dirname which are incompatible with the OTEL Collector Makefile. Install GNU utilities:
-                                    <pre><code>sudo pkgin install findutils coreutils</code></pre>
-                                    The install-telemetry.py script will automatically detect and use gfind/gxargs/gdirname on NetBSD.
-                                </li>
-                                <li data-i18n="docs.auto.server.installation.022"><strong>Browser/WebDriver errors:</strong> Install browsers for UI testing:
-                                    <pre><code># Install Chromium (includes ChromeDriver)
-doas pkgin install chromium
-
-# Install Firefox (requires version-specific name)
-doas pkgin install firefox-138.0.4
-
-# Install GeckoDriver for Firefox UI testing
-doas pkgin install geckodriver-0.36.0
-
-# Verify installations
-which chromium firefox geckodriver</code></pre>
-                                    <em>Note: NetBSD Firefox packages often require explicit version numbers unlike other BSD systems. Due to Firefox WebDriver compatibility issues on NetBSD, the UI test suite automatically excludes Firefox tests and runs Chrome-only tests. This ensures clean test results without failures or skipped tests.</em>
-                                </li>
-                                <li data-i18n="docs.auto.server.installation.023"><strong>Pillow build failures:</strong> Install image libraries and set paths:
-                                    <pre><code>pkgin install jpeg libjpeg-turbo tiff png freetype2 lcms2 libwebp openjpeg zlib
-export CFLAGS="-I/usr/pkg/include"
-export LDFLAGS="-L/usr/pkg/lib -Wl,-R/usr/pkg/lib"</code></pre>
-                                </li>
-                                <li data-i18n="docs.auto.server.installation.024"><strong>Backend fails to start with "libjpeg.so.9 not found":</strong> This occurs when Pillow was installed before the JPEG library or with incorrect paths. The <code>gmake install-dev</code> target automatically rebuilds Pillow for NetBSD. For manual fix:
-                                    <pre><code>. .venv/bin/activate
-export CFLAGS="-I/usr/pkg/include"
-export LDFLAGS="-L/usr/pkg/lib -Wl,-R/usr/pkg/lib"
-pip uninstall -y Pillow
-pip install --no-binary=:all: Pillow</code></pre>
-                                </li>
-                                <li data-i18n="docs.auto.server.installation.025"><strong>OpenBAO installation:</strong> NetBSD doesn't have pre-built OpenBAO packages. Options:
-                                    <ol>
-                                        <li><strong>Build from source (recommended):</strong>
-                                            <pre><code>pkgin install go git gmake
-# NetBSD installs Go as go124 - create symlink:
-sudo ln -sf /usr/pkg/bin/go124 /usr/pkg/bin/go
-# Add ~/.local/bin to PATH:
-echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.profile
-. ~/.profile
-# Then run: gmake install-dev
-# It will prompt to build OpenBAO from source</code></pre>
-                                        </li>
-                                        <li><strong>Use Linux emulation:</strong> Try running Linux binaries under NetBSD's Linux compatibility</li>
-                                        <li><strong>Skip OpenBAO:</strong> It's optional - set <code>vault.enabled=false</code> in config</li>
-                                    </ol>
-                                    <strong>Note:</strong> OpenBAO is optional for development. The system works perfectly without it.
-                                </li>
-                                <li data-i18n="docs.auto.server.installation.026"><strong>OpenBAO 'bao' command not found:</strong> Ensure <code>~/.local/bin</code> is in your PATH: <code>echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.profile && . ~/.profile</code></li>
-                            </ul>
-                        </div>
-                    </div>
+                    <h3 data-i18n="server_installation.source.trouble.title" data-i18n-html>Build Problems</h3>
+                    <ul>
+                        <li><strong data-i18n="server_installation.troubleshooting.package_errors.missing_libpq" data-i18n-html>Missing libpq-fe.h:</strong> <span data-i18n="server_installation.troubleshooting.package_errors.install_libpq" data-i18n-html>Install <code>libpq-dev</code> (Ubuntu) or <code>postgresql-devel</code> (RHEL)</span></li>
+                        <li><strong data-i18n="server_installation.troubleshooting.package_errors.httptools_errors" data-i18n-html>httptools build errors:</strong> <span data-i18n="server_installation.troubleshooting.package_errors.install_libuv" data-i18n-html>Install <code>libuv1-dev</code> (Ubuntu) or <code>libuv-devel</code> (RHEL)</span></li>
+                        <li data-i18n="server_installation.source.trouble.netbsd_tmp" data-i18n-html><strong>NetBSD, "No space left on device" during pip install:</strong> <code>/tmp</code> is a 1 GB tmpfs by default. Enlarge it with <code>mount -t tmpfs -o -s=4g tmpfs /tmp</code>, or set <code>TMPDIR</code> to a directory on disk.</li>
+                    </ul>
                 </section>
 
                 <div class="docs-navigation">

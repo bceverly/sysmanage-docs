@@ -11513,8 +11513,8 @@
           "034": "<strong>Effettuare il provisioning del database del registro e di un ruolo di login sul cluster PostgreSQL ad alta disponibilità.</strong> Sul primario attuale del cluster, creare il ruolo <code>sysmanage</code> e il database del registro di cui è proprietario (vedere il passaggio relativo al database in <a href=\"../server/installation.html\">Installazione del server</a>). Il server si connette con questo ruolo, che <em>non</em> è un superutente. Ruoli e database sono oggetti globali del cluster, quindi la replica in streaming li copia automaticamente su ogni standby. Se il cluster non è ancora stato predisposto, farlo prima di tutto -- vedere <a href=\"../administration/postgresql-ha.html\">Alta disponibilità di PostgreSQL</a>.",
           "035": "Configura OpenBAO e il suo database secrets engine in modo che possa emettere credenziali PostgreSQL a breve termine, per ogni tenant. OpenBAO è il broker che impedisce al server di mantenere mai una password del database lungo termine, condivisa tra i tenants. (Configuralo e avvialo utilizzando gli script scripts/build-openbao.sh e scripts/start-openbao.sh nel repository, o la tua istanza gestita.)",
           "036": "<strong>Configurare <code>/etc/sysmanage.yaml</code></strong> -- puntare il blocco registry al database del registro, abilitare la multi-tenancy e configurare il vault: <pre><code>registry: # Point at the cluster's stable read-write endpoint, never one node. # libpq multi-host list (tries each, keeps the writable primary): host: \"db1.internal,db2.internal\" port: 5432 name: sysmanage_registry user: sysmanage password: &lt;from your secret store&gt; options: \"target_session_attrs=read-write\" multitenancy: enabled: true self_service_provisioning: true vault: url: https://openbao.internal:8200 # token / auth configured per your OpenBAO setup # NB: configure the database secrets engine's own connection_url at the # SAME cluster endpoint (see PostgreSQL High Availability) so tenant # credential leasing keeps working across a primary failover.</code></pre> <div class=\"note warn\"><strong>Licenze:</strong> l'instradamento per tenant richiede il motore di multi-tenancy con licenza (il livello <code>MULTITENANT_SAAS</code>). Senza di esso, il server si rifiuta di funzionare in modalità multi-tenant anziché instradare in modo errato senza segnalarlo -- è un comportamento intenzionale.</div>",
-          "037": "Esegui le migrazioni con lo strumento dell'operatore. make migrate (o scripts/sysmanage_migrate.py direttamente) applica le catene registry, shared e tenant e mostra il progresso per database; in caso di multi-tenancy attiva, porta OpenBAO su per la fan-out: make migrate",
-          "038": "Provisiona l'identità del provisioner con privilegi minimi in modo che la creazione self-service dei tenant funzioni senza diritti di cluster-superuser: make provision-bootstrap ARGS='--bao-token $BAO_TOKEN'",
+          "037": "<strong>Esegui le migrazioni</strong> con il comando del pacchetto. Applica le catene registry, shared e tenant e mostra l'avanzamento per database. Il passaggio per tenant ottiene le credenziali da OpenBAO, quindi OpenBAO deve essere in esecuzione:",
+          "038": "<strong>Crea l'identità del provisioner con privilegi minimi</strong> affinché la creazione self-service dei tenant funzioni senza diritti di superutente del cluster. Eseguilo una volta, come root, sul server: legge il token root di OpenBAO dal materiale di inizializzazione dell'appliance e crea il ruolo Postgres tramite il superutente locale. Per un OpenBAO o un Postgres remoto, passa <code>--bao-token</code> e <code>--pg-host</code>:",
           "039": "Crea i tuoi tenant dalla UI del control-plane (Impostazioni → Tenant). Ogni tenant ottiene il proprio database e le proprie credenziali brokerate da OpenBAO. Posiziona il database di ogni tenant dove è necessario -- per host, regione o giurisdizione.",
           "040": "Espandere la catena del tenant a ogni database tenant fornito (OpenBAO deve essere in esecuzione): esegui migrate-tenants",
           "041": "Collega i host ai tenant. Emetti un token di registrazione con ambito tenant (Tenant → token), inseriscilo nella configurazione dell'agente del host sotto security.enrollment_token, e registralo. Da quel momento in poi i dati del host verranno automaticamente archiviati nel database del tenant.",
@@ -15660,36 +15660,6 @@
           "206": "Distribuzione containerizzata: Supporto per Docker e Kubernetes",
           "207": "Nativo in Cloud: Integrazione e servizi di piattaforme cloud",
           "208": "Ibrido: Modelli di distribuzione misti per ambienti complessi"
-        },
-        "installation": {
-          "001": "Python 3.12+: Scarica da python.org ✅ Raccomandato: Python 3.12, 3.13 o 3.14 ✅ Durante l'installazione seleziona \"Aggiungi Python a PATH\"",
-          "002": "Node.js 20.x: Scarica da nodejs.org",
-          "003": "PostgreSQL 14+: Scarica da postgresql.org",
-          "004": "Git per Windows: Scarica da git-scm.com",
-          "005": "Visual Studio Build Tools: Scarica da Microsoft",
-          "006": "Guida completa alla configurazione di NetBSD",
-          "007": "Utenti NetBSD - Requisiti Critici di Configurazione",
-          "008": "Prima di avviare l'installazione, gli utenti NetBSD DEVONO:",
-          "009": "Installare TUTTI i pacchetti richiesti, inclusa jpeg (non solo libjpeg-turbo)",
-          "010": "Imposta variabili d'ambiente: {{c1}}",
-          "011": "Utilizzare gmake invece di make per tutti i comandi make",
-          "012": "Creare manualmente l'utente PostgreSQL se non esiste",
-          "013": "Aumentare la dimensione di /tmp se necessario: {{c1}}",
-          "014": "Vedere l'elenco NetBSD nella scheda Prerequisiti sopra per istruzioni complete sulla configurazione.",
-          "015": "Problemi specifici di NetBSD",
-          "016": "Utente PostgreSQL mancante: NetBSD potrebbe non creare automaticamente l'utente postgres/pgsql. Crea l'utente con: sudo useradd -m -d /var/db/postgresql -s /bin/sh postgres",
-          "017": "PostgreSQL non avvia: Assicurati che pgsql=YES sia presente in /etc/rc.conf, quindi esegui sudo /etc/rc.d/pgsql start",
-          "018": "Nessuno spazio rimanente durante l'installazione pip: il file system /tmp su NetBSD ha una dimensione massima di 1GB. Aumenta la dimensione con: mount -t tmpfs -o -s=4g tmpfs /tmp o usa export TMPDIR=$HOME/tmp",
-          "019": "gmake install-dev per lo sviluppo: Usare gmake invece di make. Il file Makefile include controlli specifici per NetBSD delle dipendenze del tracciatore C (gcc13, py312-cffi)",
-          "020": "Socket PostgreSQL non trovato: NetBSD utilizza spesso TCP invece di socket Unix. Usa sempre -h localhost per la connessione",
-          "021": "Falli di compilazione del Collector OpenTelemetry: NetBSD utilizza versioni BSD di find/xargs/dirname che non sono compatibili con il Makefile OTEL. Installa le utility GNU: sudo pkgin install findutils coreutils Lo script install-telemetry.py rileverà automaticamente e utilizzerà gfind/gxargs/gdirname su NetBSD.",
-          "022": "Errori del browser/WebDriver: Installa i browser per il testing UI: # Installare Chromium (include ChromeDriver) doas pkgin install chromium # Installare Firefox (richiede nome versione specifico) doas pkgin install firefox-138.0.4 # Installare GeckoDriver per il testing UI di Firefox doas pkgin install geckodriver-0.36.0 # Verifica delle installazioni which chromium firefox geckodriver Nota: I pacchetti Firefox su NetBSD richiedono spesso numeri di versione espliciti, a differenza degli altri sistemi BSD. A causa dei problemi di compatibilità WebDriver di Firefox su NetBSD, il set di test UI esclude automaticamente i test di Firefox e esegue solo i test di Chrome. Questo garantisce risultati puliti senza errori o test saltati.",
-          "023": "Fallimenti di compilazione Pillow: Installare le librerie delle immagini e impostare i percorsi: pkgin install jpeg libjpeg-turbo tiff png freetype2 lcms2 libwebp openjpeg zlib export CFLAGS=\"-I/usr/pkg/include\" export LDFLAGS=\"-L/usr/pkg/lib -Wl,-R/usr/pkg/lib\"",
-          "024": "Il backend non riesce a avviarsi con \"libjpeg.so.9 not found\": Questo si verifica quando Pillow è stato installato prima della libreria JPEG o con percorsi errati. Il target gmake install-dev ricalcola automaticamente Pillow per NetBSD. Per la correzione manuale: . .venv/bin/activate export CFLAGS=\"-I/usr/pkg/include\" export LDFLAGS=\"-L/usr/pkg/lib -Wl,-R/usr/pkg/lib\" pip uninstall -y Pillow pip install --no-binary=:all: Pillow",
-          "025": "Installazione di OpenBAO: NetBSD non ha pacchetti pre-compilati di OpenBAO. Opzioni: Compila da sorgente (raccomandato): pkgin install go git gmake # NetBSD installa Go come go124 - crea un symlink: sudo ln -sf /usr/pkg/bin/go124 /usr/pkg/bin/go # Aggiungi ~/.local/bin alla PATH: echo 'export PATH=\"$HOME/.local/bin:$PATH\"' >> ~/.profile . ~/.profile # Poi esegui: gmake install-dev # Ti verrà chiesto di compilare OpenBAO da sorgente Usa l'emulazione Linux: Prova a eseguire binari Linux sotto compatibilità NetBSD Salta OpenBAO: È opzionale - imposta vault.enabled=false nella configurazione Note: OpenBAO è facoltativo per lo sviluppo. Il sistema funziona perfettamente senza di esso.",
-          "026": "OpenBAO 'bao' comando non trovato: Assicurati che ~/.local/bin sia nella tua PATH: echo 'export PATH=\"$HOME/.local/bin:$PATH\"' >> ~/.profile && . ~/.profile",
-          "027": "Come configurare il multi-tenant?",
-          "028": "Le fasi sopra creano il database unico dell'applicazione utilizzato dalle edizioni Community, Professional e Enterprise. Una distribuzione SaaS multi-tenant aziendale ha bisogno anche di un database registro, OpenBAO, e di un database isolato per ogni tenant. Vedere la Distribuzione della Multi-Tenancy per l'intera configurazione del database in sviluppo e produzione."
         },
         "reports": {
           "001": "Documentazione",
@@ -22886,7 +22856,8 @@
     "what_it_does": {
       "description": "Questo script automatizza la trasformazione completa della tua installazione SysManage in una piattaforma di sicurezza ad alto livello:",
       "title": "Cosa Realizza lo Script"
-    }
+    },
+    "package_note": "<strong>Installato da un pacchetto?</strong> Questo script non ti serve. I pacchetti generano i segreti e inizializzano OpenBAO da soli; segui invece <a href=\"installation.html#after-installing\">Dopo l'installazione</a>. Questo script è per i checkout dei sorgenti, e ricostruisce il database."
   },
   "security": {
     "authentication": {
@@ -23406,7 +23377,8 @@
         "title": "Configurazione Produzione"
       },
       "installation": {
-        "title": "Passi Installazione"
+        "title": "Passi Installazione",
+        "see_guide": "La <a href=\"installation.html\">Guida all'installazione del server</a> tratta ogni passaggio in dettaglio, inclusi il certificato TLS, il firewall e i pacchetti per le altre piattaforme."
       },
       "requirements": {
         "component": "Componente",
@@ -23529,203 +23501,43 @@
   },
   "server_installation": {
     "breadcrumb_installation": "Installazione",
-    "description": "Guida completa all'installazione per il server SysManage inclusi prerequisiti, configurazione database e configurazione.",
     "header": {
-      "subtitle": "Guida completa passo dopo passo per configurare il server SysManage sulla vostra infrastruttura.",
-      "title": "Guida all'Installazione del Server"
-    },
-    "installation_steps": {
-      "step1": {
-        "title": "Passo 1: Clonare e Configurare"
-      },
-      "step2": {
-        "description": "Creare database PostgreSQL e utente:",
-        "linux_macos_freebsd": "Linux/macOS/FreeBSD",
-        "netbsd": "NetBSD",
-        "openbsd": "OpenBSD",
-        "security_notes": {
-          "change_password": "Cambiare la password sia in PostgreSQL CHE nel file di configurazione",
-          "dev_password": "La password di sviluppo <code>abc123</code> corrisponde un <code>sysmanage-dev.yaml</code>",
-          "never_production": "NON utilizzare mai questa password in produzione",
-          "title": "Nota di Sicurezza"
-        },
-        "title": "Passo 2: Configurazione Database",
-        "windows": "Windows"
-      },
-      "step3": {
-        "title": "Passo 3: Installare le Dipendenze Backend"
-      },
-      "step4": {
-        "title": "Passo 4: Testare la Connessione al Database"
-      },
-      "step5": {
-        "title": "Passo 5: Installare le Dipendenze Frontend"
-      },
-      "step6": {
-        "config_generator": {
-          "description": "Usare il interactive",
-          "link": "Configurazione Builder Strumento",
-          "title": "Configurazione Generator Disponibile"
-        },
-        "description": "Creare il file di configurazione in:",
-        "linux_macos_bsd": "Linux/macOS/BSD:",
-        "security_steps": {
-          "file_permissions": "Impostare permessi appropriati: <code>chmod 600 /etc/sysmanage.yaml</code>",
-          "generate_secrets": "Genera nuovi segreti: <code>openssl rand -base64 32</code>",
-          "never_commit": "Non fare mai commit dei file di configurazione nel controllo versione",
-          "strong_passwords": "Utilizzare password forti (12+ caratteri)",
-          "title": "Passaggi di Sicurezza Richiesti",
-          "installer_generated": "I pacchetti (deb, rpm, FreeBSD, NetBSD, macOS, Windows, snap) generano <code>jwt_secret</code>, <code>password_salt</code> e la password di ripristino <code>admin_password</code> quando creano il file di configurazione; la password di ripristino si trova in quel file. Un segnaposto o una password nota come <code>admin</code> non viene mai accettato all'accesso. Per un'installazione manuale, eseguire <code>python -m backend.config.install_secrets --apply /etc/sysmanage.yaml</code>."
-        },
-        "title": "Passo 6: Configurazione",
-        "windows_path": "Windows:"
-      },
-      "step7": {
-        "features": {
-          "admin_user": "Crea l'account utente amministrativo iniziale",
-          "config_hardening": "Applica il rafforzamento della sicurezza ai file di configurazione",
-          "jwt_secret": "Genera unique JWT segreto per autenticazione",
-          "password_salt": "Genera password salt univoche per l'hashing sicuro delle password",
-          "prevents_defaults": "Impedisce l'uso di token di sicurezza predefiniti/di esempio",
-          "title": "Cosa questo script fa:"
-        },
-        "security_note": {
-          "description": "Il sicuro Installazione script deve essere Esegui un Crea il initial Amministratore Utente e Configura unique Sicurezza tokens per tuo Installazione.",
-          "title": "Richiesto per Nuovo Installations"
-        },
-        "title": "Passo 7: Esegui script di installazione sicura",
-        "warning": {
-          "backup_config": "Backup tuo configurazione file dopo in esecuzione questo script",
-          "required": "Questo passaggio è Richiesto",
-          "required_desc": "il applicazione sarà not funzione securely senza esso",
-          "run_once": "Esegui questo script solo una volta per installazione",
-          "title": "Important Sicurezza Nota",
-          "unique_tokens": "Ogni installazione riceve token di sicurezza univoci per impedire il riutilizzo delle credenziali"
-        }
-      },
-      "step8": {
-        "access_description": "Accesso il applicazione un:",
-        "http": "HTTP:",
-        "http_url": "http://localhost:3000 (fallback)",
-        "https": "HTTPS:",
-        "https_url": "https://sysmanage.org:7443 (se esistono certificati SSL)",
-        "title": "Passo 8: Eseguire Script di Installazione Sicura"
-      },
-      "title": "Passaggi di Installazione"
+      "title": "Guida all'Installazione del Server",
+      "subtitle_packages": "Installa il server SysManage dal pacchetto per la tua piattaforma, poi completa la configurazione in pochi brevi passaggi. La compilazione dai sorgenti serve solo per lo sviluppo."
     },
     "navigation": {
       "config_guide": "Guida di Configurazione →",
       "server_docs": "← Documentazione Server"
     },
-    "note": "Nota:",
     "prerequisites": {
       "alpine": {
-        "note_edge": "Repository ai bordi:",
-        "note_memory": "Memoria:",
-        "note_musl": "musl libc: Alpine usa musl invece di glibc - alcuni pacchetti potrebbero richiedere la compilazione",
-        "note_openrc": "OpenRC:",
-        "note_title": "Alpine Linux Nota",
-        "tab_title": "Alpine Linux",
-        "title": "Alpine Linux 3.20, 3.21, 3.22"
-      },
-      "centos": {
-        "tab_title": "CentOS / RHEL",
-        "title": "CentOS/RHEL/Fedora"
+        "tab_title": "Alpine Linux"
       },
       "centos_rhel": "CentOS/RHEL",
       "freebsd": {
-        "tab_title": "FreeBSD",
-        "title": "FreeBSD"
+        "tab_title": "FreeBSD"
       },
       "macos": {
-        "tab_title": "macOS",
-        "title": "macOS"
+        "tab_title": "macOS"
       },
       "netbsd": {
         "tab_title": "NetBSD",
         "title": "Guida completa alla configurazione di NetBSD"
       },
       "openbsd": {
-        "pkg_intro": "Un pacchetto pre-compilato viene pubblicato per ogni rilascio di OpenBSD supportato. Include il backend, l'interfaccia web compilata e tutte le dipendenze Python, quindi si installa velocemente senza la necessità di compilatori.",
-        "pkg_title": "Consigliato: Pacchetto pre-costruito (OpenBSD 7.8, 7.9)",
-        "src_intro": "Per lo sviluppo, o per compilare il port da te stesso, installa la catena di strumenti seguente e segui i Passaggi generali di Installazione.",
-        "src_title": "Alternativa: Compilazione da Sorgente",
-        "tab_title": "OpenBSD",
-        "title": "OpenBSD"
+        "tab_title": "OpenBSD"
       },
       "opensuse": {
-        "note_leap": "openSUSE Leap:",
-        "note_nodejs": "Versioni di Node.js:",
-        "note_postgresql": "PostgreSQL:",
-        "note_title": "Nota sul gestore pacchetti",
-        "note_tumbleweed": "openSUSE Tumbleweed: Rilascio continuo con pacchetti più recenti",
-        "tab_title": "openSUSE",
-        "title": "openSUSE Salto/Tumbleweed"
+        "tab_title": "openSUSE"
       },
-      "sles": {
-        "note_firewall": "Firewall: Può usare SuSEfirewall2 (vecchio) o firewalld (nuovo)",
-        "note_modules": "Moduli:",
-        "note_selinux": "SELinux: Potrebbe richiedere regolazioni delle policy se abilitato",
-        "note_sles12": "SLES 12: Potrebbe richiedere Software Collections (SCL) per Python più recente",
-        "note_sles15": "SLES 15:",
-        "note_subscription": "Abbonamento:",
-        "note_title": "Considerazioni aziendali",
-        "tab_title": "SLES",
-        "title": "SUSE Linux Enterprise Server (SLES)"
-      },
-      "title": "Prerequisiti Specifici della Piattaforma",
-      "ubuntu": {
-        "title": "Ubuntu 22.04 - 26.04 (Raccomandato)"
-      },
-      "ubuntu25": {
-        "note": "Ubuntu 25.04 includere Python 3.13, Ubuntu 25.10 includere Python 3.13 e Ubuntu 26.04 includere Python 3.14. Tutti sono completamente supportati. Utilizzare le istruzioni di installazione standard di Ubuntu.",
-        "tab_title": "Ubuntu 25.04 +",
-        "title": "Ubuntu 25.04+ Nota"
-      },
-      "ubuntu_debian": "Ubuntu / Debian",
       "windows": {
-        "nginx": "<strong>nginx:</strong> viene installato automaticamente dal pacchetto MSI -- non è necessaria alcuna azione manuale. L'installatore scarica una versione vincolata, verifica il suo SHA-256 prima di estrarla e la registra come servizio <code>SysManageNginx</code>. Su un host air-gapped, utilizzare un bundle air-gapped: esso include nginx quindi l'installazione non richiede una connessione di rete.",
-        "nginx_note": "<strong>nginx è obbligatorio, non facoltativo.</strong> Il backend di SysManage serve solo l'API REST e il WebSocket dell'agente -- non dispone di un gestore di file statici. nginx serve la console web, termina TLS sulla porta 443 e fa da proxy per <code>/api/</code> e <code>/ws</code> verso il backend sul loopback 8080. Senza di esso non c'è alcuna console da raggiungere.",
-        "tab_title": "Windows",
-        "title": "Windows"
+        "tab_title": "Windows"
       }
-    },
-    "requirements": {
-      "nodejs": {
-        "description": "Per costruire il frontend React",
-        "title": "Node.js",
-        "version": "20.x o superiore"
-      },
-      "os": {
-        "description": "Distribuzione multi-piattaforma",
-        "platforms": "Linux, macOS, Windows, FreeBSD , OpenBSD , NetBSD",
-        "title": "Sistema Operativo"
-      },
-      "postgresql": {
-        "description": "Database principale per tutti io dati dell'applicazione",
-        "title": "PostgreSQL",
-        "version": "14 o superiore"
-      },
-      "python": {
-        "note": "Nota: Python 3.10 è supportato per la compatibilità con Ubuntu 22.04 LTS",
-        "title": "Python",
-        "version": "3.11 un 3.14"
-      },
-      "required": "Obbligatorio:",
-      "supported": "Supportato:",
-      "title": "Requisiti di Sistema"
-    },
-    "ssl": {
-      "config_path": "Puntare nginx al tuo certificato e alla chiave. Il file di configurazione si trova in posizioni diverse su ogni piattaforma, quindi il messaggio post-installazione stampa la directory esatta per il tuo sistema insieme con le due righe da modificare:",
-      "description": "SysManage serve l'interfaccia web e l'API da una singola origine tramite HTTPS sulla porta 443. nginx termina TLS e proxy a backend in loopback, per questo motivo gli agenti devono avere accesso di uscita alla porta 443 verso questo host e nientà altro. Un certificato deve essere presente prima che il server possa servire traffico di produzione.",
-      "dev_mode": "Per lo sviluppo locale puoi saltare completamente i certificati impostando <code>dev_mode: true</code> in <code>/etc/sysmanage.yaml</code>. Il server quindi serve l'API su 8080 e l'interfaccia web su 3000 tramite HTTP chiaro, e si lega a ogni interfaccia così che gli agenti altrove nella tua LAN possano raggiungerlo senza ulteriori configurazioni. Mai abilitare il modo dev su un host di produzione.",
-      "title": "Certificati TLS (Richiesti per la Produzione)"
     },
     "title": "Guida all'Installazione del Server - SysManage",
     "troubleshooting": {
       "db_issues": {
         "check_credentials": "Verificare che le credenziali corrispondano al file di configurazione",
-        "test_connection": "Testare la connessione con il comando psql mostrato sopra",
         "title": "Problemi di Connessione al Database",
         "verify_postgresql": "Verificare che PostgreSQL sia in esecuzione: <code>sudo systemctl status postgresql</code>"
       },
@@ -23733,28 +23545,16 @@
         "httptools_errors": "Errori di compilazione httptools:",
         "install_libpq": "Installa <code>libpq-dev</code> (Ubuntu) o <code>postgresql-devel</code> (RHEL)",
         "install_libuv": "Installa <code>libuv1-dev</code> (Ubuntu) o <code>libuv-devel</code> (RHEL)",
-        "missing_libpq": "libpq-fe.h mancante:",
-        "python313_issues": "Problemi di versione Python:",
-        "title": "Errori di Compilazione Pacchetti",
-        "use_older_python": "Assicurarsi di utilizzare Python 3.10 o più recente"
-      },
-      "permission_issues": {
-        "check_venv": "Verificare l'attivazione dell'ambiente virtuale",
-        "ensure_ownership": "Assicurarsi della proprietà appropriata delle directory",
-        "set_config_permissions": "Impostare io permessi del file di configurazione: <code>chmod 600 /etc/sysmanage.yaml</code>",
-        "title": "Problemi di Permessi"
+        "missing_libpq": "libpq-fe.h mancante:"
       },
       "port_conflicts": {
         "check_services": "Verifica un listener esistente: <code>ss -tlnp | grep -E ':(80|443|8080)'</code>",
         "ensure_ports": "In produzione, assicurati che 443 sia libero (e 80, che solo reindirizza a esso). Il backend ascolta su 127.0.0.1:8080 dietro nginx e non è esposto.",
-        "modify_ports": "In modalità dev l'API è su 8080 e l'interfaccia web su 3000; cambiali sotto <code>api</code> e <code>webui</code> in <code>/etc/sysmanage.yaml</code> se si sovrappongono.",
         "title": "Conflitti di Porte"
       },
       "title": "Risoluzione dei Problemi"
     },
     "dev": {
-      "title": "Eseguire un server di sviluppo",
-      "intro": "Un server di sviluppo viene eseguito dal checkout dei sorgenti, con l'interfaccia web servita da Vite invece che da nginx. Questi suggerimenti aiutano a configurarne uno e a mantenerlo separato da tutto ciò che si esegue in produzione.",
       "tools": "Installare una volta gli strumenti di sviluppo (esecutori di test, linter, Playwright e lo stack di telemetria):",
       "config": "Creare <code>sysmanage-dev.yaml</code> nella radice del progetto a partire da <code>sysmanage-dev.yaml.example</code>; il server lo legge quando <code>/etc/sysmanage.yaml</code> non esiste. Far puntare <code>SYSMANAGE_CONFIG_PATH</code> a un file per usarne un altro. Le impostazioni più importanti per lo sviluppo:",
       "dev_mode": "<code>dev_mode: true</code> indica al server che davanti a lui non c'è alcun proxy TLS: i link nelle email usano <code>http://host:3000</code> e l'associazione a tutte le interfacce non genera avvisi. Ometterlo in una distribuzione reale; l'assenza del flag significa produzione.",
@@ -23764,18 +23564,183 @@
       "run": "Eseguire le migrazioni, quindi avviare e arrestare tutto con:",
       "ports": "L'API è in ascolto sulla porta 8080 e l'interfaccia web di Vite sulla porta 3000. Le migrazioni del database usano lo stesso strumento che gli operatori eseguono in produzione.",
       "second": "Serve un secondo server usa e getta (ad esempio per provare qualcosa senza toccare i propri dati)? L'ambiente di test di scalabilità ne avvia uno con il proprio container PostgreSQL, la propria configurazione e la propria porta, e lo elimina al termine:"
+    },
+    "meta_description": "Installa il server SysManage dal pacchetto per la tua piattaforma, poi configura il database, il certificato TLS, il firewall e il primo accesso.",
+    "before": {
+      "title": "Prima di iniziare",
+      "host": "<strong>Un host con un nome DNS.</strong> Gli agenti si connettono a quel nome, e il certificato TLS deve corrispondere a esso.",
+      "postgres": "<strong>PostgreSQL 12 o successivo</strong>, sullo stesso host o su uno remoto. I pacchetti non creano il database al posto tuo.",
+      "ports": "<strong>La porta in ingresso 443</strong>, più la porta 80 per il reindirizzamento HTTPS e per Let's Encrypt. Nient'altro deve essere raggiungibile dalla rete.",
+      "root": "<strong>Accesso root o sudo</strong> sull'host.",
+      "no_toolchain": "Non devi installare tu stesso Python, Node.js o strumenti di compilazione. Il pacchetto porta con sé tutto ciò di cui il server ha bisogno, inclusi nginx e OpenBAO."
+    },
+    "packages": {
+      "title": "Installazione dai pacchetti (consigliata)",
+      "ubuntu": {
+        "title": "Ubuntu (PPA di Launchpad)",
+        "intro": "Il server SysManage è pubblicato nel PPA di Launchpad <code>ppa:bceverly/sysmanage</code> per Ubuntu 22.04 LTS, 24.04 LTS e 26.04 LTS. Questo è il modo consigliato per eseguire il server.",
+        "what": "Il pacchetto installa il server in <code>/opt/sysmanage</code> e scarica le sue dipendenze Python in un ambiente privato in quella posizione, quindi l'host ha bisogno dell'accesso a internet durante l'installazione. Crea inoltre <code>/etc/sysmanage.yaml</code> con segreti generati per questa installazione, installa e rimuove il sigillo di OpenBAO, e configura nginx. Il servizio SysManage viene abilitato ma resta fermo finché non completi i passaggi in <a href=\"#after-installing\">Dopo l'installazione</a>.",
+        "upgrade": "I release successivi arrivano tramite <code>sudo apt upgrade</code>. Un aggiornamento mantiene la tua configurazione e il tuo database, e stampa i due comandi da eseguire in seguito: le migrazioni del database e un riavvio del servizio."
+      },
+      "other": {
+        "title": "Altre piattaforme",
+        "intro": "I pacchetti per le altre piattaforme sono pubblicati nella <a href=\"https://github.com/bceverly/sysmanage/releases\">pagina dei release su GitHub</a> e nei repository indicati di seguito. Sostituisci <code>X.Y.Z</code> con il release che stai installando. Ogni pacchetto stampa le proprie istruzioni post-installazione, con i percorsi per quella piattaforma già compilati."
+      },
+      "debian": {
+        "tab": "Debian",
+        "intro": "Debian 12 e versioni successive si installano dal repository APT di SysManage. Anche Ubuntu può usarlo, ma su Ubuntu la fonte consigliata è il PPA indicato sopra."
+      },
+      "rhel": {
+        "tab": "RHEL",
+        "intro": "RHEL, Rocky Linux, AlmaLinux, Oracle Linux e CentOS Stream 8, 9 e 10 (x86_64 e aarch64) si installano dal progetto Fedora Copr <code>bceverly/sysmanage</code>. Al momento il server non viene compilato per Fedora; lì usa <a href=\"#from-source\">Compilazione dai sorgenti</a>."
+      },
+      "arch": {
+        "tab": "Arch Linux",
+        "intro": "Arch Linux installa il pacchetto <code>sysmanage</code> dall'AUR, con qualsiasi helper AUR:"
+      },
+      "snap": {
+        "tab": "Snap",
+        "intro": "Il server è pubblicato nello Snap Store nel canale stabile, con confinamento rigoroso:"
+      },
+      "opensuse": {
+        "intro": "openSUSE Leap 15.6 e Tumbleweed si installano dal progetto openSUSE Build Service <code>home:bryaneverly</code>."
+      },
+      "alpine": {
+        "intro": "I pacchetti per Alpine Linux 3.20, 3.21 e 3.22 si scaricano direttamente dalla pagina dei release. Scegli il file per il tuo release di Alpine (<code>alpine320</code>, <code>alpine321</code> o <code>alpine322</code>) e verificane il <code>.sha256</code> prima di installarlo."
+      },
+      "macos": {
+        "intro": "Scarica <code>sysmanage-X.Y.Z-macos.pkg</code> dalla pagina dei release e installalo. Il programma di installazione usa Homebrew per aggiungere nginx se manca.",
+        "start": "Dopo i passaggi in <a href=\"#after-installing\">Dopo l'installazione</a>, avvia il server con <code>sudo launchctl load /Library/LaunchDaemons/com.sysmanage.server.plist</code>."
+      },
+      "windows": {
+        "intro": "Scarica <code>sysmanage-X.Y.Z-windows-x64.msi</code> (o <code>sysmanage-X.Y.Z-windows-arm64.msi</code> su ARM) dalla pagina dei release ed eseguilo come amministratore. Installa il server in <code>C:\\Program Files\\SysManage Server</code> e registra i servizi <code>SysManageServer</code>, <code>SysManageNginx</code> e <code>SysManageOpenBAO</code>. nginx viene scaricato durante l'installazione e il suo SHA-256 viene verificato prima dell'uso.",
+        "start": "Il server resta fermo. Dopo i passaggi in <a href=\"#after-installing\">Dopo l'installazione</a>, avvialo da un PowerShell di amministratore con <code>Set-Service SysManageServer -StartupType Automatic</code>, <code>Start-Service SysManageServer</code> e <code>Restart-Service SysManageNginx</code>."
+      },
+      "freebsd": {
+        "intro": "Scarica <code>sysmanage-X.Y.Z.pkg</code> dalla pagina dei release e installalo:",
+        "start": "Avvia i servizi con <code>sysrc sysmanage_enable=YES</code>, <code>sysrc nginx_enable=YES</code>, <code>service sysmanage start</code> e <code>service nginx start</code>."
+      },
+      "openbsd": {
+        "intro": "Per OpenBSD 7.8 e 7.9 è pubblicato un pacchetto precompilato. Include il backend, l'interfaccia web e le dipendenze Python, quindi non richiede alcun compilatore. Usa <code>openbsd78</code> o <code>openbsd79</code> in base al tuo release.",
+        "start": "Avvia i servizi con <code>doas rcctl enable openbao sysmanage</code> e <code>doas rcctl start openbao sysmanage</code>."
+      },
+      "netbsd": {
+        "intro": "Scarica <code>sysmanage-X.Y.Z-netbsd.tgz</code> e il relativo <code>.sha256</code> dalla pagina dei release, verificalo e installalo come root:"
+      },
+      "airgap": "<strong>Il server non ha accesso a internet?</strong> Usa l'<a href=\"/air-gapped/\">installazione air-gap</a>, che contiene ogni pacchetto e ogni dipendenza in un unico bundle."
+    },
+    "after": {
+      "title": "Dopo l'installazione",
+      "intro": "Questi passaggi sono scritti per Ubuntu e Debian. Sono gli stessi su ogni piattaforma; cambiano solo i percorsi e i comandi dei servizi, e la tabella alla fine di questa sezione elenca i percorsi per ciascuna.",
+      "db": {
+        "title": "Passaggio 1: Crea il database",
+        "body": "Per usare un server PostgreSQL locale, installalo e crea l'utente e il database <code>sysmanage</code>. Scegli una password robusta; la inserirai subito dopo nel file di configurazione.",
+        "remote": "Un server PostgreSQL remoto va altrettanto bene. Crea lì lo stesso utente e lo stesso database e usa il suo nome host nella configurazione."
+      },
+      "config": {
+        "title": "Passaggio 2: Modifica la configurazione",
+        "body": "Il pacchetto ha creato <code>/etc/sysmanage.yaml</code> e ha già generato <code>jwt_secret</code>, <code>password_salt</code> e la <code>admin_password</code> di ripristino per questa installazione. Imposta la password del database e imposta <code>admin_userid</code> sul tuo indirizzo email:",
+        "builder": "Lascia <code>api: host</code> impostato su <code>localhost</code>: il server è raggiungibile solo tramite nginx. Il <a href=\"/config-builder.html\">generatore di configurazione</a> può creare un file completo se vuoi impostare altre opzioni, e la <a href=\"configuration.html\">Guida alla configurazione</a> descrive ogni impostazione."
+      },
+      "migrate": {
+        "title": "Passaggio 3: Esegui le migrazioni del database",
+        "body": "Le migrazioni creano lo schema del database. <code>--status</code> mostra ciò che è in sospeso; il secondo comando lo applica. Esegui gli stessi due comandi dopo ogni aggiornamento."
+      },
+      "tls": {
+        "title": "Passaggio 4: Installa un certificato TLS",
+        "body": "SysManage serve l'interfaccia web, l'API e le connessioni degli agenti sulla porta 443, e nginx si rifiuta di avviarsi finché non è presente un certificato. È voluto: una console di gestione non deve mai essere attiva in chiaro, e gli agenti verificano il certificato per impostazione predefinita. Per impostazione predefinita nginx legge:",
+        "edit": "Per usare un certificato memorizzato altrove, modifica queste due righe in <code>/etc/nginx/sites-available/sysmanage-nginx.conf</code>:",
+        "le_http_title": "Let's Encrypt con certbot (challenge HTTP)",
+        "le_http_body": "Se la porta 80 di questo host è raggiungibile da internet, certbot può rispondere alla challenge da solo. Quando è in esecuzione, nginx occupa la porta 80, quindi gli hook lo arrestano durante ogni rinnovo e lo riavviano dopo. certbot salva gli hook e rinnova automaticamente.",
+        "le_dns_title": "Let's Encrypt con una challenge DNS (DigitalOcean DNS)",
+        "le_dns_body": "Se il DNS del tuo dominio è ospitato su DigitalOcean, certbot può invece dimostrare la proprietà tramite DNS. La porta 80 non deve essere raggiungibile, e nginx resta in esecuzione durante i rinnovi. Crea un token API di DigitalOcean con accesso in scrittura al DNS e salvalo in un file leggibile solo da root:",
+        "le_point": "Con entrambi i metodi, punta le due righe di nginx ai file scritti da certbot, poi verifica la configurazione:"
+      },
+      "start": {
+        "title": "Passaggio 5: Avvia i servizi",
+        "logs": "Il server scrive i suoi log in <code>/var/log/sysmanage/</code>. Se si arresta subito dopo l'avvio, controlla le impostazioni del database in <code>/etc/sysmanage.yaml</code> e verifica che le migrazioni siano state eseguite."
+      },
+      "firewall": {
+        "title": "Passaggio 6: Apri il firewall",
+        "body": "nginx è l'unico servizio in ascolto sulla rete. Apri le porte 443 e 80 e nient'altro: l'API di SysManage resta sulla porta di loopback 8080 e OpenBAO sulla porta di loopback 8200, e nemmeno PostgreSQL deve essere esposto."
+      },
+      "login": {
+        "title": "Passaggio 7: Accedi",
+        "body": "Apri <code>https://sysmanage.example.com/</code> e accedi come l'<code>admin_userid</code> che hai impostato, con la password di ripristino generata. Puoi leggerla con:",
+        "next": "Questo account di ripristino esiste solo nel file di configurazione, e la console ti avvisa finché è presente. Configura l'email, crea il tuo utente amministratore, poi rimuovi <code>admin_userid</code> e <code>admin_password</code> dal file e riavvia il server."
+      },
+      "openbao": {
+        "title": "Passaggio 8: Esegui il backup del materiale di unseal di OpenBAO",
+        "body": "Il pacchetto installa OpenBAO, il broker dei segreti, sulla porta di loopback 8200. Alla prima installazione lo inizializza e ne esegue l'unseal, ripete l'unseal a ogni avvio e scrive il token usato da SysManage in <code>/etc/sysmanage/openbao-token</code>. La chiave di unseal e il token root si trovano in <code>/var/lib/openbao/init.json</code>.",
+        "backup": "<strong>Copia <code>/var/lib/openbao/init.json</code> in un archivio sicuro esterno a questa macchina.</strong> Senza di esso, i segreti memorizzati in OpenBAO non possono essere recuperati se l'host viene ricostruito.",
+        "enable": "Perché SysManage conservi i suoi segreti in OpenBAO, imposta <code>vault: enabled: true</code> in <code>/etc/sysmanage.yaml</code>. La multi-tenancy lo richiede. Controllane lo stato con <code>systemctl status openbao sysmanage-openbao-init</code>."
+      },
+      "agents": {
+        "title": "Passaggio 9: Connetti gli agenti",
+        "body": "Gli agenti hanno bisogno della porta in uscita 443 verso il server e di nient'altro. Punta ogni agente allo stesso nome host per cui è stato emesso il certificato, e lascia attiva la verifica del certificato:",
+        "link": "Consulta <a href=\"../agent/installation.html\">Installazione dell'agente</a> per i pacchetti dell'agente."
+      },
+      "paths": {
+        "title": "Percorsi su ogni piattaforma",
+        "platform": "Piattaforma",
+        "config": "File di configurazione",
+        "nginx": "Configurazione di nginx",
+        "tls": "Certificato e chiave"
+      }
+    },
+    "optional": {
+      "title": "Funzionalità opzionali",
+      "telemetry": {
+        "title": "Telemetria",
+        "body": "OpenTelemetry è disattivato per impostazione predefinita. Per inviare tracce e metriche al tuo collector, imposta <code>telemetry: enabled: true</code> e <code>telemetry: otlp_endpoint</code> in <code>/etc/sysmanage.yaml</code>, oppure le variabili d'ambiente <code>OTEL_ENABLED=true</code> e <code>OTEL_EXPORTER_OTLP_ENDPOINT</code>. Mentre la telemetria è attiva, le metriche Prometheus sono servite su <code>127.0.0.1:9090</code>, solo su loopback."
+      },
+      "mt": {
+        "title": "Multi-tenancy",
+        "body": "Un server funziona con un singolo tenant a meno che tu non attivi la multi-tenancy con <code>multitenancy: enabled: true</code>, seguita dalle migrazioni del database. Richiede OpenBAO e un database separato per ogni tenant; consulta <a href=\"../deployment/multi-tenancy.html\">Distribuzione della multi-tenancy</a>."
+      }
+    },
+    "trouble": {
+      "install": {
+        "title": "Dopo un'installazione da pacchetto",
+        "nginx": "<strong>nginx non si avvia:</strong> quasi sempre un certificato mancante o illeggibile. <code>sudo nginx -t</code> indica il file che non è riuscito a leggere.",
+        "service": "<strong>Il servizio si avvia, poi termina:</strong> controlla le impostazioni del database nel file di configurazione e verifica che le migrazioni siano state eseguite.",
+        "login": "<strong>L'accesso viene rifiutato:</strong> <code>admin_userid</code> deve essere un indirizzo email completo, non un semplice nome.",
+        "openbao": "<strong>OpenBAO è sigillato o non in esecuzione:</strong> esegui <code>sudo systemctl restart openbao sysmanage-openbao-init</code> e leggi <code>systemctl status sysmanage-openbao-init</code>."
+      }
+    },
+    "source": {
+      "title": "Compilazione dai sorgenti (sviluppo)",
+      "intro": "Compila dai sorgenti per lavorare su SysManage stesso, o su una piattaforma senza pacchetto. Un server di sviluppo viene eseguito dal checkout dei sorgenti, con l'interfaccia web servita da Vite invece che da nginx. Non usarlo in produzione.",
+      "prereq": {
+        "title": "Prerequisiti",
+        "list": "Python da 3.10 a 3.14 con i relativi header di sviluppo, Node.js 20 o successivo, PostgreSQL 12 o successivo, un compilatore C e i pacchetti di sviluppo di libffi, OpenSSL e libpq.",
+        "bsd": "Su FreeBSD, OpenBSD e NetBSD, usa <code>gmake</code> invece di <code>make</code>. Su NetBSD, imposta <code>CFLAGS=\"-I/usr/pkg/include\"</code> e <code>LDFLAGS=\"-L/usr/pkg/lib -Wl,-R/usr/pkg/lib\"</code> prima dell'installazione, così i pacchetti Python con estensioni C trovano le loro librerie.",
+        "ubuntu": "Su Ubuntu:"
+      },
+      "setup": {
+        "title": "Clona e configura",
+        "db": "Crea un database e un utente per lo sviluppo, allo stesso modo del <a href=\"#after-installing\">Passaggio 1</a> sopra."
+      },
+      "run": {
+        "title": "Eseguilo",
+        "secure": "Per creare un utente amministratore e inizializzare OpenBAO in un checkout dei sorgenti, esegui <code>scripts/sysmanage_secure_installation</code>; consulta <a href=\"secure-installation.html\">Installazione sicura</a>. Ricostruisce il database, quindi non eseguirlo mai su un server con dati che vuoi conservare, e mai su un'installazione da pacchetto."
+      },
+      "trouble": {
+        "title": "Problemi di compilazione",
+        "netbsd_tmp": "<strong>NetBSD, \"No space left on device\" durante pip install:</strong> <code>/tmp</code> è per impostazione predefinita un tmpfs da 1 GB. Ingrandiscilo con <code>mount -t tmpfs -o -s=4g tmpfs /tmp</code>, oppure imposta <code>TMPDIR</code> su una directory su disco."
+      }
     }
   },
   "server_quickstart": {
     "before": {
-      "body": "Questa guida installa il server dal pacchetto compilato per la tua piattaforma. Per la matrice completa delle piattaforme, istruzioni build-from-source e prerequisiti per distribuzione specifici, vedi la <a href=\"/docs/server/installation.html\">Guida all'Installazione del Server</a>.",
       "cert": "<strong>Un certificato TLS e una chiave privata</strong> per l'hostname del server. nginx rifiuta di avviarsi senza uno -- intenzionalmente, perché un console di gestione non deve essere disponibile in chiaro solo perché manca un certificato.",
       "ports": "<strong>Ingresso 443</strong> (più 80 se si desidera la redirect). Null'altro ha bisogno di essere aperto: gli agenti raggiungono il server tramite uscita 443 e il backend rimane su loopback dietro nginx.",
       "postgres": "<strong>PostgreSQL 12 o successivo</strong>, su questo host o uno remoto. SysManage non si avvierà senza di esso.",
       "root": "<strong>Accesso root o sudo</strong> sul server target.",
       "tip": "Il pacchetto stampa ogni passo qui sotto come suo messaggio post-installazione, con i percorsi giá compilati per la tua piattaforma. Se lo perdi, è nel log del gestore di pacchetti.",
       "tip_label": "Consiglio:",
-      "title": "Prima di Iniziare"
+      "title": "Prima di Iniziare",
+      "body_pkg": "Questa guida installa il server dal pacchetto compilato per la tua piattaforma. Per il pacchetto su ogni piattaforma, e per la compilazione dai sorgenti, consulta la guida <a href=\"/docs/server/installation.html\">Installazione del server</a>."
     },
     "intro": "Installa il server SysManage da un pacchetto nativo, puntalo a PostgreSQL, dai a nginx un certificato e apri la console. Circa quindici minuti su un host fresco.",
     "next": {
@@ -23787,12 +23752,12 @@
       "title": "Passi Successivi"
     },
     "step1": {
-      "body": "Scarica il pacchetto per la tua piattaforma dalla <a href=\"https://github.com/bceverly/sysmanage/releases\">pagina delle release</a> e installalo. Sostituisci <code>X.Y.Z</code> con la versione che stai installando.",
-      "debian": "Debian / Ubuntu",
       "other": "Altre piattaforme",
-      "other_body": "openSUSE, Alpine, FreeBSD, OpenBSD, NetBSD, macOS e i pacchetti Windows sono pubblicati sulla stessa pagina delle release. I passaggi seguenti sono identici su ogni piattaforma; solo il comando di installazione e la directory di configurazione nginx differiscono, e il messaggio post-installazione stampa la giusta directory per te.",
-      "rhel": "RHEL / CentOS / Fedora",
-      "title": "Installa il pacchetto"
+      "title": "Installa il pacchetto",
+      "ubuntu": "Ubuntu",
+      "body_pkg": "Su Ubuntu, installa il server dal PPA di Launchpad di SysManage:",
+      "rhel_copr": "RHEL e distribuzioni compatibili",
+      "other_pkg": "Debian, openSUSE, Arch Linux, Alpine, Snap, macOS, Windows e i BSD hanno i propri pacchetti; la guida <a href=\"/docs/server/installation.html#packages\">Installazione del server</a> riporta il comando per ciascuno. I passaggi che seguono sono gli stessi su ogni piattaforma. Cambiano solo i percorsi, e il messaggio post-installazione li stampa per te."
     },
     "step2": {
       "body": "Per utilizzare un'istanza PostgreSQL locale:",
@@ -23800,9 +23765,9 @@
       "title": "Crea il Database"
     },
     "step3": {
-      "body": "Il server legge <code>/etc/sysmanage.yaml</code>. Il <a href=\"/config-builder.html\">configuratore di configurazione</a> genera un file completo - connessione al database, hostname, TLS, autenticazione e registrazione - il che è più veloce e meno soggetto a errori rispetto alla scrittura manuale.",
-      "perms": "Il file contiene le credenziali del database, quindi mantenilo leggibile solo dal root.",
-      "title": "Scrivi la Configurazione"
+      "title": "Scrivi la Configurazione",
+      "body_pkg": "Il pacchetto ha creato <code>/etc/sysmanage.yaml</code> e ha già generato i segreti di questa installazione. Imposta la password del database del passaggio 2, e imposta <code>admin_userid</code> sul tuo indirizzo email. Il <a href=\"/config-builder.html\">generatore di configurazione</a> può creare un file completo se vuoi impostare altre opzioni.",
+      "perms_pkg": "Il file contiene segreti, quindi il pacchetto lo rende leggibile solo dall'account di servizio <code>sysmanage</code>. Lascialo così."
     },
     "step4": {
       "body": "Controlla ciò che è in sospeso, poi applicalo. Questo migra lo schema del control-plane e, se la multi-tenancy è abilitata, ogni database tenant.",

@@ -29,7 +29,7 @@
             <div class="docs-content">
                 <section class="docs-overview">
                     <h2 data-i18n="server_quickstart.before.title">Before You Begin</h2>
-                    <p data-i18n="server_quickstart.before.body" data-i18n-html>This guide installs the server from the package built for your platform. For the full platform matrix, build-from-source instructions, and per-distribution prerequisites, see the <a href="/docs/server/installation.html">Server Installation</a> guide.</p>
+                    <p data-i18n="server_quickstart.before.body_pkg" data-i18n-html>This guide installs the server from the package built for your platform. For the package on every platform, and for building from source, see the <a href="/docs/server/installation.html">Server Installation</a> guide.</p>
                     <ul>
                         <li data-i18n="server_quickstart.before.postgres" data-i18n-html><strong>PostgreSQL 12 or newer</strong>, on this host or a remote one. SysManage will not start without it.</li>
                         <li data-i18n="server_quickstart.before.cert" data-i18n-html><strong>A TLS certificate and private key</strong> for the server's hostname. nginx refuses to start without one -- deliberately, because a management console must not come up in cleartext just because a certificate was missing.</li>
@@ -50,22 +50,19 @@
                             <h3 data-i18n="server_quickstart.step1.title">Install the Package</h3>
                         </div>
                         <div class="step-content">
-                            <p data-i18n="server_quickstart.step1.body" data-i18n-html>Download the package for your platform from the <a href="https://github.com/bceverly/sysmanage/releases">releases page</a> and install it. Replace <code>X.Y.Z</code> with the release you are installing.</p>
+                            <h4 data-i18n="server_quickstart.step1.ubuntu">Ubuntu</h4>
+                            <p data-i18n="server_quickstart.step1.body_pkg" data-i18n-html>On Ubuntu, install the server from the SysManage Launchpad PPA:</p>
+                            <pre><code>sudo add-apt-repository ppa:bceverly/sysmanage
+sudo apt update
+sudo apt install sysmanage</code></pre>
 
-                            <h4 data-i18n="server_quickstart.step1.debian">Debian / Ubuntu</h4>
-                            <pre><code>VERSION=X.Y.Z
-curl -LO https://github.com/bceverly/sysmanage/releases/download/v$VERSION/sysmanage_${VERSION}-1_all.deb
-sudo dpkg -i sysmanage_${VERSION}-1_all.deb
-
-# Pull in anything dpkg reported as missing
-sudo apt-get install -f</code></pre>
-
-                            <h4 data-i18n="server_quickstart.step1.rhel">RHEL / CentOS / Fedora</h4>
-                            <pre><code># Download the .rpm asset for your release from the releases page, then:
-sudo dnf install ./sysmanage-*.rpm</code></pre>
+                            <h4 data-i18n="server_quickstart.step1.rhel_copr">RHEL and compatible distributions</h4>
+                            <pre><code>sudo dnf install epel-release
+sudo dnf copr enable bceverly/sysmanage
+sudo dnf install sysmanage</code></pre>
 
                             <h4 data-i18n="server_quickstart.step1.other">Other platforms</h4>
-                            <p data-i18n="server_quickstart.step1.other_body" data-i18n-html>openSUSE, Alpine, FreeBSD, OpenBSD, NetBSD, macOS and Windows packages are published on the same releases page. The steps that follow are identical on every platform; only the install command and the nginx configuration path differ, and the post-install message prints the right path for you.</p>
+                            <p data-i18n="server_quickstart.step1.other_pkg" data-i18n-html>Debian, openSUSE, Arch Linux, Alpine, Snap, macOS, Windows and the BSDs have their own packages; the <a href="/docs/server/installation.html#packages">Server Installation</a> guide gives the command for each. The steps that follow are the same on every platform. Only the paths differ, and the post-install message prints them for you.</p>
                         </div>
                     </div>
 
@@ -90,9 +87,9 @@ sudo -u postgres psql -c "ALTER USER sysmanage WITH PASSWORD 'your-password';"</
                             <h3 data-i18n="server_quickstart.step3.title">Write the Configuration</h3>
                         </div>
                         <div class="step-content">
-                            <p data-i18n="server_quickstart.step3.body" data-i18n-html>The server reads <code>/etc/sysmanage.yaml</code>. The <a href="/config-builder.html">configuration builder</a> generates a complete file -- database connection, hostname, TLS, authentication and logging -- which is faster and less error-prone than writing it by hand.</p>
-                            <pre><code>sudo chmod 600 /etc/sysmanage.yaml</code></pre>
-                            <p data-i18n="server_quickstart.step3.perms" data-i18n-html>The file holds database credentials, so keep it readable only by root.</p>
+                            <p data-i18n="server_quickstart.step3.body_pkg" data-i18n-html>The package created <code>/etc/sysmanage.yaml</code> and already generated this installation's secrets. Set the database password from step 2, and set <code>admin_userid</code> to your email address. The <a href="/config-builder.html">configuration builder</a> can generate a complete file if you want to set more options.</p>
+                            <pre><code>sudo vim /etc/sysmanage.yaml</code></pre>
+                            <p data-i18n="server_quickstart.step3.perms_pkg" data-i18n-html>The file holds secrets, so the package makes it readable only by the <code>sysmanage</code> service account. Keep it that way.</p>
                         </div>
                     </div>
 
@@ -103,9 +100,8 @@ sudo -u postgres psql -c "ALTER USER sysmanage WITH PASSWORD 'your-password';"</
                         </div>
                         <div class="step-content">
                             <p data-i18n="server_quickstart.step4.body" data-i18n-html>Check what is pending, then apply it. This migrates the control-plane schema and, if multi-tenancy is enabled, every tenant database as well.</p>
-                            <pre><code>cd /opt/sysmanage
-sudo -u sysmanage .venv/bin/python scripts/sysmanage_migrate.py --status
-sudo -u sysmanage .venv/bin/python scripts/sysmanage_migrate.py</code></pre>
+                            <pre><code>sudo sysmanage-migrate --status
+sudo sysmanage-migrate</code></pre>
                             <p data-i18n="server_quickstart.step4.openbao" data-i18n-html>With multi-tenancy enabled the per-tenant pass leases credentials from OpenBAO, so OpenBAO must be running when you migrate.</p>
                         </div>
                     </div>
