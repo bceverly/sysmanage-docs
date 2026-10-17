@@ -81,6 +81,14 @@ done
 
 sort -u -o "$REMOVE" "$REMOVE"
 count=$(wc -l < "$REMOVE")
+# The exact paths this run removes, relative to repo/, for the Makefile to
+# delete from R2 one by one.  The push used to be `aws s3 sync --delete`,
+# which also deleted every object a release had uploaded AFTER this job's
+# pull -- the server's 3.11.0.5 Windows MSIs vanished that way (2026-10-17).
+# Deleting only what was decided here cannot touch anything newer.
+PRUNED_LIST="${PRUNED_LIST:-$ROOT/.prune-removed.txt}"
+: > "$PRUNED_LIST"
+while IFS= read -r p; do [ -n "$p" ] && rel "$p" >> "$PRUNED_LIST"; done < "$REMOVE"
 # Guard the empty case: ``du -scb`` with no file args measures the CWD, which
 # would report a bogus (often larger-than-repo) size and a negative projection.
 if [ "$count" -gt 0 ]; then

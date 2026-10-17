@@ -899,13 +899,16 @@ clean:
 # Package-repo retention (R2 is the source of truth; repo/ is not in git).
 # Pulls the current repo/ down from R2, keeps only the latest 5 versions of each
 # package (across apt/rpm/alpine/win/mac/bsd, regenerating the apt/rpm/alpine
-# indexes), then mirrors the pruned tree back to R2 with --delete so old versions
-# drop off R2.  Run occasionally (it's independent of releases, which publish
+# indexes), then deletes exactly the pruned versions from R2 (never a blanket
+# --delete, and nothing at all if a release published meanwhile).  Run occasionally (it's independent of releases, which publish
 # additively).  Needs AWS creds + R2_ACCOUNT_ID in your env (same as the seed),
 # and local dpkg-dev/apt-utils, createrepo_c, apk for index regen.
 R2_BUCKET ?= sysmanage-repo
 R2_ENDPOINT ?= https://$(R2_ACCOUNT_ID).r2.cloudflarestorage.com
 _R2_ARGS = --endpoint-url $(R2_ENDPOINT) --region auto --only-show-errors
+# Every key in the bucket, one per line (the listing's date/time/size columns
+# stripped; keys may contain spaces).
+_R2_LS = aws s3 ls --recursive s3://$(R2_BUCKET)/ --endpoint-url $(R2_ENDPOINT) --region auto | sed -E 's/^[^ ]+ +[^ ]+ +[0-9]+ //'
 .PHONY: prune-repo prune-repo-dry
 prune-repo-dry:
 	@aws s3 sync s3://$(R2_BUCKET)/ repo/ $(_R2_ARGS)
@@ -913,9 +916,32 @@ prune-repo-dry:
 
 prune-repo:
 	@aws s3 sync s3://$(R2_BUCKET)/ repo/ $(_R2_ARGS)
-	@test "$$(find repo -type f 2>/dev/null | wc -l)" -gt 50 || { echo "ERROR: R2 pull returned <50 files -- refusing to prune + --delete (a bad/empty pull could wipe the bucket)"; exit 1; }
+	@test "$$(find repo -type f 2>/dev/null | wc -l)" -gt 50 || { echo "ERROR: R2 pull returned <50 files -- refusing to prune (a bad/empty pull)"; exit 1; }
+	@# Snapshot of the bucket as pulled.  A release can publish WHILE this job
+	@# runs (both repos trigger it, and the concurrency group only orders
+	@# prunes against each other); the old `sync --delete` push then deleted
+	@# whatever that release had just uploaded -- the server's 3.11.0.5
+	@# Windows MSIs, 2026-10-17 -- and the regenerated indexes would have
+	@# dropped its packages too.  So: compare before writing anything back.
+	@$(_R2_LS) | sort > .prune-before.txt
 	@KEEP=5 DRY_RUN=0 ./scripts/prune-package-repo.sh
-	@aws s3 sync repo/ s3://$(R2_BUCKET)/ $(_R2_ARGS) --size-only --delete
+	@set -e; \
+	$(_R2_LS) | sort > .prune-after.txt; \
+	if comm -13 .prune-before.txt .prune-after.txt | grep -q .; then \
+		echo "R2 changed during the prune (a release published):"; \
+		comm -13 .prune-before.txt .prune-after.txt | head -20; \
+		echo "Writing nothing back; the next run prunes."; exit 0; \
+	fi; \
+	aws s3 sync repo/ s3://$(R2_BUCKET)/ $(_R2_ARGS) --size-only; \
+	while IFS= read -r p; do \
+		[ -n "$$p" ] || continue; \
+		if [ -d "repo/$$p" ] || ! grep -qxF "$$p" .prune-before.txt; then \
+			aws s3 rm --recursive "s3://$(R2_BUCKET)/$$p/" $(_R2_ARGS); \
+		else \
+			aws s3 rm "s3://$(R2_BUCKET)/$$p" $(_R2_ARGS); \
+		fi; \
+	done < .prune-removed.txt; \
+	echo "Removed $$(grep -c . .prune-removed.txt || true) pruned path(s) from R2"
 	@# --size-only above is right for package FILES (large, immutable, and a
 	@# re-upload of every .deb/.rpm each run would be wasteful) but WRONG for
 	@# index files: a regenerated Packages.gz / Release / repodata can be
@@ -927,7 +953,8 @@ prune-repo:
 	@# LISTs both sides in full before filtering client-side, and ListObjects
 	@# is a billable R2 Class A operation.  Syncing only the index prefixes
 	@# lists only those prefixes.
-	@for d in $$(find repo -type d \( -name dists -o -name repodata \) 2>/dev/null); do \
+	@test ! -f .prune-after.txt || ! comm -13 .prune-before.txt .prune-after.txt | grep -q . || exit 0; \
+	for d in $$(find repo -type d \( -name dists -o -name repodata \) 2>/dev/null); do \
 		aws s3 sync "$$d/" "s3://$(R2_BUCKET)/$${d#repo/}/" $(_R2_ARGS); \
 	done
 
