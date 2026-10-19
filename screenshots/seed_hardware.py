@@ -31,7 +31,10 @@ WHAT IT HAS TO SHOW, AND WHY
   * debian-app-01's SATA drive NOT JUDGED because smartctl is absent, so the
     smartmontools recommendation shows on the host and on the fleet page.
   * ubuntu-web-01 all healthy, with hwmon temperature sensors (folded away
-    on the host card) and EDAC memory counts.
+    on the host card) and EDAC memory counts.  It runs hot by design and has
+    its own temperature warning limit of 95 C: its cores read 86-89 C, above
+    the 82 C the hardware declares, and are healthy under the host's limit
+    (the hardware-health-templimit shot).
   * win11-ws-01 healthy through the Windows storage cmdlets.
   * macos-studio-01 never reported -- "Not reported", never "Healthy".
   * Open hardware alerts: critical for rhel-db-01, high for freebsd-build-01
@@ -100,6 +103,28 @@ CORETEMP = [
     ("temp5", "Core 3", 45.0, 82.0, 100.0),
 ]
 
+# ubuntu-web-01: a hot-by-design host (a laptop serving with its lid closed)
+# with its own warning limit -- above the 82 C its hardware declares.
+HOT_LIMIT_C = 95.0
+CORETEMP_HOT = [
+    ("temp1", "Package id 0", 89.0, 82.0, 100.0),
+    ("temp2", "Core 0", 87.0, 82.0, 100.0),
+    ("temp3", "Core 1", 88.0, 82.0, 100.0),
+    ("temp4", "Core 2", 86.0, 82.0, 100.0),
+    ("temp5", "Core 3", 87.0, 82.0, 100.0),
+]
+
+
+def _hot_coretemp():
+    """As the agent reports them: WARNING against the 82 C the hardware
+    declares.  The server re-judges them against the host's own limit."""
+    return [
+        _comp("sensor", f"coretemp/{sensor}", f"coretemp {label}", "warning", "hwmon",
+              reasons=[{"code": "temperature_high", "value": value, "limit": high}],
+              metrics={"temperature_c": value, "high_c": high, "critical_c": crit})
+        for sensor, label, value, high, crit in CORETEMP_HOT
+    ]  # fmt: skip
+
 
 def _ubuntu():
     nvme = {"critical_warning": 0, "temperature_c": 39.0, "available_spare": 100,
@@ -109,7 +134,7 @@ def _ubuntu():
         "components": [
             _comp("drive", "nvme0", "SAMSUNG MZQL21T9HCJR-00A07", "ok", "nvme",
                   metrics=nvme),
-            *_hwmon("coretemp", CORETEMP),
+            *_hot_coretemp(),
             *_hwmon("nvme", [("temp1", "Composite", 39.0, 84.8, 84.8)]),
             _comp("memory", "mc0", "memory controller mc0", "ok", "edac",
                   metrics={"corrected_errors": 0, "uncorrected_errors": 0}),
@@ -228,7 +253,8 @@ def _clear(session):
         session.query(model).delete()
     session.query(Host).update(
         {Host.hardware_state: None, Host.hardware_reported_at: None,
-         Host.hardware_sources: None}, synchronize_session=False,
+         Host.hardware_sources: None, Host.hardware_temp_warning_c: None},
+        synchronize_session=False,
     )  # fmt: skip
     rules = session.query(AlertRule).filter(AlertRule.condition_type == "hardware_health")
     for rule in rules:
@@ -254,6 +280,9 @@ def _report(session, host, payload, at, evidence=None):
 
 def _seed_reports(session, hosts):
     if "ubuntu-web-01" in hosts:
+        # The limit is set BEFORE the report: it is applied when a report
+        # arrives, exactly as on a live server.
+        hosts["ubuntu-web-01"].hardware_temp_warning_c = HOT_LIMIT_C
         _report(session, hosts["ubuntu-web-01"], _ubuntu(), CURRENT)
     if "rhel-db-01" in hosts:
         rhel = hosts["rhel-db-01"]
