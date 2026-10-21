@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Backup Storage Host - Administration - SysManage</title>
+    <meta name="description" data-i18n="docs.admin.backup_storage.meta_description" data-i18n-attr="content" content="Set up the storage host for SysManage fleet backups: a FreeBSD ZFS NFSv4 export that maps every client to one unprivileged user, mounted on each Linux host.">
+    <link rel="stylesheet" href="/assets/css/style.css">
+    <link rel="icon" type="image/svg+xml" href="/assets/images/favicon.svg">
+</head>
+<body data-auto-header="documentation" data-auto-footer>
+    <main class="docs-main">
+        <div class="container">
+            <div class="docs-breadcrumb"><a href="../" data-i18n="docs.admin.backup_storage.crumb_docs">Documentation</a> &gt; <a href="./" data-i18n="docs.admin.backup_storage.crumb_admin">Administration</a> &gt; <a href="fleet-backups.html" data-i18n="docs.admin.backup_storage.crumb_backups">Fleet Backups</a> &gt; <span data-i18n="docs.admin.backup_storage.crumb_page">Storage Host</span></div>
+            <div class="docs-header">
+                <h1 data-i18n="docs.admin.backup_storage.title">Setting Up the Backup Storage Host</h1>
+                <p data-i18n="docs.admin.backup_storage.intro" data-i18n-html>The storage host serves the NFS share every backed-up host writes to, and runs the jobs that seal, prune and check the backups. It must be a managed host with the SysManage agent and restate 2.0 or later. This page sets one up on <strong>FreeBSD with ZFS</strong>, the setup SysManage is tested with, and mounts it on Linux hosts.</p>
+            </div>
+            <div class="docs-content">
+                <section class="docs-section">
+                    <h2 data-i18n="docs.admin.backup_storage.h_zfs">1. The datasets and the backup user</h2>
+                    <p data-i18n="docs.admin.backup_storage.zfs_p1" data-i18n-html>Create a dataset for the share and one for the repositories, and an unprivileged user that will own everything the hosts write. Root on a backed-up host must never be root on the storage host.</p>
+                    <pre><code>zfs create -o mountpoint=/srv/backups zroot/sysmanage-backups
+zfs create zroot/sysmanage-backups/restate
+pw groupadd restate
+pw useradd restate -g restate -d /nonexistent -s /usr/sbin/nologin -c "restate backup writer"
+chown restate:restate /srv/backups/restate
+chmod 0700 /srv/backups/restate</code></pre>
+
+                    <h2 data-i18n="docs.admin.backup_storage.h_exports">2. The NFSv4 export</h2>
+                    <p data-i18n="docs.admin.backup_storage.exports_p1" data-i18n-html>In <code>/etc/exports</code>, make <code>/srv/backups</code> the NFSv4 root and export the repositories to your backed-up hosts, mapping every client user to <code>restate</code>:</p>
+                    <pre><code>V4: /srv/backups -sec=sys 192.0.2.10 192.0.2.11
+/srv/backups/restate -alldirs -mapall=restate -sec=sys 192.0.2.10 192.0.2.11</code></pre>
+                    <p data-i18n="docs.admin.backup_storage.exports_p2" data-i18n-html>List each backed-up host's address, or use <code>-network</code> for a subnet you trust.</p>
+
+                    <h2 data-i18n="docs.admin.backup_storage.h_services">3. The NFS services and locking</h2>
+                    <p data-i18n="docs.admin.backup_storage.services_p1" data-i18n-html>In <code>/etc/rc.conf</code>:</p>
+                    <pre><code>rpcbind_enable="YES"
+nfs_server_enable="YES"
+nfsv4_server_enable="YES"
+mountd_enable="YES"</code></pre>
+                    <p data-i18n="docs.admin.backup_storage.services_p2" data-i18n-html>In <code>/etc/sysctl.conf</code>:</p>
+                    <pre><code>vfs.nfsd.enable_locallocks=1
+vfs.nfsd.server_min_nfsvers=4
+vfs.nfsd.enable_stringtouid=1
+vfs.nfs.enable_uidtostring=1</code></pre>
+                    <p data-i18n="docs.admin.backup_storage.services_p3" data-i18n-html><code>vfs.nfsd.enable_locallocks=1</code> is required: it makes a lock taken by a job on the storage host and a lock taken by a host over NFS see each other, so a backup and a prune never run on one repository at the same time. Then start the services, or reboot:</p>
+                    <pre><code>service rpcbind start
+service mountd start
+service nfsd start</code></pre>
+
+                    <h2 data-i18n="docs.admin.backup_storage.h_mount">4. Mounting the share on each host</h2>
+                    <p data-i18n="docs.admin.backup_storage.mount_p1" data-i18n-html>On each Linux host you back up, install the NFS client (<code>nfs-common</code> on Debian and Ubuntu), create the mount point and add a line to <code>/etc/fstab</code>. The share is the path below the NFSv4 root, so <code>/srv/backups/restate</code> is mounted as <code>/restate</code>:</p>
+                    <pre><code>nas.example.lan:/restate  /mnt/backups  nfs4  vers=4.2,proto=tcp,hard,_netdev,nofail,x-systemd.automount,x-systemd.mount-timeout=30  0  0</code></pre>
+                    <p data-i18n="docs.admin.backup_storage.mount_p2" data-i18n-html><code>nofail</code> and <code>x-systemd.automount</code> let the host boot when the storage host is down, and mount the share the first time a backup reaches for it. Files a host writes there belong to <code>restate</code> on the storage host.</p>
+
+                    <h2 data-i18n="docs.admin.backup_storage.h_target">5. The target in SysManage</h2>
+                    <p data-i18n="docs.admin.backup_storage.target_p1" data-i18n-html>On the Backups page, set up the target with this storage host, <strong>Path on the storage host</strong> <code>/srv/backups/restate</code>, <strong>Mount point on each host</strong> <code>/mnt/backups</code>, and <strong>Seal each backup</strong> as a ZFS snapshot of <code>zroot/sysmanage-backups/restate</code>. The target card then shows the storage host's filesystem as <code>zfs</code>. See <a href="fleet-backups.html">Fleet Backups</a> for the rest.</p>
+
+                    <figure class="docs-screenshot">
+                        <img src="/assets/images/backups-target.png" alt="Backup target card">
+                        <figcaption data-i18n="docs.admin.backup_storage.fig_target">The target card: where hosts mount the share, the storage host and path, the seal setting and the storage host's last jobs. This target is on UFS, so it warns that backups cannot be sealed.</figcaption>
+                    </figure>
+
+                    <h2 data-i18n="docs.admin.backup_storage.h_freebsd">A FreeBSD storage host</h2>
+                    <p data-i18n="docs.admin.backup_storage.freebsd_p1" data-i18n-html>FreeBSD has no systemd, so on a FreeBSD storage host the agent starts restate's prune and check jobs itself, under <code>daemon(8)</code>, so they keep running if the agent restarts. restate is found in <code>/usr/local/sbin</code>. A FreeBSD host can only be a storage host; choosing one as a backed-up host is refused.</p>
+                    <p data-i18n="docs.admin.backup_storage.freebsd_p2" data-i18n-html>When the agent does not run as root, its sudoers file allows exactly <code>restate run</code> of a prune, check or copy job file in <code>/etc/restate/jobs.d</code>, through a regular expression rather than a wildcard, so no extra option can be added to the command. It needs sudo 1.9.10 or later.</p>
+
+                    <h2 data-i18n="docs.admin.backup_storage.h_other">Other storage</h2>
+                    <p data-i18n="docs.admin.backup_storage.other_p1" data-i18n-html>A Linux storage host works the same way with any NFSv4 server that maps clients to one unprivileged user. On btrfs, make the storage path a subvolume (<code>btrfs subvolume create /srv/backups/restate</code>) and choose the btrfs seal. On ext4 or XFS backups work but cannot be sealed, and the target card warns you.</p>
+                </section>
+            </div>
+        </div>
+    </main>
+</body>
+</html>

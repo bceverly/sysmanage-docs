@@ -609,12 +609,43 @@ async function captureClick(page, shot, vp) {
     );
     detail += ` » row action #${idx}`;
   }
+  // A button in one table row, found by text in that row -- the Backups
+  // hosts table is a plain MUI table (not a DataGrid), and every row has the
+  // same "Configure" / "Restore files" buttons.
+  if (shot.clickInRow) {
+    const { rowText, button } = shot.clickInRow;
+    await clickWithRetry(
+      page,
+      () =>
+        page
+          .getByRole('row')
+          .filter({ hasText: rowText })
+          .getByRole('button', { name: button, exact: false })
+          .first(),
+      `clickInRow "${button}" on "${rowText}"`,
+    );
+    detail += ` » "${button}" on ${rowText}`;
+  }
   if (shot.selectOption) {
     // The control lives inside the dialog the row action just opened, so it
     // cannot be targeted before that click has landed.
     await selectMuiOption(page, shot.selectOption.label, shot.selectOption.option);
     detail += ` » ${shot.selectOption.label}="${shot.selectOption.option}"`;
     await page.waitForTimeout(500);
+  }
+  // Type into fields of the dialog just opened, by their label.
+  for (const field of shot.fill || []) {
+    await page.getByLabel(field.label, { exact: false }).first().fill(field.value, { timeout: 15000 });
+    detail += ` » ${field.label}="${field.value}"`;
+  }
+  // Tick checkboxes by their label (an acknowledgment, say).
+  for (const label of shot.check || []) {
+    await clickWithRetry(
+      page,
+      () => page.getByLabel(label, { exact: false }).first(),
+      `check "${label}"`,
+    );
+    detail += ` » [x] ${label}`;
   }
   if (shot.thenClickButton) {
     await clickWithRetry(
@@ -624,6 +655,21 @@ async function captureClick(page, shot, vp) {
       `thenClickButton "${shot.thenClickButton}"`,
     );
     detail += ` » "${shot.thenClickButton}"`;
+  }
+  // Wait for what the last click produces (a restore preview's plan, which
+  // arrives by polling) before shooting; skip the shot rather than save one
+  // that shows a spinner.
+  if (shot.waitForText) {
+    try {
+      await page.getByText(shot.waitForText, { exact: false }).first().waitFor({ timeout: 45000 });
+    } catch {
+      console.log(
+        `  ${YELLOW}⊘ ${shot.out}: "${shot.waitForText}" never appeared` +
+        ` -- the data behind it did not arrive (for the backup restore preview,` +
+        ` re-run make screenshots-backups-seed: its helper answers for two hours). Skipping.${RESET}`
+      );
+      return 'skipped';
+    }
   }
   // Let the dialog animate in / the sub-view load its data (samples, assignments).
   await page.waitForTimeout(shot.clickSettleMs || settleFor(shot) + 1500);
