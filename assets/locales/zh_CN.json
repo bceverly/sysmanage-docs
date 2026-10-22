@@ -2805,7 +2805,7 @@
         "exports_p1": "在 <code>/etc/exports</code> 中，把 <code>/srv/backups</code> 设为 NFSv4 根目录，并把仓库导出给被备份的主机，同时将每个客户端用户映射到 <code>restate</code>：",
         "exports_p2": "列出每台被备份主机的地址，或对您信任的子网使用 <code>-network</code>。",
         "freebsd_p1": "FreeBSD 没有 systemd，因此在 FreeBSD 存储主机上，代理会自己在 <code>daemon(8)</code> 下启动 restate 的清理和检查作业，这样即使代理重启，作业也会继续运行。restate 位于 <code>/usr/local/sbin</code>。FreeBSD 主机只能作为存储主机；选择它作为被备份的主机会被拒绝。",
-        "freebsd_p2": "当代理不以 root 身份运行时，它的 sudoers 文件只允许对 <code>/etc/restate/jobs.d</code> 中的清理、检查或复制作业文件执行 <code>restate run</code>，并且使用正则表达式而不是通配符，因此无法向命令添加任何额外选项。这需要 sudo 1.9.10 或更高版本。",
+        "freebsd_p2": "当代理不以 root 身份运行时，它的 sudoers 文件只允许对 <code>/etc/restate/jobs.d</code> 中的清理、检查、复制或 du 作业文件执行 <code>restate run</code>，并且使用正则表达式而不是通配符，因此无法向命令添加任何额外选项。这需要 sudo 1.9.10 或更高版本。",
         "h_exports": "2. NFSv4 导出",
         "h_freebsd": "FreeBSD 存储主机",
         "h_mount": "4. 在每台主机上挂载共享",
@@ -2858,7 +2858,7 @@
         "need_share": "<strong>一个 NFS 共享</strong>，由一台受管主机提供，并挂载到每台要备份的主机上。<a href=\"fleet-backup-storage.html\">设置存储主机</a>介绍了在使用 ZFS 的 FreeBSD 上的完整步骤。",
         "policy_check": "<strong>仓库检查间隔（天）</strong> -- 存储主机检查仓库的频率。",
         "policy_check_meaning": "存储主机在没有密钥的情况下检查仓库，因此检查证明的是仓库的结构，而不是其中的每一个字节。结果显示为<strong>元数据检查通过</strong>，从不显示为“已验证”。",
-        "policy_init": "restate 2.0.0.1 不会自行创建主机的仓库。在主机第一次备份之前，请在该主机上创建一次，例如 <code>sudo restate init /mnt/backups/web01.example.lan-1f3a9c2e</code>。当主机上的 restate 提供作业键 <code>create</code> 时，代理会使用它，第一次备份会自行创建仓库。",
+        "policy_init": "restate 2.0.0.4 及更高版本会通过作业键 <code>create</code>，在主机第一次备份时创建其仓库。使用较旧的 restate 时，请在主机第一次备份之前，在该主机上创建一次，例如 <code>sudo restate init /mnt/backups/web01.example.lan-1f3a9c2e</code>。",
         "policy_keep": "<strong>保留的快照数</strong> -- 存储主机会清理每个仓库的旧快照，只保留这么多。",
         "policy_p1": "在备份页面的主机表中，点击某台主机的<strong>配置</strong>，设置它的备份策略：",
         "policy_p2": "保存后，作业文件会立即发送到该主机和存储主机。没有计划的策略也会被配置，因此<strong>立即备份</strong>对它同样可用。<strong>立即备份</strong>位于备份页面和主机的“备份”卡片上；备份运行期间，页面会显示已读取的路径数和字节数。",
@@ -2889,7 +2889,17 @@
         "fig_hosts": "备份页面：目标及其存储主机最近执行的作业、各状态的数量，以及按情况从差到好排列的所有主机。这里有一台主机正在备份，一台的上次备份失败，还有两台无法运行备份。",
         "fig_policy": "主机的备份策略：备份频率、保留的快照数量、检查存储库的频率，以及要排除或额外备份的路径。",
         "fig_restore": "恢复文件：在写入任何内容之前，预览会列出将要恢复的内容，文件会恢复到主机上的暂存目录，从不覆盖正在使用的文件。",
-        "fig_target": "目标卡片：主机挂载共享的位置、存储主机及其路径、封存设置以及存储主机最近的作业。此目标位于 UFS 上，因此它会警告备份无法封存。"
+        "fig_target": "目标卡片：主机挂载共享的位置、存储主机及其路径、封存设置以及存储主机最近的作业。此目标位于 UFS 上，因此它会警告备份无法封存。",
+        "bulk_p": "要一次备份多台主机，请在主机表中勾选它们，然后点击<strong>备份所选主机</strong>。前几台会立即开始，最多达到目标的<strong>同时进行的备份数</strong>；其余主机显示<strong>等待空闲名额</strong>，并在正在运行的备份完成时依次开始。无法运行备份的主机会被跳过，页面会说明原因。",
+        "h_jobs": "最近的作业",
+        "how_du": "<strong>大小来自存储主机。</strong>每次清理之后，存储主机都会用 <code>restate du</code> 测量仓库，它不读取任何备份数据。因此显示的大小就是仓库在那里实际占用的空间，每个快照还会记录单独删除它可以释放多少空间。中途被停止的清理（例如因为存储主机关机）会干净地停止并报告<strong>不完整</strong>（restate 2.0.0.5 或更高版本）；下一次清理会把它完成。",
+        "jobs_p1": "<strong>最近的作业</strong>列出每个备份、封存、清理、检查和恢复作业。作业失败时，<strong>详情</strong>列会给出原因，例如共享上的权限错误。",
+        "jobs_p2": "<strong>清除列表</strong>会把已完成的作业移出列表；排队中和运行中的作业会保留。审计日志中的内容不会被删除，备份状态也不会改变。此外，SysManage 会自动删除超过 30 天的已完成作业，但对每台主机始终保留每种作业中最新的一个。",
+        "need_features": "建议使用 <strong>restate 2.0.0.7 或更高版本</strong>。代理会询问 restate 能做什么（<code>restate features</code>），只在有新功能时才使用：有 <code>create</code> 时，主机的第一次备份会自行创建仓库；有 <code>plan</code> 时，恢复预览会在几秒内根据快照索引算出。较旧的 restate 2.0 没有这些功能也能照常工作。",
+        "need_upgrade": "在主机或存储主机上升级 restate 后，新版本运行第一个作业之后，SysManage 会自动发送新的作业文件，因此无需编辑任何策略就能用上新功能。",
+        "policy_paths": "<strong>排除（每行一个路径模式）</strong>和<strong>额外备份（每行一个路径模式）</strong> -- restate 路径模式：<code>*</code> 在路径的一个部分内匹配，<code>**</code> 跨多个部分匹配，开头没有 <code>/</code> 的模式在任何深度匹配。两者都匹配某个路径时，以排除为准。",
+        "policy_paths_p": "restate 已经会排除可以重新下载或重新生成的内容：缓存、<code>~/Downloads</code>、构建输出、Python 虚拟环境、<code>node_modules</code> 等。<strong>额外备份</strong>可以把其中的内容加回来，甚至是其中的某个文件夹，例如 <code>/home/*/Downloads/contracts</code>（restate 2.0.0.6 或更高版本）。由同步客户端维护的文件夹，例如 <code>~/Nextcloud</code>，在与之同步的服务器也有备份时，很适合<strong>排除</strong>。",
+        "restore_plan": "使用 restate 2.0.0.7 或更高版本时，<strong>预览</strong>只根据快照索引进行规划，即使是整台主机也只需几秒。它会说明未读取备份数据：证明数据完好的是存储主机的定期检查。真正的恢复会读取数据，而 restate 会从每个数据包的开头读起，因此恢复一个文件经常变化的小文件夹仍可能需要几分钟。在测试中，通过 Wi-Fi 恢复 <code>~/.config</code> 的 4.5 GB 大约用了 7 分钟。"
       }
     },
     "administration": {
