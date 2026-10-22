@@ -301,7 +301,7 @@ sudo dnf install sysmanage-agent  # Agent
 - **macOS** 11+ (Big Sur) - Universal `.pkg` installer (Intel and Apple Silicon)
 - **Windows** 10+ / Server 2019+ - MSI installer (x64 and ARM64)
 - **FreeBSD** 14.0+ - `.pkg` packages (x86_64)
-- **OpenBSD** 7.7, 7.8 - Port tarballs and binary packages (x86_64)
+- **OpenBSD** 7.9, 8.0 - Port tarballs and binary packages (x86_64)
 - **NetBSD** 10.0+ - `.tgz` packages (x86_64)
 - **Snap** - Available via `snap install sysmanage`
 - **Flatpak** - Agent available via Flatpak (x86_64)
