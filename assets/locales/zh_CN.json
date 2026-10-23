@@ -2841,7 +2841,7 @@
         "h_split": "您要做的事和 SysManage 做的事",
         "lx_p1": "将存储路径放在 ZFS 数据集或 btrfs 子卷上，这样每台主机的仓库都可以是独立的文件系统。在 ext4 或 XFS 上备份也能工作，但所有主机共享同一个文件系统，而且无法封存任何内容。创建备份账户，安装 NFS 服务器（Debian 和 Ubuntu 上为 <code>nfs-kernel-server</code>），并在 <code>/etc/nfs.conf</code> 中设置为只提供 NFSv4：",
         "lx_p2": "不要自己导出存储路径。“准备存储”会将每台主机的导出写入 <code>/etc/exports.d</code> 中各自的文件，并用 <code>exportfs -ra</code> 重新加载。",
-        "mounts_p1": "主机的 <code>/etc/fstab</code> 中不添加任何内容。存储主机会告诉 SysManage 每个仓库导出在何处，主机的代理只在备份、估算、快照列表或恢复开始时，才将其挂载到 <code>&lt;mount point&gt;/&lt;repository&gt;</code>（通过 TCP 的 NFSv4，使用 <code>hard,nosuid,nodev</code>），并在最后一个结束时卸载。在作业之间，主机完全无法访问自己的备份。无法挂载的作业会被拒绝并说明原因，因此 restate 绝不会写入主机自己的磁盘。",
+        "mounts_p1": "主机的 <code>/etc/fstab</code> 中不添加任何内容。存储主机会告诉 SysManage 每个仓库导出在何处，主机的代理只在备份、估算、快照列表或恢复开始时，才将其挂载到 <code>&lt;mount point&gt;/&lt;repository&gt;</code>（通过 TCP 的 NFSv4，使用 <code>hard,nosuid,nodev</code>），并在最后一个结束时卸载。在作业之间，主机完全无法访问自己的备份。无法挂载的作业会被拒绝并说明原因，因此 restate 绝不会写入主机自己的磁盘。在备份写入任何内容之前，代理还会检查仓库能否接受新文件、文件锁定在其上是否有效，以及是否至少有 1 GB 且 1% 的空间可用；否则备份将被拒绝，“最近的作业”中会说明原因。",
         "mounts_p2": "在每台主机上安装 NFS 客户端（Debian 和 Ubuntu 上为 <code>nfs-common</code>）。如果您已经通过 fstab 或 autofs 自行挂载了该共享，代理会使用该挂载，不会改动它。",
         "move_1": "在存储主机上，把仓库移到一边：<code>mv /srv/backups/restate/HOST /srv/backups/restate/HOST.old</code>",
         "move_2": "为该主机点击<strong>准备存储</strong>。",
@@ -2858,7 +2858,8 @@
         "protect_p1": "每次成功备份之后、封存之前，存储主机都会运行 <code>restate protect</code>：每个已完成的数据包和快照都变为归 root 所有且只读，因此主机可以添加备份，但无法修改或删除任何备份。这需要 restate 2.1.0.1 或更高版本，在使用 ZFS 的 FreeBSD 上需要 2.1.0.3 或更高版本。在被备份主机上以 root 身份测试的结果：删除、重命名、覆盖已完成的数据包或快照，或更改其模式，都会被拒绝，而新的备份仍然正常工作。",
         "protect_p2": "存储主机上的 restate 升级后，SysManage 会向它发送新的作业文件，并自动运行一次保护作业，这样由旧版本锁定的仓库会在下一次备份之前转换为新的形式。",
         "split_sysmanage": "<strong>SysManage，按主机：</strong><a href=\"#prepare\">准备存储</a>为每台主机提供独立的文件系统和仅限该主机的导出；代理只在作业运行期间<a href=\"#mounts\">将其挂载到主机上</a>；每次备份之后，存储主机都会<a href=\"#protect\">锁定写入的内容</a>。",
-        "split_you": "<strong>您，只需一次：</strong>存储本身（位于存储路径的 ZFS 数据集或 btrfs 子卷）、备份账户和 NFS 服务器的设置。SysManage 从不更改这些内容。其中某项有误时，目标卡片上的<a href=\"#check\">存储检查</a>会提示您，并说明需要更改什么。"
+        "split_you": "<strong>您，只需一次：</strong>存储本身（位于存储路径的 ZFS 数据集或 btrfs 子卷）、备份账户和 NFS 服务器的设置。SysManage 从不更改这些内容。其中某项有误时，目标卡片上的<a href=\"#check\">存储检查</a>会提示您，并说明需要更改什么。",
+        "seal_keep": "每次备份之后的封存是一个 ZFS 快照或只读 btrfs 快照。存储主机按目标的<strong>封存快照保留天数</strong>保留其封存，并自行删除更旧的封存，但始终保留最新的一个；它只删除自己创建的封存（名称为 <code>sysmanage-</code> 后跟作业 ID 的 ZFS 快照，以及它记录过创建的 btrfs 封存）。"
       },
       "fleet_backups": {
         "crumb_admin": "管理",
@@ -2914,7 +2915,7 @@
         "target_ext4": "存储路径位于无法创建快照的文件系统（例如 ext4 或 XFS）上时也能工作，但无法在那里封存备份。卡片会提示这一点。",
         "target_mount": "<strong>每台主机上的挂载点</strong> -- 作业运行期间，代理会将每台主机的仓库挂载到 <code>&lt;mount point&gt;/&lt;repository&gt;</code>。它必须位于 <code>/srv</code>、<code>/mnt</code>、<code>/media</code> 或 <code>/var/backups</code> 之下。如果作业在那里找不到 NFS 挂载，也无法创建挂载，就会被拒绝，因此 restate 绝不会写入主机自己的磁盘。",
         "target_p1": "在主机群菜单中打开<strong>备份</strong>，然后点击<strong>设置目标</strong>：",
-        "target_seal": "<strong>封存每个备份</strong> -- <strong>ZFS 快照</strong>（指定数据集）、<strong>btrfs 快照（只读）</strong>（指定同一文件系统上、仓库之外的快照目录），或<strong>不封存</strong>。SysManage 目前还不会删除旧的 ZFS 和 btrfs 快照；请在存储主机上设置它们的保留期限。",
+        "target_seal": "<strong>封存每个备份</strong> -- <strong>ZFS 快照</strong>（指定数据集）、<strong>btrfs 快照（只读）</strong>（指定同一文件系统上、仓库之外的快照目录），或<strong>不封存</strong>。<strong>封存快照保留天数</strong> -- 存储主机在每次新封存之后会自行删除较旧的封存，并始终保留最新的一个（默认 14 天）。",
         "target_storage": "<strong>存储主机</strong>和<strong>存储主机上的路径</strong> -- 提供共享的受管主机，以及共享目录在该主机上的位置。",
         "title": "主机群备份",
         "fig_hosts": "备份页面：目标及其存储主机最近执行的作业、各状态的数量，以及按情况从差到好排列的所有主机。这里有一台主机正在备份，一台的上次备份失败，还有两台无法运行备份。",
@@ -2924,7 +2925,7 @@
         "bulk_p": "要一次备份多台主机，请在主机表中勾选它们，然后点击<strong>备份所选主机</strong>。前几台会立即开始，最多达到目标的<strong>同时进行的备份数</strong>；其余主机显示<strong>等待空闲名额</strong>，并在正在运行的备份完成时依次开始。无法运行备份的主机会被跳过，页面会说明原因。",
         "h_jobs": "最近的作业",
         "how_du": "<strong>大小来自存储主机。</strong>每次清理之后，存储主机都会用 <code>restate du</code> 测量仓库，它不读取任何备份数据。因此显示的大小就是仓库在那里实际占用的空间，每个快照还会记录单独删除它可以释放多少空间。中途被停止的清理（例如因为存储主机关机）会干净地停止并报告<strong>不完整</strong>（restate 2.0.0.5 或更高版本）；下一次清理会把它完成。",
-        "jobs_p1": "<strong>最近的作业</strong>列出了所有备份、保护、封存、清理、检查、存储用量、重新打包、准备存储和恢复作业。作业失败时，<strong>详情</strong>列会给出原因，例如共享上的权限错误。",
+        "jobs_p1": "<strong>最近的作业</strong>列出了所有备份、保护、封存、清理、检查、存储用量、重新打包、准备存储和恢复作业。作业失败时，<strong>详情</strong>列会给出原因，例如共享上的权限错误。对于暂停过服务的备份，该列还会列出每个被暂停的服务、暂停了多长时间，以及无法暂停或无法恢复运行的服务 -- 这就是某次运行显示为<strong>不完整</strong>的原因。",
         "jobs_p2": "<strong>清除列表</strong>会把已完成的作业移出列表；排队中和运行中的作业会保留。审计日志中的内容不会被删除，备份状态也不会改变。此外，SysManage 会自动删除超过 30 天的已完成作业，但对每台主机始终保留每种作业中最新的一个。",
         "need_features": "建议使用 <strong>restate 2.1.0.3 或更高版本</strong>。代理会询问 restate 能做什么（<code>restate features</code>），并且只在具备新功能时才使用它们：<code>create</code> 让主机的第一次备份自行创建仓库，<code>plan</code> 根据快照索引在几秒内算出恢复预览，<code>protect</code>（2.1.0.1，在使用 ZFS 的 FreeBSD 上为 2.1.0.3）在存储主机上锁定已完成的备份，2.1 还会报告每台主机上可以暂停哪些服务。较旧的 restate 2.0 在没有这些功能的情况下仍可工作。",
         "need_upgrade": "在主机或存储主机上升级 restate 后，新版本运行第一个作业之后，SysManage 会自动发送新的作业文件，因此无需编辑任何策略即可使用新功能。在存储主机上，它随后会运行一次保护作业，使已完成的备份以新版本使用的形式锁定。",
@@ -2936,7 +2937,9 @@
         "card_link": "主机群备份指南 →",
         "how_mount": "<strong>只在作业运行时挂载。</strong>代理在备份或恢复开始时挂载主机的仓库，并在结束时卸载，因此在作业之间，主机完全无法访问自己的备份。不会向 <code>/etc/fstab</code> 添加任何内容。",
         "prepare_p": "主机“备份”卡片上的<strong>准备存储</strong>会在存储主机上为该主机提供独立的文件系统和仅限该主机的导出。请在每台主机第一次备份之前为它执行一次；请参阅<a href=\"fleet-backup-storage.html#prepare\">准备存储</a>。",
-        "target_account": "<strong>存储主机上的备份账户</strong> -- 每台主机的导出都映射到的账户，因此主机写入的任何内容在存储主机上都不归 root 所有。默认值为 <code>restate</code>。"
+        "target_account": "<strong>存储主机上的备份账户</strong> -- 每台主机的导出都映射到的账户，因此主机写入的任何内容在存储主机上都不归 root 所有。默认值为 <code>restate</code>。",
+        "target_space": "<strong>存储使用率达到此值时警告 (%)</strong>和<strong>存储使用率达到此值时为严重 (%)</strong> -- 目标卡片开始警告存储路径即将占满时的使用率（默认 85 和 95）。",
+        "status_filter": "点击表格上方的某个状态，即可只显示处于该状态的主机；再次点击它，或点击<strong>显示所有主机</strong>，即可查看全部主机。如果某个备份跳过了无法读取的文件，其状态下方会显示<strong>未读取的文件</strong>，将指针悬停其上即可看到其中第一个文件。"
       }
     },
     "administration": {
@@ -21841,7 +21844,7 @@
         "title": "浏览器远程终端"
       },
       "backup": {
-        "body": "下一步：用 restate 将每台主机备份到同一个 NFS 共享上各自的仓库。主机只能向自己的备份添加内容，存储主机用 ZFS 或 btrfs 快照封存每个备份，并清理旧快照、进行检查，因此被入侵的主机无法删除自己的历史记录。文件在预览之后恢复到暂存目录。一个目标、按主机设置的计划、“立即备份”和文件恢复在所有版本中都提供。Professional+ 增加按标签设置的策略、更长的保留计划、保存在 OpenBAO 中的密钥、签名快照、告警和软件包级恢复；Enterprise 增加多个站点、异地副本、裸机恢复和恢复演练。",
+        "body": "每台主机都用 restate 备份到同一台存储主机上自己的仓库中，存储主机会锁定每个已完成的备份，使主机上的 root 也无法修改或删除它，并用 ZFS 或 btrfs 快照封存，进行清理和检查。每台主机的仓库都有自己的文件系统和导出，仅在作业运行时挂载，存储主机的配置也会自动为您检查。文件在预览之后恢复到暂存目录。一个目标、按主机设置的计划、“立即备份”和文件恢复在所有版本中都提供。Professional+ 增加按标签设置的策略、更长的保留计划、使用保存在 OpenBAO 中的密钥进行加密、签名快照、告警和软件包级恢复；Enterprise 增加多个站点、异地副本、裸机恢复和恢复演练。",
         "title": "主机群备份与恢复"
       }
     },

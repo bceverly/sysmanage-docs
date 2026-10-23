@@ -2841,7 +2841,7 @@
         "h_split": "您要做的事和 SysManage 做的事",
         "lx_p1": "將儲存路徑放在 ZFS 資料集或 btrfs 子磁碟區上，讓每部主機的儲存庫都能是獨立的檔案系統。在 ext4 或 XFS 上備份也能運作，但所有主機共用同一個檔案系統，而且無法封存任何內容。建立備份帳戶，安裝 NFS 伺服器（Debian 和 Ubuntu 上為 <code>nfs-kernel-server</code>），並在 <code>/etc/nfs.conf</code> 中設定為只提供 NFSv4：",
         "lx_p2": "不要自行匯出儲存路徑。「準備儲存」會將每部主機的匯出寫入 <code>/etc/exports.d</code> 中各自的檔案，並以 <code>exportfs -ra</code> 重新載入。",
-        "mounts_p1": "主機的 <code>/etc/fstab</code> 中不加入任何內容。儲存主機會告訴 SysManage 每個儲存庫匯出在何處，主機的代理程式只在備份、估算、快照清單或還原開始時，才將它掛載到 <code>&lt;mount point&gt;/&lt;repository&gt;</code>（透過 TCP 的 NFSv4，使用 <code>hard,nosuid,nodev</code>），並在最後一個結束時卸載。在作業之間，主機完全無法存取自己的備份。無法掛載的作業會遭到拒絕並說明原因，因此 restate 絕不會寫入主機自己的磁碟。",
+        "mounts_p1": "主機的 <code>/etc/fstab</code> 中不加入任何內容。儲存主機會告訴 SysManage 每個儲存庫匯出在何處，主機的代理程式只在備份、估算、快照清單或還原開始時，才將它掛載到 <code>&lt;mount point&gt;/&lt;repository&gt;</code>（透過 TCP 的 NFSv4，使用 <code>hard,nosuid,nodev</code>），並在最後一個結束時卸載。在作業之間，主機完全無法存取自己的備份。無法掛載的作業會遭到拒絕並說明原因，因此 restate 絕不會寫入主機自己的磁碟。在備份寫入任何內容之前，代理程式還會檢查儲存庫能否接受新檔案、檔案鎖定在其上是否有效，以及是否至少有 1 GB 且 1% 的空間可用；否則備份會遭到拒絕，「最近的工作」中會說明原因。",
         "mounts_p2": "在每部主機上安裝 NFS 用戶端（Debian 和 Ubuntu 上為 <code>nfs-common</code>）。如果您已經透過 fstab 或 autofs 自行掛載該共用，代理程式會使用該掛載，不會更動它。",
         "move_1": "在儲存主機上，把儲存庫移到一旁：<code>mv /srv/backups/restate/HOST /srv/backups/restate/HOST.old</code>",
         "move_2": "為該主機按一下<strong>準備儲存</strong>。",
@@ -2858,7 +2858,8 @@
         "protect_p1": "每次成功備份之後、封存之前，儲存主機都會執行 <code>restate protect</code>：每個已完成的資料包和快照都會變成歸 root 所有且唯讀，因此主機可以新增備份，但無法變更或移除任何備份。這需要 restate 2.1.0.1 或更新版本，在使用 ZFS 的 FreeBSD 上需要 2.1.0.3 或更新版本。在受備份主機上以 root 身分測試的結果：刪除、重新命名、覆寫已完成的資料包或快照，或變更其模式，都會遭到拒絕，而新的備份仍然正常運作。",
         "protect_p2": "儲存主機上的 restate 升級後，SysManage 會傳送新的作業檔案給它，並自動執行一次保護作業，讓由舊版本鎖定的儲存庫在下一次備份之前轉換為新的形式。",
         "split_sysmanage": "<strong>SysManage，依主機：</strong><a href=\"#prepare\">準備儲存</a>為每部主機提供獨立的檔案系統和僅限該主機的匯出；代理程式只在作業執行期間<a href=\"#mounts\">將它掛載到主機上</a>；每次備份之後，儲存主機都會<a href=\"#protect\">鎖定寫入的內容</a>。",
-        "split_you": "<strong>您，只需一次：</strong>儲存空間本身（位於儲存路徑的 ZFS 資料集或 btrfs 子磁碟區）、備份帳戶，以及 NFS 伺服器的設定。SysManage 從不變更這些內容。其中某項有誤時，目標卡片上的<a href=\"#check\">儲存檢查</a>會提醒您，並說明需要變更什麼。"
+        "split_you": "<strong>您，只需一次：</strong>儲存空間本身（位於儲存路徑的 ZFS 資料集或 btrfs 子磁碟區）、備份帳戶，以及 NFS 伺服器的設定。SysManage 從不變更這些內容。其中某項有誤時，目標卡片上的<a href=\"#check\">儲存檢查</a>會提醒您，並說明需要變更什麼。",
+        "seal_keep": "每次備份之後的封存是一個 ZFS 快照或唯讀 btrfs 快照。儲存主機依目標的<strong>封存快照保留天數</strong>保留其封存，並自行刪除更舊的封存，但一律保留最新的一個；它只刪除自己建立的封存（名稱為 <code>sysmanage-</code> 後接作業 ID 的 ZFS 快照，以及它記錄過建立的 btrfs 封存）。"
       },
       "fleet_backups": {
         "crumb_admin": "管理",
@@ -2914,7 +2915,7 @@
         "target_ext4": "儲存路徑位於無法建立快照的檔案系統（例如 ext4 或 XFS）上時也能運作，但無法在那裡封存備份。卡片會提示這一點。",
         "target_mount": "<strong>每台主機上的掛載點</strong> -- 作業執行期間，代理程式會將每部主機的儲存庫掛載到 <code>&lt;mount point&gt;/&lt;repository&gt;</code>。它必須位於 <code>/srv</code>、<code>/mnt</code>、<code>/media</code> 或 <code>/var/backups</code> 之下。如果作業在那裡找不到 NFS 掛載，也無法建立掛載，就會遭到拒絕，因此 restate 絕不會寫入主機自己的磁碟。",
         "target_p1": "在主機群選單中開啟<strong>備份</strong>，然後按一下<strong>設定目標</strong>：",
-        "target_seal": "<strong>封存每個備份</strong> -- <strong>ZFS 快照</strong>（指定資料集）、<strong>btrfs 快照（唯讀）</strong>（指定同一檔案系統上、儲存庫之外的快照目錄），或<strong>不封存</strong>。SysManage 目前還不會刪除舊的 ZFS 和 btrfs 快照；請在儲存主機上設定它們的保留期限。",
+        "target_seal": "<strong>封存每個備份</strong> -- <strong>ZFS 快照</strong>（指定資料集）、<strong>btrfs 快照（唯讀）</strong>（指定同一檔案系統上、儲存庫之外的快照目錄），或<strong>不封存</strong>。<strong>封存快照保留天數</strong> -- 儲存主機在每次新封存之後會自行刪除較舊的封存，並一律保留最新的一個（預設 14 天）。",
         "target_storage": "<strong>儲存主機</strong>和<strong>儲存主機上的路徑</strong> -- 提供共用的受管理主機，以及共用目錄在該主機上的位置。",
         "title": "主機群備份",
         "fig_hosts": "備份頁面：目標及其儲存主機最近執行的作業、各狀態的數量，以及依情況從差到好排列的所有主機。這裡有一台主機正在備份，一台的上次備份失敗，還有兩台無法執行備份。",
@@ -2924,7 +2925,7 @@
         "bulk_p": "若要一次備份多台主機，請在主機表中勾選它們，然後按一下<strong>備份所選主機</strong>。前幾台會立即開始，最多達到目標的<strong>同時進行的備份數</strong>；其餘主機顯示<strong>等待空閒名額</strong>，並在執行中的備份完成時依序開始。無法執行備份的主機會被略過，頁面會說明原因。",
         "h_jobs": "最近的工作",
         "how_du": "<strong>大小來自儲存主機。</strong>每次清理之後，儲存主機都會用 <code>restate du</code> 測量儲存庫，它不會讀取任何備份資料。因此顯示的大小就是儲存庫在那裡實際占用的空間，每個快照也會記錄單獨刪除它可以釋放多少空間。中途被停止的清理（例如因為儲存主機關機）會乾淨地停止並回報<strong>不完整</strong>（restate 2.0.0.5 或更新版本）；下一次清理會把它完成。",
-        "jobs_p1": "<strong>最近的工作</strong>列出所有備份、保護、封存、清理、檢查、儲存用量、重新打包、準備儲存和還原作業。作業失敗時，<strong>詳細資料</strong>欄會提供原因，例如共用上的權限錯誤。",
+        "jobs_p1": "<strong>最近的工作</strong>列出所有備份、保護、封存、清理、檢查、儲存用量、重新打包、準備儲存和還原作業。作業失敗時，<strong>詳細資料</strong>欄會提供原因，例如共用上的權限錯誤。對於暫停過服務的備份，該欄也會列出每個被暫停的服務、暫停了多久，以及無法暫停或無法恢復執行的服務 -- 這就是某次執行顯示為<strong>不完整</strong>的原因。",
         "jobs_p2": "<strong>清除清單</strong>會把已完成的工作移出清單；排隊中和執行中的工作會保留。稽核記錄中的內容不會被刪除，備份狀態也不會改變。此外，SysManage 會自動刪除超過 30 天的已完成工作，但對每台主機一律保留每種工作中最新的一個。",
         "need_features": "建議使用 <strong>restate 2.1.0.3 或更新版本</strong>。代理程式會詢問 restate 能做什麼（<code>restate features</code>），並且只在具備新功能時才使用：<code>create</code> 讓主機的第一次備份自行建立儲存庫，<code>plan</code> 根據快照索引在幾秒內算出還原預覽，<code>protect</code>（2.1.0.1，在使用 ZFS 的 FreeBSD 上為 2.1.0.3）在儲存主機上鎖定已完成的備份，2.1 還會回報每部主機上可以暫停哪些服務。較舊的 restate 2.0 在沒有這些功能的情況下仍可運作。",
         "need_upgrade": "在主機或儲存主機上升級 restate 後，新版本執行第一個作業之後，SysManage 會自動傳送新的作業檔案，因此不必編輯任何原則就能使用新功能。在儲存主機上，它接著會執行一次保護作業，讓已完成的備份以新版本使用的形式鎖定。",
@@ -2936,7 +2937,9 @@
         "card_link": "主機群備份指南 →",
         "how_mount": "<strong>只在作業執行時掛載。</strong>代理程式在備份或還原開始時掛載主機的儲存庫，並在結束時卸載，因此在作業之間，主機完全無法存取自己的備份。不會在 <code>/etc/fstab</code> 中加入任何內容。",
         "prepare_p": "主機「備份」卡片上的<strong>準備儲存</strong>會在儲存主機上為該主機提供獨立的檔案系統和僅限該主機的匯出。請在每部主機第一次備份之前為它執行一次；請參閱<a href=\"fleet-backup-storage.html#prepare\">準備儲存</a>。",
-        "target_account": "<strong>儲存主機上的備份帳戶</strong> -- 每部主機的匯出都對應到的帳戶，因此主機寫入的任何內容在儲存主機上都不歸 root 所有。預設值為 <code>restate</code>。"
+        "target_account": "<strong>儲存主機上的備份帳戶</strong> -- 每部主機的匯出都對應到的帳戶，因此主機寫入的任何內容在儲存主機上都不歸 root 所有。預設值為 <code>restate</code>。",
+        "target_space": "<strong>儲存使用率達到此值時警告 (%)</strong>和<strong>儲存使用率達到此值時為嚴重 (%)</strong> -- 目標卡片開始警告儲存路徑即將填滿時的使用率（預設 85 和 95）。",
+        "status_filter": "按一下表格上方的某個狀態，即可只顯示處於該狀態的主機；再按一下它，或按一下<strong>顯示所有主機</strong>，即可檢視全部主機。如果某個備份略過了無法讀取的檔案，其狀態下方會顯示<strong>未讀取的檔案</strong>，將指標停留在上面即可看到其中第一個檔案。"
       }
     },
     "administration": {
@@ -21841,7 +21844,7 @@
         "title": "瀏覽器遠端終端機"
       },
       "backup": {
-        "body": "下一步：使用 restate 將每部主機備份到同一個 NFS 共用上各自的儲存庫。主機只能向自己的備份新增內容，儲存主機以 ZFS 或 btrfs 快照封存每個備份，並清理舊快照、進行檢查，因此遭入侵的主機無法刪除自己的歷史紀錄。檔案在預覽之後還原到暫存目錄。一個目標、依主機設定的排程、「立即備份」和檔案還原在所有版本中都有提供。Professional+ 增加依標籤設定的原則、更長的保留排程、存放在 OpenBAO 中的金鑰、已簽署的快照、警示和套件層級的還原；Enterprise 增加多個站點、異地副本、裸機復原和還原演練。",
+        "body": "每部主機都以 restate 備份到同一部儲存主機上自己的儲存庫中，儲存主機會鎖定每個已完成的備份，使主機上的 root 也無法變更或刪除它，並以 ZFS 或 btrfs 快照封存，進行清理和檢查。每部主機的儲存庫都有自己的檔案系統和匯出，僅在作業執行時掛載，儲存主機的設定也會自動為您檢查。檔案在預覽之後還原到暫存目錄。一個目標、依主機設定的排程、「立即備份」和檔案還原在所有版本中都有提供。Professional+ 增加依標籤設定的原則、更長的保留排程、使用存放在 OpenBAO 中的金鑰進行加密、已簽署的快照、警示和套件層級的還原；Enterprise 增加多個站點、異地副本、裸機復原和還原演練。",
         "title": "主機群備份與復原"
       }
     },
