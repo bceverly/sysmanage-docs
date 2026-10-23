@@ -73,7 +73,7 @@ from backend.persistence.models import (
 
 AUTHOR = "admin@sysmanage.org"
 DOMAIN = "corp.northstar.io"
-RESTATE = "2.0.0.1"
+RESTATE = "2.1.0.3"
 NOW = datetime.now(timezone.utc).replace(tzinfo=None)
 GB = 1_000_000_000
 ROLES = ("Manage Backups", "Restore Files")
@@ -152,8 +152,9 @@ def _target(session, storage):
     target = BackupTarget(
         id=uuid.uuid4(), name="nas", host_mount_point="/mnt/backups",
         storage_host_id=storage.id, storage_path="/srv/backups/restate",
-        max_concurrent=2, seal_mode="none",
-        storage_fs_type="ufs", storage_fs_mount="/srv",
+        max_concurrent=2, seal_mode="zfs_snapshot", zfs_dataset="zroot/sysmanage-backups/restate",
+        service_account="restate",
+        storage_fs_type="zfs", storage_fs_mount="/srv/backups/restate",
         storage_fs_checked_at=NOW - timedelta(hours=3), storage_is_btrfs_subvolume=None,
         created_at=NOW - timedelta(days=15), created_by=AUTHOR, updated_at=NOW - timedelta(days=15),
     )  # fmt: skip
@@ -162,9 +163,32 @@ def _target(session, storage):
     return target
 
 
+def _finding(code, level="ok", **params):
+    return {"code": code, "level": level, "params": params}
+
+
+def _audit(prepared=True, protected=True):
+    """The storage host's check of one repository: the NFS baseline is set
+    up; a repository not yet prepared shares the filesystem and has no
+    export of its own (the mid-migration picture the target card shows)."""
+    found = [_finding(c) for c in ("nfs_server", "nfs_v4", "nfs_v4_only",
+                                   "nfs_local_locks", "nfs_v4_root")]  # fmt: skip
+    found.append(_finding("service_account", account="restate"))
+    if prepared:
+        found += [_finding("own_filesystem", type="zfs"), _finding("export_own"),
+                  _finding("export_restricted"), _finding("export_mapping")]  # fmt: skip
+    else:
+        found += [_finding("own_filesystem", "warning", type="zfs"),
+                  _finding("export_own", "warning")]  # fmt: skip
+    found.append(_finding("append_only_layout") if protected else
+                 _finding("append_only_layout", "warning", directories=["packs"],
+                          unprotected_files=312))  # fmt: skip
+    return found
+
+
 # pylint: disable-next=too-many-arguments
 def _policy(session, target, host, *, keep=None, skip=None, quiesce=(), window=None,
-            repository_gb=None):  # fmt: skip
+            repository_gb=None, audit=None, hooks=None):  # fmt: skip
     policy = BackupPolicy(
         id=uuid.uuid4(), host_id=host.id, target_id=target.id, enabled=True,
         interval_hours=24, window_start_hour=window, keep_last=14, check_interval_days=7,
@@ -174,6 +198,11 @@ def _policy(session, target, host, *, keep=None, skip=None, quiesce=(), window=N
         repository_bytes=int(repository_gb * GB) if repository_gb else None,
         config_version=1, host_acked_version=1, storage_acked_version=1,
         restate_version=RESTATE, storage_restate_version=RESTATE,
+        storage_protects=True,
+        storage_nfs_path=f"/restate/{_repo_dir(host)}",
+        available_hooks=json.dumps(hooks) if hooks is not None else None,
+        storage_audit=json.dumps(audit or _audit()),
+        storage_audit_at=NOW - timedelta(minutes=40),
         created_at=NOW - timedelta(days=15), created_by=AUTHOR, updated_at=NOW - timedelta(days=15),
     )  # fmt: skip
     session.add(policy)
@@ -214,6 +243,11 @@ def _capture(session, policy, host, at, read_gb, new_gb, paths):
 def _storage(session, policy, storage, at, action):
     if action == "prune":
         result = {"schema": 1, "status": "ok", "exit": 0, "removed": 1, "kept": 14}
+    elif action == "protect":
+        result = {"schema": 1, "status": "ok", "exit": 0, "group": "restate",
+                  "files_protected": 4, "snapshots_protected": 1, "unchanged": 2610}  # fmt: skip
+    elif action == "seal":
+        result = {}
     else:
         result = {"schema": 1, "status": "ok", "exit": 0, "metadata_only": True}
     _run(session, policy, storage, action, "ok", at, 2, result=result)
@@ -224,18 +258,26 @@ def _web(session, target, web, storage):
         session, target, web, repository_gb=41.3,
         skip=["/home/*/.local/share/Trash", "**/previews", "/var/www/*/cache"],
         keep=["/home/*/Downloads/contracts"],
+        quiesce=("nextcloud",), hooks=["docker", "nextcloud", "postgresql"],
     )  # fmt: skip
+    _run(session, policy, storage, "prepare", "ok", NOW - timedelta(days=15, hours=1), 1,
+         result={"kind": "zfs"})  # fmt: skip
     for day in range(14, 0, -1):
         at = (NOW - timedelta(days=day - 1, hours=6)).replace(minute=12, second=0)
         _capture(session, policy, web, at, 52.4 + day * 0.02, 0.6 + (day % 3) * 0.2, 188_400 + day)
+        _storage(session, policy, storage, at + timedelta(minutes=19), "protect")
+        _storage(session, policy, storage, at + timedelta(minutes=21), "seal")
         _storage(session, policy, storage, at + timedelta(minutes=25), "prune")
     _storage(session, policy, storage, NOW - timedelta(hours=20), "check")
 
 
 def _db(session, target, rhel, storage):
-    policy = _policy(session, target, rhel, quiesce=("postgres",), repository_gb=128.6)
+    policy = _policy(session, target, rhel, quiesce=("postgresql",), repository_gb=128.6,
+                     audit=_audit(prepared=False), hooks=["postgresql"])  # fmt: skip
     yesterday = NOW - timedelta(hours=26)
     _capture(session, policy, rhel, yesterday, 96.1, 4.2, 61_204)
+    _storage(session, policy, storage, yesterday + timedelta(minutes=20), "protect")
+    _storage(session, policy, storage, yesterday + timedelta(minutes=22), "seal")
     _storage(session, policy, storage, yesterday + timedelta(minutes=30), "prune")
     _storage(session, policy, storage, yesterday + timedelta(minutes=40), "check")
     progress = {"phase": "walk", "paths": 41_877, "read_bytes": int(38.7 * GB),
@@ -247,9 +289,12 @@ def _db(session, target, rhel, storage):
 def _app(session, target, debian, storage):
     # The window opens twelve hours from now: never due during a capture.
     policy = _policy(session, target, debian, repository_gb=22.8,
-                     window=(NOW.hour + 12) % 24)  # fmt: skip
+                     window=(NOW.hour + 12) % 24,
+                     audit=_audit(prepared=False, protected=False))  # fmt: skip
     good = NOW - timedelta(hours=30)
     _capture(session, policy, debian, good, 31.5, 1.1, 97_310)
+    # Sealed, but not yet protected: its storage check shows Not append-only.
+    _storage(session, policy, storage, good + timedelta(minutes=21), "seal")
     _storage(session, policy, storage, good + timedelta(minutes=25), "prune")
     _storage(session, policy, storage, good + timedelta(minutes=35), "check")
     failed = NOW - timedelta(minutes=55)
