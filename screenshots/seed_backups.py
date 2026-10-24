@@ -82,10 +82,21 @@ EQUIPPED = ("ubuntu-web-01", "rhel-db-01", "debian-app-01", "freebsd-build-01")
 WRONG_PLATFORM = ("win11-ws-01", "macos-studio-01")
 
 # The helper answers this host's dry-run restores (see the module docstring).
-# Fixed paths inside the disposable screenshot VM only.
-ANSWERER = "/tmp/sysmanage-shots-restore-answerer.py"  # nosec B108
-ANSWERER_PID = "/tmp/sysmanage-shots-restore-answerer.pid"  # nosec B108
-ANSWERER_LOG = "/tmp/sysmanage-shots-restore-answerer.log"  # nosec B108
+# Its script, pid and log live in a private (0700) directory of the user
+# running the seeder -- never /tmp, where another user could plant a symlink
+# at a fixed name and have the seeder write through it.
+ANSWERER_DIR = os.path.join(os.path.expanduser("~"), ".cache", "sysmanage-shots")
+ANSWERER = os.path.join(ANSWERER_DIR, "restore-answerer.py")
+ANSWERER_PID = os.path.join(ANSWERER_DIR, "restore-answerer.pid")
+ANSWERER_LOG = os.path.join(ANSWERER_DIR, "restore-answerer.log")
+
+
+def _private_dir():
+    """Create ANSWERER_DIR as a real directory only this user can enter."""
+    os.makedirs(ANSWERER_DIR, mode=0o700, exist_ok=True)
+    if os.path.islink(ANSWERER_DIR) or not os.path.isdir(ANSWERER_DIR):
+        raise SystemExit(f"{ANSWERER_DIR} is not a real directory; remove it and re-run")
+    os.chmod(ANSWERER_DIR, 0o700)
 
 
 def _host(session, name):
@@ -374,6 +385,7 @@ while time.time() < DEADLINE:
 
 def _start_answerer():
     """Replace any earlier helper with a fresh two-hour one."""
+    _private_dir()
     try:
         with open(ANSWERER_PID, encoding="utf-8") as handle:
             os.kill(int(handle.read().strip()), signal.SIGTERM)
