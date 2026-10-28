@@ -4002,13 +4002,25 @@
         "alerts": {
           "title": "Backup alerts",
           "body": "With the <a href=\"alerting.html\">alerting engine</a>, a <strong>Backup health</strong> rule raises one alert per host when its backups need attention: the last backup failed or is overdue, the last repository check failed, or its write cache is over the target's budget. On the storage host it also covers the target's storage problems: a failed drive, critically full storage, or a seal, prune or check that has not run in time. A failed backup, a failed drive or critically full storage is critical; anything else is a warning. The alert is escalated in place, resolved, with a notice, when everything is healthy again, and repeated daily until someone acknowledges it. A host without a backup policy is never alerted on.",
-          "params": "The rule's parameters: <code>statuses</code> (default <code>[\"failed\", \"overdue\"]</code>; add <code>\"incomplete\"</code> for backups that skipped unreadable files), <code>max_age_hours</code> (also alert when there has been no good backup in that many hours), <code>check_failed</code>, <code>write_cache</code> and <code>storage</code> (each on by default), and <code>renotify_minutes</code> (1440)."
+          "params": "The rule's parameters: <code>statuses</code> (default <code>[\"failed\", \"overdue\"]</code>; add <code>\"incomplete\"</code> for backups that skipped unreadable files), <code>max_age_hours</code> (also alert when there has been no good backup in that many hours), <code>check_failed</code>, <code>write_cache</code> and <code>storage</code> (each on by default), and <code>renotify_minutes</code> (1440).",
+          "verification": "Scheduled verification feeds the same rule: a failed full-read pass is critical, and a host that has not passed one within its cadence is a warning. Turn both off with <code>verification</code> set to <code>false</code> in the rule's parameters."
         },
         "requirements": {
           "title": "Requirements",
           "license": "A <strong>Professional+</strong> license with the <code>backup_engine</code> module, and the <code>alerting_engine</code> module for backup alerts.",
           "server": "GnuPG (<code>gpg</code>) installed on the SysManage server, which makes and seals the keys, and OpenBAO, which holds them.",
           "restate": "restate on each host and the storage host, as for every edition; restoring encrypted backups needs a restate that takes <code>decrypt_with</code>."
+        },
+        "verify": {
+          "title": "Scheduled verification",
+          "body": "<strong>Read the whole repository back every (days)</strong> in a host's backup policy runs restate's <code>check --read-all</code> on that cadence: a test restore that writes nothing. It runs on the backed-up host, which receives the policy's keys for that one job when the repository is encrypted, so the storage host still never holds a key. It never starts while a capture of the host is queued or running, it waits for the host's maintenance window like a capture, and a failed pass is retried a day later.",
+          "cost": "Each pass reads every pack of the repository through the host's mount, so it costs the repository's full size in network traffic: choose weeks rather than days (30 is a good start; 0 turns it off). The host's Backup card shows the last passed verification, and the Backups page marks a host whose last pass failed or that has not passed one within its cadence. Setting the cadence needs Professional+; without the engine nothing new is scheduled, and an old pass ages into \"not verified\"."
+        },
+        "reporting": {
+          "title": "Reports, compliance and forecasting",
+          "sla": "The <strong>Backup SLA</strong> report (Reports, with the reporting engine) lists every backed-up host: its backup interval, last good backup, whether its recovery point objective is met now (the RPO is twice the backup interval, the same line at which a host is called overdue), on how many of the last 30 days it was met, its failed backups in that time, its last full-read verification and its repository size.",
+          "compliance": "With the compliance engine, the rule <code>SYSMANAGE-BACKUP-1</code> (benchmark SYSMANAGE, scanned with ALL) passes when the host's backups passed a full-read verification within 30 days. A host without a backup policy is not applicable, so hosts you do not back up do not lower their score.",
+          "forecast": "The target card forecasts how fast the backup storage is filling: the bytes the last 30 days of captures added, less what that period's prunes freed, per day, and the days until the storage path's filesystem reaches its warning and critical marks (85% and 95% unless the target sets its own)."
         }
       }
     },

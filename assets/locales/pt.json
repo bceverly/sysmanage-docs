@@ -16707,13 +16707,25 @@
         "alerts": {
           "title": "Alertas de backup",
           "body": "Com o <a href=\"alerting.html\">motor de alertas</a>, uma regra <strong>Saúde dos backups</strong> gera um alerta por host quando os backups dele precisam de atenção: o último backup falhou ou está atrasado, a última verificação do repositório falhou ou o cache de gravação dele ultrapassa o limite do destino. No host de armazenamento, ela também cobre os problemas de armazenamento do destino: uma unidade com falha, um armazenamento criticamente cheio ou uma selagem, limpeza ou verificação que não foi executada a tempo. Um backup com falha, uma unidade com falha ou um armazenamento criticamente cheio é crítico; qualquer outra coisa é um aviso. A gravidade do alerta é elevada no próprio alerta; ele é resolvido, com uma notificação, quando tudo volta a ficar saudável, e repetido diariamente até que alguém o reconheça. Um host sem política de backup nunca gera alerta.",
-          "params": "Os parâmetros da regra: <code>statuses</code> (padrão <code>[\"failed\", \"overdue\"]</code>; adicione <code>\"incomplete\"</code> para backups que pularam arquivos ilegíveis), <code>max_age_hours</code> (também alerta quando não há um backup bem-sucedido há esse número de horas), <code>check_failed</code>, <code>write_cache</code> e <code>storage</code> (cada um ativado por padrão) e <code>renotify_minutes</code> (1440)."
+          "params": "Os parâmetros da regra: <code>statuses</code> (padrão <code>[\"failed\", \"overdue\"]</code>; adicione <code>\"incomplete\"</code> para backups que pularam arquivos ilegíveis), <code>max_age_hours</code> (também alerta quando não há um backup bem-sucedido há esse número de horas), <code>check_failed</code>, <code>write_cache</code> e <code>storage</code> (cada um ativado por padrão) e <code>renotify_minutes</code> (1440).",
+          "verification": "A verificação agendada alimenta a mesma regra: uma passagem com leitura completa com falha é crítica, e um host que não teve nenhuma aprovada dentro da cadência é um aviso. Desative ambos com <code>verification</code> definido como <code>false</code> nos parâmetros da regra."
         },
         "requirements": {
           "title": "Requisitos",
           "license": "Uma licença <strong>Professional+</strong> com o módulo <code>backup_engine</code> e o módulo <code>alerting_engine</code> para os alertas de backup.",
           "server": "GnuPG (<code>gpg</code>) instalado no servidor SysManage, que cria e sela as chaves, e o OpenBAO, que as guarda.",
           "restate": "restate em cada host e no host de armazenamento, como em toda edição; restaurar backups criptografados exige um restate que aceite <code>decrypt_with</code>."
+        },
+        "reporting": {
+          "compliance": "Com o mecanismo de conformidade, a regra <code>SYSMANAGE-BACKUP-1</code> (benchmark SYSMANAGE, verificada com ALL) é aprovada quando os backups do host passaram em uma verificação com leitura completa nos últimos 30 dias. Um host sem política de backup não é aplicável, então hosts dos quais você não faz backup não reduzem a pontuação.",
+          "forecast": "O cartão do destino prevê a rapidez com que o armazenamento de backup se enche: os bytes que as capturas dos últimos 30 dias adicionaram, menos o que as limpezas desse período liberaram, por dia, e os dias até o sistema de arquivos do caminho de armazenamento atingir os limites de aviso e crítico (85% e 95%, a menos que o destino defina os próprios).",
+          "sla": "O relatório <strong>SLA de backup</strong> (Relatórios, com o mecanismo de relatórios) lista cada host com backup: o intervalo de backup, o último backup bem-sucedido, se o objetivo de ponto de recuperação é cumprido agora (o RPO é o dobro do intervalo de backup, o mesmo limite a partir do qual um host é considerado atrasado), em quantos dos últimos 30 dias foi cumprido, os backups com falha nesse período, a última verificação com leitura completa e o tamanho do repositório.",
+          "title": "Relatórios, conformidade e previsão"
+        },
+        "verify": {
+          "body": "<strong>Reler o repositório inteiro a cada (dias)</strong>, na política de backup de um host, executa o <code>check --read-all</code> do restate nessa cadência: uma restauração de teste que não grava nada. Ela é executada no host com backup, que recebe as chaves da política só para esse trabalho quando o repositório é criptografado; assim, o host de armazenamento continua sem nunca ter uma chave. Ela nunca começa enquanto uma captura do host está na fila ou em execução, espera a janela de manutenção do host como uma captura, e uma passagem com falha é repetida um dia depois.",
+          "cost": "Cada passagem lê todos os pacotes do repositório pela montagem do host, então custa o tamanho completo do repositório em tráfego de rede: prefira semanas a dias (30 é um bom começo; 0 a desativa). O cartão de backup do host mostra a última verificação aprovada, e a página Backups marca um host cuja última passagem falhou ou que não teve nenhuma aprovada dentro da cadência. Definir a cadência requer o Professional+; sem o mecanismo nada novo é agendado, e uma passagem antiga passa a \"não verificado\".",
+          "title": "Verificação agendada"
         }
       }
     },

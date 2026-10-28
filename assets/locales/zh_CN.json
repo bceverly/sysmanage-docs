@@ -16707,13 +16707,25 @@
         "alerts": {
           "title": "备份告警",
           "body": "配合<a href=\"alerting.html\">告警引擎</a>，<strong>备份健康状况</strong>规则会在主机的备份需要关注时，为每台主机发出一条告警：上一次备份失败或逾期、上一次仓库检查失败，或其写入缓存超出目标的上限。在存储主机上，它还涵盖目标的存储问题：驱动器故障、存储空间严重不足，或封存、清理、检查未按时运行。备份失败、驱动器故障或存储空间严重不足属于严重级别；其他情况为警告。告警会在原有告警上直接升级，在一切恢复正常时附带通知予以解决，并且每天重复，直到有人确认。没有备份策略的主机永远不会触发告警。",
-          "params": "规则的参数：<code>statuses</code>（默认为 <code>[\"failed\", \"overdue\"]</code>；添加 <code>\"incomplete\"</code> 可涵盖跳过了无法读取文件的备份）、<code>max_age_hours</code>（在这么多小时内没有成功备份时也发出告警）、<code>check_failed</code>、<code>write_cache</code> 和 <code>storage</code>（默认均开启），以及 <code>renotify_minutes</code>（1440）。"
+          "params": "规则的参数：<code>statuses</code>（默认为 <code>[\"failed\", \"overdue\"]</code>；添加 <code>\"incomplete\"</code> 可涵盖跳过了无法读取文件的备份）、<code>max_age_hours</code>（在这么多小时内没有成功备份时也发出告警）、<code>check_failed</code>、<code>write_cache</code> 和 <code>storage</code>（默认均开启），以及 <code>renotify_minutes</code>（1440）。",
+          "verification": "计划验证也会影响同一规则：完整读取验证失败为严重，在周期内未通过的主机为警告。在规则参数中将 <code>verification</code> 设为 <code>false</code> 即可同时关闭两者。"
         },
         "requirements": {
           "title": "要求",
           "license": "包含 <code>backup_engine</code> 模块的 <strong>Professional+</strong> 许可证；备份告警还需要 <code>alerting_engine</code> 模块。",
           "server": "在负责生成和封装密钥的 SysManage 服务器上安装 GnuPG（<code>gpg</code>），以及保存这些密钥的 OpenBAO。",
           "restate": "与每个版本一样，每台主机和存储主机上都需要 restate；恢复加密备份需要支持 <code>decrypt_with</code> 的 restate。"
+        },
+        "reporting": {
+          "compliance": "使用合规引擎时，规则 <code>SYSMANAGE-BACKUP-1</code>（基准 SYSMANAGE，随 ALL 一起扫描）在主机的备份于 30 天内通过完整读取验证时通过。没有备份策略的主机不适用，因此您不备份的主机不会拉低其分数。",
+          "forecast": "目标卡片会预测备份存储的填满速度：最近 30 天捕获新增的字节减去同期清理释放的空间后的每日增量，以及存储路径所在文件系统达到警告和严重阈值（目标未自行设置时为 85% 和 95%）还需的天数。",
+          "sla": "<strong>备份 SLA</strong>报告（报告页面，需报告引擎）列出每台已备份的主机：备份间隔、上次成功备份、恢复点目标当前是否满足（RPO 是备份间隔的两倍，与主机被判为逾期的界线相同）、最近 30 天中有多少天满足、这段时间内失败的备份、上次完整读取验证以及存储库大小。",
+          "title": "报告、合规与预测"
+        },
+        "verify": {
+          "body": "主机备份策略中的<strong>每隔（天）重新读取整个存储库</strong>会按该周期运行 restate 的 <code>check --read-all</code>：一次不写入任何内容的测试恢复。它在被备份的主机上运行；存储库加密时，该主机仅为这一个作业获得策略的密钥，因此存储主机仍然从不持有密钥。只要该主机的捕获在排队或运行中，验证就不会开始；它像捕获一样等待主机的维护时段，失败的一次会在一天后重试。",
+          "cost": "每次都会通过主机的挂载读取存储库的每个数据包，因此会产生与整个存储库大小相当的网络流量：请按周而不是按天设置（30 是不错的起点；0 表示关闭）。主机的备份卡片显示上次成功的验证，备份页面会标记上次失败或在周期内没有成功的主机。设置周期需要 Professional+；没有该引擎时不会安排新的验证，旧的成功记录会随时间变为“未验证”。",
+          "title": "计划验证"
         }
       }
     },

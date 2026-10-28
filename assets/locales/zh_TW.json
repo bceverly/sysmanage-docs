@@ -16707,13 +16707,25 @@
         "alerts": {
           "title": "備份警示",
           "body": "搭配<a href=\"alerting.html\">警示引擎</a>，<strong>備份健康狀況</strong>規則會在主機的備份需要關注時，為每部主機發出一則警示：上一次備份失敗或逾期、上一次儲存庫檢查失敗，或其寫入快取超出目標的上限。在儲存主機上，它還涵蓋目標的儲存問題：磁碟機故障、儲存空間嚴重不足，或封存、清理、檢查未按時執行。備份失敗、磁碟機故障或儲存空間嚴重不足屬於嚴重等級；其他情況為警告。警示會在原有警示上直接升級，在一切恢復正常時附帶通知予以解決，並且每天重複，直到有人確認。沒有備份策略的主機永遠不會觸發警示。",
-          "params": "規則的參數：<code>statuses</code>（預設為 <code>[\"failed\", \"overdue\"]</code>；加入 <code>\"incomplete\"</code> 可涵蓋略過了無法讀取檔案的備份）、<code>max_age_hours</code>（在這麼多小時內沒有成功備份時也發出警示）、<code>check_failed</code>、<code>write_cache</code> 和 <code>storage</code>（預設皆開啟），以及 <code>renotify_minutes</code>（1440）。"
+          "params": "規則的參數：<code>statuses</code>（預設為 <code>[\"failed\", \"overdue\"]</code>；加入 <code>\"incomplete\"</code> 可涵蓋略過了無法讀取檔案的備份）、<code>max_age_hours</code>（在這麼多小時內沒有成功備份時也發出警示）、<code>check_failed</code>、<code>write_cache</code> 和 <code>storage</code>（預設皆開啟），以及 <code>renotify_minutes</code>（1440）。",
+          "verification": "排程驗證也會影響同一規則：完整讀取驗證失敗為嚴重，在週期內未通過的主機為警告。在規則參數中將 <code>verification</code> 設為 <code>false</code> 即可同時關閉兩者。"
         },
         "requirements": {
           "title": "需求",
           "license": "包含 <code>backup_engine</code> 模組的 <strong>Professional+</strong> 授權；備份警示還需要 <code>alerting_engine</code> 模組。",
           "server": "在負責產生和封裝金鑰的 SysManage 伺服器上安裝 GnuPG（<code>gpg</code>），以及保存這些金鑰的 OpenBAO。",
           "restate": "與每個版本一樣，每部主機和儲存主機上都需要 restate；還原加密備份需要支援 <code>decrypt_with</code> 的 restate。"
+        },
+        "reporting": {
+          "compliance": "使用合規引擎時，規則 <code>SYSMANAGE-BACKUP-1</code>（基準 SYSMANAGE，隨 ALL 一起掃描）在主機的備份於 30 天內通過完整讀取驗證時通過。沒有備份原則的主機不適用，因此您不備份的主機不會拉低其分數。",
+          "forecast": "目標卡片會預測備份儲存空間的填滿速度：最近 30 天擷取新增的位元組減去同期清理釋放的空間後的每日增量，以及儲存路徑所在檔案系統達到警告與嚴重門檻（目標未自行設定時為 85% 與 95%）還需的天數。",
+          "sla": "<strong>備份 SLA</strong>報告（報告頁面，需報告引擎）列出每台已備份的主機：備份間隔、上次成功備份、復原點目標目前是否達成（RPO 是備份間隔的兩倍，與主機被判定逾期的界線相同）、最近 30 天中有幾天達成、這段期間失敗的備份、上次完整讀取驗證，以及存放庫大小。",
+          "title": "報告、合規與預測"
+        },
+        "verify": {
+          "body": "主機備份原則中的<strong>每隔（天）重新讀取整個存放庫</strong>會依該週期執行 restate 的 <code>check --read-all</code>：一次不寫入任何內容的測試還原。它在被備份的主機上執行；存放庫加密時，該主機只為這一個工作取得原則的金鑰，因此儲存主機仍然從不持有金鑰。只要該主機的擷取在排隊或執行中，驗證就不會開始；它像擷取一樣等待主機的維護時段，失敗的一次會在一天後重試。",
+          "cost": "每次都會透過主機的掛載讀取存放庫的每個資料包，因此會產生與整個存放庫大小相當的網路流量：請以週而非以天設定（30 是不錯的起點；0 表示關閉）。主機的備份卡片會顯示上次成功的驗證，備份頁面會標示上次失敗或在週期內沒有成功的主機。設定週期需要 Professional+；沒有該引擎時不會排程新的驗證，舊的成功紀錄會隨時間變成「未驗證」。",
+          "title": "排程驗證"
         }
       }
     },
