@@ -2432,7 +2432,7 @@
         "crumb_docs": "Documentation",
         "crumb_page": "Fleet Backups",
         "editions_p1": "Everything on this page is in <strong>all editions</strong>, including the Community Edition: one target, per-host schedules and Back up now, keeping the last N snapshots, append-only hosts with sealing, pruning and checking on the storage host, the Backups page, and file restore into staging or into place. Backup safety is not a paid feature.",
-        "editions_planned": "Planned for <strong>Professional+</strong>: policies by tag or group, maintenance-window-aware schedules, grandfather-father-son retention, scheduled full-read verification, encryption keys held in OpenBAO, snapshot signing, alerts and reports, a timeline of what changed between snapshots, and package-level restore. Planned for <strong>Enterprise</strong>: several targets and per-site targets, off-site replication, bare-metal recovery and clones, fleet-wide restore jobs, four-eyes approval, legal hold and automated restore drills.",
+        "editions_planned": "Still planned for <strong>Professional+</strong>: policies by tag or group, scheduled full-read verification, snapshot signing, reports, a timeline of what changed between snapshots, and package-level restore. Planned for <strong>Enterprise</strong>: several targets and per-site targets, off-site replication, bare-metal recovery and clones, fleet-wide restore jobs, four-eyes approval, legal hold and automated restore drills.",
         "h_editions": "Edition Requirements",
         "h_how": "How it works",
         "h_need": "What you need",
@@ -2517,7 +2517,8 @@
         "equip_p2": "On other systems, install restate by hand, as the host's row says. An agent older than this feature shows <strong>Upgrade the agent to equip this host from here</strong>. <strong>Check again</strong> asks the agent whether it can run restate now, so a host you equipped by hand reads correctly within seconds instead of after its agent's next restart.",
         "h_equip": "Equipping a host for backup",
         "equip_p3": "Equip for backup installs software, so on a host with maintenance windows it waits for the next one, and the host shows <strong>Waiting for this host's maintenance window to install restate</strong>. The hour the agent has to answer starts only when the request is sent.",
-        "status_waiting_window": "<strong>Waiting for window</strong> A backup is queued, but the host's maintenance window is closed; it starts when the window opens. A host that is already overdue or failed keeps that status, with a note that its next backup is waiting for the window."
+        "status_waiting_window": "<strong>Waiting for window</strong> A backup is queued, but the host's maintenance window is closed; it starts when the window opens. A host that is already overdue or failed keeps that status, with a note that its next backup is waiting for the window.",
+        "editions_pro": "<strong>Professional+</strong> adds encrypted backups with keys held in OpenBAO, automatic key rotation, a sealed break-glass key export, grandfather-father-son retention and backup alerts: see <a href=\"../professional-plus/fleet-backups-pro.html\">Fleet Backups (Professional+)</a>."
       }
     },
     "administration": {
@@ -3922,6 +3923,14 @@
           "li3": "Promote + repoint hosts offline",
           "link": "Snap Store Proxy Guide →",
           "title": "📦 Snap Store Proxy"
+        },
+        "backups": {
+          "title": "&#128190; Fleet Backups",
+          "desc": "Encrypted backups with keys held in OpenBAO, keys that rotate on their own, a sealed break-glass key export, grandfather-father-son retention and backup alerts.",
+          "li1": "Encrypted repositories, keys never on the host",
+          "li2": "Automatic key rotation and break-glass export",
+          "li3": "Daily / weekly / monthly retention with a prune preview",
+          "link": "Fleet Backups Guide &#8594;"
         }
       },
       "snapproxy": {
@@ -3957,6 +3966,48 @@
         "track": {
           "body": "On a mirror (<strong>Settings → Repository Mirroring</strong>) you track the snaps you want to curate by <strong>name + channel</strong> -- for example <code>firefox</code> on <code>latest/stable</code>. Each tracked snap carries a <strong>capture status</strong> that walks it through the pipeline: <code>TRACKED → DISPATCHED → CAPTURED</code>, or <code>FAILED</code> if a capture could not complete.",
           "title": "Track Snaps"
+        }
+      },
+      "backups": {
+        "title": "Fleet Backups (Professional+) - SysManage",
+        "meta_description": "Professional+ fleet backups: encrypted repositories with keys held in OpenBAO, automatic key rotation, a sealed break-glass key export for a restore with the server down, grandfather-father-son retention with a prune preview, and backup alerts.",
+        "breadcrumb": "Fleet Backups",
+        "header": {
+          "title": "Fleet Backups (Professional+)",
+          "subtitle": "The <code>backup_engine</code> module builds on the <a href=\"../administration/fleet-backups.html\">fleet backups</a> every edition has: encrypted repositories whose keys never live on a backed-up host, keys that rotate on their own, a sealed key export for a restore with SysManage down, grandfather-father-son retention, and backup alerts."
+        },
+        "encrypt": {
+          "title": "Encrypted backups",
+          "body": "In a host's <strong>Backup</strong> tab, the <strong>Encryption</strong> panel has <strong>Encrypt this host's backups</strong>. SysManage makes an OpenPGP key pair for the host, keeps the secret key in OpenBAO and gives the host only the public key, so a host that is broken into cannot read its own backups. restate cannot encrypt an existing repository, so the next backup starts a new, encrypted repository; the backups taken so far stay where they are and can still be restored.",
+          "restore": "To restore, browse or see what changed in an encrypted repository, the host's agent fetches the keys over HTTPS for that one job, keeps them only in memory-backed storage readable by root, and deletes them when the job ends. The keys never travel through the command queue or the database. The host needs a restate that can take a key for one job (<code>decrypt_with</code>); until it has one, SysManage says so instead of restoring.",
+          "rsa": "Keys are RSA-3072. libgcrypt 1.12.0, which Ubuntu 26.04 ships, cannot reliably use an imported Curve25519 secret key (GnuPG bug T8094, fixed in 1.12.1), and restores depend on exactly that."
+        },
+        "rotate": {
+          "title": "Key rotation",
+          "body": "Rotating a host's key makes a new, independent key pair: new backups are encrypted only to it, and every earlier key stays in OpenBAO, because a backup taken after a rotation still reuses data written before it. A restore is given every key the host has held. Use <strong>Rotate key now</strong> in the Encryption panel, or let SysManage rotate on its own: every 365 days by default, set from the same panel for every host (0 turns it off; otherwise 30 to 3650 days). Every rotation is audited, and a scheduled one that fails is tried again an hour later.",
+          "limit": "A host can hold up to 16 keys, the most a restore can take. After that a rotation is refused, with the reason, until old keys can be retired, which comes with a restate that reports which keys its remaining data still needs."
+        },
+        "breakglass": {
+          "title": "Break-glass key export",
+          "body": "A lost key is lost backups, and the SysManage server, with OpenBAO behind it, may be exactly what is gone when the backups are needed. <strong>Break-glass key export</strong> in the Encryption panel exports one host's keys, or every encrypted host's, sealed to an OpenPGP public key you paste: an offline key, a smartcard or a key held in escrow. You give a reason, and the browser downloads one file, <code>sysmanage-backup-keys-&lt;time&gt;.tar.asc</code>. It needs both the <strong>Manage Backups</strong> and <strong>Restore Files</strong> roles, it is never stored on the server, and every export is audited for each host with your key's fingerprint and the reason.",
+          "inside": "Opened with your private key (<code>gpg --decrypt</code>, then <code>tar -xf</code>), it holds <code>README.txt</code> with the restore procedure, <code>manifest.json</code> naming each host's repository, where it lives on the storage host and its keys (no secrets), and one secret key file per key under <code>keys/&lt;host&gt;/</code>. If OpenBAO lacks any key, nothing is exported, since a partial export would only be found out in a disaster.",
+          "restore": "To restore with SysManage down, on the storage host (or a machine that can read the repository) with restate installed, give restate every key of the host: <code>restate restore --plan --decrypt-with keys/&lt;host&gt;/1-&lt;fingerprint&gt;.asc ... &lt;repository&gt;::&lt;snapshot&gt;</code> to see what would come back, then the same with <code>--check-first --root /restore/&lt;host&gt;</code> to restore. Rehearse it: export, stop a test server, and restore a file from an encrypted repository using only the export."
+        },
+        "gfs": {
+          "title": "Grandfather-father-son retention",
+          "body": "Beside <strong>Snapshots to keep</strong>, a host's backup policy can keep the newest snapshot of each of the last N days, weeks and months that have one: <strong>Days to keep</strong>, <strong>Weeks to keep</strong> and <strong>Months to keep</strong> (0 means not used). The storage host's prune applies them, as restate's <code>--keep-daily</code>, <code>--keep-weekly</code> and <code>--keep-monthly</code>; weeks are ISO weeks, and dates come from the snapshot names, in UTC.",
+          "preview": "<strong>Preview the next prune</strong> shows how many snapshots the next prune would keep and which it would remove, choosing exactly as restate does, before anything is deleted. Changing these settings needs Professional+, but once set they are always honored: a lapsed license never makes a prune delete history you chose to keep. Yearly retention comes with a restate that has <code>--keep-yearly</code>."
+        },
+        "alerts": {
+          "title": "Backup alerts",
+          "body": "With the <a href=\"alerting.html\">alerting engine</a>, a <strong>Backup health</strong> rule raises one alert per host when its backups need attention: the last backup failed or is overdue, the last repository check failed, or its write cache is over the target's budget. On the storage host it also covers the target's storage problems: a failed drive, critically full storage, or a seal, prune or check that has not run in time. A failed backup, a failed drive or critically full storage is critical; anything else is a warning. The alert is escalated in place, resolved, with a notice, when everything is healthy again, and repeated daily until someone acknowledges it. A host without a backup policy is never alerted on.",
+          "params": "The rule's parameters: <code>statuses</code> (default <code>[\"failed\", \"overdue\"]</code>; add <code>\"incomplete\"</code> for backups that skipped unreadable files), <code>max_age_hours</code> (also alert when there has been no good backup in that many hours), <code>check_failed</code>, <code>write_cache</code> and <code>storage</code> (each on by default), and <code>renotify_minutes</code> (1440)."
+        },
+        "requirements": {
+          "title": "Requirements",
+          "license": "A <strong>Professional+</strong> license with the <code>backup_engine</code> module, and the <code>alerting_engine</code> module for backup alerts.",
+          "server": "GnuPG (<code>gpg</code>) installed on the SysManage server, which makes and seals the keys, and OpenBAO, which holds them.",
+          "restate": "restate on each host and the storage host, as for every edition; restoring encrypted backups needs a restate that takes <code>decrypt_with</code>."
         }
       }
     },
