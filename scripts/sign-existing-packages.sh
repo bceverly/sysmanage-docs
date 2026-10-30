@@ -68,7 +68,7 @@ while IFS= read -r rpmfile; do
     # shellcheck disable=SC2086
     if rpmsign --addsign \
         --define "_gpg_name $KEY_NOBANG" \
-        --define "__gpg_sign_cmd %{__gpg} gpg --batch --no-verbose --no-armor ${APT_GPG_EXTRA:-} --no-secmem-warning -u $KEY_NOBANG -sbo %{__signature_filename} %{__plaintext_filename}" \
+        --define "__gpg /usr/bin/gpg" --define "_gpg_sign_cmd_extra_args --batch ${APT_GPG_EXTRA:-} --no-secmem-warning" \
         "$rpmfile" >/dev/null 2>&1
     then
         signed=$((signed + 1))
