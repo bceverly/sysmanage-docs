@@ -75,6 +75,16 @@ jobs:
         run: |
           set -euo pipefail
           ENDPOINT="https://${R2_ACCOUNT_ID}.r2.cloudflarestorage.com"
+          # R2 rejected a multipart upload from the aws-cli on Ubuntu 26.04 runners
+          # (InvalidPart, agent 3.12.0.21, 2026-10-31): newer aws-cli can pick the CRT
+          # transfer client, whose parts R2 does not accept.  The classic client, and
+          # single-part uploads for anything under 512 MB (every package we publish),
+          # avoid it.
+          aws configure set default.s3.preferred_transfer_client classic
+          aws configure set default.s3.multipart_threshold 512MB
+          # The classic client moves 10 files at a time by default; the flatpak
+          # OSTree store alone is thousands of small objects.
+          aws configure set default.s3.max_concurrent_requests 64
           aws s3 sync "s3://${R2_BUCKET}/" repo/ \
             --endpoint-url "$ENDPOINT" --region auto --only-show-errors
 
