@@ -85,7 +85,16 @@ jobs:
           fi
 
       - name: Prune R2 to the latest 5 versions
-        run: make prune-repo
+        # The aws-cli on Ubuntu 26.04 runners can pick its CRT transfer
+        # client, which R2 drops mid-transfer (AWS_ERROR_HTTP_CONNECTION_CLOSED
+        # here, InvalidPart on upload; 2026-10-31).  The classic client with
+        # single-part transfers below 512 MB avoids it; 64 at a time keeps the
+        # whole-bucket sync quick.
+        run: |
+          aws configure set default.s3.preferred_transfer_client classic
+          aws configure set default.s3.multipart_threshold 512MB
+          aws configure set default.s3.max_concurrent_requests 64
+          make prune-repo
         env:
           APT_SIGNING_KEY_ID: ${{ secrets.APT_SIGNING_KEY_ID }}
           APT_SIGN_REQUIRED: "1"
