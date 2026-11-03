@@ -104,7 +104,8 @@ def _repo_dir(host):
 
 
 def _fingerprint(seed):
-    return hashlib.sha1(seed.encode()).hexdigest().upper()  # nosec B324 - a demo label
+    """A made-up OpenPGP fingerprint for the demo: 40 hex digits, stable per seed."""
+    return hashlib.sha256(seed.encode()).hexdigest()[:40].upper()
 
 
 def _snap(at):
