@@ -16709,8 +16709,17 @@
         "breakglass": {
           "title": "应急密钥导出",
           "body": "丢失密钥就等于丢失备份，而在需要备份时，恰恰丢失的可能就是 SysManage 服务器及其背后的 OpenBAO。加密面板中的<strong>应急密钥导出</strong>会导出一台主机的密钥或所有加密主机的密钥，并用您粘贴的 OpenPGP 公钥封装：可以是离线密钥、智能卡或托管保存的密钥。您需要填写原因，然后浏览器会下载一个文件 <code>sysmanage-backup-keys-&lt;time&gt;.tar.asc</code>。此操作同时需要 <strong>Manage Backups</strong> 和 <strong>Restore Files</strong> 角色，文件从不保存在服务器上，每次导出都会针对每台主机记入审计，并附上您的密钥指纹和原因。",
-          "inside": "用您的私钥打开后（先 <code>gpg --decrypt</code>，再 <code>tar -xf</code>），其中包含：记载恢复步骤的 <code>README.txt</code>；列出每台主机的仓库、仓库在存储主机上的位置及其密钥的 <code>manifest.json</code>（不含任何机密）；以及 <code>keys/&lt;host&gt;/</code> 下每个密钥各一个的私钥文件。只要 OpenBAO 缺少任何一个密钥，就不会导出任何内容，因为不完整的导出只会在灾难发生时才被发现。",
-          "restore": "要在 SysManage 停机时恢复，请在安装了 restate 的存储主机（或能够读取该仓库的机器）上，把该主机的每个密钥都交给 restate：先用 <code>restate restore --plan --decrypt-with keys/&lt;host&gt;/1-&lt;fingerprint&gt;.asc ... &lt;repository&gt;::&lt;snapshot&gt;</code> 查看会恢复哪些内容，再在同一命令中加上 <code>--check-first --root /restore/&lt;host&gt;</code> 执行恢复。请事先演练：导出、停止一台测试服务器，然后只使用导出文件从加密仓库恢复一个文件。"
+          "inside": "使用您的私钥打开它（先 <code>gpg --decrypt</code>，再 <code>tar -xf</code>）后，其中包含：载有恢复步骤的 <code>README.txt</code>；<code>manifest.json</code>，列出每台主机的仓库、它在存储主机上的位置及其密钥（不含机密）；<code>keys/&lt;host&gt;/</code> 下每个密钥对应的一个私钥文件；以及在启用快照签名时，签名者的公钥 <code>keys/signing.pub.asc</code>。如果 OpenBAO 缺少任何一个密钥，则不会导出任何内容，因为不完整的导出只有在灾难发生时才会被发现。",
+          "restore": "要在 SysManage 不可用时进行恢复，请在存储主机（或能够读取该仓库的机器）上使用 restate 2.2 或更高版本，并向 restate 提供该主机的所有密钥：先运行 <code>restate restore --plan --trusted-key keys/signing.pub.asc --decrypt-with keys/&lt;host&gt;/1-&lt;fingerprint&gt;.asc ... &lt;repository&gt;::&lt;snapshot&gt;</code> 查看将会恢复哪些内容，然后加上 <code>--check-first --root /restore/&lt;host&gt;</code> 运行相同命令进行恢复。<code>--trusted-key</code> 会拒绝由其他任何密钥签名或已被篡改的快照。在启用签名之前创建的快照，或在导出中没有 <code>keys/signing.pub.asc</code> 时的任何快照，都是未签名的：对这类快照，请使用 <code>--allow-unverified</code> 代替 <code>--trusted-key</code>，切勿同时使用两者。下面的流程说明了各项工作由谁负责。",
+          "proc_destroy": "<strong>销毁已打开的密钥。</strong>恢复完成后，删除已解密的归档和每个密钥文件（在磁盘允许的情况下，Linux 上使用 <code>shred -u</code>，FreeBSD 上使用 <code>rm -P</code>）。密封的导出文件继续保留在托管处。",
+          "proc_intro": "为您的组织记录下此信息，并保留一份打印副本，包含托管密钥，因为描述该服务器的服务器可能就是被删除的那个。",
+          "proc_list": "<strong>查找快照。</strong> 在存储主机上，列出主机的所有快照及其密钥：<code>sudo restate snapshots --decrypt-with keys/&lt;host&gt;/1-&lt;fingerprint&gt;.asc --decrypt-with keys/&lt;host&gt;/2-&lt;fingerprint&gt;.asc /srv/backups/restate/&lt;repository&gt;</code>。不包含密钥时，restate 仅列出名称。",
+          "proc_open": "<strong>仅为恢复打开它。</strong> 当SysManage或OpenBAO不可用且需要备份时，托管密钥持有人将在一个受信任的机器上解密导出（<code>gpg --decrypt</code>，然后<code>tar -xf</code>），并读取<code>README.txt</code>和<code>manifest.json</code>，分别命名存储主机上的每个主机的仓库。",
+          "proc_prepare": "<strong>一次准备。</strong> 创建一个OpenPGP密钥对，该密钥对永远不存储在SysManage服务器或备份的主机上，例如智能卡或断线机器。决定谁持有它；通常选择两个必须同时到场的人的选择。将每个加密主机的密钥以密封形式导出并存储在不同的位置。",
+          "proc_refresh": "<strong>每次密钥轮换以及每新增一台加密主机之后，都要重新导出。</strong>导出只包含创建时已存在的密钥：轮换之后的快照需要新的密钥，而较旧的导出并没有。请用新文件替换旧文件，并销毁旧文件。",
+          "proc_rehearse": "<strong>练习它。</strong> 至少每年一次，以及在更改存证密钥后：导出，然后仅使用导出和重述命令从加密的仓库恢复一个文件。不涉及 SysManage。2026-11-02 的一次演练中，从用旧密钥和用新密钥写入的快照中恢复了一个文件，发现指令中有两个错误，现已修正。",
+          "proc_restore": "<strong>先计划，再恢复。</strong>使用所有密钥和该快照运行 <code>restate restore --plan --trusted-key keys/signing.pub.asc</code>，检查列表，然后使用 <code>--check-first --trusted-key keys/signing.pub.asc --root /restore/&lt;host&gt;</code> 恢复到一个空目录或新机器的根目录。对于未签名的快照，请使用 <code>--allow-unverified</code> 代替 <code>--trusted-key</code>。恢复到其他操作系统时，所有者和组按名称匹配，而该系统中不存在的组会保留其编号。",
+          "proc_title": "紧急破玻璃程序"
         },
         "gfs": {
           "title": "祖父-父-子保留方式",
@@ -16735,12 +16744,32 @@
           "compliance": "使用合规引擎时，规则 <code>SYSMANAGE-BACKUP-1</code>（基准 SYSMANAGE，随 ALL 一起扫描）在主机的备份于 30 天内通过完整读取验证时通过。没有备份策略的主机不适用，因此您不备份的主机不会拉低其分数。",
           "forecast": "目标卡片会预测备份存储的填满速度：最近 30 天捕获新增的字节减去同期清理释放的空间后的每日增量，以及存储路径所在文件系统达到警告和严重阈值（目标未自行设置时为 85% 和 95%）还需的天数。",
           "sla": "<strong>备份 SLA</strong>报告（报告页面，需报告引擎）列出每台已备份的主机：备份间隔、上次成功备份、恢复点目标当前是否满足（RPO 是备份间隔的两倍，与主机被判为逾期的界线相同）、最近 30 天中有多少天满足、这段时间内失败的备份、上次完整读取验证以及存储库大小。",
-          "title": "报告、合规与预测"
+          "title": "报告、合规与预测",
+          "advisor": "使用顾问引擎时，<strong>Posture</strong> 清单包含四项备份检查：restate 可以备份的每台主机都有策略，没有主机的备份失败或逾期，每台主机在过去 30 天内都通过了完整读取验证，并且每台加密主机的密钥都在其最新密钥之后导出以备紧急使用。每项检查都把主机计为通过、失败或尚未知道，其修复会打开备份页面。"
         },
         "verify": {
           "body": "主机备份策略中的 <strong>每隔（天）重新读取整个存储库</strong> 会按该周期运行 restate 的 <code>check --read-all</code>：一次不写入任何内容的测试恢复。它在被备份的主机上运行；当存储库已加密时，该主机仅为这一项作业获得策略的密钥，因此存储主机仍然从不持有密钥。当该主机的备份正在排队或运行时，它绝不会启动；它会像备份一样等待主机的维护时段；失败的检查会在一天后重试；而因存储主机正在清理或检查存储库而被拒绝的检查，会在 30 分钟后重试。",
           "cost": "每次都会通过主机的挂载读取存储库的每个数据包，因此会产生与整个存储库大小相当的网络流量：请按周而不是按天设置（30 是不错的起点；0 表示关闭）。主机的备份卡片显示上次成功的验证，备份页面会标记上次失败或在周期内没有成功的主机。设置周期需要 Professional+；没有该引擎时不会安排新的验证，旧的成功记录会随时间变为“未验证”。",
           "title": "计划验证"
+        },
+        "signing": {
+          "title": "快照签名",
+          "body": "在加密面板中使用<strong>为每个快照签名</strong>，SysManage 会为备份目标创建一个签名密钥，并将其保存在 OpenBAO 中。存储主机在每个新快照创建后、受保护之前立即为其签名，所用的密钥只为这一个作业交给它。被备份的主机从不持有该密钥，因此主机无法为自己改动过的快照作担保。签名启用一次后保持启用；需要 <strong>Manage Backups</strong> 角色，启用操作会记入审计。",
+          "restore": "每台被备份的主机都会收到签名者的公钥，restate 用它检查每次恢复。已签名的快照无需额外步骤即可恢复；签名不正确或由其他密钥签名的快照会被拒绝。启用签名之前创建的快照保持未签名，恢复其中任何一个时仍会要求您确认它未签名。<strong>恢复文件</strong>中的快照列表会显示哪些快照已签名，备份目标卡片会显示签名密钥。",
+          "needs": "签名需要存储主机上的 restate 2.2.0.16 或更高版本，以及 SysManage 服务器上的 GnuPG。如果存储主机无法签名，或签名作业失败，快照仍会照常受保护、封存和修剪，并保持未签名。"
+        },
+        "drift": {
+          "body": "每次备份成功后，主机都会按软件包将新快照与上一个快照进行比较：哪些软件包被安装、移除或升级，以及不属于任何软件包的文件变更，例如被编辑过的配置文件。主机的<strong>备份</strong>选项卡会以<strong>漂移时间线</strong>的形式按从新到旧的顺序显示这些比较结果。与恢复一样，加密仓库的密钥仅在每次比较时才会发放。",
+          "filters": "预期内的频繁变动会被隐藏并计数：日志、缓存、临时文件、软件包列表、SysManage 自身的作业文件和代理状态，以及在<strong>同时在此主机上隐藏</strong>中设置的主机专属模式，其写法与备份的排除模式相同。<strong>显示全部</strong>可将它们重新显示出来。从未比较过的一对备份可以在时间线中进行比较。",
+          "links": "<strong>备份之间的变更</strong>可从主机的配置漂移差异以及其<strong>软件变更</strong>选项卡打开时间线，从而将发生漂移的文件或意外出现的软件包追溯到它首次出现的那次备份。",
+          "needs": "漂移时间线需要 Professional+ 备份引擎，并且主机上的 restate 必须支持以作业方式运行 diff（2.2.0.16 或更高版本）。",
+          "title": "漂移时间线"
+        },
+        "packages": {
+          "body": "恢复时可以先还原快照中的软件包，再还原其文件：包括软件仓库及其密钥、按记录版本安装的每个 apt 软件包、哪些是手动安装的以及哪些是作为依赖安装的，还有快照中的 snap 和 flatpak。随后 apt 会<strong>移除快照中没有的软件包</strong>，使主机上的软件包与快照一致。在<strong>恢复文件</strong>对话框中，勾选<strong>先还原快照中的软件包</strong>；此时会原位恢复，因为软件包是直接安装到主机本身的。",
+          "needs": "软件包级恢复需要 Professional+ 备份引擎，并且主机上的 restate 必须支持在恢复作业中处理软件包（2.2.0.16 或更高版本）。",
+          "plan": "请先预览。预览根据快照的索引在几秒内生成，并显示将要执行的操作：apt 软件包及其版本、snap、仓库密钥的数量，以及未列出的软件包将被移除的警告，点击一下即可查看完整的生成脚本。实际恢复需要单独确认，并且两者都会记入审计日志。备份之后安装的任何内容都可能被移除，如果 SysManage 代理是后来安装的，它也不例外；因此在正在运行的主机上，请指定要还原的路径并仔细阅读预览。最自然的用法是将一台全新的机器重建为原来的旧机器。",
+          "title": "软件包级恢复"
         }
       }
     },
@@ -21420,7 +21449,8 @@
         "patching": "按计划安装安全更新，且没有任何主机存在未修补的严重漏洞",
         "resilience": "满足您恢复点目标的备份、出现故障时发出告警，以及在计划的维护窗口内进行的变更",
         "secrets": "机密存储在 OpenBAO 中，且没有未设置过期时间的 API 密钥",
-        "title": "检查内容"
+        "title": "检查内容",
+        "backups": "每台主机的备份：restate 可以备份的每台主机都有备份策略，没有失败或逾期的备份，过去 30 天内通过完整读取验证（需要 Professional+ 备份引擎），并且每台加密主机都在其最新密钥之后做过应急密钥导出。每项修复都会打开备份页面"
       },
       "fixing": {
         "description": "每项检查都会说明修复方式，并且 <strong>修复</strong> 总会在任何变更发生之前，先预览将要变更的内容以及涉及哪些主机：",

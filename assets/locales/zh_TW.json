@@ -16709,8 +16709,17 @@
         "breakglass": {
           "title": "緊急金鑰匯出",
           "body": "遺失金鑰就等於遺失備份，而在需要備份時，恰恰遺失的可能就是 SysManage 伺服器及其背後的 OpenBAO。加密面板中的<strong>緊急金鑰匯出</strong>會匯出一部主機的金鑰或所有加密主機的金鑰，並以您貼上的 OpenPGP 公開金鑰封裝：可以是離線金鑰、智慧卡或託管保存的金鑰。您需要填寫原因，然後瀏覽器會下載一個檔案 <code>sysmanage-backup-keys-&lt;time&gt;.tar.asc</code>。此操作同時需要 <strong>Manage Backups</strong> 與 <strong>Restore Files</strong> 角色，檔案從不儲存在伺服器上，每次匯出都會針對每部主機記入稽核，並附上您的金鑰指紋和原因。",
-          "inside": "用您的私密金鑰開啟後（先 <code>gpg --decrypt</code>，再 <code>tar -xf</code>），其中包含：記載還原步驟的 <code>README.txt</code>；列出每部主機的儲存庫、儲存庫在儲存主機上的位置及其金鑰的 <code>manifest.json</code>（不含任何機密）；以及 <code>keys/&lt;host&gt;/</code> 下每個金鑰各一個的私密金鑰檔案。只要 OpenBAO 缺少任何一個金鑰，就不會匯出任何內容，因為不完整的匯出只會在災難發生時才被發現。",
-          "restore": "要在 SysManage 停機時還原，請在安裝了 restate 的儲存主機（或能夠讀取該儲存庫的機器）上，把該主機的每個金鑰都交給 restate：先用 <code>restate restore --plan --decrypt-with keys/&lt;host&gt;/1-&lt;fingerprint&gt;.asc ... &lt;repository&gt;::&lt;snapshot&gt;</code> 檢視會還原哪些內容，再在同一命令中加上 <code>--check-first --root /restore/&lt;host&gt;</code> 執行還原。請事先演練：匯出、停止一部測試伺服器，然後只使用匯出檔案從加密儲存庫還原一個檔案。"
+          "inside": "使用您的私密金鑰開啟後（先 <code>gpg --decrypt</code>，再 <code>tar -xf</code>），其中包含：載有還原程序的 <code>README.txt</code>；<code>manifest.json</code>，列出每台主機的儲存庫、其在儲存主機上的位置及其金鑰（不含機密）；<code>keys/&lt;host&gt;/</code> 底下每把金鑰各一個私密金鑰檔；以及在啟用快照簽章時，簽署者的公開金鑰 <code>keys/signing.pub.asc</code>。若 OpenBAO 缺少任何一把金鑰，就不會匯出任何內容，因為不完整的匯出只有在災難發生時才會被發現。",
+          "restore": "若要在 SysManage 無法使用時進行還原，請在儲存主機（或可讀取該儲存庫的機器）上使用 restate 2.2 或更新版本，並提供該主機的所有金鑰給 restate：先執行 <code>restate restore --plan --trusted-key keys/signing.pub.asc --decrypt-with keys/&lt;host&gt;/1-&lt;fingerprint&gt;.asc ... &lt;repository&gt;::&lt;snapshot&gt;</code> 查看將會還原哪些內容，再加上 <code>--check-first --root /restore/&lt;host&gt;</code> 執行相同指令進行還原。<code>--trusted-key</code> 會拒絕由其他任何金鑰簽署或遭竄改的快照。在啟用簽章之前建立的快照，或匯出中沒有 <code>keys/signing.pub.asc</code> 時的任何快照，都是未簽署的：對這類快照，請以 <code>--allow-unverified</code> 取代 <code>--trusted-key</code>，切勿兩者同時使用。下方的程序說明了各項工作由誰負責。",
+          "proc_destroy": "<strong>銷毀已開啟的金鑰。</strong>還原完成後，刪除已解密的封存檔和每個金鑰檔案（在磁碟允許的情況下，Linux 上使用 <code>shred -u</code>，FreeBSD 上使用 <code>rm -P</code>）。密封的匯出檔仍保留在託管處。",
+          "proc_intro": "請為您的組織記錄下此內容，並保留一份列印本，隨時可取出存儲金鑰，因為描述該服務器的那台伺服器可能就是失落的那一台。",
+          "proc_list": "<strong>尋找快照。</strong>在儲存主機上，列出主機的快照及其所有金鑰：<code>sudo restate snapshots --decrypt-with keys/&lt;host&gt;/1-&lt;fingerprint&gt;.asc --decrypt-with keys/&lt;host&gt;/2-&lt;fingerprint&gt;.asc /srv/backups/restate/&lt;repository&gt;</code>。不包含金鑰時，restate 僅列出名稱。",
+          "proc_open": "<strong>僅在需要還原時才開啟。</strong>當 SysManage 或 OpenBAO 無法使用而需要備份時，託管金鑰的持有人會在受信任的機器上解密匯出檔（<code>gpg --decrypt</code>，然後 <code>tar -xf</code>），並閱讀 <code>README.txt</code> 和 <code>manifest.json</code>，其中列出每台主機在儲存主機上的儲存庫。",
+          "proc_prepare": "<strong>一次準備。</strong> 建立一個 OpenPGP 的金鑰對，確保它永遠不存儲在 SysManage 伺服器或備份的主機上，例如智慧卡或離線機器。決定誰持有這個金鑰；通常選擇兩個必須同時在場的人。將每個加密主機的金鑰以封裝的方式匯出，並將匯出檔案和金鑰保存在不同的位置。",
+          "proc_refresh": "<strong>每次金鑰輪替以及每新增一台加密主機之後，都要重新匯出。</strong>匯出只包含建立當時已存在的金鑰：輪替之後的快照需要新的金鑰，而較舊的匯出並沒有。請以新檔案取代舊檔案，並銷毀舊檔案。",
+          "proc_rehearse": "<strong>練習它。</strong> 至少每年一次，以及在更改存儲金鑰後：匯出，然後僅使用匯出和重述功能，從加密的庫中還原一個檔案。2026-11-02 進行了一次模擬，從舊金鑰和新金鑰下創建的快照中還原了一個檔案，並發現說明書中有兩個錯誤，已得到修正。",
+          "proc_restore": "<strong>先規劃，再還原。</strong>使用所有金鑰與該快照執行 <code>restate restore --plan --trusted-key keys/signing.pub.asc</code>，檢查清單，然後使用 <code>--check-first --trusted-key keys/signing.pub.asc --root /restore/&lt;host&gt;</code> 還原到空目錄或新機器的根目錄。對於未簽署的快照，請以 <code>--allow-unverified</code> 取代 <code>--trusted-key</code>。還原到其他作業系統時，擁有者與群組會依名稱比對，而該系統中不存在的群組會保留其編號。",
+          "proc_title": "緊急（break-glass）程序"
         },
         "gfs": {
           "title": "祖父-父-子保留方式",
@@ -16735,12 +16744,32 @@
           "compliance": "使用合規引擎時，規則 <code>SYSMANAGE-BACKUP-1</code>（基準 SYSMANAGE，隨 ALL 一起掃描）在主機的備份於 30 天內通過完整讀取驗證時通過。沒有備份原則的主機不適用，因此您不備份的主機不會拉低其分數。",
           "forecast": "目標卡片會預測備份儲存空間的填滿速度：最近 30 天擷取新增的位元組減去同期清理釋放的空間後的每日增量，以及儲存路徑所在檔案系統達到警告與嚴重門檻（目標未自行設定時為 85% 與 95%）還需的天數。",
           "sla": "<strong>備份 SLA</strong>報告（報告頁面，需報告引擎）列出每台已備份的主機：備份間隔、上次成功備份、復原點目標目前是否達成（RPO 是備份間隔的兩倍，與主機被判定逾期的界線相同）、最近 30 天中有幾天達成、這段期間失敗的備份、上次完整讀取驗證，以及存放庫大小。",
-          "title": "報告、合規與預測"
+          "title": "報告、合規與預測",
+          "advisor": "使用顧問引擎時，<strong>Posture</strong> 清單包含四項備份檢查：restate 可以備份的每台主機都有原則，沒有主機的備份失敗或逾期，每台主機在過去 30 天內都通過了完整讀取驗證，並且每台加密主機的金鑰都在其最新金鑰之後匯出以備緊急使用。每項檢查都把主機計為通過、失敗或尚未知道，其修正會開啟備份頁面。"
         },
         "verify": {
-          "body": "<strong>讀取主機備份策略中的整個repository每（天）</strong>，並按照該頻率重新執行一次：這是一次測試還原，不會寫入任何內容。它在被備份的主機上運行，在repository加密時，該主機只接收用於此單一作業的密鑰，因此存儲主機始終不持有密鑰。當主機有捕捉操作排隊或正在執行時，它不會開始運行，而是等待主機的維護窗口，失敗的一次會在一天後重試，拒絕的一次因為存儲主機正在修剪或檢查repository則會在30分鐘後重試。<code>check --read-all</code>",
+          "body": "<strong>讀取主機備份策略中的整個repository每（天）</strong>，並按照該頻率重新執行一次：這是一次測試還原，不會寫入任何內容。它在被備份的主機上運行，在repository加密時，該主機只接收用於此單一作業的金鑰，因此存儲主機始終不持有金鑰。當主機有捕捉操作排隊或正在執行時，它不會開始運行，而是等待主機的維護窗口，失敗的一次會在一天後重試，拒絕的一次因為存儲主機正在修剪或檢查repository則會在30分鐘後重試。<code>check --read-all</code>",
           "cost": "每次都會透過主機的掛載讀取存放庫的每個資料包，因此會產生與整個存放庫大小相當的網路流量：請以週而非以天設定（30 是不錯的起點；0 表示關閉）。主機的備份卡片會顯示上次成功的驗證，備份頁面會標示上次失敗或在週期內沒有成功的主機。設定週期需要 Professional+；沒有該引擎時不會排程新的驗證，舊的成功紀錄會隨時間變成「未驗證」。",
           "title": "排程驗證"
+        },
+        "signing": {
+          "title": "快照簽章",
+          "body": "在加密面板中使用<strong>為每個快照簽章</strong>，SysManage 會為備份目標建立一把簽章金鑰，並保存在 OpenBAO 中。儲存主機會在每個新快照建立後、受保護之前立即為其簽章，所用的金鑰只為這一個工作交給它。被備份的主機從不持有該金鑰，因此主機無法為自己改動過的快照作擔保。簽章啟用一次後會維持啟用；需要 <strong>Manage Backups</strong> 角色，啟用操作會記入稽核。",
+          "restore": "每台被備份的主機都會收到簽署者的公開金鑰，restate 會用它檢查每次還原。已簽章的快照不需額外步驟即可還原；簽章不正確或由其他金鑰簽署的快照會被拒絕。啟用簽章之前建立的快照會維持未簽章，還原其中任何一個時仍會要求您確認它未簽章。<strong>還原檔案</strong>中的快照清單會顯示哪些快照已簽章，備份目標卡片會顯示簽章金鑰。",
+          "needs": "簽章需要儲存主機上的 restate 2.2.0.16 或更新版本，以及 SysManage 伺服器上的 GnuPG。如果儲存主機無法簽章，或簽章工作失敗，快照仍會照常受保護、封存和修剪，並維持未簽章。"
+        },
+        "drift": {
+          "body": "每次備份成功後，主機都會以套件為單位，將新快照與前一個快照進行比較：哪些套件被安裝、移除或升級，以及不屬於任何套件的檔案變更，例如經過編輯的設定檔。主機的<strong>備份</strong>分頁會以<strong>漂移時間軸</strong>的形式，依由新到舊的順序顯示這些比較結果。與還原相同，加密儲存庫的金鑰只會在每次比較時才釋出。",
+          "filters": "預期中的頻繁變動會被隱藏並計數：日誌、快取、暫存檔、套件清單、SysManage 本身的工作檔案與代理程式狀態，以及在<strong>同時在此主機上隱藏</strong>中設定的主機專屬模式，其寫法與備份的排除模式相同。<strong>顯示全部</strong>可讓它們重新顯示。從未比較過的一對備份可以從時間軸進行比較。",
+          "links": "<strong>備份之間的變更</strong>可從主機的設定漂移差異及其<strong>軟體變更</strong>分頁開啟時間軸，藉此將發生漂移的檔案或非預期的套件追溯到它首次出現的那次備份。",
+          "needs": "漂移時間軸需要 Professional+ 備份引擎，且主機上的 restate 必須支援以工作方式執行 diff（2.2.0.16 或更新版本）。",
+          "title": "漂移時間軸"
+        },
+        "packages": {
+          "body": "還原時可以先將快照中的套件裝回，再還原其檔案：包括軟體儲存庫及其金鑰、依記錄版本安裝的每個 apt 套件、哪些是手動安裝以及哪些是作為相依套件安裝的，還有快照中的 snap 與 flatpak。接著 apt 會<strong>移除快照中沒有的套件</strong>，讓主機上的套件與快照一致。在<strong>還原檔案</strong>對話框中，勾選<strong>先裝回快照中的套件</strong>；此時會原地還原，因為套件是直接安裝到主機本身。",
+          "needs": "套件層級還原需要 Professional+ 備份引擎，且主機上的 restate 必須支援在還原工作中處理套件（2.2.0.16 或更新版本）。",
+          "plan": "請先預覽。預覽會根據快照的索引在幾秒內規劃完成，並顯示將執行的動作：apt 套件及其版本、snap、儲存庫金鑰的數量，以及未列出的套件將被移除的警告，只要按一下即可檢視完整產生的指令碼。實際還原需要另外確認，且兩者都會記錄於稽核紀錄。備份之後安裝的任何項目都可能被移除，若 SysManage 代理程式是之後才安裝的，也包括在內；因此在運作中的主機上，請指定要還原的路徑並詳閱預覽。最自然的用法是將一台全新的機器重建成原本的舊機器。",
+          "title": "套件層級還原"
         }
       }
     },
@@ -21420,7 +21449,8 @@
         "patching": "依排程安裝安全性更新，且沒有任何主機存在未修補的重大漏洞",
         "resilience": "符合您復原點目標的備份、發生故障時發出警示，以及在規劃好的維護時段內進行的變更",
         "secrets": "機密儲存在 OpenBAO 中，且沒有未設定到期時間的 API 金鑰",
-        "title": "檢查內容"
+        "title": "檢查內容",
+        "backups": "每台主機的備份：restate 可以備份的每台主機都有備份原則，沒有失敗或逾期的備份，過去 30 天內通過完整讀取驗證（需要 Professional+ 備份引擎），並且每台加密主機都在其最新金鑰之後做過緊急金鑰匯出。每項修正都會開啟備份頁面"
       },
       "fixing": {
         "description": "每項檢查都會說明修正方式，而且 <strong>修正</strong> 一定會在任何變更發生之前，先預覽將要變更的內容以及涉及哪些主機：",
