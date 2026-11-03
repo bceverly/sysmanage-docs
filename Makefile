@@ -132,8 +132,11 @@ help:
 	@echo "  screenshots-pro-seed   - Seed Professional engine demo data (in-VM ORM)"
 	@echo "  screenshots-discovery-seed - Seed Network Discovery reports (in-VM ORM, Enterprise)"
 	@echo "  screenshots-malware-seed   - Seed Malware Detection scan jobs + findings (in-VM ORM, Enterprise)"
-	@echo "  screenshots-backups-seed   - Seed fleet backups: target, policies, runs, snapshots + restore-preview helper (in-VM ORM, OSS)"
-	@echo "  screenshots-backups-capture- Re-capture only the four fleet backup shots (OSS VM, after screenshots-backups-seed)"
+	@echo "  screenshots-backups-seed   - Seed fleet backups + iCloud backup: target, policies, runs, snapshots, accounts + restore-preview helper (in-VM ORM, OSS)"
+	@echo "  screenshots-backups-capture- Re-capture only the Community fleet backup shots (OSS VM, after screenshots-backups-seed)"
+	@echo "  screenshots-backups-alt    - Seed the lapsed-license / iCloud-not-enabled state, capture its shots, seed the normal state back (OSS VM)"
+	@echo "  screenshots-backups-pro-seed   - Seed the Professional+ backup features: encryption, escrow, signing, GFS, verification, drift, tag policies"
+	@echo "  screenshots-backups-pro-capture- Re-capture only the Professional+ backup shots (Pro VM, after screenshots-backups-pro-seed)"
 	@echo "  screenshots-ent-seed   - Seed Enterprise engine demo data (in-VM ORM)"
 	@echo "  screenshots-fleet-seed - Seed fleet-engine demo data (Pro+ REST)"
 	@echo "  screenshots-cfg-seed   - Seed config profiles + drift findings (in-VM ORM)"
@@ -398,7 +401,7 @@ screenshot:
 # ---- Automated documentation screenshots (screenshots/ pipeline) ------------
 # Reproducible screenshots: provision a VM, seed demo data (REST + WS), drive the
 # UI with Playwright, write PNGs into assets/images/. See screenshots/README.md.
-.PHONY: screenshots screenshots-community screenshots-assettag-seed screenshots-timesync-seed screenshots-hardware-seed screenshots-enterprise screenshots-seed screenshots-capture screenshots-vm-up screenshots-vm-down screenshots-pro-build screenshots-pro-seed screenshots-pro-capture screenshots-ent-build screenshots-ent-seed screenshots-ent-capture screenshots-ent-roles screenshots-fleet-seed screenshots-cfg-seed screenshots-facts-seed screenshots-facts-capture screenshots-advisor-seed screenshots-advisor-capture screenshots-discovery-seed screenshots-discovery-capture screenshots-malware-seed screenshots-malware-capture screenshots-hardware-capture
+.PHONY: screenshots screenshots-community screenshots-assettag-seed screenshots-timesync-seed screenshots-hardware-seed screenshots-enterprise screenshots-seed screenshots-capture screenshots-vm-up screenshots-vm-down screenshots-pro-build screenshots-pro-seed screenshots-pro-capture screenshots-ent-build screenshots-ent-seed screenshots-ent-capture screenshots-ent-roles screenshots-fleet-seed screenshots-cfg-seed screenshots-facts-seed screenshots-facts-capture screenshots-advisor-seed screenshots-advisor-capture screenshots-discovery-seed screenshots-discovery-capture screenshots-malware-seed screenshots-malware-capture screenshots-hardware-capture screenshots-backups-seed screenshots-backups-capture screenshots-backups-alt screenshots-backups-pro-seed screenshots-backups-pro-capture
 
 SHOTS_DIR := screenshots
 # Load screenshots/config.env (targets, admin + demo creds) if present.
@@ -454,6 +457,7 @@ screenshots:
 	@$(MAKE) screenshots-hardware-seed
 	@$(MAKE) screenshots-backups-seed
 	@$(MAKE) screenshots-capture
+	@$(MAKE) screenshots-backups-alt
 	@echo "$(BLUE)--- [2/3] Professional ---$(RESET)"
 	@$(MAKE) screenshots-pro-build
 	@$(MAKE) screenshots-seed
@@ -462,6 +466,7 @@ screenshots:
 	@$(MAKE) screenshots-hardware-seed
 	@$(MAKE) screenshots-backups-seed
 	@$(MAKE) screenshots-pro-seed
+	@$(MAKE) screenshots-backups-pro-seed
 	@$(MAKE) screenshots-facts-seed
 	@$(MAKE) screenshots-pro-capture
 	@echo "$(BLUE)--- [3/3] Enterprise ---$(RESET)"
@@ -472,6 +477,7 @@ screenshots:
 	@$(MAKE) screenshots-hardware-seed
 	@$(MAKE) screenshots-backups-seed
 	@$(MAKE) screenshots-pro-seed
+	@$(MAKE) screenshots-backups-pro-seed
 	@$(MAKE) screenshots-ent-seed
 	@$(MAKE) screenshots-cfg-seed
 	@$(MAKE) screenshots-facts-seed
@@ -506,6 +512,7 @@ screenshots-enterprise:
 	@$(MAKE) screenshots-hardware-seed
 	@$(MAKE) screenshots-backups-seed
 	@$(MAKE) screenshots-pro-seed
+	@$(MAKE) screenshots-backups-pro-seed
 	@$(MAKE) screenshots-ent-seed
 	@$(MAKE) screenshots-cfg-seed
 	@$(MAKE) screenshots-fleet-seed
@@ -534,6 +541,7 @@ screenshots-community:
 	@$(MAKE) screenshots-hardware-seed
 	@$(MAKE) screenshots-backups-seed
 	@$(MAKE) screenshots-capture
+	@$(MAKE) screenshots-backups-alt
 	@echo "$(GREEN)✓ Community Edition screenshots refreshed in assets/images/$(RESET)"
 	@if [ "$(FRESH)" = "1" ]; then \
 		echo "$(YELLOW)FRESH=1: tearing down the VM...$(RESET)"; \
@@ -750,14 +758,42 @@ screenshots-hardware-seed:
 # UFS (the "cannot seal" caution), a backed-up host with path rules, one
 # backing up now, one whose last attempt failed, and hosts that cannot run
 # restate -- plus a helper that answers the demo host's restore previews
-# through the real result ingestion.  OSS data, so it runs in every pass.
-# Run after screenshots-seed.
+# through the real result ingestion -- and iCloud backup enabled with an
+# account in each state (seed_cloud_backup.py).  OSS data, so it runs in
+# every pass.  Run after screenshots-seed.  SEED_BACKUPS_ALT=1 seeds the
+# alternate state instead (see screenshots-backups-alt).
+SEED_BACKUPS_ALT ?=
 screenshots-backups-seed:
 	@cd $(SHOTS_DIR) && VMIP=$$(vagrant ssh -c 'hostname -I' 2>/dev/null | awk '{print $$1}' | tr -d '\r'); \
 		[ -n "$$VMIP" ] || { echo "$(RED)Screenshot VM not running. Run 'make screenshots' first.$(RESET)"; exit 1; }; \
-		echo "$(BLUE)Seeding fleet backups (in-VM ORM)...$(RESET)"; \
-		cat seed_backups.py | vagrant ssh -c "cd /opt/sysmanage && sudo env PYTHONPATH=/opt/sysmanage /opt/sysmanage/.venv/bin/python - 2>&1" 2>/dev/null \
-			| sed 's/^/  /' || echo "$(YELLOW)backups seed failed (is the VM up and OSS-seeded?)$(RESET)"
+		echo "$(BLUE)Seeding fleet backups + iCloud backup (in-VM ORM)$(if $(SEED_BACKUPS_ALT), -- ALTERNATE state,)...$(RESET)"; \
+		for seeder in seed_backups.py seed_cloud_backup.py; do \
+			cat $$seeder | vagrant ssh -c "cd /opt/sysmanage && sudo env PYTHONPATH=/opt/sysmanage SEED_BACKUPS_ALT=$(SEED_BACKUPS_ALT) /opt/sysmanage/.venv/bin/python - 2>&1" 2>/dev/null \
+				| sed 's/^/  /' || echo "$(YELLOW)$$seeder failed (is the VM up and OSS-seeded?)$(RESET)"; \
+		done
+
+# The Community Backups page in a state the main seed cannot show alongside
+# everything else: a Professional+ license that lapsed while rhel-db-01 and
+# debian-app-01 were encrypted (the break-glass key export card), and iCloud
+# backup not enabled yet (the Enable iCloud backup button).  Seeds it,
+# captures the shots marked "alt" in shotlist.json, and seeds the normal
+# state back.  OSS VM, after screenshots-seed.
+screenshots-backups-alt:
+	@$(MAKE) screenshots-backups-seed SEED_BACKUPS_ALT=1
+	@$(MAKE) screenshots-capture SCREENSHOT_ALT=1
+	@$(MAKE) screenshots-backups-seed SEED_BACKUPS_ALT=
+
+# The Professional+ backup features (24.6 / 24.7): encryption with a rotated
+# key, the break-glass escrow (a saved key, an export that is now stale),
+# snapshot signing, grandfather-father-son retention, scheduled verification,
+# the drift timeline and tag policies.  Pro and Enterprise passes, after
+# screenshots-backups-seed (it builds on that seed's policies and snapshots).
+screenshots-backups-pro-seed:
+	@cd $(SHOTS_DIR) && VMIP=$$(vagrant ssh -c 'hostname -I' 2>/dev/null | awk '{print $$1}' | tr -d '\r'); \
+		[ -n "$$VMIP" ] || { echo "$(RED)Screenshot VM not running. Run 'make screenshots-pro-build' first.$(RESET)"; exit 1; }; \
+		echo "$(BLUE)Seeding Professional+ backups (in-VM ORM)...$(RESET)"; \
+		cat seed_backups_pro.py | vagrant ssh -c "cd /opt/sysmanage && sudo env PYTHONPATH=/opt/sysmanage /opt/sysmanage/.venv/bin/python - 2>&1" 2>/dev/null \
+			| sed 's/^/  /' || echo "$(YELLOW)Pro+ backups seed failed (is the Pro VM up and backups-seeded?)$(RESET)"
 
 screenshots-facts-seed:
 	@cd $(SHOTS_DIR) && VMIP=$$(vagrant ssh -c 'hostname -I' 2>/dev/null | awk '{print $$1}' | tr -d '\r'); \
@@ -858,10 +894,17 @@ screenshots-hardware-capture:
 
 # Re-capture ONLY the fleet backup shots (Phase 24), against an OSS VM that is
 # up and seeded (screenshots-vm-up, screenshots-seed, screenshots-backups-seed).
-# The restore-preview shot needs the seed's helper, which runs for two hours.
+# The restore-preview shots need the seed's helper, which runs for two hours.
+# The lapsed-license and Enable iCloud backup shots: screenshots-backups-alt.
 screenshots-backups-capture:
 	@$(MAKE) screenshots-capture \
-		SCREENSHOT_ONLY=backups-hosts,backups-target,backups-policy,backups-restore
+		SCREENSHOT_ONLY=backups-hosts,backups-target,backups-policy,backups-restore,backups-restore-in-place,backups-cloud,backups-cloud-code
+
+# Re-capture ONLY the Professional+ backup shots, against a Pro VM seeded
+# through screenshots-backups-pro-seed.
+screenshots-backups-pro-capture:
+	@$(MAKE) screenshots-pro-capture \
+		SCREENSHOT_ONLY=pro-backups-escrow-banner,pro-backups-encryption,pro-backups-signing,pro-backups-card,pro-backups-card-tag,pro-backups-use-tag,pro-backups-tag-policies,pro-backups-retention,pro-backups-drift,pro-backups-package-restore
 
 # Re-capture ONLY the Malware Detection shots (21.3), against an Enterprise VM
 # that is built and seeded (through screenshots-malware-seed).
@@ -1146,7 +1189,7 @@ lint-file-length:
 # .js seeders (real-screenshot.js etc.) are covered by eslint below, not here.
 LINT_PY := add_test_user.py scripts/ screenshots/seed.py screenshots/seed_pro.py \
 	screenshots/seed_ent.py screenshots/seed_ent_config.py \
-	screenshots/seed_fleet.py screenshots/seed_assettags.py screenshots/seed_timesync.py screenshots/seed_hardware.py screenshots/seed_backups.py screenshots/seed_advisor.py screenshots/seed_discovery.py screenshots/seed_malware.py screenshots/set_roles.py \
+	screenshots/seed_fleet.py screenshots/seed_assettags.py screenshots/seed_timesync.py screenshots/seed_hardware.py screenshots/seed_backups.py screenshots/seed_cloud_backup.py screenshots/seed_backups_pro.py screenshots/seed_advisor.py screenshots/seed_discovery.py screenshots/seed_malware.py screenshots/set_roles.py \
 	screenshots/pro_keygen.py screenshots/fixture_agent.py screenshots/gen_seed_sql.py \
 	assets/locales/
 

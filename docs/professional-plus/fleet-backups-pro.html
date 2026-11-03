@@ -28,6 +28,10 @@
                     <p data-i18n="docs.proplus.backups.encrypt.body" data-i18n-html>In a host's <strong>Backup</strong> tab, the <strong>Encryption</strong> panel has <strong>Encrypt this host's backups</strong>. SysManage makes an OpenPGP key pair for the host, keeps the secret key in OpenBAO and gives the host only the public key, so a host that is broken into cannot read its own backups. restate cannot encrypt an existing repository, so the next backup starts a new, encrypted repository; the backups taken so far stay where they are and can still be restored.</p>
                     <p data-i18n="docs.proplus.backups.encrypt.restore" data-i18n-html>To restore, browse or see what changed in an encrypted repository, the host's agent fetches the keys over HTTPS for that one job, keeps them only in memory-backed storage readable by root, and deletes them when the job ends. The keys never travel through the command queue or the database. The host needs a restate that can take a key for one job (<code>decrypt_with</code>); until it has one, SysManage says so instead of restoring.</p>
                     <p data-i18n="docs.proplus.backups.encrypt.rsa" data-i18n-html>Keys are RSA-3072. libgcrypt 1.12.0, which Ubuntu 26.04 ships, cannot reliably use an imported Curve25519 secret key (GnuPG bug T8094, fixed in 1.12.1), and restores depend on exactly that.</p>
+                    <figure class="docs-screenshot">
+                        <img src="/assets/images/backups-encryption.png" alt="Encryption panel on a host Backup tab">
+                        <figcaption data-i18n="docs.proplus.backups.encrypt.fig">The Encryption panel on a host's Backup tab: the key, the earlier plain repository, the next rotation and the keys kept for restores, the break-glass escrow status with the guide to making a key, and snapshot signing.</figcaption>
+                    </figure>
                 </section>
 
                 <section>
@@ -41,6 +45,10 @@
                     <p data-i18n="docs.proplus.backups.signing.body" data-i18n-html>With <strong>Sign every snapshot</strong> in the Encryption panel, SysManage makes one signing key for the backup target and keeps it in OpenBAO. The storage host signs each new snapshot right after it is taken, before it is protected, with the key released to it for that one job. No backed-up host ever holds the key, so a host cannot vouch for a snapshot it altered. Signing is turned on once and stays on; it needs the <strong>Manage Backups</strong> role, and turning it on is audited.</p>
                     <p data-i18n="docs.proplus.backups.signing.restore" data-i18n-html>Every backed-up host gets the signer's public key, and restate checks every restore against it. A signed snapshot restores with no extra step; a snapshot whose signature is wrong, or made with another key, is refused. Snapshots taken before signing was turned on stay unsigned, and restoring one still asks you to confirm that it is not signed. The snapshot list in <strong>Restore files</strong> shows which snapshots are signed, and the backup target card shows the signing key.</p>
                     <p data-i18n="docs.proplus.backups.signing.needs">Signing needs restate 2.2.0.16 or later on the storage host and GnuPG on the SysManage server. If the storage host cannot sign, or a signing job fails, the snapshot is still protected, sealed and pruned as usual and stays unsigned.</p>
+                    <figure class="docs-screenshot">
+                        <img src="/assets/images/backups-signing.png" alt="Snapshot signing in the Encryption panel">
+                        <figcaption data-i18n="docs.proplus.backups.signing.fig">Snapshot signing is on for every host, with its signing key. This host's own backups are not encrypted.</figcaption>
+                    </figure>
                 </section>
 
                 <section>
@@ -60,6 +68,10 @@
                         <li data-i18n="docs.proplus.backups.breakglass.proc_rehearse" data-i18n-html><strong>Rehearse it.</strong> At least once a year and after changing the escrow key: export, then restore one file from an encrypted repository using only the export and restate, with SysManage left out. A drill on 2026-11-02 restored a file from snapshots written under an old and a new key, and found two errors in the instructions, since fixed.</li>
                     </ol>
                     <p data-i18n="docs.proplus.backups.breakglass.escrow_status" data-i18n-html><strong>Escrow status.</strong> The Encryption panel shows when the last break-glass export was made, by whom, the key it was sealed to and how many encrypted hosts it covers. When an encrypted host, a key rotation or snapshot signing comes after it, the Backups page shows a warning with a link to the export, the dashboard's backups card says the export is out of date, and the advisor's PM-BACKUP-KEY-ESCROW check fails. Right after you turn encryption on, rotate a key or turn signing on, the panel offers to export at once; after a scheduled rotation, users with <strong>Manage Backups</strong> get an email when email is configured.</p>
+                    <figure class="docs-screenshot">
+                        <img src="/assets/images/backups-escrow-banner.png" alt="Backups page warning about a stale break-glass export">
+                        <figcaption data-i18n="docs.proplus.backups.breakglass.fig_banner">The Backups page warns when the last break-glass export is missing a key: here a host was encrypted after it.</figcaption>
+                    </figure>
                     <p data-i18n="docs.proplus.backups.breakglass.escrow_key" data-i18n-html><strong>A remembered escrow key.</strong> An export can remember the public key you paste, and later exports start from it. Only the public half is stored, and a pasted private key is refused. <strong>Replace the escrow key</strong> changes it.</p>
                     <h3 data-i18n="docs.proplus.backups.breakglass.keyhelp_title">Making an escrow key</h3>
                     <p data-i18n="docs.proplus.backups.breakglass.keyhelp_intro">Make the key on your own machine or a hardware token, never on a SysManage server or a backed-up host. Use RSA 3072: libgcrypt 1.12.0 cannot decrypt with cv25519 keys (GnuPG T8094).</p>
@@ -74,12 +86,20 @@
                     <p data-i18n="docs.proplus.backups.gfs.preview" data-i18n-html><strong>Preview the next prune</strong> shows how many snapshots the next prune would keep and which it would remove, choosing exactly as restate does, before anything is deleted. Changing these settings needs Professional+, but once set they are always honored: a lapsed license never makes a prune delete history you chose to keep. Yearly retention comes with a restate that has <code>--keep-yearly</code>.</p>
                     <p data-i18n="docs.proplus.backups.gfs.yearly" data-i18n-html><strong>Years to keep</strong> is always shown beside them, as restate's <code>--keep-yearly</code> (restate 2.2.0.12 or later on the storage host). A yearly count is refused, with the reason, only when the storage host has reported that its restate cannot keep yearly snapshots, so a prune never runs without a rule you set; a policy that already keeps years always keeps them.</p>
                     <p data-i18n="docs.proplus.backups.gfs.defaults" data-i18n-html>A new policy, from its dialog or from <strong>Set up backups for selected</strong>, starts with the newest 7 snapshots plus the newest of each of the last 14 days, 8 weeks, 12 months and 3 years. restate stores only what changed, so the extra snapshots cost little.</p>
+                    <figure class="docs-screenshot">
+                        <img src="/assets/images/backups-retention-preview.png" alt="Backup policy dialog with the next prune preview">
+                        <figcaption data-i18n="docs.proplus.backups.gfs.fig">Preview the next prune: how many snapshots the next prune would keep, and the first it would remove.</figcaption>
+                    </figure>
                 </section>
 
                 <section>
                     <h2 data-i18n="docs.proplus.backups.verify.title" data-i18n-html>Scheduled verification</h2>
                     <p data-i18n="docs.proplus.backups.verify.body" data-i18n-html><strong>Read the whole repository back every (days)</strong> in a host's backup policy runs restate's <code>check --read-all</code> on that cadence: a test restore that writes nothing. It runs on the backed-up host, which receives the policy's keys for that one job when the repository is encrypted, so the storage host still never holds a key. It never starts while a capture of the host is queued or running, it waits for the host's maintenance window like a capture, a failed pass is retried a day later, and one refused because the storage host was pruning or checking the repository is retried after 30 minutes.</p>
                     <p data-i18n="docs.proplus.backups.verify.cost" data-i18n-html>Each pass reads every pack of the repository through the host's mount, so it costs the repository's full size in network traffic: choose weeks rather than days (30 is a good start; 0 turns it off). The host's Backup card shows the last passed verification, and the Backups page marks a host whose last pass failed or that has not passed one within its cadence. Setting the cadence needs Professional+; without the engine nothing new is scheduled, and an old pass ages into "not verified".</p>
+                    <figure class="docs-screenshot">
+                        <img src="/assets/images/backups-host-card.png" alt="Host backup card with verification status">
+                        <figcaption data-i18n="docs.proplus.backups.verify.fig">A host's Backup card with its last passed full-read verification. The host has its own policy while a tag policy also covers it, so the card offers Use the tag policy.</figcaption>
+                    </figure>
                 </section>
 
                 <section>
@@ -94,6 +114,10 @@
                     <p data-i18n="docs.proplus.backups.reporting.sla" data-i18n-html>The <strong>Backup SLA</strong> report (Reports, with the reporting engine) lists every backed-up host: its backup interval, last good backup, whether its recovery point objective is met now (the RPO is twice the backup interval, the same line at which a host is called overdue), on how many of the last 30 days it was met, its failed backups in that time, its last full-read verification and its repository size.</p>
                     <p data-i18n="docs.proplus.backups.reporting.compliance" data-i18n-html>With the compliance engine, the rule <code>SYSMANAGE-BACKUP-1</code> (benchmark SYSMANAGE, scanned with ALL) passes when the host's backups passed a full-read verification within 30 days. A host without a backup policy is not applicable, so hosts you do not back up do not lower their score.</p>
                     <p data-i18n="docs.proplus.backups.reporting.advisor" data-i18n-html>With the advisor engine, the <strong>Posture</strong> punch list carries four backup checks: every host restate can back up has a policy, no host's backups failed or fell behind, every host passed a full-read verification in the last 30 days, and every encrypted host's keys were exported for break-glass after its newest key was made. Each counts hosts as passing, failing or not yet known, and its fix opens the Backups page.</p>
+                    <figure class="docs-screenshot">
+                        <img src="/assets/images/advisor-posture-backups.png" alt="Advisor posture punch list with backup checks">
+                        <figcaption data-i18n="docs.proplus.backups.reporting.fig_posture">The advisor's Posture punch list with the four backup checks.</figcaption>
+                    </figure>
                     <p data-i18n="docs.proplus.backups.reporting.forecast" data-i18n-html>The target card forecasts how fast the backup storage is filling: the bytes the last 30 days of captures added, less what that period's prunes freed, per day, and the days until the storage path's filesystem reaches its warning and critical marks (85% and 95% unless the target sets its own).</p>
                 </section>
 
@@ -101,20 +125,40 @@
                     <h2 data-i18n="docs.proplus.backups.packages.title">Package-level restore</h2>
                     <p data-i18n="docs.proplus.backups.packages.body" data-i18n-html>A restore can put the snapshot's packages back before its files: its repositories and their keys, each apt package at the version recorded, what was installed by hand and what as a dependency, and its snaps and flatpaks. Then apt <strong>removes the packages the snapshot did not have</strong>, so the host's packages match the snapshot. In the <strong>Restore files</strong> dialog, tick <strong>Put the snapshot's packages back first</strong>; it restores into place, because the packages go onto the host itself.</p>
                     <p data-i18n="docs.proplus.backups.packages.plan" data-i18n-html>Preview first. The preview is planned from the snapshot's index in seconds and shows what will happen: the apt packages and their versions, the snaps, how many repository keys, and a warning that unlisted packages are removed, with the whole generated script one click away. The real restore needs its own confirmation, and both are audited. Anything installed since the backup can be removed, the SysManage agent included if it was installed later, so on a running host name the paths to put back and read the preview; the natural use is a fresh machine being rebuilt into an old one.</p>
+                    <figure class="docs-screenshot">
+                        <img src="/assets/images/backups-package-restore.png" alt="Restore files dialog previewing a package restore">
+                        <figcaption data-i18n="docs.proplus.backups.packages.fig">Previewing a package restore: the apt packages at their versions, the snaps, and the warning that packages the snapshot did not have are removed.</figcaption>
+                    </figure>
                     <p data-i18n="docs.proplus.backups.packages.needs">Package-level restore needs the Professional+ backup engine and a restate on the host that takes packages in a restore job (2.2.0.16 or later).</p>
                 </section>
                 <section>
                     <h2 data-i18n="docs.proplus.backups.drift.title">Drift timeline</h2>
                     <p data-i18n="docs.proplus.backups.drift.body" data-i18n-html>After every good backup the host compares the new snapshot with the one before it, by package: which packages were installed, removed or upgraded, and the file changes no package accounts for, such as an edited configuration file. The host's <strong>Backup</strong> tab shows these comparisons newest first as the <strong>Drift timeline</strong>. An encrypted repository's keys are released for each comparison only, as for a restore.</p>
                     <p data-i18n="docs.proplus.backups.drift.filters" data-i18n-html>Expected churn is hidden and counted: logs, caches, temporary files, package lists and SysManage's own job files and agent state, plus the host's own patterns under <strong>Also hide on this host</strong>, written like the backup's leave-out patterns. <strong>Show everything</strong> brings them back. A pair of backups that was never compared can be compared from the timeline.</p>
+                    <figure class="docs-screenshot">
+                        <img src="/assets/images/backups-drift-timeline.png" alt="Drift timeline on a host Backup tab">
+                        <figcaption data-i18n="docs.proplus.backups.drift.fig">The drift timeline: for each backup, the packages installed or upgraded and the file changes no package accounts for. Logs and caches are hidden as expected churn.</figcaption>
+                    </figure>
                     <p data-i18n="docs.proplus.backups.drift.links" data-i18n-html><strong>What changed between backups</strong> opens the timeline from a host's configuration-drift differences and from its <strong>Software Changes</strong> tab, so a drifted file or an unexpected package can be traced to the backup it first appeared in.</p>
                     <p data-i18n="docs.proplus.backups.drift.needs">The drift timeline needs the Professional+ backup engine and a restate on the host that runs diff as a job (2.2.0.16 or later).</p>
                 </section>
                 <section>
                     <h2 id="tag-policies" data-i18n="docs.proplus.backups.tagpolicies.title">Backup policies by tag</h2>
                     <p data-i18n="docs.proplus.backups.tagpolicies.body" data-i18n-html>A tag policy gives every host carrying a tag the same backup settings: schedule and start hour, retention (including days, weeks, months and years), the services to pause, the paths to leave out or also back up, and the full-read check cadence. Add one under <strong>Policies by tag</strong> on the Backups page: name it, pick the tag, set a priority, and set the settings. Tag a new host and it gets them on the scheduler's next pass, or at once with <strong>Apply now</strong>; remove the tag and the policy that tag gave it is removed (its repository and snapshots are left alone).</p>
+                    <figure class="docs-screenshot">
+                        <img src="/assets/images/backups-tag-policies.png" alt="Policies by tag on the Backups page">
+                        <figcaption data-i18n="docs.proplus.backups.tagpolicies.fig_list">Policies by tag on the Backups page: each tag policy's tag, its priority and how many tagged hosts follow it.</figcaption>
+                    </figure>
                     <p data-i18n="docs.proplus.backups.tagpolicies.priority" data-i18n-html>Where several tag policies cover one host, the <strong>lowest priority number wins</strong>. A host's own policy, saved with <strong>Configure</strong>, always beats every tag policy; the host's Backup card says which applies ("From tag policy Servers nightly (priority 10)" or "This host's own policy"). Switching a tag policy off pauses it: its hosts keep what it last gave them.</p>
+                    <figure class="docs-screenshot">
+                        <img src="/assets/images/backups-host-card-tag.png" alt="Host backup card following a tag policy">
+                        <figcaption data-i18n="docs.proplus.backups.tagpolicies.fig_card">A host that follows a tag policy: its Backup card names the tag policy and its priority.</figcaption>
+                    </figure>
                     <p data-i18n="docs.proplus.backups.tagpolicies.usetag" data-i18n-html><strong>Use the tag policy</strong>, on the Backup card of a host that has its own policy while a tag policy covers it, hands it back to that tag policy without removing its policy: its repository, encryption keys, snapshots and history stay, and only the settings a tag policy controls change. A confirmation names the tag policy and priority that will apply and lists each setting it replaces. Saving with <strong>Configure</strong> makes it the host's own again.</p>
+                    <figure class="docs-screenshot">
+                        <img src="/assets/images/backups-use-tag-policy.png" alt="Use the tag policy confirmation">
+                        <figcaption data-i18n="docs.proplus.backups.tagpolicies.fig_usetag">Use the tag policy: the tag policy and priority that will apply, and each of the host's own settings it replaces.</figcaption>
+                    </figure>
                     <p data-i18n="docs.proplus.backups.tagpolicies.audit">Creating, changing and removing a tag policy, and each host it sets or removes, are audited. Tag policies need the Professional+ backup engine; without it the policies they set keep running, but nothing new is applied.</p>
 
                     <h2 data-i18n="docs.proplus.backups.requirements.title" data-i18n-html>Requirements</h2>

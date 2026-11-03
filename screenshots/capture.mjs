@@ -46,8 +46,16 @@ const TRACE = /^(1|true|yes)$/i.test(process.env.SCREENSHOT_TRACE || '');
 // server-role flip + restart between passes). Matches by the shot's `name`,
 // still within the selected tier.
 const ONLY = (process.env.SCREENSHOT_ONLY || '').split(',').map(s => s.trim()).filter(Boolean);
+// SCREENSHOT_ALT=1 captures ONLY the shots marked `"alt": true`, and a normal
+// run skips them.  They document a state the main seed cannot show at the same
+// time as everything else -- the Backups page after a lapsed Professional+
+// license (encrypted backups, no engine) and before iCloud backup is enabled --
+// so `make screenshots-backups-alt` re-seeds that state, captures them, and
+// seeds the normal state back.
+const ALT = /^(1|true|yes)$/i.test(process.env.SCREENSHOT_ALT || '');
 const inTier = (s) =>
-  (s.tier || 'oss').toLowerCase() === TIER && (ONLY.length === 0 || ONLY.includes(s.name));
+  (s.tier || 'oss').toLowerCase() === TIER && Boolean(s.alt) === ALT
+  && (ONLY.length === 0 || ONLY.includes(s.name));
 
 const shotlist = JSON.parse(readFileSync(join(__dir, 'shotlist.json'), 'utf8'));
 
@@ -369,14 +377,27 @@ async function gotoWithRetry(page, url, opts, attempts = 3) {
 // what makes a documentation screenshot legible.
 //
 // `scrollTo` is a visible-text string; the element containing it is centered.
+// With `scrollAlign: "start"` it goes to the top instead, just below the app
+// bar -- for a section heading that is already visible at the bottom of the
+// viewport, where "if needed" would not scroll at all (backups-cloud).
 // A miss is a SKIP with a clear reason, never a silently wrong image: a shot
 // that captures the top of the page while claiming to show a card further down
 // is worse than no shot at all.
+// The fixed app bar's height plus a margin, so a top-aligned target is not
+// hidden underneath it.
+const APP_BAR_PX = 140;
+
 async function scrollIntoView(page, shot) {
   if (!shot.scrollTo) return true;
   const target = page.getByText(shot.scrollTo, { exact: false }).first();
   try {
     await target.scrollIntoViewIfNeeded({ timeout: 8000 });
+    if (shot.scrollAlign === 'start') {
+      await target.evaluate((el, offset) => {
+        el.scrollIntoView({ block: 'start' });
+        el.ownerDocument.defaultView.scrollBy(0, -offset);
+      }, APP_BAR_PX);
+    }
     await page.waitForTimeout(600);
     return true;
   } catch {
@@ -483,6 +504,53 @@ async function captureRoute(page, shot, vp) {
 // tab from the URL hash, so `#<tabHash>` lands directly on a tab -- far more robust
 // than clicking a role-gated row icon or a scrollable MUI tab. Requires logging in
 // as a user that can view host details (the admin has the VIEW_HOST_DETAILS role).
+// The steps after a dialog is open, shared by click and detail shots: type
+// into fields by label, tick checkboxes (or radios) by label, press one more
+// button, and wait for what it produces.  Returns the steps for the log, or
+// null when the awaited text never arrived (the shot is skipped).
+async function interact(page, shot) {
+  let steps = '';
+  // Type into fields of the dialog just opened, by their label.
+  for (const field of shot.fill || []) {
+    await page.getByLabel(field.label, { exact: false }).first().fill(field.value, { timeout: 15000 });
+    steps += ` » ${field.label}="${field.value}"`;
+  }
+  // Tick checkboxes by their label (an acknowledgment, say).
+  for (const label of shot.check || []) {
+    await clickWithRetry(
+      page,
+      () => page.getByLabel(label, { exact: false }).first(),
+      `check "${label}"`,
+    );
+    steps += ` » [x] ${label}`;
+  }
+  if (shot.thenClickButton) {
+    await clickWithRetry(
+      page,
+      () =>
+        page.getByRole('button', { name: shot.thenClickButton, exact: false }).first(),
+      `thenClickButton "${shot.thenClickButton}"`,
+    );
+    steps += ` » "${shot.thenClickButton}"`;
+  }
+  // Wait for what the last click produces (a restore preview's plan, which
+  // arrives by polling) before shooting; skip the shot rather than save one
+  // that shows a spinner.
+  if (shot.waitForText) {
+    try {
+      await page.getByText(shot.waitForText, { exact: false }).first().waitFor({ timeout: 45000 });
+    } catch {
+      console.log(
+        `  ${YELLOW}⊘ ${shot.out}: "${shot.waitForText}" never appeared` +
+        ` -- the data behind it did not arrive (for the backup restore preview,` +
+        ` re-run make screenshots-backups-seed: its helper answers for two hours). Skipping.${RESET}`
+      );
+      return null;
+    }
+  }
+  return steps;
+}
+
 async function captureDetail(page, shot, vp) {
   await page.setViewportSize(shot.viewport || vp);
   const id = hostIds[shot.rowText];
@@ -512,6 +580,12 @@ async function captureDetail(page, shot, vp) {
   if (shot.selectOption) {
     await selectMuiOption(page, shot.selectOption.label, shot.selectOption.option);
     await page.waitForTimeout(settleFor(shot));
+  }
+  // A dialog opened on a detail tab (Restore files on the Backup tab) may need
+  // the same steps as a click shot's dialog before it shows anything.
+  if ((await interact(page, shot)) === null) return 'skipped';
+  if (shot.fill || shot.check || shot.thenClickButton || shot.waitForText) {
+    await page.waitForTimeout(shot.clickSettleMs || settleFor(shot));
   }
   if (!(await scrollIntoView(page, shot))) return 'skipped';
   const out = join(OUT_DIR, shot.out);
@@ -611,19 +685,30 @@ async function captureClick(page, shot, vp) {
   }
   // A button in one table row, found by text in that row -- the Backups
   // hosts table is a plain MUI table (not a DataGrid), and every row has the
-  // same "Configure" / "Restore files" buttons.
+  // same buttons.  With `menu: true` the action lives in the row's "More"
+  // menu (the Backups rows show one primary button and the rest there), so
+  // the menu is opened first and the item picked from it.
   if (shot.clickInRow) {
-    const { rowText, button } = shot.clickInRow;
-    await clickWithRetry(
-      page,
-      () =>
-        page
-          .getByRole('row')
-          .filter({ hasText: rowText })
-          .getByRole('button', { name: button, exact: false })
-          .first(),
-      `clickInRow "${button}" on "${rowText}"`,
-    );
+    const { rowText, button, menu } = shot.clickInRow;
+    const row = () => page.getByRole('row').filter({ hasText: rowText });
+    if (menu) {
+      await clickWithRetry(
+        page,
+        () => row().getByRole('button', { name: 'More', exact: false }).first(),
+        `clickInRow "More" on "${rowText}"`,
+      );
+      await clickWithRetry(
+        page,
+        () => page.getByRole('menuitem', { name: button, exact: false }).first(),
+        `menu item "${button}" on "${rowText}"`,
+      );
+    } else {
+      await clickWithRetry(
+        page,
+        () => row().getByRole('button', { name: button, exact: false }).first(),
+        `clickInRow "${button}" on "${rowText}"`,
+      );
+    }
     detail += ` » "${button}" on ${rowText}`;
   }
   if (shot.selectOption) {
@@ -633,44 +718,9 @@ async function captureClick(page, shot, vp) {
     detail += ` » ${shot.selectOption.label}="${shot.selectOption.option}"`;
     await page.waitForTimeout(500);
   }
-  // Type into fields of the dialog just opened, by their label.
-  for (const field of shot.fill || []) {
-    await page.getByLabel(field.label, { exact: false }).first().fill(field.value, { timeout: 15000 });
-    detail += ` » ${field.label}="${field.value}"`;
-  }
-  // Tick checkboxes by their label (an acknowledgment, say).
-  for (const label of shot.check || []) {
-    await clickWithRetry(
-      page,
-      () => page.getByLabel(label, { exact: false }).first(),
-      `check "${label}"`,
-    );
-    detail += ` » [x] ${label}`;
-  }
-  if (shot.thenClickButton) {
-    await clickWithRetry(
-      page,
-      () =>
-        page.getByRole('button', { name: shot.thenClickButton, exact: false }).first(),
-      `thenClickButton "${shot.thenClickButton}"`,
-    );
-    detail += ` » "${shot.thenClickButton}"`;
-  }
-  // Wait for what the last click produces (a restore preview's plan, which
-  // arrives by polling) before shooting; skip the shot rather than save one
-  // that shows a spinner.
-  if (shot.waitForText) {
-    try {
-      await page.getByText(shot.waitForText, { exact: false }).first().waitFor({ timeout: 45000 });
-    } catch {
-      console.log(
-        `  ${YELLOW}⊘ ${shot.out}: "${shot.waitForText}" never appeared` +
-        ` -- the data behind it did not arrive (for the backup restore preview,` +
-        ` re-run make screenshots-backups-seed: its helper answers for two hours). Skipping.${RESET}`
-      );
-      return 'skipped';
-    }
-  }
+  const steps = await interact(page, shot);
+  if (steps === null) return 'skipped';
+  detail += steps;
   // Let the dialog animate in / the sub-view load its data (samples, assignments).
   await page.waitForTimeout(shot.clickSettleMs || settleFor(shot) + 1500);
   if (!(await scrollIntoView(page, shot))) return 'skipped';

@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>iCloud Photos Backup - Administration - SysManage</title>
+    <meta name="description" data-i18n="docs.admin.cloud_photos.meta_description" data-i18n-attr="content" content="Download your family's iCloud Photos to the SysManage backup storage: one button installs the tool on the backup storage host, each Apple ID signs in with its two-factor code, and the photos are kept beside the hosts' backups, sealed with them.">
+    <link rel="stylesheet" href="/assets/css/style.css">
+    <link rel="icon" type="image/svg+xml" href="/assets/images/favicon.svg">
+</head>
+<body data-auto-header="documentation" data-auto-footer>
+    <main class="docs-main">
+        <div class="container">
+            <div class="docs-breadcrumb"><a href="../" data-i18n="docs.admin.cloud_photos.crumb_docs">Documentation</a> &gt; <a href="./" data-i18n="docs.admin.cloud_photos.crumb_admin">Administration</a> &gt; <a href="fleet-backups.html" data-i18n="docs.admin.cloud_photos.crumb_backups">Fleet Backups</a> &gt; <span data-i18n="docs.admin.cloud_photos.crumb_page">iCloud Photos</span></div>
+            <div class="docs-header">
+                <h1 data-i18n="docs.admin.cloud_photos.title">Backing Up iCloud Photos</h1>
+                <p data-i18n="docs.admin.cloud_photos.intro" data-i18n-html>SysManage can keep a copy of the photos and videos in one or more iCloud libraries on your own backup storage. The work runs on your <strong>backup storage host</strong> only -- the machine that already holds the fleet's backups -- never on a backed-up host. It uses <a href="https://github.com/icloud-photos-downloader/icloud_photos_downloader">icloudpd</a>, an open-source downloader, at a version SysManage pins and checks.</p>
+            </div>
+            <div class="docs-content">
+                <section class="docs-section">
+                    <h2 data-i18n="docs.admin.cloud_photos.h_before">Before you start</h2>
+                    <ul>
+                        <li data-i18n="docs.admin.cloud_photos.need_target" data-i18n-html><strong>A backup target with a storage host.</strong> See <a href="fleet-backup-storage.html">Setting up the storage host</a>. The storage host must run Linux (x86_64 or aarch64), FreeBSD, OpenBSD or NetBSD; on the BSDs it also needs Python 3.10 to 3.13 (for example <code>pkg install python311</code>).</li>
+                        <li data-i18n="docs.admin.cloud_photos.need_2fa" data-i18n-html><strong>Two-factor authentication on each Apple ID.</strong> Apple's older two-step verification is not supported.</li>
+                        <li data-i18n="docs.admin.cloud_photos.need_web" data-i18n-html><strong>Web access to iCloud data.</strong> If the Apple ID uses Advanced Data Protection, turn on <em>Access iCloud Data on the Web</em> on the iPhone (Settings, your name, iCloud). Without it Apple refuses every download, and SysManage says so.</li>
+                        <li data-i18n="docs.admin.cloud_photos.need_role" data-i18n-html><strong>The Manage Cloud Backups role</strong> for whoever sets it up and signs in. Administrators have it.</li>
+                    </ul>
+
+                    <h2 data-i18n="docs.admin.cloud_photos.h_enable">1. Enable iCloud backup</h2>
+                    <p data-i18n="docs.admin.cloud_photos.enable_p1" data-i18n-html>Open <strong>Backups</strong> and find <strong>Cloud backup</strong>. It names your storage host. Press <strong>Enable iCloud backup</strong>. In one step the storage host's agent downloads the pinned icloudpd and checks its SHA-256 before keeping it (on Linux the release's own program; on the BSDs a private Python environment built from the release's checked package), makes the <code>cloud-photos</code> place under the storage path (a ZFS dataset when the storage path is one, so the target's seal covers it), and makes a private directory for the sign-in sessions. If something fails, the panel says why and shows the tool's output.</p>
+                    <p data-i18n="docs.admin.cloud_photos.enable_p2" data-i18n-html>Press it again at any time to repair the installation. A newer SysManage agent may pin a newer icloudpd; it is only installed when you press the button again.</p>
+                    <figure class="docs-screenshot">
+                        <img src="/assets/images/backups-cloud-enable.png" alt="Cloud backup section before iCloud backup is enabled">
+                        <figcaption data-i18n="docs.admin.cloud_photos.fig_enable">Before iCloud backup is enabled, the Cloud backup section names the storage host it will run on.</figcaption>
+                    </figure>
+
+                    <h2 data-i18n="docs.admin.cloud_photos.h_accounts">2. Add the accounts</h2>
+                    <p data-i18n="docs.admin.cloud_photos.accounts_p1" data-i18n-html>Press <strong>Add iCloud account</strong> and enter the Apple ID, a name to show, and the password. The password goes straight to OpenBAO under your organization's own path. It is never stored in the database, never written to a log and never shown again. The storage host receives it for one job at a time, at the moment the downloader asks for it, and passes it on without putting it in a command line, an environment variable or a file. Every hand-over is in the audit log.</p>
+                    <p data-i18n="docs.admin.cloud_photos.accounts_p2" data-i18n-html>Each account has its own place under <code>cloud-photos</code>. Photos are filed by date, as originals with their Live Photo videos and XMP sidecar files, and their names are kept as Apple has them.</p>
+
+                    <h2 data-i18n="docs.admin.cloud_photos.h_signin">3. Sign in with the two-factor code</h2>
+                    <p data-i18n="docs.admin.cloud_photos.signin_p1" data-i18n-html>Press <strong>Connect</strong> on the account. Apple sends a six-digit code to the account's devices; when the account shows <strong>Waiting for the two-factor code</strong>, press <strong>Enter code</strong>, type it, and send it within 15 minutes. The code reaches the waiting job once and is then erased. Then use <strong>List libraries</strong> if the account has a shared library, and choose it in the account's settings.</p>
+                    <figure class="docs-screenshot">
+                        <img src="/assets/images/backups-cloud-code.png" alt="Two-factor code dialog">
+                        <figcaption data-i18n="docs.admin.cloud_photos.fig_code">Enter code: type the six-digit code Apple sent to the account's devices, within 15 minutes.</figcaption>
+                    </figure>
+                    <p data-i18n="docs.admin.cloud_photos.signin_p2" data-i18n-html>Apple's sign-in lasts about two months. Ten days before it ends, the account says so on the Backups page and on the dashboard's backup card, and the cloud backup managers get an e-mail when e-mail is configured. Press <strong>Connect</strong> again to renew it. If Apple refuses a sign-in, or wants a new one before then, the account shows <strong>Needs sign-in</strong> and is not run again on schedule until someone signs in. It is never shown as "no new photos".</p>
+                    <figure class="docs-screenshot">
+                        <img src="/assets/images/backups-cloud.png" alt="Cloud backup section with iCloud accounts">
+                        <figcaption data-i18n="docs.admin.cloud_photos.fig_accounts">iCloud backup enabled, with the icloudpd version and where the photos are kept, and an account in each state: up to date, running, waiting for the two-factor code, needs sign-in and failed.</figcaption>
+                    </figure>
+
+                    <h2 data-i18n="docs.admin.cloud_photos.h_schedule">4. The schedule</h2>
+                    <p data-i18n="docs.admin.cloud_photos.schedule_p1" data-i18n-html>Each account downloads every 24 hours by default, optionally inside a window that starts at a UTC hour you choose, like a backup policy. The first download takes the whole library. After that a download stops once it has seen 50 photos in a row that are already present (you can change the number), and once a week a full pass checks the whole library. Downloads share the target's limit on jobs at once with the hosts' backups. <strong>Run now</strong> starts one as soon as there is room. Each run reports how many files were downloaded, already present and failed, the bytes and how long it took.</p>
+
+                    <h2 data-i18n="docs.admin.cloud_photos.h_delete">Deleting from iCloud</h2>
+                    <p data-i18n="docs.admin.cloud_photos.delete_p1" data-i18n-html>By default nothing is ever deleted from iCloud. An account can be set to delete photos from iCloud once they are downloaded; the setting warns that the photos then leave every device signed in to that Apple ID and that the backup storage holds the only copy, and it must be confirmed. Keeping only the most recent days in iCloud is not offered.</p>
+
+                    <h2 data-i18n="docs.admin.cloud_photos.h_restore">Getting photos back</h2>
+                    <p data-i18n="docs.admin.cloud_photos.restore_p1" data-i18n-html>The photos are ordinary files under <code>cloud-photos/&lt;account&gt;/YYYY/MM/DD</code> on the storage path. Copy them from the storage host, or from a seal (a ZFS snapshot of the storage path), with any tool you like; the XMP files beside them carry the dates and descriptions. Deleting an account in SysManage removes its password and sign-in only. Its photos stay where they are until you remove them.</p>
+
+                    <h2 data-i18n="docs.admin.cloud_photos.h_security">Where it runs and what it keeps</h2>
+                    <p data-i18n="docs.admin.cloud_photos.security_p1" data-i18n-html>The downloader runs as the agent's own account on the storage host, with no network listener. Its sign-in sessions are kept in the agent's state directory, readable by that account only, outside the backup storage, and are left out of the storage host's own backup. The FreeBSD agent's sudoers file allows exactly the two <code>zfs create</code> commands that make the <code>cloud-photos</code> datasets. Every account change, sign-in and run is audited. An air-gapped repository server has no internet access, so it does not offer this feature.</p>
+                </section>
+            </div>
+        </div>
+    </main>
+</body>
+</html>

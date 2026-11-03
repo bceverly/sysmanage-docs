@@ -28,9 +28,21 @@ WHAT IT HAS TO SHOW, AND WHY
 CAPABILITIES: the demo hosts' capability reports predate backups, so the
 backup group is added to each EXISTING report (as the discovery and malware
 seeds add theirs): equipped on the Linux and FreeBSD hosts, not applicable
-on Windows and macOS.  The screenshot admin is granted "Manage Backups" and
-"Restore Files" (the migration grants them only to administrators that
-existed when it ran).
+on Windows and macOS.  The storage host also advertises iCloud backup
+(seed_cloud_backup.py).  ubuntu-web-01's restate reports the newer abilities
+(browse, what changed, verify, diff, packages), as restate 2.2 does.  The
+screenshot admin is granted "Manage Backups", "Restore Files" and "Manage
+Cloud Backups" (the migrations grant them only to administrators that
+existed when they ran).
+
+THE STORAGE HOST has no policy of its own: its row is listed last, as the
+storage host, offering only "Configure self-backup" (24.13).
+
+THE ALTERNATE STATE (SEED_BACKUPS_ALT=1, make screenshots-backups-alt): the
+Community Backups page after a Professional+ license lapsed -- rhel-db-01 and
+debian-app-01 still encrypted, no engine -- which shows the break-glass key
+export card at the top of the page.  The normal seed never encrypts, so the
+card stays out of every other Community shot.
 
 THE RESTORE PREVIEW: "Preview" asks the host's agent for a dry-run plan, and
 the demo hosts have no agent.  So this seeder leaves a small helper running
@@ -62,8 +74,11 @@ from sqlalchemy.orm import sessionmaker
 from backend.persistence import db
 from backend.persistence.models import (
     BackupPolicy,
+    BackupPolicyKey,
     BackupRun,
     BackupSnapshot,
+    BackupSnapshotDiff,
+    BackupTagPolicy,
     BackupTarget,
     Host,
     SecurityRole,
@@ -73,10 +88,15 @@ from backend.persistence.models import (
 
 AUTHOR = "admin@sysmanage.org"
 DOMAIN = "corp.northstar.io"
-RESTATE = "2.1.0.3"
+RESTATE = "2.2.0.17"
 NOW = datetime.now(timezone.utc).replace(tzinfo=None)
 GB = 1_000_000_000
-ROLES = ("Manage Backups", "Restore Files")
+ROLES = ("Manage Backups", "Restore Files", "Manage Cloud Backups")
+# What restate 2.2 reports it can do beyond the 2.0 contract (backup_results).
+ABILITIES = ["list", "status", "cache", "verify", "diff", "packages"]
+CLOUD_GROUP = "cloud_backup_enable"
+STORAGE = "freebsd-build-01"
+ALT = os.environ.get("SEED_BACKUPS_ALT", "").strip().lower() in ("1", "true", "yes")
 BACKUP_COMMANDS = ("backup_configure", "backup_run", "backup_restore")
 EQUIPPED = ("ubuntu-web-01", "rhel-db-01", "debian-app-01", "freebsd-build-01")
 WRONG_PLATFORM = ("win11-ws-01", "macos-studio-01")
@@ -113,13 +133,17 @@ def _snap(at):
 
 
 def _clear(session):
-    for model in (BackupRun, BackupSnapshot, BackupPolicy, BackupTarget):
+    # The Pro+ seed's rows (keys, diffs, tag policies) first: they hang off
+    # the policies and tags this clears or keeps.
+    for model in (BackupPolicyKey, BackupSnapshotDiff, BackupTagPolicy, BackupRun,
+                  BackupSnapshot, BackupPolicy, BackupTarget):  # fmt: skip
         session.query(model).delete()
     session.flush()
 
 
-def _advertise(host, applicable):
-    """Add the backup group to the host's EXISTING capability report."""
+def _advertise(host, applicable, cloud=False):
+    """Add the backup group (and, on the storage host, iCloud backup's) to
+    the host's EXISTING capability report."""
     report = json.loads(host.agent_capabilities) if host.agent_capabilities else None
     if not isinstance(report, dict):
         print(f"  note: {host.fqdn} has no capability report; left as it is")
@@ -133,6 +157,8 @@ def _advertise(host, applicable):
             if command not in report["commands"]:
                 report["commands"].append(command)
         (report.get("unavailable") or {}).pop("backup", None)
+        if cloud and CLOUD_GROUP not in report["capabilities"]:
+            report["capabilities"].append(CLOUD_GROUP)
     else:
         report.setdefault("not_applicable", {})["backup"] = "wrong_platform"
     host.agent_capabilities = json.dumps(report)
@@ -199,7 +225,7 @@ def _audit(prepared=True, protected=True):
 
 # pylint: disable-next=too-many-arguments
 def _policy(session, target, host, *, keep=None, skip=None, quiesce=(), window=None,
-            repository_gb=None, audit=None, hooks=None):  # fmt: skip
+            repository_gb=None, audit=None, hooks=None, abilities=None):  # fmt: skip
     policy = BackupPolicy(
         id=uuid.uuid4(), host_id=host.id, target_id=target.id, enabled=True,
         interval_hours=24, window_start_hour=window, keep_last=14, check_interval_days=7,
@@ -212,6 +238,7 @@ def _policy(session, target, host, *, keep=None, skip=None, quiesce=(), window=N
         storage_protects=True,
         storage_nfs_path=f"/restate/{_repo_dir(host)}",
         available_hooks=json.dumps(hooks) if hooks is not None else None,
+        host_abilities=json.dumps(abilities) if abilities is not None else None,
         storage_audit=json.dumps(audit or _audit()),
         storage_audit_at=NOW - timedelta(minutes=40),
         created_at=NOW - timedelta(days=15), created_by=AUTHOR, updated_at=NOW - timedelta(days=15),
@@ -270,6 +297,7 @@ def _web(session, target, web, storage):
         skip=["/home/*/.local/share/Trash", "**/previews", "/var/www/*/cache"],
         keep=["/home/*/Downloads/contracts"],
         quiesce=("nextcloud",), hooks=["docker", "nextcloud", "postgresql"],
+        abilities=ABILITIES,
     )  # fmt: skip
     _run(session, policy, storage, "prepare", "ok", NOW - timedelta(days=15, hours=1), 1,
          result={"kind": "zfs"})  # fmt: skip
@@ -316,6 +344,23 @@ def _app(session, target, debian, storage):
          message=message)  # fmt: skip
 
 
+def _lapsed_encryption(session, hosts):
+    """SEED_BACKUPS_ALT: rhel-db-01 and debian-app-01 were encrypted under a
+    Professional+ license that has since lapsed.  Only what the Community
+    break-glass card reads: the policies' public keys (never a secret)."""
+    for days, name in ((60, "rhel-db-01"), (3, "debian-app-01")):
+        host = hosts.get(name)
+        policy = host and session.query(BackupPolicy).filter(BackupPolicy.host_id == host.id).first()
+        if policy is None:
+            continue
+        policy.encrypt_public_key = "-----BEGIN PGP PUBLIC KEY BLOCK-----\n(demo)\n-----END PGP PUBLIC KEY BLOCK-----\n"
+        policy.encrypt_fingerprint = uuid.uuid5(uuid.NAMESPACE_DNS, host.fqdn).hex.upper()[:32] + "0A1B2C3D"
+        policy.encrypt_key_ref = f"secret/data/sysmanage/backup-keys/{policy.id}"
+        policy.encrypted_at = NOW - timedelta(days=days)
+        policy.repository_dir = f"{_repo_dir(host)}-enc"
+        policy.previous_repository_dir = _repo_dir(host)
+
+
 # ---------------------------------------------------------------------------
 # the restore-preview answerer (a separate process: the capture takes a while)
 # ---------------------------------------------------------------------------
@@ -341,6 +386,33 @@ PLAN = [
     "/etc/letsencrypt/renewal/shop.northstar.io.conf",
 ]
 SIZE = {p: 900 + 37 * i for i, p in enumerate(PLAN)}
+# What restate's ``restore --packages`` plan carries (the Pro+ engine reads
+# it for the dialog): the hand-installed apt packages at their versions, every
+# package's mark, apt-get autoremove, then the snaps.
+PACKAGE_SCRIPT = """#!/bin/sh
+# Written by restate restore --packages: the old machine's packages put back.
+set -u
+while read -r pkg; do apt-get install -y --allow-downgrades "$pkg"; done <<'PACKAGES'
+certbot=2.9.0-1
+jq=1.7.1-3build1
+nextcloud-desktop-cmd=3.11.0-1
+nginx=1.24.0-2ubuntu7.1
+php8.3-fpm=8.3.6-0ubuntu0.24.04.2
+postgresql-16=16.4-0ubuntu0.24.04.2
+python3-certbot-nginx=2.9.0-1
+redis-server=5:7.0.15-1build2
+PACKAGES
+  cat > "$work/old" <<'MARKS'
+manual certbot:all
+manual jq:amd64
+manual nginx:amd64
+auto libssl3t64:amd64
+auto nginx-common:all
+MARKS
+  apt-get autoremove -y || echo 'restate: apt-get autoremove failed' >&2
+  if snap install lxd --channel=5.21/stable; then :; fi
+mkdir -p /usr/share/keyrings && echo mQ > /usr/share/keyrings/nginx-archive-keyring.gpg
+"""
 DEADLINE = time.time() + 2 * 3600
 
 def plan_for(include):
@@ -364,13 +436,16 @@ while time.time() < DEADLINE:
                 continue
             plan = plan_for(params.get("include") or [])
             now = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+            result = {"schema": 1, "status": "ok", "exit": 0, "dry_run": True,
+                      "files": len(plan), "bytes": sum(SIZE[p] for p in plan),
+                      "plan": plan, "plan_count": len(plan), "missing": []}
+            if params.get("packages"):
+                result["packages"] = {"script": PACKAGE_SCRIPT}
             backup_results.record_result(s, host.id, {
                 "run_id": str(run.id), "policy_id": str(run.policy_id), "action": "restore",
                 "status": "ok", "exit": 0, "started_at": now, "finished_at": now,
-                "restate_version": "2.0.0.1",
-                "result": {"schema": 1, "status": "ok", "exit": 0, "dry_run": True,
-                           "files": len(plan), "bytes": sum(SIZE[p] for p in plan),
-                           "plan": plan, "plan_count": len(plan), "missing": []},
+                "restate_version": "@RESTATE@",
+                "result": result,
             })
             s.commit()
             print("answered", run.id, len(plan), flush=True)
@@ -392,7 +467,7 @@ def _start_answerer():
     except (OSError, ValueError):
         pass
     with open(ANSWERER, "w", encoding="utf-8") as handle:
-        handle.write(ANSWERER_SOURCE)
+        handle.write(ANSWERER_SOURCE.replace("@RESTATE@", RESTATE))
     with open(ANSWERER_LOG, "w", encoding="utf-8") as log:
         # Not a `with`: the helper must outlive this seeder (its own session).
         # pylint: disable-next=consider-using-with
@@ -417,24 +492,27 @@ def main() -> None:
                 print(f"  - skip {name}: demo host not found (run screenshots-seed first)")
                 continue
             hosts[name] = host
-            _advertise(host, applicable=name in EQUIPPED)
-        missing = [n for n in ("freebsd-build-01", "ubuntu-web-01") if n not in hosts]
+            _advertise(host, applicable=name in EQUIPPED, cloud=name == STORAGE)
+        missing = [n for n in (STORAGE, "ubuntu-web-01") if n not in hosts]
         if missing:
             print(f"  no {', '.join(missing)} -- run make screenshots-seed first")
             return
         _grant_roles(session)
-        storage = hosts["freebsd-build-01"]
+        storage = hosts[STORAGE]
         target = _target(session, storage)
         _web(session, target, hosts["ubuntu-web-01"], storage)
         if "rhel-db-01" in hosts:
             _db(session, target, hosts["rhel-db-01"], storage)
         if "debian-app-01" in hosts:
             _app(session, target, hosts["debian-app-01"], storage)
+        if ALT:
+            _lapsed_encryption(session, hosts)
         session.commit()
         pid = _start_answerer()
         print(f"  + backup target on {storage.fqdn}, {session.query(BackupPolicy).count()} "
               f"policies, {session.query(BackupSnapshot).count()} snapshots; "
-              f"restore-preview helper running (pid {pid}, two hours)")
+              f"restore-preview helper running (pid {pid}, two hours)"
+              f"{'; ALTERNATE state: lapsed license, rhel-db-01 + debian-app-01 encrypted' if ALT else ''}")
     finally:
         session.close()
 
