@@ -100,7 +100,26 @@ function logShot(shot, isNew, detail) {
 let hostIds = {};
 try { hostIds = JSON.parse(readFileSync(join(__dir, 'host_ids.json'), 'utf8')); } catch { /* optional */ }
 
+// The seed targets that load engines restart the server, and the capture can
+// start before it answers: the login's "Next" then finds no account and the
+// password step never appears (2026-11-03, a Professional re-capture straight
+// after screenshots-backups-pro-seed).  Wait for the API first.
+const SERVER_READY_MS = 180000;
+
+async function waitForServer(page) {
+  const deadline = Date.now() + SERVER_READY_MS;
+  while (Date.now() < deadline) {
+    try {
+      const reply = await page.request.get(`${TARGET}/api/health`, { timeout: 5000 });
+      if (reply.ok()) return;
+    } catch { /* not up yet */ }
+    await page.waitForTimeout(2000);
+  }
+  throw new Error(`the server at ${TARGET} did not answer /api/health within ${SERVER_READY_MS / 1000} s`);
+}
+
 async function login(page) {
+  await waitForServer(page);
   await page.goto(`${TARGET}/login`, { waitUntil: 'domcontentloaded', timeout: 60000 });
   await page.waitForTimeout(1500);
   const userField = await page.$('input[name="userid"]');
