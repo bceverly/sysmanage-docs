@@ -2860,7 +2860,20 @@
         "split_sysmanage": "<strong>SysManage，按主机：</strong><a href=\"#prepare\">准备存储</a>为每台主机提供独立的文件系统和仅限该主机的导出；代理只在作业运行期间<a href=\"#mounts\">将其挂载到主机上</a>；每次备份之后，存储主机都会<a href=\"#protect\">锁定写入的内容</a>。",
         "split_you": "<strong>您，只需一次：</strong>存储本身（位于存储路径的 ZFS 数据集或 btrfs 子卷）、备份账户和 NFS 服务器的设置。SysManage 从不更改这些内容。其中某项有误时，目标卡片上的<a href=\"#check\">存储检查</a>会提示您，并说明需要更改什么。",
         "seal_keep": "每次备份之后的封存是一个 ZFS 快照或只读 btrfs 快照。存储主机按目标的<strong>封存快照保留天数</strong>保留其封存，并自行删除更旧的封存，但始终保留最新的一个；它只删除自己创建的封存（名称为 <code>sysmanage-</code> 后跟作业 ID 的 ZFS 快照，以及它记录过创建的 btrfs 封存）。",
-        "protect_wait": "备份完成后，主机的NFS客户端仍然可以保留其最新的文件一两分钟，并且存储主机无法锁定一个文件直到它释放为止。restate 2.2.0.14及更高版本会等待这些文件，最多约三分钟。如果任何文件仍未被锁定，则作业将结束<strong>不完整</strong>，并且SysManage会在五分钟后再次运行保护功能，连续三次。"
+        "protect_wait": "备份完成后，主机的NFS客户端仍然可以保留其最新的文件一两分钟，并且存储主机无法锁定一个文件直到它释放为止。restate 2.2.0.14及更高版本会等待这些文件，最多约三分钟。如果任何文件仍未被锁定，则作业将结束<strong>不完整</strong>，并且SysManage会在五分钟后再次运行保护功能，连续三次。",
+        "self": {
+          "body": "存储主机保存着其他所有主机的备份，但它自己的操作系统和配置也需要备份。在备份页面中存储主机所在行点击<strong>配置自身备份</strong>。它的存储库是其自身存储路径下的一个目录 <code>&lt;storage path&gt;/&lt;fqdn&gt;-&lt;short id&gt;</code>，在本地写入：不使用 NFS 挂载，也没有导出。<strong>准备存储</strong>会像对任何主机一样为它创建专用的 ZFS 数据集或 btrfs 子卷。",
+          "leaveout": "它的备份从不包含它所保存的备份或池中的其他数据。代理会排除存储路径及其下的一切、<code>/</code> 所在池以外的每个池中的所有 ZFS 数据集、网络共享，以及会自行重建的缓存，例如 <code>/var/lib/zfs-l2arc</code> 中的 L2ARC 后备文件。在根目录位于 ZFS 上的系统中，例如 FreeBSD 默认的 <code>zroot</code>，系统自身的数据集（<code>/home</code>、<code>/var/mail</code> 等）会被保留。<strong>额外备份</strong>中的任何路径都无法把备份重新包含进来。",
+          "rest": "其余一切与任何主机相同：它有自己的计划时间窗口，计入<strong>同时进行的备份数</strong>，使用自己的锁，因此它运行时其他主机仍可继续备份，并且每次备份后都会被保护、封存和修剪。它的存储库位于备份树中，因此备份树的异地副本也会包含它。",
+          "runbook_intro": "请将此与其他恢复说明放在一起。这里假设操作系统磁盘已丢失而池完好。如果池也已丢失，请先从池的异地副本恢复池。",
+          "runbook_title": "恢复存储主机",
+          "step1": "在新磁盘上重新安装操作系统，然后安装 restate 2.2 或更高版本。",
+          "step2": "导入池：<code>zpool import &lt;pool&gt;</code>（如果池未被导出，加上 <code>-f</code>）。备份以及存储主机自身的存储库都在其中。",
+          "step3": "找到最新的快照：<code>sudo restate snapshots &lt;storage path&gt;/&lt;fqdn&gt;-&lt;short id&gt;</code>。<code>sudo restate buildsheet &lt;repository&gt;::&lt;snapshot&gt;</code> 会显示旧机器的布局：磁盘、文件系统、软件包。",
+          "step4": "恢复系统文件：先用 <code>sudo restate restore --plan --allow-unverified &lt;repository&gt;::&lt;snapshot&gt;</code> 查看会恢复哪些内容，再用相同命令加上 <code>--check-first</code> 和 <code>--root /</code>，或加上 <code>--root /restore</code> 恢复到一个空目录再手动复制。启用快照签名时，请用 <code>--trusted-key</code> 加目标的签名密钥代替 <code>--allow-unverified</code>。",
+          "step5": "重新启动 NFS 导出和 SysManage 代理。代理自身的状态会随恢复一起回来，因此它会以同一台主机的身份重新连接；其他主机的备份会在其下一个时间窗口恢复。",
+          "title": "9. 存储主机备份自身"
+        }
       },
       "fleet_backups": {
         "crumb_admin": "管理",
@@ -16770,6 +16783,12 @@
           "needs": "软件包级恢复需要 Professional+ 备份引擎，并且主机上的 restate 必须支持在恢复作业中处理软件包（2.2.0.16 或更高版本）。",
           "plan": "请先预览。预览根据快照的索引在几秒内生成，并显示将要执行的操作：apt 软件包及其版本、snap、仓库密钥的数量，以及未列出的软件包将被移除的警告，点击一下即可查看完整的生成脚本。实际恢复需要单独确认，并且两者都会记入审计日志。备份之后安装的任何内容都可能被移除，如果 SysManage 代理是后来安装的，它也不例外；因此在正在运行的主机上，请指定要还原的路径并仔细阅读预览。最自然的用法是将一台全新的机器重建为原来的旧机器。",
           "title": "软件包级恢复"
+        },
+        "tagpolicies": {
+          "audit": "创建、更改和移除标签策略，以及它为之设置或移除策略的每台主机，都会记入审计。标签策略需要 Professional+ 备份引擎；没有该引擎时，已设置的策略继续运行，但不会应用任何新内容。",
+          "body": "标签策略为带有某个标签的每台主机提供相同的备份设置：计划和开始时间、保留（包括按天、周、月和年）、要暂停的服务、要排除或额外备份的路径，以及完整读取检查的频率。在备份页面的<strong>按标签的策略</strong>下添加一个：为它命名，选择标签，设置优先级并设置各项设置。给新主机加上标签，它会在调度器下一次运行时获得这些设置，或通过<strong>立即应用</strong>立即获得；去掉标签，该标签给它的策略就会被移除（其存储库和快照保持不变）。",
+          "priority": "当多个标签策略覆盖同一台主机时，<strong>优先级数字最小的获胜</strong>。用<strong>配置</strong>保存的主机自身策略总是优先于任何标签策略；主机的备份卡片会显示哪一个生效（“来自标签策略 服务器夜间（优先级 10）”或“此主机自己的策略”）。要让主机回到其标签策略，请移除它自身的策略。关闭一个标签策略会将其暂停：其主机保留它最后给出的设置。",
+          "title": "按标签的备份策略"
         }
       }
     },

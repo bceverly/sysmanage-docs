@@ -2426,7 +2426,20 @@
         "move_5": "Once a check of the repository passes, remove <code>HOST.old</code>. When every host is prepared, remove the shared export from <code>/etc/exports</code>, keeping the <code>V4:</code> line.",
         "move_p2": "In testing, an 18 GB repository moved this way, and the next backup reused every pack it held.",
         "seal_keep": "The seal after each backup is a ZFS or read-only btrfs snapshot. The storage host keeps its seals for the target's <strong>Keep sealed snapshots for (days)</strong> and removes older ones itself, always keeping the newest; it removes only the seals it made (ZFS snapshots named <code>sysmanage-</code> followed by a job id, and btrfs seals it recorded making).",
-        "protect_wait": "Right after a backup, the host's NFS client can still hold its newest files for a minute or two, and the storage host cannot lock a file until it lets go. restate 2.2.0.14 and later wait for those files, for up to about three minutes. If any are still unlocked, the job ends <strong>Incomplete</strong>, and SysManage runs protect again five minutes later, up to three times in a row."
+        "protect_wait": "Right after a backup, the host's NFS client can still hold its newest files for a minute or two, and the storage host cannot lock a file until it lets go. restate 2.2.0.14 and later wait for those files, for up to about three minutes. If any are still unlocked, the job ends <strong>Incomplete</strong>, and SysManage runs protect again five minutes later, up to three times in a row.",
+        "self": {
+          "title": "9. The storage host backs itself up",
+          "body": "The storage host keeps every other host's backups, but its own operating system and configuration need a backup too. Click <strong>Configure self-backup</strong> on the storage host's row on the Backups page. Its repository is a directory on its own storage path, <code>&lt;storage path&gt;/&lt;fqdn&gt;-&lt;short id&gt;</code>, written locally: no NFS mount and no export. <strong>Prepare storage</strong> gives it its own ZFS dataset or btrfs subvolume, like any host's.",
+          "leaveout": "Its backup never holds the backups it keeps or the pool's other data. The agent leaves out the storage path and everything under it, every ZFS dataset of a pool other than the one <code>/</code> is on, network shares, and caches that rebuild themselves, such as an L2ARC backing file in <code>/var/lib/zfs-l2arc</code>. On a root-on-ZFS system, such as FreeBSD's default <code>zroot</code>, the system's own datasets (<code>/home</code>, <code>/var/mail</code> and the rest) are kept. No path in <strong>Also back up</strong> can bring the backups back in.",
+          "rest": "Everything else works as for any host: it has its own schedule window, counts toward <strong>Backups at the same time</strong>, takes its own lock so the other hosts keep backing up while it runs, and is protected, sealed and pruned after each backup. Its repository sits under the backup tree, so an off-site copy of the tree carries it too.",
+          "runbook_title": "Recovering the storage host",
+          "runbook_intro": "Keep this with your other recovery notes. It assumes the operating system disk is lost and the pool is intact. If the pool is lost too, restore the pool from its off-site copy first.",
+          "step1": "Reinstall the operating system on a new disk, then install restate 2.2 or later.",
+          "step2": "Import the pool: <code>zpool import &lt;pool&gt;</code> (with <code>-f</code> if the pool was not exported). The backups, and the storage host's own repository, are on it.",
+          "step3": "Find the newest snapshot: <code>sudo restate snapshots &lt;storage path&gt;/&lt;fqdn&gt;-&lt;short id&gt;</code>. <code>sudo restate buildsheet &lt;repository&gt;::&lt;snapshot&gt;</code> prints how the old machine was laid out: disks, filesystems, packages.",
+          "step4": "Restore the system's files: <code>sudo restate restore --plan --allow-unverified &lt;repository&gt;::&lt;snapshot&gt;</code> to see what comes back, then the same with <code>--check-first</code> and <code>--root /</code>, or with <code>--root /restore</code> into an empty directory to copy from by hand. Use <code>--trusted-key</code> with the target's signing key instead of <code>--allow-unverified</code> when snapshot signing is on.",
+          "step5": "Restart the NFS exports and the SysManage agent. The agent's own state comes back with the restore, so it reconnects as the same host; the other hosts' backups resume on their next window."
+        }
       },
       "fleet_backups": {
         "crumb_admin": "Administration",
@@ -4065,6 +4078,12 @@
           "filters": "Expected churn is hidden and counted: logs, caches, temporary files, package lists and SysManage's own job files and agent state, plus the host's own patterns under <strong>Also hide on this host</strong>, written like the backup's leave-out patterns. <strong>Show everything</strong> brings them back. A pair of backups that was never compared can be compared from the timeline.",
           "links": "<strong>What changed between backups</strong> opens the timeline from a host's configuration-drift differences and from its <strong>Software Changes</strong> tab, so a drifted file or an unexpected package can be traced to the backup it first appeared in.",
           "needs": "The drift timeline needs the Professional+ backup engine and a restate on the host that runs diff as a job (2.2.0.16 or later)."
+        },
+        "tagpolicies": {
+          "title": "Backup policies by tag",
+          "body": "A tag policy gives every host carrying a tag the same backup settings: schedule and start hour, retention (including days, weeks, months and years), the services to pause, the paths to leave out or also back up, and the full-read check cadence. Add one under <strong>Policies by tag</strong> on the Backups page: name it, pick the tag, set a priority, and set the settings. Tag a new host and it gets them on the scheduler's next pass, or at once with <strong>Apply now</strong>; remove the tag and the policy that tag gave it is removed (its repository and snapshots are left alone).",
+          "priority": "Where several tag policies cover one host, the <strong>lowest priority number wins</strong>. A host's own policy, saved with <strong>Configure</strong>, always beats every tag policy; the host's Backup card says which applies (\"From tag policy Servers nightly (priority 10)\" or \"This host's own policy\"). To return a host to its tag policy, remove its own policy. Switching a tag policy off pauses it: its hosts keep what it last gave them.",
+          "audit": "Creating, changing and removing a tag policy, and each host it sets or removes, are audited. Tag policies need the Professional+ backup engine; without it the policies they set keep running, but nothing new is applied."
         }
       }
     },
