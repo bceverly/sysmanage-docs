@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Agent Setup and Approval - SysManage</title>
-    <meta name="description" content="Complete guide for installing, configuring, and approving SysManage agents on your hosts for comprehensive monitoring.">
+    <meta name="description" content="Install the SysManage agent from its package, point it at your server, and approve the host -- by hand, or automatically with a registration key.">
     <link rel="stylesheet" href="/assets/css/style.css">
     <link rel="icon" type="image/svg+xml" href="/assets/images/favicon.svg">
 </head>
@@ -29,20 +29,16 @@
             <div class="docs-content">
                 <section class="overview">
                     <h2 data-i18n="docs.auto.getting-started.agent-approval.006">Agent Overview</h2>
-                    <p data-i18n="docs.auto.getting-started.agent-approval.007">SysManage agents are lightweight programs that run on your hosts to collect system information, manage packages, and execute administrative tasks. Agents communicate securely with the SysManage server using mTLS authentication.</p>
-
-                    <div class="alert alert-info">
-                        <strong data-i18n="docs.auto.getting-started.agent-approval.008">Prerequisites:</strong> Ensure your SysManage server is running and accessible. Complete the <a href="first-deployment.html" data-i18n="docs.auto.getting-started.agent-approval.009">First Deployment</a> guide if needed.
-                    </div>
+                    <p data-i18n="agent_approval.overview.body">SysManage agents are lightweight services that run on your hosts to collect system information, manage packages and carry out administrative tasks. Each agent connects out to the server over HTTPS on port 443 and keeps one secure WebSocket open; the agent itself opens no listening port.</p>
+                    <p data-i18n="agent_approval.overview.prereq" data-i18n-html><strong>Before you start:</strong> your SysManage server must be running and reachable by the name on its TLS certificate. See the <a href="first-deployment.html">First Deployment</a> guide if needed.</p>
 
                     <h3 data-i18n="docs.auto.getting-started.agent-approval.010">Agent Features</h3>
                     <ul>
-                        <li data-i18n="docs.auto.getting-started.agent-approval.011"><strong>System Monitoring:</strong> Hardware specs, uptime, resource usage</li>
-                        <li data-i18n="docs.auto.getting-started.agent-approval.012"><strong>Package Management:</strong> Inventory, updates, installations</li>
-                        <li data-i18n="docs.auto.getting-started.agent-approval.013"><strong>Security Updates:</strong> Automated detection and installation</li>
-                        <li data-i18n="docs.auto.getting-started.agent-approval.014"><strong>Cross-Platform:</strong> Linux, BSD, macOS, Windows support</li>
-                        <li data-i18n="docs.auto.getting-started.agent-approval.015"><strong>Secure Communication:</strong> mTLS encryption and authentication</li>
-                        <li data-i18n="docs.auto.getting-started.agent-approval.016"><strong>Privileged Operations:</strong> Configurable sudo access</li>
+                        <li data-i18n="docs.auto.getting-started.agent-approval.011" data-i18n-html><strong>System Monitoring:</strong> Hardware specs, uptime, resource usage</li>
+                        <li data-i18n="docs.auto.getting-started.agent-approval.012" data-i18n-html><strong>Package Management:</strong> Inventory, updates, installations</li>
+                        <li data-i18n="docs.auto.getting-started.agent-approval.014" data-i18n-html><strong>Cross-Platform:</strong> Linux, BSD, macOS, Windows support</li>
+                        <li data-i18n="agent_approval.features.secure" data-i18n-html><strong>Secure Communication:</strong> TLS to the server, with a per-host credential issued at approval</li>
+                        <li data-i18n="agent_approval.features.privileged" data-i18n-html><strong>Privileged Operations:</strong> on Linux, an unprivileged service account with a sudo allowlist</li>
                     </ul>
                 </section>
 
@@ -50,7 +46,10 @@
                     <h2 data-i18n="docs.auto.getting-started.agent-approval.017">1. Agent Installation</h2>
 
                     <p data-i18n="agent_approval.install.packages" data-i18n-html>Install the agent from the package for your platform, as the <a href="../agent/installation.html">Agent Installation Guide</a> describes: the Launchpad PPA on Ubuntu, the package repositories for the other Linux distributions, and the prepackaged installers for macOS, Windows and the BSDs. You do not need to build it from source.</p>
-                    <p data-i18n="agent_approval.install.next" data-i18n-html>Then point the agent at your server and add the enrollment token, if you use one, as in <a href="../agent/installation.html#after-installing">After Installing</a>.</p>
+                    <p data-i18n="agent_approval.install.ubuntu">On Ubuntu, for example:</p>
+                    <pre><code class="language-bash">sudo add-apt-repository ppa:bceverly/sysmanage-agent
+sudo apt update
+sudo apt install sysmanage-agent</code></pre>
                 </section>
 
                 <section class="agent-configuration">
@@ -62,160 +61,57 @@
                         <li data-i18n="agent_approval.config.unix" data-i18n-html><strong>On Linux, macOS and the BSDs:</strong> <code>/etc/sysmanage-agent.yaml</code></li>
                         <li data-i18n="agent_approval.config.windows" data-i18n-html><strong>On Windows:</strong> <code>C:\ProgramData\SysManage\sysmanage-agent.yaml</code></li>
                     </ul>
+                    <p data-i18n="agent_approval.config.package" data-i18n-html>The package writes this file from its example the first time it installs, and keeps it on upgrade.</p>
 
                     <h3 data-i18n="docs.auto.getting-started.agent-approval.037">Basic Configuration</h3>
-                    <p data-i18n="docs.auto.getting-started.agent-approval.038">Edit the configuration file with your server details:</p>
-                    <pre><code class="language-yaml"># SysManage Agent Configuration
-server:
-  host: "sysmanage.yourdomain.com"
-  port: 8444
-  ssl_enabled: true
-  ssl_verify: true
+                    <p data-i18n="agent_approval.config.basic" data-i18n-html>Set <code>server.url</code> to your server, by the name on its certificate. The API, the web interface and the agent connection share that one origin, so there is no port to add. Leave certificate verification on.</p>
+                    <pre><code class="language-yaml">server:
+  url: "https://sysmanage.example.com"
+  verify_ssl: true
+  # Behind a TLS-inspecting proxy, trust its root certificate instead of
+  # turning verification off:
+  # ca_bundle: "/etc/ssl/certs/corporate-root.pem"
+  # An outbound HTTP proxy, if the environment does not already set one:
+  # proxy: "http://proxy.example.com:3128"
 
-# Agent identification
-agent:
-  name: "web-server-01"
-  tags:
-    - "production"
-    - "web"
-    - "critical"
-  location: "datacenter-1"
-
-# Certificate paths (auto-generated on first run)
 security:
-  cert_file: "/etc/sysmanage-agent/certs/agent.crt"
-  key_file: "/etc/sysmanage-agent/certs/agent.key"
-  ca_file: "/etc/sysmanage-agent/certs/ca.crt"
-
-# Package management
-packages:
-  enabled: true
-  auto_update_security: false
-  excluded_packages:
-    - "kernel*"
-    - "grub*"
-
-# System monitoring
-monitoring:
-  enabled: true
-  interval: 300  # 5 minutes
-  collect_metrics: true
-  collect_logs: false
-
-# Privileged operations
-privileged:
-  enabled: false
-  allowed_commands: []
+  # Optional: a registration key that approves this host automatically
+  # (see "Automatic approval" below).
+  # registration_key: "paste-the-key-here"
+  # Multi-tenant servers only: the enrollment token that picks the tenant.
+  # enrollment_token: "paste-the-token-here"
 
 logging:
-  level: "INFO"
   file: "/var/log/sysmanage-agent/agent.log"</code></pre>
-
-                    <h3 data-i18n="docs.auto.getting-started.agent-approval.039">Advanced Configuration Options</h3>
-
-                    <h4 data-i18n="docs.auto.getting-started.agent-approval.040">Network Configuration</h4>
-                    <pre><code class="language-yaml">network:
-  connection_timeout: 30
-  retry_attempts: 3
-  retry_delay: 5
-  proxy:
-    enabled: false
-    url: "http://proxy.company.com:8080"
-    username: ""
-    password: ""</code></pre>
-
-                    <h4 data-i18n="docs.auto.getting-started.agent-approval.041">Security Configuration</h4>
-                    <pre><code class="language-yaml">security:
-  # Certificate validation
-  ssl_verify: true
-  ssl_cert_file: "/path/to/server.crt"
-
-  # Client certificate authentication
-  cert_file: "/etc/sysmanage-agent/certs/agent.crt"
-  key_file: "/etc/sysmanage-agent/certs/agent.key"
-
-  # Auto-enrollment settings
-  auto_enroll: true
-  enrollment_token: "your-enrollment-token"</code></pre>
-                </section>
-
-                <section class="certificate-setup">
-                    <h2 data-i18n="docs.auto.getting-started.agent-approval.042">3. Certificate Setup</h2>
-
-                    <h3 data-i18n="docs.auto.getting-started.agent-approval.043">Automatic Certificate Generation</h3>
-                    <p data-i18n="docs.auto.getting-started.agent-approval.044">On first startup, the agent automatically generates a certificate signing request (CSR) and submits it to the server for approval:</p>
-
-                    <pre><code class="language-bash"># Start the agent service
-sudo systemctl start sysmanage-agent
-
-# Check agent logs for certificate generation
-sudo journalctl -u sysmanage-agent -f</code></pre>
-
-                    <p data-i18n="docs.auto.getting-started.agent-approval.045">You should see log entries similar to:</p>
-                    <pre><code class="language-text">INFO: Generating new certificate key pair
-INFO: Creating certificate signing request
-INFO: Submitting CSR to server for approval
-INFO: Waiting for certificate approval...</code></pre>
-
-                    <h3 data-i18n="docs.auto.getting-started.agent-approval.046">Manual Certificate Setup</h3>
-                    <p data-i18n="docs.auto.getting-started.agent-approval.047">For environments requiring manual certificate management:</p>
-
-                    <div class="code-section">
-                        <h4 data-i18n="docs.auto.getting-started.agent-approval.048">Generate Certificate Request</h4>
-                        <pre><code class="language-bash"># Generate private key
-openssl genrsa -out agent.key 2048
-
-# Generate certificate signing request
-openssl req -new -key agent.key -out agent.csr \
-    -subj "/CN=web-server-01/O=YourOrganization"
-
-# Submit CSR to SysManage server
-curl -k -X POST https://sysmanage.yourdomain.com:8444/api/agent/csr \
-    -H "Content-Type: application/json" \
-    -d '{"csr": "'$(base64 -w 0 agent.csr)'", "hostname": "web-server-01"}'</code></pre>
-                    </div>
-
-                    <h3 data-i18n="docs.auto.getting-started.agent-approval.049">Certificate Verification</h3>
-                    <p data-i18n="docs.auto.getting-started.agent-approval.050">Verify certificate setup is working:</p>
-                    <pre><code class="language-bash"># Test certificate
-openssl x509 -in /etc/sysmanage-agent/certs/agent.crt -text -noout
-
-# Test connection to server
-sysmanage-agent --test-connection</code></pre>
+                    <p data-i18n="agent_approval.config.restart" data-i18n-html>The agent reads its configuration only when it starts, so restart it after every change (see <a href="#service-management">Service Management</a>). The <a href="../agent/configuration.html">Agent Configuration Guide</a> describes every setting.</p>
                 </section>
 
                 <section class="server-approval">
-                    <h2 data-i18n="docs.auto.getting-started.agent-approval.051">4. Server-Side Agent Approval</h2>
+                    <h2 data-i18n="agent_approval.approve.title">3. Approving the Host</h2>
+                    <p data-i18n="agent_approval.approve.how" data-i18n-html>A new agent registers and waits. Until a host is approved, the server accepts nothing else from it. When you approve it, the server issues the host its own agent credential, and from then on the server refuses any session for that host that cannot present it.</p>
 
                     <h3 data-i18n="docs.auto.getting-started.agent-approval.052">Web Interface Approval</h3>
                     <ol>
                         <li data-i18n="docs.auto.getting-started.agent-approval.053">Log into the SysManage web interface</li>
-                        <li data-i18n="docs.auto.getting-started.agent-approval.054">Navigate to <strong>Hosts</strong> → <strong>Pending Approval</strong></li>
-                        <li data-i18n="docs.auto.getting-started.agent-approval.055">Review the pending agent certificate requests</li>
-                        <li data-i18n="docs.auto.getting-started.agent-approval.056">Verify the agent details (hostname, IP, fingerprint)</li>
-                        <li data-i18n="docs.auto.getting-started.agent-approval.057">Click <strong>Approve</strong> to approve the agent</li>
+                        <li data-i18n="agent_approval.approve.step_hosts" data-i18n-html>Open the <strong>Hosts</strong> page. New hosts are listed as pending approval.</li>
+                        <li data-i18n="agent_approval.approve.step_check">Check that the host name and address are the machine you just installed</li>
+                        <li data-i18n="agent_approval.approve.step_click" data-i18n-html>Select the host and click <strong>Approve</strong></li>
                     </ol>
-
-                    <h3 data-i18n="docs.auto.getting-started.agent-approval.058">CLI Approval</h3>
-                    <p data-i18n="docs.auto.getting-started.agent-approval.059">Approve agents using the command line interface:</p>
-                    <pre><code class="language-bash"># List pending approvals
-sysmanage-cli agent list-pending
-
-# Approve specific agent
-sysmanage-cli agent approve --hostname web-server-01 --fingerprint SHA256:abc123...
-
-# Approve all pending agents (use with caution)
-sysmanage-cli agent approve-all</code></pre>
 
                     <h3 data-i18n="docs.auto.getting-started.agent-approval.060">API Approval</h3>
                     <p data-i18n="docs.auto.getting-started.agent-approval.061">Approve agents programmatically via API:</p>
                     <pre><code class="language-bash"># List hosts (pending registrations appear with an unapproved status)
-curl -k -H "Authorization: Bearer $JWT_TOKEN" \
-    https://sysmanage.yourdomain.com:8443/api/v1/hosts
+curl -H "Authorization: Bearer $JWT_TOKEN" \
+    https://sysmanage.example.com/api/v1/hosts
 
 # Approve a host by id
-curl -k -X PUT -H "Authorization: Bearer $JWT_TOKEN" \
-    https://sysmanage.yourdomain.com:8443/api/v1/host/{host_id}/approve</code></pre>
+curl -X PUT -H "Authorization: Bearer $JWT_TOKEN" \
+    https://sysmanage.example.com/api/v1/host/{host_id}/approve</code></pre>
+
+                    <h3 data-i18n="agent_approval.auto.title">Automatic Approval with a Registration Key</h3>
+                    <p data-i18n="agent_approval.auto.body" data-i18n-html>To skip the manual step for hosts you deploy yourself, create a registration key under <strong>Settings</strong> → <strong>Access Groups</strong>, with auto-approval turned on. A key can also place the host in an access group. The key is shown once, when you create it; copy it then. Put it in each agent's configuration as <code>security.registration_key</code> before the agent first starts. Registration keys need a Professional+ Enterprise license.</p>
+                    <p data-i18n="agent_approval.auto.care">Anyone who holds an auto-approving key can enroll a machine into your fleet, so treat it like a password: deliver it with your configuration management, and delete the key when the rollout is done.</p>
+                    <p data-i18n="agent_approval.auto.tenant" data-i18n-html>On a multi-tenant server, the agent also needs the tenant's enrollment token as <code>security.enrollment_token</code>. See <a href="../deployment/multi-tenancy.html">Deploying Multi-Tenancy</a>.</p>
 
                     <h3 data-i18n="agent_approval.reenroll.title" data-i18n-html>Re-enrolling a Reinstalled Agent</h3>
                     <p data-i18n="agent_approval.reenroll.why" data-i18n-html>An approved host has an agent credential, issued once when the host enrolled; the server refuses any session that cannot present it. An agent that was reinstalled, or whose data directory was wiped, has lost that credential, and the server refuses it every time it connects.</p>
@@ -223,59 +119,27 @@ curl -k -X PUT -H "Authorization: Bearer $JWT_TOKEN" \
                     <p data-i18n="agent_approval.reenroll.safe" data-i18n-html>The host goes back to pending on purpose: until you approve it again, nothing the new agent sends is accepted, so clearing a credential can never hand an approved host to whoever connects first. Check that the agent waiting for approval is the reinstalled machine (its address, its hostname) before you approve it.</p>
                     <p data-i18n="agent_approval.reenroll.api" data-i18n-html>The same action through the API:</p>
                     <pre><code class="language-bash"># Clear a host's credential and return it to pending approval
-curl -k -X POST -H "Authorization: Bearer $JWT_TOKEN" \
-    https://sysmanage.yourdomain.com:8443/api/v1/host/{host_id}/reenroll</code></pre>
+curl -X POST -H "Authorization: Bearer $JWT_TOKEN" \
+    https://sysmanage.example.com/api/v1/host/{host_id}/reenroll</code></pre>
                 </section>
 
-                <section class="service-management">
-                    <h2 data-i18n="docs.auto.getting-started.agent-approval.062">5. Service Management</h2>
-
-                    <h3 data-i18n="docs.auto.getting-started.agent-approval.063">Linux/BSD Service Management</h3>
-                    <pre><code class="language-bash"># Enable and start service
-sudo systemctl enable sysmanage-agent
-sudo systemctl start sysmanage-agent
-
-# Check service status
-sudo systemctl status sysmanage-agent
-
-# View logs
-sudo journalctl -u sysmanage-agent -f
-
-# Restart service
-sudo systemctl restart sysmanage-agent</code></pre>
-
-                    <h3 data-i18n="docs.auto.getting-started.agent-approval.064">macOS Service Management</h3>
-                    <pre><code class="language-bash"># Load launch daemon
-sudo launchctl load /Library/LaunchDaemons/com.sysmanage.agent.plist
-
-# Start service
-sudo launchctl start com.sysmanage.agent
-
-# Check status
-sudo launchctl list | grep sysmanage
-
-# Stop service
-sudo launchctl stop com.sysmanage.agent</code></pre>
-
-                    <h3 data-i18n="docs.auto.getting-started.agent-approval.065">Windows Service Management</h3>
-                    <pre><code class="language-powershell"># Start service
-Start-Service "SysManage Agent"
-
-# Check service status
-Get-Service "SysManage Agent"
-
-# Set service to automatic startup
-Set-Service "SysManage Agent" -StartupType Automatic
-
-# View logs (Event Viewer or PowerShell)
-Get-EventLog -LogName Application -Source "SysManage Agent" -Newest 10</code></pre>
+                <section class="service-management" id="service-management">
+                    <h2 data-i18n="agent_approval.service.title">4. Service Management</h2>
+                    <p data-i18n="agent_approval.service.body">The packages install the agent as a service that starts at boot. Restart it after changing the configuration:</p>
+                    <pre><code class="language-bash">sudo systemctl restart sysmanage-agent                     # Linux (systemd)
+sudo rc-service sysmanage-agent restart                    # Alpine Linux
+sudo launchctl kickstart -k system/com.sysmanage.agent     # macOS
+Restart-Service SysManageAgent                              # Windows (administrator PowerShell)
+sudo service sysmanage_agent restart                       # FreeBSD, NetBSD
+doas rcctl restart sysmanage_agent                         # OpenBSD</code></pre>
+                    <p data-i18n="agent_approval.service.status">To check that it is running:</p>
+                    <pre><code class="language-bash">sudo systemctl status sysmanage-agent                      # Linux (systemd)
+sudo launchctl list | grep sysmanage                       # macOS
+Get-Service SysManageAgent                                  # Windows</code></pre>
                 </section>
 
                 <section class="verification">
-                    <h2 data-i18n="docs.auto.getting-started.agent-approval.066">6. Verification and Testing</h2>
-
-                    <h3 data-i18n="docs.auto.getting-started.agent-approval.067">Agent Status Verification</h3>
-                    <p data-i18n="docs.auto.getting-started.agent-approval.068">Verify the agent is communicating properly with the server:</p>
+                    <h2 data-i18n="agent_approval.verify.title">5. Verification</h2>
 
                     <div class="verification-checklist">
                         <h4 data-i18n="docs.auto.getting-started.agent-approval.069">Web Interface Checks</h4>
@@ -287,96 +151,24 @@ Get-EventLog -LogName Application -Source "SysManage Agent" -Newest 10</code></p
                             <li data-i18n="docs.auto.getting-started.agent-approval.074">Last contact time is recent</li>
                         </ul>
 
-                        <h4 data-i18n="docs.auto.getting-started.agent-approval.075">Command Line Checks</h4>
-                        <pre><code class="language-bash"># Test agent connectivity
-sysmanage-agent --status
-
-# Test server communication
-sysmanage-agent --ping-server
-
-# View agent information
-sysmanage-agent --info</code></pre>
-
                         <h4 data-i18n="docs.auto.getting-started.agent-approval.076">Log File Checks</h4>
-                        <pre><code class="language-bash"># Check for successful connection
-grep "Successfully connected" /var/log/sysmanage-agent/agent.log
+                        <p data-i18n="agent_approval.verify.logs" data-i18n-html>The agent logs to <code>/var/log/sysmanage-agent/agent.log</code>, or <code>C:\ProgramData\SysManage\logs\agent.log</code> on Windows.</p>
+                        <pre><code class="language-bash"># Follow the log while the agent connects
+sudo tail -f /var/log/sysmanage-agent/agent.log
 
-# Check for certificate issues
+# Look for certificate and connection problems
 grep -i "certificate\|ssl\|tls" /var/log/sysmanage-agent/agent.log
-
-# Check for communication errors
 grep -i "error\|failed\|timeout" /var/log/sysmanage-agent/agent.log</code></pre>
                     </div>
                 </section>
 
                 <section class="bulk-deployment">
-                    <h2 data-i18n="docs.auto.getting-started.agent-approval.077">7. Bulk Agent Deployment</h2>
-
-                    <h3 data-i18n="docs.auto.getting-started.agent-approval.078">Ansible Deployment</h3>
-                    <p data-i18n="docs.auto.getting-started.agent-approval.079">Example Ansible playbook for deploying agents:</p>
-                    <pre><code class="language-yaml">---
-- name: Deploy SysManage Agents
-  hosts: all
-  become: yes
-  vars:
-    sysmanage_server: "sysmanage.yourdomain.com"
-    sysmanage_port: 8444
-
-  tasks:
-    - name: Download agent package
-      get_url:
-        url: "https://github.com/bceverly/sysmanage-agent/releases/latest/download/sysmanage-agent-linux-amd64.deb"
-        dest: "/tmp/sysmanage-agent.deb"
-      when: ansible_os_family == "Debian"
-
-    - name: Install agent package
-      apt:
-        deb: "/tmp/sysmanage-agent.deb"
-      when: ansible_os_family == "Debian"
-
-    - name: Configure agent
-      template:
-        src: sysmanage-agent.yaml.j2
-        dest: /etc/sysmanage-agent/sysmanage-agent.yaml
-        mode: '0600'
-      notify: restart sysmanage-agent
-
-    - name: Start and enable agent service
-      systemd:
-        name: sysmanage-agent
-        enabled: yes
-        state: started
-
-  handlers:
-    - name: restart sysmanage-agent
-      systemd:
-        name: sysmanage-agent
-        state: restarted</code></pre>
-
-                    <h3 data-i18n="docs.auto.getting-started.agent-approval.080">Configuration Template</h3>
-                    <p data-i18n="docs.auto.getting-started.agent-approval.081">Ansible template (<code>sysmanage-agent.yaml.j2</code>):</p>
-                    <pre><code class="language-yaml">server:
-  host: "{{ sysmanage_server }}"
-  port: {{ sysmanage_port }}
-  ssl_enabled: true
-
-agent:
-  name: "{{ inventory_hostname }}"
-  tags:
-    - "{{ group_names | join('", "') }}"
-  location: "{{ datacenter | default('unknown') }}"
-
-packages:
-  enabled: true
-  auto_update_security: {{ auto_security_updates | default(false) }}
-
-monitoring:
-  enabled: true
-  interval: 300</code></pre>
+                    <h2 data-i18n="agent_approval.bulk.title">6. Deploying to Many Hosts</h2>
+                    <p data-i18n="agent_approval.bulk.body" data-i18n-html>To install the agent across a fleet, install the same packages with your configuration management tool and deliver the configuration file with it. <a href="../agent/deployment.html">Deploying the Agent to Many Hosts</a> has an Ansible example for the Linux package repositories.</p>
                 </section>
 
                 <section class="troubleshooting">
-                    <h2 data-i18n="docs.auto.getting-started.agent-approval.082">8. Troubleshooting</h2>
+                    <h2 data-i18n="agent_approval.trouble.title">7. Troubleshooting</h2>
 
                     <h3 data-i18n="docs.auto.getting-started.agent-approval.083">Common Issues</h3>
                     <div class="troubleshooting-grid">
@@ -384,18 +176,17 @@ monitoring:
                             <h4 data-i18n="docs.auto.getting-started.agent-approval.084">Agent Not Connecting</h4>
                             <ul>
                                 <li data-i18n="docs.auto.getting-started.agent-approval.085">Check network connectivity to server</li>
-                                <li data-i18n="docs.auto.getting-started.agent-approval.086">Verify server hostname and port</li>
-                                <li data-i18n="docs.auto.getting-started.agent-approval.087">Check firewall rules</li>
+                                <li data-i18n="agent_approval.trouble.url" data-i18n-html>Check <code>server.url</code>: the name must match the server's certificate</li>
+                                <li data-i18n="agent_approval.trouble.firewall">Allow outbound port 443 from the host to the server</li>
                                 <li data-i18n="docs.auto.getting-started.agent-approval.088">Verify SSL certificate configuration</li>
                             </ul>
                         </div>
                         <div class="issue-item">
-                            <h4 data-i18n="docs.auto.getting-started.agent-approval.089">Certificate Issues</h4>
+                            <h4 data-i18n="agent_approval.trouble.pending_title">Host Stays Pending</h4>
                             <ul>
-                                <li data-i18n="docs.auto.getting-started.agent-approval.090">Check certificate file permissions</li>
-                                <li data-i18n="docs.auto.getting-started.agent-approval.091">Verify certificate validity dates</li>
-                                <li data-i18n="docs.auto.getting-started.agent-approval.092">Ensure CA certificate is correct</li>
-                                <li data-i18n="docs.auto.getting-started.agent-approval.093">Check for certificate approval on server</li>
+                                <li data-i18n="agent_approval.trouble.pending_approve">Approve it on the Hosts page</li>
+                                <li data-i18n="agent_approval.trouble.pending_key" data-i18n-html>With a registration key, check that the key still exists, allows auto-approval, and is under <code>security</code> in the file</li>
+                                <li data-i18n="agent_approval.trouble.pending_reenroll">A reinstalled host needs Re-enroll Agent, then approval</li>
                             </ul>
                         </div>
                         <div class="issue-item">
@@ -403,48 +194,25 @@ monitoring:
                             <ul>
                                 <li data-i18n="docs.auto.getting-started.agent-approval.095">Check configuration file syntax</li>
                                 <li data-i18n="docs.auto.getting-started.agent-approval.096">Verify file permissions</li>
-                                <li data-i18n="docs.auto.getting-started.agent-approval.097">Check system requirements</li>
                                 <li data-i18n="docs.auto.getting-started.agent-approval.098">Review systemd logs</li>
-                            </ul>
-                        </div>
-                        <div class="issue-item">
-                            <h4 data-i18n="docs.auto.getting-started.agent-approval.099">Performance Issues</h4>
-                            <ul>
-                                <li data-i18n="docs.auto.getting-started.agent-approval.100">Adjust monitoring interval</li>
-                                <li data-i18n="docs.auto.getting-started.agent-approval.101">Check system resource usage</li>
-                                <li data-i18n="docs.auto.getting-started.agent-approval.102">Review network latency</li>
-                                <li data-i18n="docs.auto.getting-started.agent-approval.103">Optimize configuration settings</li>
                             </ul>
                         </div>
                     </div>
 
                     <h3 data-i18n="docs.auto.getting-started.agent-approval.104">Diagnostic Commands</h3>
-                    <pre><code class="language-bash"># Test network connectivity
-telnet sysmanage.yourdomain.com 8444
+                    <pre><code class="language-bash"># Can this host reach the server?
+curl -sS https://sysmanage.example.com/api/health
 
-# Test SSL connection
-openssl s_client -connect sysmanage.yourdomain.com:8444
+# Which certificate does the server present?
+openssl s_client -connect sysmanage.example.com:443 -servername sysmanage.example.com &lt;/dev/null
 
-# Check certificate details
-openssl x509 -in /etc/sysmanage-agent/certs/agent.crt -text -noout
-
-# Test agent configuration
-sysmanage-agent --config-test
-
-# Enable debug logging
-sysmanage-agent --log-level debug</code></pre>
+# Agent service log (systemd)
+sudo journalctl -u sysmanage-agent -n 100</code></pre>
+                    <p data-i18n="agent_approval.trouble.more" data-i18n-html>See <a href="../agent/troubleshooting.html">Agent Troubleshooting</a> for more.</p>
                 </section>
 
                 <section class="security-considerations">
-                    <h2 data-i18n="docs.auto.getting-started.agent-approval.105">9. Security Considerations</h2>
-
-                    <h3 data-i18n="docs.auto.getting-started.agent-approval.106">Certificate Security</h3>
-                    <ul>
-                        <li data-i18n="docs.auto.getting-started.agent-approval.107">Protect private keys with proper file permissions (600)</li>
-                        <li data-i18n="docs.auto.getting-started.agent-approval.108">Regular certificate rotation (automated)</li>
-                        <li data-i18n="docs.auto.getting-started.agent-approval.109">Monitor for certificate expiration</li>
-                        <li data-i18n="docs.auto.getting-started.agent-approval.110">Use strong cryptographic algorithms</li>
-                    </ul>
+                    <h2 data-i18n="agent_approval.security.title">8. Security Considerations</h2>
 
                     <h3 data-i18n="docs.auto.getting-started.agent-approval.111">Network Security</h3>
                     <ul>
@@ -456,10 +224,9 @@ sysmanage-agent --log-level debug</code></pre>
 
                     <h3 data-i18n="docs.auto.getting-started.agent-approval.116">Privileged Operations</h3>
                     <ul>
-                        <li data-i18n="docs.auto.getting-started.agent-approval.117">Enable privileged mode only when necessary</li>
-                        <li data-i18n="docs.auto.getting-started.agent-approval.118">Restrict allowed commands using whitelists</li>
+                        <li data-i18n="agent_approval.security.allowlist">Keep the sudo allowlist the package installs; widen it only for commands you need</li>
                         <li data-i18n="docs.auto.getting-started.agent-approval.119">Audit privileged operations</li>
-                        <li data-i18n="docs.auto.getting-started.agent-approval.120">Use sudo with specific command restrictions</li>
+                        <li data-i18n="agent_approval.security.approve">Approve only hosts you recognize</li>
                     </ul>
                 </section>
 
@@ -467,10 +234,10 @@ sysmanage-agent --log-level debug</code></pre>
                     <h2 data-i18n="docs.auto.getting-started.agent-approval.121">Next Steps</h2>
                     <p data-i18n="docs.auto.getting-started.agent-approval.122">After successfully setting up your agents:</p>
                     <ol>
-                        <li data-i18n="docs.auto.getting-started.agent-approval.123"><strong><a href="basic-management.html">Learn basic management</a>:</strong> Master day-to-day operations</li>
-                        <li data-i18n="docs.auto.getting-started.agent-approval.124"><strong><a href="../administration/host-management.html">Host management</a>:</strong> Organize and manage your hosts</li>
-                        <li data-i18n="docs.auto.getting-started.agent-approval.125"><strong><a href="../administration/monitoring.html">Set up monitoring</a>:</strong> Configure alerts and monitoring</li>
-                        <li data-i18n="docs.auto.getting-started.agent-approval.126"><strong><a href="../agent/privileged-execution.html">Privileged operations</a>:</strong> Configure sudo access if needed</li>
+                        <li data-i18n="docs.auto.getting-started.agent-approval.123" data-i18n-html><strong><a href="basic-management.html">Learn basic management</a>:</strong> Master day-to-day operations</li>
+                        <li data-i18n="docs.auto.getting-started.agent-approval.124" data-i18n-html><strong><a href="../administration/host-management.html">Host management</a>:</strong> Organize and manage your hosts</li>
+                        <li data-i18n="docs.auto.getting-started.agent-approval.125" data-i18n-html><strong><a href="../administration/monitoring.html">Set up monitoring</a>:</strong> Configure alerts and monitoring</li>
+                        <li data-i18n="docs.auto.getting-started.agent-approval.126" data-i18n-html><strong><a href="../agent/privileged-execution.html">Privileged operations</a>:</strong> Configure sudo access if needed</li>
                     </ol>
                 </section>
             </div>

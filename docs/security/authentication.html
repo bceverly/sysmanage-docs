@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Authentication & Authorization - SysManage Security</title>
-    <meta name="description" content="Comprehensive guide to SysManage authentication, authorization, JWT implementation, RBAC, multi-factor authentication, and session management.">
+    <meta name="description" content="How SysManage signs users in: tokens, multi-factor authentication, password policy, account lockout, API keys, and external identity providers.">
     <link rel="stylesheet" href="/assets/css/style.css">
     <link rel="icon" type="image/svg+xml" href="/assets/images/favicon.svg">
 </head>
@@ -19,760 +19,81 @@
 
             <div class="docs-header">
                 <h1 data-i18n="docs.auto.security.authentication.004">Authentication & Authorization</h1>
-                <p data-i18n="docs.auto.security.authentication.005">Comprehensive guide to SysManage's JWT-based authentication system, role-based access control, multi-factor authentication, and session management.</p>
+                <p data-i18n="docs.auto.security.authentication.v2.subtitle">How users sign in to SysManage, how their sessions work, and how access is controlled.</p>
             </div>
 
             <div class="docs-content">
                 <section class="overview">
                     <h2 data-i18n="docs.auto.security.authentication.006">Authentication Overview</h2>
-                    <p data-i18n="docs.auto.security.authentication.007">SysManage implements a robust multi-layered authentication and authorization system designed for enterprise environments. The system combines JWT-based stateless authentication with comprehensive role-based access control (RBAC) to ensure secure access to infrastructure management capabilities.</p>
-
-                    <div class="auth-architecture">
-                        <h3 data-i18n="docs.auto.security.authentication.008">Authentication Architecture</h3>
-                        <pre class="ascii-diagram">
-┌─────────────────────────────────────────────────────────────────┐
-│                      Authentication Flow                        │
-├─────────────────────────────────────────────────────────────────┤
-│  ┌─────────────┐  ┌──────────────┐  ┌─────────────────────────┐ │
-│  │ User Login  │  │ JWT Service  │  │ RBAC Authorization      │ │
-│  │ (Web/API)   │  │ (Token Gen)  │  │ (Role Validation)       │ │
-│  └─────────────┘  └──────────────┘  └─────────────────────────┘ │
-├─────────────────────────────────────────────────────────────────┤
-│  ┌─────────────┐  ┌──────────────┐  ┌─────────────────────────┐ │
-│  │ Password    │  │ Session      │  │ Multi-Factor Auth       │ │
-│  │ Validation  │  │ Management   │  │ (Optional MFA)          │ │
-│  └─────────────┘  └──────────────┘  └─────────────────────────┘ │
-├─────────────────────────────────────────────────────────────────┤
-│  ┌─────────────────────────────────────────────────────────────┐ │
-│  │                PostgreSQL User Store                       │ │
-│  └─────────────────────────────────────────────────────────────┘ │
-└─────────────────────────────────────────────────────────────────┘
-                        </pre>
-                    </div>
+                    <p data-i18n="docs.auto.security.authentication.v2.overview" data-i18n-html>Users sign in with their email address and password. Passwords are stored as Argon2 hashes. Everything on this page is part of every edition, including Community, except the external identity providers described at the end, which need Enterprise.</p>
                 </section>
 
                 <section class="jwt-authentication">
-                    <h2 data-i18n="docs.auto.security.authentication.009">JWT Authentication</h2>
-
-                    <h3 data-i18n="docs.auto.security.authentication.010">JWT Implementation</h3>
-                    <p data-i18n="docs.auto.security.authentication.011">SysManage uses JSON Web Tokens (JWT) for stateless authentication, providing scalability and security benefits for distributed deployments.</p>
-
-                    <h4 data-i18n="docs.auto.security.authentication.012">JWT Token Structure</h4>
-                    <div class="code-block">
-                        <pre><code># JWT Header
-{
-  "alg": "HS256",
-  "typ": "JWT"
-}
-
-# JWT Payload
-{
-  "sub": "user_id",
-  "username": "admin",
-  "email": "admin@company.com",
-  "roles": ["admin", "operator"],
-  "permissions": ["read:hosts", "write:hosts", "manage:users"],
-  "iat": 1634567890,
-  "exp": 1634571490,
-  "jti": "unique-token-id"
-}
-
-# JWT Signature
-HMACSHA256(
-  base64UrlEncode(header) + "." +
-  base64UrlEncode(payload),
-  secret
-)</code></pre>
-                    </div>
-
-                    <h4 data-i18n="docs.auto.security.authentication.013">Token Generation Process</h4>
-                    <div class="process-flow">
-                        <ol>
-                            <li data-i18n="docs.auto.security.authentication.014"><strong>User Authentication:</strong> Validate credentials against user database</li>
-                            <li data-i18n="docs.auto.security.authentication.015"><strong>Role Resolution:</strong> Query user roles and permissions from RBAC system</li>
-                            <li data-i18n="docs.auto.security.authentication.016"><strong>Token Creation:</strong> Generate JWT with user claims and permissions</li>
-                            <li data-i18n="docs.auto.security.authentication.017"><strong>Token Signing:</strong> Sign token with server secret key</li>
-                            <li data-i18n="docs.auto.security.authentication.018"><strong>Response:</strong> Return signed JWT to client with expiration information</li>
-                        </ol>
-                    </div>
-
-                    <h4 data-i18n="docs.auto.security.authentication.019">JWT Configuration</h4>
-                    <div class="code-block">
-                        <pre><code># JWT Settings in server configuration
-JWT_SECRET_KEY="your-secure-secret-key-here"
-JWT_ALGORITHM="HS256"
-JWT_ACCESS_TOKEN_EXPIRE_MINUTES=30
-JWT_REFRESH_TOKEN_EXPIRE_DAYS=7
-JWT_ISSUER="sysmanage-server"
-JWT_AUDIENCE="sysmanage-clients"
-
-# Token rotation settings
-JWT_ALLOW_REFRESH=true
-JWT_REFRESH_THRESHOLD_MINUTES=5
-JWT_BLACKLIST_ENABLED=true</code></pre>
-                    </div>
-
-                    <h3 data-i18n="docs.auto.security.authentication.020">Token Rotation & Security</h3>
-                    <p data-i18n="docs.auto.security.authentication.021">SysManage implements automatic token rotation to enhance security:</p>
-
-                    <div class="security-features">
-                        <div class="feature-item">
-                            <h4 data-i18n="docs.auto.security.authentication.022">Automatic Rotation</h4>
-                            <ul>
-                                <li data-i18n="docs.auto.security.authentication.023">Tokens automatically refreshed when 5 minutes from expiry</li>
-                                <li data-i18n="docs.auto.security.authentication.024">Refresh tokens issued with longer validity periods</li>
-                                <li data-i18n="docs.auto.security.authentication.025">Old tokens invalidated after successful refresh</li>
-                            </ul>
-                        </div>
-                        <div class="feature-item">
-                            <h4 data-i18n="docs.auto.security.authentication.026">Token Blacklisting</h4>
-                            <ul>
-                                <li data-i18n="docs.auto.security.authentication.027">Revoked tokens stored in blacklist</li>
-                                <li data-i18n="docs.auto.security.authentication.028">All API requests validate against blacklist</li>
-                                <li data-i18n="docs.auto.security.authentication.029">Automatic cleanup of expired blacklist entries</li>
-                            </ul>
-                        </div>
-                    </div>
-
-                    <h4 data-i18n="docs.auto.security.authentication.030">Token Validation Flow</h4>
-                    <div class="code-block">
-                        <pre><code># FastAPI JWT validation middleware
-from fastapi import HTTPException, Depends
-from fastapi.security import HTTPBearer
-import jwt
-
-security = HTTPBearer()
-
-async def validate_token(token: str = Depends(security)):
-    try:
-        # Decode and validate JWT
-        payload = jwt.decode(
-            token.credentials,
-            JWT_SECRET_KEY,
-            algorithms=[JWT_ALGORITHM],
-            audience=JWT_AUDIENCE,
-            issuer=JWT_ISSUER
-        )
-
-        # Check token blacklist
-        if await is_token_blacklisted(payload.get('jti')):
-            raise HTTPException(401, "Token has been revoked")
-
-        # Validate token expiration
-        if payload.get('exp', 0) < time.time():
-            raise HTTPException(401, "Token has expired")
-
-        return payload
-
-    except jwt.InvalidTokenError:
-        raise HTTPException(401, "Invalid token")
-    except Exception as e:
-        raise HTTPException(401, f"Token validation failed: {str(e)}")</code></pre>
-                    </div>
-                </section>
-
-                <section class="rbac-system">
-                    <h2 data-i18n="docs.auto.security.authentication.031">Role-Based Access Control (RBAC)</h2>
-
-                    <h3 data-i18n="docs.auto.security.authentication.032">RBAC Architecture</h3>
-                    <p data-i18n="docs.auto.security.authentication.033">SysManage implements a comprehensive RBAC system with hierarchical roles and granular permissions.</p>
-
-                    <div class="rbac-diagram">
-                        <h4 data-i18n="docs.auto.security.authentication.034">RBAC Data Model</h4>
-                        <pre class="ascii-diagram">
-┌─────────────┐     ┌─────────────┐     ┌─────────────┐
-│    Users    │────▶│    Roles    │────▶│ Permissions │
-└─────────────┘     └─────────────┘     └─────────────┘
-│                   │                   │
-│ - user_id         │ - role_id         │ - permission_id
-│ - username        │ - role_name       │ - resource
-│ - email           │ - description     │ - action
-│ - password_hash   │ - created_at      │ - scope
-│ - created_at      │ - updated_at      │ - description
-│ - is_active       │                   │
-└─────────────┘     └─────────────┘     └─────────────┘
-        │                   │                   │
-        └───────┬───────────┴───────┬───────────┘
-                │                   │
-        ┌───────▼────────┐  ┌───────▼────────┐
-        │  User_Roles    │  │ Role_Permissions│
-        │                │  │                 │
-        │ - user_id      │  │ - role_id       │
-        │ - role_id      │  │ - permission_id │
-        │ - granted_by   │  │ - granted_at    │
-        │ - granted_at   │  └─────────────────┘
-        └────────────────┘
-                        </pre>
-                    </div>
-
-                    <h3 data-i18n="docs.auto.security.authentication.035">Default Roles</h3>
-                    <div class="roles-grid">
-                        <div class="role-card">
-                            <h4 data-i18n="docs.auto.security.authentication.036">Admin</h4>
-                            <p><strong data-i18n="docs.auto.security.authentication.037">Full system access</strong></p>
-                            <ul>
-                                <li data-i18n="docs.auto.security.authentication.038">User management</li>
-                                <li data-i18n="docs.auto.security.authentication.039">System configuration</li>
-                                <li data-i18n="docs.auto.security.authentication.040">All host operations</li>
-                                <li data-i18n="docs.auto.security.authentication.041">Security settings</li>
-                                <li data-i18n="docs.auto.security.authentication.042">Audit log access</li>
-                            </ul>
-                        </div>
-                        <div class="role-card">
-                            <h4 data-i18n="docs.auto.security.authentication.043">Operator</h4>
-                            <p><strong data-i18n="docs.auto.security.authentication.044">Operations access</strong></p>
-                            <ul>
-                                <li data-i18n="docs.auto.security.authentication.045">Host management</li>
-                                <li data-i18n="docs.auto.security.authentication.046">Package operations</li>
-                                <li data-i18n="docs.auto.security.authentication.047">System monitoring</li>
-                                <li data-i18n="docs.auto.security.authentication.048">Task execution</li>
-                                <li data-i18n="docs.auto.security.authentication.049">Limited user management</li>
-                            </ul>
-                        </div>
-                        <div class="role-card">
-                            <h4 data-i18n="docs.auto.security.authentication.050">Viewer</h4>
-                            <p><strong data-i18n="docs.auto.security.authentication.051">Read-only access</strong></p>
-                            <ul>
-                                <li data-i18n="docs.auto.security.authentication.052">View hosts and status</li>
-                                <li data-i18n="docs.auto.security.authentication.053">Read package information</li>
-                                <li data-i18n="docs.auto.security.authentication.054">Access monitoring data</li>
-                                <li data-i18n="docs.auto.security.authentication.055">View task results</li>
-                                <li data-i18n="docs.auto.security.authentication.056">Export reports</li>
-                            </ul>
-                        </div>
-                        <div class="role-card">
-                            <h4 data-i18n="docs.auto.security.authentication.057">Auditor</h4>
-                            <p><strong data-i18n="docs.auto.security.authentication.058">Audit and compliance</strong></p>
-                            <ul>
-                                <li data-i18n="docs.auto.security.authentication.059">Access audit logs</li>
-                                <li data-i18n="docs.auto.security.authentication.060">View security events</li>
-                                <li data-i18n="docs.auto.security.authentication.061">Generate compliance reports</li>
-                                <li data-i18n="docs.auto.security.authentication.062">Review user activities</li>
-                                <li data-i18n="docs.auto.security.authentication.063">Monitor system changes</li>
-                            </ul>
-                        </div>
-                    </div>
-
-                    <h3 data-i18n="docs.auto.security.authentication.064">Permission System</h3>
-                    <p data-i18n="docs.auto.security.authentication.065">Permissions follow a resource:action pattern for granular access control:</p>
-
-                    <div class="permissions-table">
-                        <h4 data-i18n="docs.auto.security.authentication.066">Permission Examples</h4>
-                        <table>
-                            <thead>
-                                <tr>
-                                    <th data-i18n="docs.auto.security.authentication.067">Resource</th>
-                                    <th data-i18n="docs.auto.security.authentication.068">Actions</th>
-                                    <th data-i18n="docs.auto.security.authentication.069">Description</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <tr>
-                                    <td data-i18n="docs.auto.security.authentication.070">hosts</td>
-                                    <td data-i18n="docs.auto.security.authentication.071">read, write, delete, approve</td>
-                                    <td data-i18n="docs.auto.security.authentication.072">Host management operations</td>
-                                </tr>
-                                <tr>
-                                    <td data-i18n="docs.auto.security.authentication.073">packages</td>
-                                    <td data-i18n="docs.auto.security.authentication.074">read, install, update, remove</td>
-                                    <td data-i18n="docs.auto.security.authentication.075">Package management operations</td>
-                                </tr>
-                                <tr>
-                                    <td data-i18n="docs.auto.security.authentication.076">users</td>
-                                    <td data-i18n="docs.auto.security.authentication.077">read, create, update, delete</td>
-                                    <td data-i18n="docs.auto.security.authentication.078">User management operations</td>
-                                </tr>
-                                <tr>
-                                    <td data-i18n="docs.auto.security.authentication.079">roles</td>
-                                    <td data-i18n="docs.auto.security.authentication.080">read, create, update, delete, assign</td>
-                                    <td data-i18n="docs.auto.security.authentication.081">Role management operations</td>
-                                </tr>
-                                <tr>
-                                    <td data-i18n="docs.auto.security.authentication.082">security</td>
-                                    <td data-i18n="docs.auto.security.authentication.083">read, configure, scan, audit</td>
-                                    <td data-i18n="docs.auto.security.authentication.084">Security management operations</td>
-                                </tr>
-                                <tr>
-                                    <td data-i18n="docs.auto.security.authentication.085">system</td>
-                                    <td data-i18n="docs.auto.security.authentication.086">read, configure, backup, restore</td>
-                                    <td data-i18n="docs.auto.security.authentication.087">System configuration operations</td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    </div>
-
-                    <h4 data-i18n="docs.auto.security.authentication.088">RBAC Implementation</h4>
-                    <div class="code-block">
-                        <pre><code># Permission decorator for API endpoints
-from functools import wraps
-from fastapi import HTTPException
-
-def require_permission(resource: str, action: str):
-    def decorator(func):
-        @wraps(func)
-        async def wrapper(*args, **kwargs):
-            # Get current user from JWT token
-            current_user = kwargs.get('current_user')
-
-            # Check if user has required permission
-            if not await has_permission(current_user, resource, action):
-                raise HTTPException(
-                    status_code=403,
-                    detail=f"Permission denied: {resource}:{action}"
-                )
-
-            return await func(*args, **kwargs)
-        return wrapper
-    return decorator
-
-# Usage example
-@app.post("/api/v1/hosts/{host_id}/approve")
-@require_permission("hosts", "approve")
-async def approve_host(host_id: int, current_user: User = Depends(get_current_user)):
-    # Approve host logic here
-    pass</code></pre>
-                    </div>
+                    <h2 data-i18n="docs.auto.security.authentication.v2.tokens_title">Tokens and Sessions</h2>
+                    <ul>
+                        <li data-i18n="docs.auto.security.authentication.v2.tok_access" data-i18n-html><strong>Access token:</strong> a successful sign-in returns a JSON Web Token signed with HS256 using the server's <code>security.jwt_secret</code>. It carries the user's id, its expiry and, on a multi-tenant server, the active tenant. Its lifetime is <code>security.jwt_auth_timeout</code> seconds (the example configuration uses 600).</li>
+                        <li data-i18n="docs.auto.security.authentication.v2.tok_refresh" data-i18n-html><strong>Refresh token:</strong> set as an HTTP-only cookie (Secure and SameSite=Strict when the site is served over HTTPS). The web interface uses it to obtain a new access token when the current one expires. Its lifetime is <code>security.jwt_refresh_timeout</code> seconds.</li>
+                        <li data-i18n="docs.auto.security.authentication.v2.tok_revoke" data-i18n-html><strong>Signing everyone out:</strong> tokens are not stored on the server, so an individual token cannot be revoked before it expires. Changing <code>security.jwt_secret</code> invalidates every token at once.</li>
+                        <li data-i18n="docs.auto.security.authentication.v2.tok_apikey" data-i18n-html><strong>API keys:</strong> for automation, a user can create API keys. A key starts with <code>smk_</code>, is sent in the same <code>Authorization: Bearer</code> header as a token, and acts as that user. Only a SHA-256 hash of the key is stored, so it is shown once when created. An API key cannot be used to create further API keys.</li>
+                    </ul>
                 </section>
 
                 <section class="multi-factor-auth">
                     <h2 data-i18n="docs.auto.security.authentication.089">Multi-Factor Authentication (MFA)</h2>
-
-                    <h3 data-i18n="docs.auto.security.authentication.090">MFA Implementation</h3>
-                    <p data-i18n="docs.auto.security.authentication.091">SysManage supports Time-based One-Time Password (TOTP) multi-factor authentication for enhanced security.</p>
-
-                    <h4 data-i18n="docs.auto.security.authentication.092">Supported MFA Methods</h4>
-                    <div class="mfa-methods">
-                        <div class="method-item">
-                            <h4 data-i18n="docs.auto.security.authentication.093">TOTP (Time-based OTP)</h4>
-                            <ul>
-                                <li data-i18n="docs.auto.security.authentication.094">Compatible with Google Authenticator</li>
-                                <li data-i18n="docs.auto.security.authentication.095">Microsoft Authenticator support</li>
-                                <li data-i18n="docs.auto.security.authentication.096">Authy and other TOTP apps</li>
-                                <li data-i18n="docs.auto.security.authentication.097">30-second token rotation</li>
-                            </ul>
-                        </div>
-                        <div class="method-item">
-                            <h4 data-i18n="docs.auto.security.authentication.098">Email OTP</h4>
-                            <ul>
-                                <li data-i18n="docs.auto.security.authentication.099">Email-based one-time passwords (6 digits, Argon2-hashed at rest)</li>
-                                <li data-i18n="docs.auto.security.authentication.100">10-minute token validity, single-use</li>
-                                <li data-i18n="security.authentication.email_otp.rate_limit">Requesting a fresh code automatically invalidates any prior unconsumed challenge for the same user, so spamming the request endpoint can't flood the inbox</li>
-                                <li data-i18n="docs.auto.security.authentication.102">Fallback factor when the authenticator app is unreachable AND no backup codes remain</li>
-                                <li data-i18n="security.authentication.email_otp.endpoint" data-i18n-html><code>POST /api/auth/mfa/email/request</code> issues a code (re-uses the same MFA-pending token the <code>/api/auth/mfa/verify</code> endpoint accepts); <code>/api/auth/mfa/verify</code> accepts the emailed code in the same field that takes TOTP and backup codes</li>
-                                <li data-i18n="security.authentication.email_otp.enumeration" data-i18n-html><code>email/request</code> returns a generic "if your account has MFA configured, a code has been dispatched" envelope regardless of whether the user is enrolled or the email send succeeded -- prevents user-enumeration via the endpoint</li>
-                            </ul>
-                        </div>
-                        <div class="method-item">
-                            <h4 data-i18n="docs.auto.security.authentication.103">Recovery Codes</h4>
-                            <ul>
-                                <li data-i18n="docs.auto.security.authentication.104">Single-use recovery codes</li>
-                                <li data-i18n="docs.auto.security.authentication.105">10 codes generated per user</li>
-                                <li data-i18n="docs.auto.security.authentication.106">Secure storage and hashing</li>
-                                <li data-i18n="docs.auto.security.authentication.107">Emergency access capability</li>
-                            </ul>
-                        </div>
-                    </div>
-
-                    <h4 data-i18n="docs.auto.security.authentication.108">MFA Enrollment Process</h4>
-                    <div class="enrollment-flow">
-                        <ol>
-                            <li data-i18n="docs.auto.security.authentication.109"><strong>User Initiates:</strong> User requests MFA setup from profile settings</li>
-                            <li data-i18n="docs.auto.security.authentication.110"><strong>Secret Generation:</strong> Server generates unique TOTP secret key</li>
-                            <li data-i18n="docs.auto.security.authentication.111"><strong>QR Code Display:</strong> QR code presented for authenticator app setup</li>
-                            <li data-i18n="docs.auto.security.authentication.112"><strong>Verification:</strong> User enters TOTP code to verify setup</li>
-                            <li data-i18n="docs.auto.security.authentication.113"><strong>Recovery Codes:</strong> System generates and displays recovery codes</li>
-                            <li data-i18n="docs.auto.security.authentication.114"><strong>Activation:</strong> MFA becomes active after successful verification</li>
-                        </ol>
-                    </div>
-
-                    <h4 data-i18n="docs.auto.security.authentication.115">MFA Configuration</h4>
-                    <div class="code-block">
-                        <pre><code># MFA settings in server configuration
-MFA_ENABLED=true
-MFA_REQUIRED_FOR_ADMIN=true
-MFA_TOTP_ISSUER="SysManage"
-MFA_TOKEN_VALIDITY_SECONDS=30
-MFA_BACKUP_CODES_COUNT=10
-MFA_EMAIL_OTP_VALIDITY_MINUTES=10
-MFA_MAX_ATTEMPTS=3
-MFA_LOCKOUT_DURATION_MINUTES=15
-
-# TOTP implementation
-import pyotp
-import qrcode
-
-def generate_totp_secret():
-    return pyotp.random_base32()
-
-def generate_qr_code(user_email: str, secret: str):
-    totp_uri = pyotp.totp.TOTP(secret).provisioning_uri(
-        name=user_email,
-        issuer_name="SysManage"
-    )
-    qr = qrcode.QRCode(version=1, box_size=10, border=5)
-    qr.add_data(totp_uri)
-    qr.make(fit=True)
-    return qr.make_image(fill_color="black", back_color="white")</code></pre>
-                    </div>
-                </section>
-
-                <section class="session-management">
-                    <h2 data-i18n="docs.auto.security.authentication.116">Session Management</h2>
-
-                    <h3 data-i18n="docs.auto.security.authentication.117">Session Architecture</h3>
-                    <p data-i18n="docs.auto.security.authentication.118">SysManage implements stateless session management using JWT tokens with additional security features.</p>
-
-                    <h4 data-i18n="docs.auto.security.authentication.119">Session Features</h4>
-                    <div class="session-features">
-                        <div class="feature-item">
-                            <h4 data-i18n="docs.auto.security.authentication.120">Token-Based Sessions</h4>
-                            <ul>
-                                <li data-i18n="docs.auto.security.authentication.121">Stateless JWT-based sessions</li>
-                                <li data-i18n="docs.auto.security.authentication.122">No server-side session storage</li>
-                                <li data-i18n="docs.auto.security.authentication.123">Horizontal scaling friendly</li>
-                                <li data-i18n="docs.auto.security.authentication.124">Cross-domain support</li>
-                            </ul>
-                        </div>
-                        <div class="feature-item">
-                            <h4 data-i18n="docs.auto.security.authentication.125">Session Security</h4>
-                            <ul>
-                                <li data-i18n="docs.auto.security.authentication.126">Secure HTTP-only cookies</li>
-                                <li data-i18n="docs.auto.security.authentication.127">CSRF protection tokens</li>
-                                <li data-i18n="docs.auto.security.authentication.128">SameSite cookie attributes</li>
-                                <li data-i18n="docs.auto.security.authentication.129">Automatic session timeout</li>
-                            </ul>
-                        </div>
-                        <div class="feature-item">
-                            <h4 data-i18n="docs.auto.security.authentication.130">Session Monitoring</h4>
-                            <ul>
-                                <li data-i18n="docs.auto.security.authentication.131">Active session tracking</li>
-                                <li data-i18n="docs.auto.security.authentication.132">Concurrent session limits</li>
-                                <li data-i18n="docs.auto.security.authentication.133">Session activity logging</li>
-                                <li data-i18n="docs.auto.security.authentication.134">Suspicious activity detection</li>
-                            </ul>
-                        </div>
-                    </div>
-
-                    <h4 data-i18n="docs.auto.security.authentication.135">Session Configuration</h4>
-                    <div class="code-block">
-                        <pre><code># Session configuration
-SESSION_SECURE_COOKIES=true
-SESSION_HTTPONLY_COOKIES=true
-SESSION_SAMESITE="Strict"
-SESSION_DOMAIN=".sysmanage.local"
-SESSION_MAX_AGE_HOURS=8
-SESSION_IDLE_TIMEOUT_MINUTES=30
-SESSION_MAX_CONCURRENT=5
-SESSION_TRACK_IP_CHANGES=true
-
-# Session cookie implementation
-from fastapi import Response
-
-def set_session_cookie(response: Response, token: str):
-    response.set_cookie(
-        key="sysmanage_session",
-        value=token,
-        httponly=True,
-        secure=True,
-        samesite="strict",
-        max_age=SESSION_MAX_AGE_HOURS * 3600,
-        domain=SESSION_DOMAIN
-    )</code></pre>
-                    </div>
+                    <p data-i18n="docs.auto.security.authentication.v2.mfa_intro" data-i18n-html>Users enroll from their profile page. After enrollment, sign-in asks for a second factor, which can be any of the following:</p>
+                    <ul>
+                        <li data-i18n="docs.auto.security.authentication.v2.mfa_totp" data-i18n-html><strong>Authenticator app (TOTP):</strong> works with Google Authenticator, Microsoft Authenticator and other TOTP apps. Codes are 6 digits every 30 seconds by default (configurable to 6-8 digits and 15-120 seconds). The shared secret is stored encrypted in the database, with a key from <code>security.mfa_encryption_key</code> or, if that is not set, derived from the JWT secret.</li>
+                        <li data-i18n="docs.auto.security.authentication.v2.mfa_backup" data-i18n-html><strong>Backup codes:</strong> generated when enrollment is confirmed (10 by default), shown once, stored as Argon2 hashes, and each usable once. Users can regenerate them.</li>
+                        <li data-i18n="docs.auto.security.authentication.v2.mfa_email" data-i18n-html><strong>Email code:</strong> a 6-digit code valid for 10 minutes and usable once. Requesting a new code invalidates any earlier unused one. The request endpoint gives the same answer whether or not the account is enrolled, so it cannot be used to discover accounts.</li>
+                    </ul>
+                    <p data-i18n="docs.auto.security.authentication.v2.mfa_required" data-i18n-html>An administrator can require MFA for every user in the MFA settings. A user who has not enrolled by the end of the grace period (14 days after the account was created, by default) can no longer sign in until they enroll.</p>
                 </section>
 
                 <section class="password-policies">
                     <h2 data-i18n="docs.auto.security.authentication.136">Password Policies</h2>
-
-                    <h3 data-i18n="docs.auto.security.authentication.137">Password Requirements</h3>
-                    <p data-i18n="docs.auto.security.authentication.138">SysManage enforces configurable password policies to ensure strong authentication credentials.</p>
-
-                    <h4 data-i18n="docs.auto.security.authentication.139">Default Password Policy</h4>
-                    <div class="policy-requirements">
-                        <ul>
-                            <li data-i18n="docs.auto.security.authentication.140"><strong>Minimum Length:</strong> 12 characters</li>
-                            <li data-i18n="docs.auto.security.authentication.141"><strong>Character Classes:</strong> At least 3 of the following:
-                                <ul>
-                                    <li>Uppercase letters (A-Z)</li>
-                                    <li>Lowercase letters (a-z)</li>
-                                    <li>Numbers (0-9)</li>
-                                    <li>Special characters (!@#$%^&*)</li>
-                                </ul>
-                            </li>
-                            <li data-i18n="docs.auto.security.authentication.142"><strong>Dictionary Check:</strong> Not common dictionary words</li>
-                            <li data-i18n="docs.auto.security.authentication.143"><strong>History:</strong> Cannot reuse last 12 passwords</li>
-                            <li data-i18n="docs.auto.security.authentication.144"><strong>Expiration:</strong> 90 days (configurable)</li>
-                            <li data-i18n="docs.auto.security.authentication.145"><strong>Account Lockout:</strong> 5 failed attempts</li>
-                        </ul>
-                    </div>
-
-                    <h4 data-i18n="docs.auto.security.authentication.146">Password Policy Configuration</h4>
-                    <div class="code-block">
-                        <pre><code># Password policy settings
-PASSWORD_MIN_LENGTH=12
-PASSWORD_REQUIRE_UPPERCASE=true
-PASSWORD_REQUIRE_LOWERCASE=true
-PASSWORD_REQUIRE_NUMBERS=true
-PASSWORD_REQUIRE_SPECIAL=true
-PASSWORD_MIN_CHAR_CLASSES=3
-PASSWORD_CHECK_DICTIONARY=true
-PASSWORD_HISTORY_COUNT=12
-PASSWORD_EXPIRY_DAYS=90
-PASSWORD_WARN_DAYS=7
-
-# Account lockout settings
-ACCOUNT_LOCKOUT_ATTEMPTS=5
-ACCOUNT_LOCKOUT_DURATION_MINUTES=30
-ACCOUNT_LOCKOUT_RESET_TIME_MINUTES=60
-
-# Password validation implementation
-import re
-from passlib.hash import argon2
-
-class PasswordPolicy:
-    def __init__(self):
-        self.min_length = PASSWORD_MIN_LENGTH
-        self.require_classes = PASSWORD_MIN_CHAR_CLASSES
-
-    def validate(self, password: str, user_data: dict = None) -> tuple[bool, list]:
-        errors = []
-
-        # Length check
-        if len(password) < self.min_length:
-            errors.append(f"Password must be at least {self.min_length} characters")
-
-        # Character class checks
-        classes = 0
-        if re.search(r'[A-Z]', password):
-            classes += 1
-        if re.search(r'[a-z]', password):
-            classes += 1
-        if re.search(r'[0-9]', password):
-            classes += 1
-        if re.search(r'[!@#$%^&*(),.?":{}|<>]', password):
-            classes += 1
-
-        if classes < self.require_classes:
-            errors.append(f"Password must contain at least {self.require_classes} character classes")
-
-        # Dictionary check
-        if self.is_common_password(password):
-            errors.append("Password is too common")
-
-        return len(errors) == 0, errors</code></pre>
-                    </div>
+                    <p data-i18n="docs.auto.security.authentication.v2.pw_intro" data-i18n-html>The password policy is set in the <code>security.password_policy</code> block of <code>sysmanage.yaml</code>; a <code>password_policy</code> setting stored in the database (for the server or for a tenant) overrides it. The available rules and their defaults:</p>
+                    <table class="config-table">
+                        <thead><tr><th data-i18n="docs.auto.security.authentication.v2.th_setting">Setting</th><th data-i18n="docs.auto.security.authentication.v2.th_default">Default</th></tr></thead>
+                        <tbody>
+                            <tr><td><code>min_length</code></td><td>8</td></tr>
+                            <tr><td><code>max_length</code></td><td>128</td></tr>
+                            <tr><td><code>require_uppercase</code>, <code>require_lowercase</code>, <code>require_numbers</code>, <code>require_special_chars</code></td><td><code>false</code></td></tr>
+                            <tr><td><code>min_character_types</code></td><td>1</td></tr>
+                            <tr><td><code>allow_username_in_password</code></td><td><code>true</code></td></tr>
+                        </tbody>
+                    </table>
+                    <h3 data-i18n="docs.auto.security.authentication.v2.lockout_title">Account Lockout and Throttling</h3>
+                    <p data-i18n="docs.auto.security.authentication.v2.lockout" data-i18n-html>An account locks after <code>security.max_failed_logins</code> failed sign-ins (default 5) for <code>security.account_lockout_duration</code> minutes (default 15). The server also throttles repeated failed attempts from one client address. A user with the <em>Unlock User</em> role can unlock an account early. Sign-in attempts, successful or not, are recorded with the client address.</p>
+                    <h3 data-i18n="docs.auto.security.authentication.v2.recovery_title">Recovery Administrator</h3>
+                    <p data-i18n="docs.auto.security.authentication.v2.recovery" data-i18n-html>The <code>security.admin_userid</code> and <code>security.admin_password</code> settings define a recovery account for first sign-in or for getting back in when no other administrator can. The password is read from OpenBAO when available. A placeholder password is never accepted. Once real administrator accounts exist, remove these settings; the server shows a security warning while they are present.</p>
                 </section>
 
-                <section class="security-monitoring">
-                    <h2 data-i18n="docs.auto.security.authentication.147">Authentication Security Monitoring</h2>
-
-                    <h3 data-i18n="docs.auto.security.authentication.148">Security Events</h3>
-                    <p data-i18n="docs.auto.security.authentication.149">SysManage logs and monitors authentication-related security events for threat detection and compliance.</p>
-
-                    <h4 data-i18n="docs.auto.security.authentication.150">Monitored Events</h4>
-                    <div class="monitoring-grid">
-                        <div class="monitor-item">
-                            <h4 data-i18n="docs.auto.security.authentication.151">Authentication Events</h4>
-                            <ul>
-                                <li data-i18n="docs.auto.security.authentication.152">Successful logins</li>
-                                <li data-i18n="docs.auto.security.authentication.153">Failed login attempts</li>
-                                <li data-i18n="docs.auto.security.authentication.154">Account lockouts</li>
-                                <li data-i18n="docs.auto.security.authentication.155">Password changes</li>
-                                <li data-i18n="docs.auto.security.authentication.156">MFA enrollment/changes</li>
-                            </ul>
-                        </div>
-                        <div class="monitor-item">
-                            <h4 data-i18n="docs.auto.security.authentication.157">Suspicious Activities</h4>
-                            <ul>
-                                <li data-i18n="docs.auto.security.authentication.158">Multiple failed attempts</li>
-                                <li data-i18n="docs.auto.security.authentication.159">Login from new locations</li>
-                                <li data-i18n="docs.auto.security.authentication.160">Concurrent sessions</li>
-                                <li data-i18n="docs.auto.security.authentication.161">Privilege escalation attempts</li>
-                                <li data-i18n="docs.auto.security.authentication.162">Token manipulation</li>
-                            </ul>
-                        </div>
-                        <div class="monitor-item">
-                            <h4 data-i18n="docs.auto.security.authentication.163">Administrative Actions</h4>
-                            <ul>
-                                <li data-i18n="docs.auto.security.authentication.164">User creation/deletion</li>
-                                <li data-i18n="docs.auto.security.authentication.165">Role assignments</li>
-                                <li data-i18n="docs.auto.security.authentication.166">Permission changes</li>
-                                <li data-i18n="docs.auto.security.authentication.167">Security setting modifications</li>
-                                <li data-i18n="docs.auto.security.authentication.168">Audit log access</li>
-                            </ul>
-                        </div>
-                    </div>
-
-                    <h4 data-i18n="docs.auto.security.authentication.169">Alert Configuration</h4>
-                    <div class="code-block">
-                        <pre><code># Security alert thresholds
-ALERT_FAILED_LOGINS_THRESHOLD=5
-ALERT_FAILED_LOGINS_WINDOW_MINUTES=10
-ALERT_NEW_LOCATION_LOGIN=true
-ALERT_CONCURRENT_SESSIONS_THRESHOLD=3
-ALERT_ADMIN_ACTIONS=true
-ALERT_MFA_BYPASS_ATTEMPTS=true
-
-# Event logging structure
-{
-  "timestamp": "2024-01-15T10:30:00Z",
-  "event_type": "authentication",
-  "event_subtype": "login_failed",
-  "user_id": "user123",
-  "username": "jdoe",
-  "ip_address": "192.168.1.100",
-  "user_agent": "Mozilla/5.0...",
-  "details": {
-    "reason": "invalid_password",
-    "attempt_count": 3,
-    "location": "New York, US"
-  },
-  "severity": "medium",
-  "source": "web_ui"
-}</code></pre>
-                    </div>
+                <section class="rbac-system">
+                    <h2 data-i18n="docs.auto.security.authentication.031">Role-Based Access Control (RBAC)</h2>
+                    <p data-i18n="docs.auto.security.authentication.v2.rbac" data-i18n-html>What a signed-in user may do is decided by the security roles assigned to them; the server checks the required role on each protected request and answers HTTP 403 when it is missing. See <a href="rbac.html">Role-Based Access Control</a>.</p>
                 </section>
 
                 <section class="integration-examples">
-                    <h2 data-i18n="docs.auto.security.authentication.170">Integration Examples</h2>
-
-                    <h3 data-i18n="docs.auto.security.authentication.171">External Authentication Providers</h3>
-                    <p data-i18n="docs.auto.security.authentication.172">SysManage can integrate with external authentication systems for enterprise environments.</p>
-
-                    <h4 data-i18n="docs.auto.security.authentication.173">LDAP/Active Directory Integration</h4>
-                    <div class="code-block">
-                        <pre><code># LDAP configuration
-LDAP_ENABLED=true
-LDAP_SERVER="ldap://dc.company.com:389"
-LDAP_BIND_DN="CN=sysmanage,OU=Service Accounts,DC=company,DC=com"
-LDAP_BIND_PASSWORD="secure-password"
-LDAP_USER_SEARCH_BASE="OU=Users,DC=company,DC=com"
-LDAP_USER_SEARCH_FILTER="(&(objectClass=user)(sAMAccountName={username}))"
-LDAP_GROUP_SEARCH_BASE="OU=Groups,DC=company,DC=com"
-LDAP_ROLE_MAPPING='{"CN=SysManage Admins,OU=Groups,DC=company,DC=com": "admin"}'
-
-# LDAP authentication implementation
-import ldap3
-
-async def authenticate_ldap(username: str, password: str):
-    try:
-        server = ldap3.Server(LDAP_SERVER)
-        user_dn = await find_user_dn(username)
-
-        conn = ldap3.Connection(server, user_dn, password)
-        if conn.bind():
-            user_groups = await get_user_groups(conn, user_dn)
-            roles = map_groups_to_roles(user_groups)
-            return create_user_session(username, roles)
-        else:
-            return None
-    except Exception as e:
-        logger.error(f"LDAP authentication failed: {e}")
-        return None</code></pre>
-                    </div>
-
-                    <h4 data-i18n="docs.auto.security.authentication.174">SAML 2.0 Integration</h4>
-                    <div class="code-block">
-                        <pre><code># SAML configuration
-SAML_ENABLED=true
-SAML_ENTITY_ID="https://sysmanage.company.com"
-SAML_SSO_URL="https://idp.company.com/sso"
-SAML_SLO_URL="https://idp.company.com/slo"
-SAML_X509_CERT="/path/to/idp-cert.pem"
-SAML_ATTRIBUTE_MAPPING='{"email": "EmailAddress", "roles": "Groups"}'
-
-# SAML response handling
-from onelogin.saml2.auth import OneLogin_Saml2_Auth
-
-@app.post("/auth/saml/acs")
-async def saml_acs(request: Request):
-    auth = OneLogin_Saml2_Auth(request, saml_settings)
-    auth.process_response()
-
-    if auth.is_authenticated():
-        attributes = auth.get_attributes()
-        email = attributes.get('EmailAddress', [None])[0]
-        groups = attributes.get('Groups', [])
-
-        user = await get_or_create_user(email, groups)
-        token = create_jwt_token(user)
-
-        return {"access_token": token, "token_type": "bearer"}
-    else:
-        raise HTTPException(401, "SAML authentication failed")</code></pre>
-                    </div>
+                    <h2 data-i18n="docs.auto.security.authentication.v2.idp_title">External Identity Providers (Enterprise)</h2>
+                    <p data-i18n="docs.auto.security.authentication.v2.idp" data-i18n-html>With an Enterprise license, users can sign in through LDAP or Active Directory, OpenID Connect, or SAML, and an identity provider can provision users through SCIM. Without the license these endpoints return HTTP 402. See <a href="../professional-plus/external-idp.html">External Identity Providers</a>.</p>
                 </section>
 
                 <section class="troubleshooting">
                     <h2 data-i18n="docs.auto.security.authentication.175">Troubleshooting Authentication</h2>
-
-                    <h3 data-i18n="docs.auto.security.authentication.176">Common Issues</h3>
-                    <div class="troubleshooting-grid">
-                        <div class="issue-item">
-                            <h4 data-i18n="docs.auto.security.authentication.177">Token Expired Errors</h4>
-                            <ul>
-                                <li data-i18n="docs.auto.security.authentication.178">Check system clock synchronization</li>
-                                <li data-i18n="docs.auto.security.authentication.179">Verify JWT expiration settings</li>
-                                <li data-i18n="docs.auto.security.authentication.180">Ensure token refresh is working</li>
-                                <li data-i18n="docs.auto.security.authentication.181">Check client token storage</li>
-                            </ul>
-                        </div>
-                        <div class="issue-item">
-                            <h4 data-i18n="docs.auto.security.authentication.182">MFA Setup Problems</h4>
-                            <ul>
-                                <li data-i18n="docs.auto.security.authentication.183">Verify authenticator app time sync</li>
-                                <li data-i18n="docs.auto.security.authentication.184">Check QR code generation</li>
-                                <li data-i18n="docs.auto.security.authentication.185">Validate TOTP secret storage</li>
-                                <li data-i18n="docs.auto.security.authentication.186">Test backup recovery codes</li>
-                            </ul>
-                        </div>
-                        <div class="issue-item">
-                            <h4 data-i18n="docs.auto.security.authentication.187">RBAC Permission Errors</h4>
-                            <ul>
-                                <li data-i18n="docs.auto.security.authentication.188">Verify user role assignments</li>
-                                <li data-i18n="docs.auto.security.authentication.189">Check permission definitions</li>
-                                <li data-i18n="docs.auto.security.authentication.190">Validate JWT claims</li>
-                                <li data-i18n="docs.auto.security.authentication.191">Review role hierarchy</li>
-                            </ul>
-                        </div>
-                        <div class="issue-item">
-                            <h4 data-i18n="docs.auto.security.authentication.192">External Auth Integration</h4>
-                            <ul>
-                                <li data-i18n="docs.auto.security.authentication.193">Test LDAP connectivity</li>
-                                <li data-i18n="docs.auto.security.authentication.194">Verify certificate validity</li>
-                                <li data-i18n="docs.auto.security.authentication.195">Check attribute mappings</li>
-                                <li data-i18n="docs.auto.security.authentication.196">Review firewall rules</li>
-                            </ul>
-                        </div>
-                    </div>
-
-                    <h4 data-i18n="docs.auto.security.authentication.197">Diagnostic Commands</h4>
-                    <div class="code-block">
-                        <pre><code># Test JWT token validation
-curl -H "Authorization: Bearer YOUR_TOKEN" \
-     http://localhost:8000/api/auth/validate
-
-# Check user permissions
-curl -H "Authorization: Bearer YOUR_TOKEN" \
-     http://localhost:8000/api/auth/permissions
-
-# Test LDAP connectivity
-ldapsearch -H ldap://your-server:389 -D "bind-dn" -w "password" \
-           -b "search-base" "(objectClass=user)"
-
-# View authentication logs
-tail -f /var/log/sysmanage/auth.log | grep "authentication"</code></pre>
-                    </div>
+                    <ul>
+                        <li data-i18n="docs.auto.security.authentication.v2.tr_422" data-i18n-html><strong>HTTP 422 at sign-in:</strong> the user id must be an email address.</li>
+                        <li data-i18n="docs.auto.security.authentication.v2.tr_expired" data-i18n-html><strong>Frequent "session expired" messages:</strong> check the server and browser clocks, and the <code>jwt_auth_timeout</code> and <code>jwt_refresh_timeout</code> values.</li>
+                        <li data-i18n="docs.auto.security.authentication.v2.tr_totp" data-i18n-html><strong>TOTP codes rejected:</strong> the phone's clock is probably off; enable automatic time on the device, or use a backup code.</li>
+                        <li data-i18n="docs.auto.security.authentication.v2.tr_locked" data-i18n-html><strong>"Account locked":</strong> wait for the lockout period, or ask a user with the Unlock User role to unlock the account.</li>
+                    </ul>
                 </section>
 
                 <section class="next-steps">
                     <h2 data-i18n="docs.auto.security.authentication.198">Next Steps</h2>
-                    <p data-i18n="docs.auto.security.authentication.199">After implementing authentication and authorization:</p>
                     <ol>
-                        <li data-i18n="docs.auto.security.authentication.200"><strong><a href="mtls.html">Mutual TLS Configuration</a>:</strong> Set up certificate-based agent authentication</li>
-                        <li data-i18n="docs.auto.security.authentication.201"><strong><a href="network-security.html">Network Security</a>:</strong> Configure network-level protections</li>
-                        <li data-i18n="docs.auto.security.authentication.202"><strong><a href="best-practices.html">Security Best Practices</a>:</strong> Follow recommended security guidelines</li>
-                        <li data-i18n="docs.auto.security.authentication.203"><strong><a href="scanning.html">Security Scanning</a>:</strong> Implement comprehensive security scanning</li>
+                        <li data-i18n="docs.auto.security.authentication.v2.next_tls" data-i18n-html><strong><a href="mtls.html">Agent Certificates and TLS</a>:</strong> How agent traffic is protected</li>
+                        <li data-i18n="docs.auto.security.authentication.201" data-i18n-html><strong><a href="network-security.html">Network Security</a>:</strong> Configure network-level protections</li>
+                        <li data-i18n="docs.auto.security.authentication.202" data-i18n-html><strong><a href="best-practices.html">Security Best Practices</a>:</strong> Follow recommended security guidelines</li>
                     </ol>
                 </section>
             </div>
@@ -782,7 +103,7 @@ tail -f /var/log/sysmanage/auth.log | grep "authentication"</code></pre>
                     <h3 data-i18n="docs.auto.security.authentication.204">Navigation</h3>
                     <div class="nav-links">
                         <a href="./" class="nav-link" data-i18n="docs.auto.security.authentication.205">← Security Home</a>
-                        <a href="mtls.html" class="nav-link" data-i18n="docs.auto.security.authentication.206">Mutual TLS →</a>
+                        <a href="mtls.html" class="nav-link" data-i18n="docs.auto.security.authentication.206">Agent Certificates and TLS →</a>
                     </div>
                 </div>
             </div>

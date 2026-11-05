@@ -44,8 +44,13 @@ sudo apt update
 sudo apt install sysmanage-agent</code></pre>
                     <p data-i18n="agent_install.packages.ubuntu.what" data-i18n-html>The package creates the <code>sysmanage-agent</code> service account and its sudo rules, writes <code>/etc/sysmanage-agent.yaml</code> from the example, and starts the service. Until you set your server's address in that file, the agent keeps trying the placeholder address, so finish <a href="#after-installing">After Installing</a> next. Later releases arrive through <code>sudo apt upgrade</code>.</p>
 
+                    <h3 data-i18n="agent_install.packages.signing.title" data-i18n-html>How Packages Are Verified</h3>
+                    <p data-i18n="agent_install.packages.signing.signed" data-i18n-html>The Launchpad PPA, the SysManage APT and RPM repositories, Fedora Copr and the Flatpak repository are signed, and the Snap Store signs every snap, so your package manager checks each download against a signature. winget, Homebrew and the AUR check each download against the SHA-256 recorded in their manifest. The SysManage repositories are signed with the SysManage Package Signing key, whose fingerprint is:</p>
+                    <pre><code>896E ED43 9F5E 9BB1 FCA6 69A5 E033 E691 377F 0AE3</code></pre>
+                    <p data-i18n="agent_install.packages.signing.unsigned" data-i18n-html><strong>The direct downloads are not signed.</strong> The Alpine, FreeBSD, OpenBSD and NetBSD packages, the macOS <code>.pkg</code> and the Windows installers are published with a <code>.sha256</code> checksum next to each file. The checksum proves the file arrived complete and unchanged, but it comes from the same server as the file, so it does not prove who published it. The commands below check it before installing. Where a signed repository or a package manager exists for your platform, prefer it.</p>
+
                     <h3 data-i18n="agent_install.packages.other.title" data-i18n-html>Other Platforms</h3>
-                    <p data-i18n="agent_install.packages.other.intro" data-i18n-html>Every other platform installs from a package repository or a signed download on <code>repo.sysmanage.org</code>, the SysManage package mirror. The same files are attached to each <a href="https://github.com/bceverly/sysmanage-agent/releases">GitHub release</a>. Where a command uses <code>VERSION</code>, it reads the latest release number from the mirror first.</p>
+                    <p data-i18n="agent_install.packages.other.intro_mirror" data-i18n-html>Every other platform installs from a package repository, a package manager, or a download from <code>repo.sysmanage.org</code>, the SysManage package mirror. The same files are attached to each <a href="https://github.com/bceverly/sysmanage-agent/releases">GitHub release</a>. Where a command uses <code>VERSION</code>, it reads the latest release number from the mirror first.</p>
 
                     <div class="platform-tabs">
                         <div class="tab-header">
@@ -64,10 +69,12 @@ sudo apt install sysmanage-agent</code></pre>
                         <div class="tab-content">
                             <div class="tab-pane active" id="debian">
                                 <p data-i18n="agent_install.packages.debian.intro" data-i18n-html>Debian 12 and newer (amd64 and arm64) install from the SysManage APT repository. Ubuntu can use it too, but the PPA above is the recommended source on Ubuntu.</p>
+                                <p data-i18n="agent_install.packages.debian.verify" data-i18n-html>After downloading the key, check that <code>gpg --show-keys</code> prints the fingerprint shown above before you add the repository.</p>
                                 <pre><code># Install the archive signing key
 sudo install -d -m 0755 /usr/share/keyrings
 curl -fsSL https://repo.sysmanage.org/agent/sysmanage-archive-keyring.gpg \
   | sudo tee /usr/share/keyrings/sysmanage-archive-keyring.gpg &gt; /dev/null
+gpg --show-keys /usr/share/keyrings/sysmanage-archive-keyring.gpg
 
 # Add the repository, verified against that key
 echo "deb [signed-by=/usr/share/keyrings/sysmanage-archive-keyring.gpg] https://repo.sysmanage.org/agent/deb stable main" \
@@ -78,7 +85,7 @@ sudo apt install sysmanage-agent</code></pre>
                             </div>
 
                             <div class="tab-pane" id="rhel">
-                                <p data-i18n="agent_install.packages.rhel.intro" data-i18n-html>RHEL, Rocky Linux, AlmaLinux and Oracle Linux 8, 9 and 10, CentOS Stream 9 and 10, Fedora 43 and Amazon Linux 2023 install from the <code>bceverly/sysmanage-agent</code> Fedora Copr project:</p>
+                                <p data-i18n="agent_install.packages.rhel.intro_el910" data-i18n-html>RHEL, Rocky Linux, AlmaLinux and Oracle Linux 9 and 10, CentOS Stream 9 and 10, Fedora 43 and Amazon Linux 2023 (x86_64 and aarch64) install from the <code>bceverly/sysmanage-agent</code> Fedora Copr project, which signs its packages. Release 8 of the RHEL family is not supported: the agent needs Python 3.9 or newer.</p>
                                 <pre><code>sudo dnf install epel-release      # RHEL-family only; skip on Fedora and Amazon Linux
 sudo dnf copr enable bceverly/sysmanage-agent
 sudo dnf install sysmanage-agent</code></pre>
@@ -95,11 +102,8 @@ sudo dnf install sysmanage-agent</code></pre>
                             </div>
 
                             <div class="tab-pane" id="opensuse">
-                                <p data-i18n="agent_install.packages.opensuse.intro" data-i18n-html>openSUSE Leap 15, openSUSE Tumbleweed and SUSE Linux Enterprise Server 15 (x86_64) install from the signed RPM repositories on the mirror. Add the one for your distribution:</p>
+                                <p data-i18n="agent_install.packages.opensuse.intro_tw_sles" data-i18n-html>openSUSE Tumbleweed and SUSE Linux Enterprise Server 15 (x86_64) install from the signed RPM repositories on the mirror. Import the signing key, then add the repository for your distribution:</p>
                                 <pre><code>sudo rpm --import https://repo.sysmanage.org/agent/rpm/RPM-GPG-KEY-sysmanage
-
-# openSUSE Leap 15
-sudo zypper addrepo https://repo.sysmanage.org/agent/rpm/opensuse-leap/15/x86_64 sysmanage-agent
 
 # openSUSE Tumbleweed
 sudo zypper addrepo https://repo.sysmanage.org/agent/rpm/opensuse-tumbleweed/x86_64 sysmanage-agent
@@ -117,7 +121,7 @@ sudo zypper install sysmanage-agent</code></pre>
                             </div>
 
                             <div class="tab-pane" id="alpine">
-                                <p data-i18n="agent_install.packages.alpine.intro" data-i18n-html>Alpine Linux 3.20, 3.21 and 3.22 install a package from the mirror. Set <code>ALPINE</code> to your release (<code>alpine320</code>, <code>alpine321</code> or <code>alpine322</code>), check the download, and install it as root:</p>
+                                <p data-i18n="agent_install.packages.alpine.intro_unsigned" data-i18n-html>Alpine Linux 3.21 and 3.22 install a package from the mirror. Set <code>ALPINE</code> to your release (<code>alpine321</code> or <code>alpine322</code>), check the download, and install it as root. The package is not signed, which is why <code>apk</code> needs <code>--allow-untrusted</code>.</p>
                                 <pre><code>ALPINE=alpine322
 VERSION=$(wget -qO- https://repo.sysmanage.org/agent/alpine/latest.txt)
 BASE=https://repo.sysmanage.org/agent/alpine/packages/$VERSION
@@ -128,23 +132,41 @@ rc-update add sysmanage-agent default</code></pre>
                             </div>
 
                             <div class="tab-pane" id="macos">
-                                <p data-i18n="agent_install.packages.macos.intro" data-i18n-html>macOS installs the package from the mirror. It installs the agent in <code>/usr/local/lib/sysmanage-agent</code> and registers the <code>com.sysmanage.agent</code> launch daemon.</p>
+                                <p data-i18n="agent_install.packages.macos.brew_first" data-i18n-html>On macOS, install the agent with Homebrew from the SysManage tap. Homebrew checks the download's SHA-256, and later releases arrive through <code>brew upgrade</code>.</p>
+                                <pre><code>brew install bceverly/tap/sysmanage-agent</code></pre>
+                                <p data-i18n="agent_install.packages.macos.pkg_checksum" data-i18n-html>Without Homebrew, install the package from the mirror. It installs the agent in <code>/usr/local/lib/sysmanage-agent</code> and registers the <code>com.sysmanage.agent</code> launch daemon. The package is not signed or notarized by Apple, so check its checksum first:</p>
                                 <pre><code>VERSION=$(curl -fsSL https://repo.sysmanage.org/agent/mac/latest.txt)
-curl -fLO "https://repo.sysmanage.org/agent/mac/packages/$VERSION/sysmanage-agent-$VERSION-macos.pkg"
+BASE=https://repo.sysmanage.org/agent/mac/packages/$VERSION
+curl -fL -O "$BASE/sysmanage-agent-$VERSION-macos.pkg" -O "$BASE/sysmanage-agent-$VERSION-macos.pkg.sha256"
+shasum -a 256 -c "sysmanage-agent-$VERSION-macos.pkg.sha256"
 sudo installer -pkg "sysmanage-agent-$VERSION-macos.pkg" -target /</code></pre>
-                                <p data-i18n="agent_install.packages.macos.brew" data-i18n-html>Homebrew users can install it from the SysManage tap instead: <code>brew install bceverly/tap/sysmanage-agent</code>.</p>
                             </div>
 
                             <div class="tab-pane" id="windows">
-                                <p data-i18n="agent_install.packages.windows.intro" data-i18n-html>Download the installer for your architecture from the <a href="https://github.com/bceverly/sysmanage-agent/releases/latest">latest release</a> and run it as an administrator. Use the <code>.exe</code> bundle (<code>sysmanage-agent-X.Y.Z-windows-x64.exe</code>, or <code>-windows-arm64.exe</code> on ARM): it installs the Visual C++ runtime and Python first, then the agent, and registers the <code>SysManageAgent</code> service.</p>
-                                <p data-i18n="agent_install.packages.windows.msi" data-i18n-html>The plain <code>.msi</code> is for hosts that already have Python, and for unattended deployment with <code>msiexec /i sysmanage-agent-X.Y.Z-windows-x64.msi /qn</code>. The agent is also published to winget as <code>sysmanage.sysmanage-agent</code>, though winget can trail the latest release.</p>
+                                <p data-i18n="agent_install.packages.windows.winget_first" data-i18n-html>On Windows x64, install the agent with winget, which checks the installer's SHA-256 against its manifest. winget installs the MSI; on a host without Python, the agent finishes setting up in the background shortly after winget returns. winget can trail the latest release by a few days, while its manifest update is reviewed.</p>
+                                <pre><code>winget install --id sysmanage.sysmanage-agent --exact</code></pre>
+                                <p data-i18n="agent_install.packages.windows.exe_checksum" data-i18n-html>To install the latest release directly, use the <code>.exe</code> bundle from the mirror (<code>-windows-arm64.exe</code> on ARM). It installs the Visual C++ runtime and Python first, then the agent, and registers the <code>SysManageAgent</code> service. The installers are not code-signed, so Windows shows an unknown-publisher warning; compare the checksum first. In an administrator PowerShell:</p>
+                                <pre><code>$V = (Invoke-RestMethod https://repo.sysmanage.org/agent/windows/latest.txt).Trim()
+$F = "sysmanage-agent-$V-windows-x64.exe"
+$B = "https://repo.sysmanage.org/agent/windows/packages/$V"
+Invoke-WebRequest "$B/$F" -OutFile $F
+Invoke-WebRequest "$B/$F.sha256" -OutFile "$F.sha256"
+(Get-FileHash $F -Algorithm SHA256).Hash
+Get-Content "$F.sha256"
+Start-Process ".\$F" -ArgumentList "/quiet","/norestart" -Wait</code></pre>
+                                <p data-i18n="agent_install.packages.windows.msi_plain" data-i18n-html>The plain <code>.msi</code> in the same directory is for hosts that already have Python, and for unattended deployment with <code>msiexec /i sysmanage-agent-X.Y.Z-windows-x64.msi /qn</code>.</p>
                             </div>
 
                             <div class="tab-pane" id="freebsd">
-                                <p data-i18n="agent_install.packages.freebsd.intro" data-i18n-html>FreeBSD 14 installs the package from the mirror:</p>
+                                <p data-i18n="agent_install.packages.freebsd.intro_checksum" data-i18n-html>FreeBSD (amd64) installs the package from the mirror. The package is not signed, so compare its checksum before installing:</p>
                                 <pre><code>VERSION=$(fetch -qo - https://repo.sysmanage.org/agent/freebsd/latest.txt)
-sudo pkg add "https://repo.sysmanage.org/agent/freebsd/packages/$VERSION/sysmanage-agent-$VERSION.pkg"
-sudo sysrc sysmanage_agent_enable=YES</code></pre>
+BASE=https://repo.sysmanage.org/agent/freebsd/packages/$VERSION
+fetch "$BASE/sysmanage-agent-$VERSION.pkg" "$BASE/sysmanage-agent-$VERSION.pkg.sha256"
+sha256 -q "sysmanage-agent-$VERSION.pkg"
+cat "sysmanage-agent-$VERSION.pkg.sha256"
+pkg install -y "./sysmanage-agent-$VERSION.pkg"
+sysrc sysmanage_agent_enable=YES</code></pre>
+                                <p data-i18n="agent_install.packages.freebsd.install_note" data-i18n-html>Run these as root -- a fresh FreeBSD has no <code>sudo</code> until the agent package installs it. Use <code>pkg install</code>, not <code>pkg add</code>: it fetches the agent's Python 3.12 dependencies from the FreeBSD repository, where <code>pkg add</code> stops at "Missing dependency". Requires agent 3.12.1.7 or later; earlier FreeBSD packages did not install on current FreeBSD releases.</p>
                             </div>
 
                             <div class="tab-pane" id="openbsd">
@@ -158,7 +180,7 @@ doas rcctl enable sysmanage_agent</code></pre>
                             </div>
 
                             <div class="tab-pane" id="netbsd">
-                                <p data-i18n="agent_install.packages.netbsd.intro" data-i18n-html>NetBSD installs the package from the mirror, as root:</p>
+                                <p data-i18n="agent_install.packages.netbsd.intro_unsigned" data-i18n-html>NetBSD installs the package from the mirror, as root. The package is not signed, so check its checksum first:</p>
                                 <pre><code>VERSION=$(ftp -o - https://repo.sysmanage.org/agent/netbsd/latest.txt)
 BASE=https://repo.sysmanage.org/agent/netbsd/packages/$VERSION
 ftp "$BASE/sysmanage-agent-$VERSION.tgz" "$BASE/sysmanage-agent-$VERSION.tgz.sha256"
@@ -170,7 +192,8 @@ echo 'sysmanage_agent=YES' &gt;&gt; /etc/rc.conf</code></pre>
                     </div>
 
                     <h3 data-i18n="agent_install.packages.sandboxed.title" data-i18n-html>Sandboxed Packages (Limited)</h3>
-                    <p data-i18n="agent_install.packages.sandboxed.body" data-i18n-html>A strictly confined Snap (<code>sudo snap install sysmanage-agent-strict --edge</code>, edge channel only) and a Flatpak bundle (attached to each GitHub release) also exist. Their sandboxes stop them from managing packages, services or users, so they can only report on the host. Use a regular package above unless you need a read-only agent.</p>
+                    <p data-i18n="agent_install.packages.sandboxed.body_flatpak" data-i18n-html>A strictly confined Snap (<code>sudo snap install sysmanage-agent-strict --edge</code>, edge channel only) and a Flatpak from the signed <a href="/flatpak.html">SysManage Flatpak repository</a> also exist. Their sandboxes stop them from managing packages, services or users, so they can only report on the host. Use a regular package above unless you need a read-only agent.</p>
+                    <p data-i18n="agent_install.packages.no_containers">SysManage does not publish container images; install the native package for your platform.</p>
                 </section>
 
                 <section class="docs-section" id="after-installing">
@@ -202,6 +225,7 @@ doas rcctl restart sysmanage_agent                         # OpenBSD</code></pre
                         <div class="step">
                             <h3 data-i18n="agent_install.after.approve.title" data-i18n-html>Step 3: Approve the Host</h3>
                             <p data-i18n="agent_install.after.approve.body" data-i18n-html>Within a minute the host appears on the server's <strong>Hosts</strong> page as waiting for approval. Approve it there, and the agent starts reporting inventory, updates and health. If it does not appear, check the agent's log: <code>/var/log/sysmanage-agent/agent.log</code>, or <code>C:\ProgramData\SysManage\logs\agent.log</code> on Windows.</p>
+                            <p data-i18n="agent_install.after.approve.auto" data-i18n-html>To approve hosts automatically, create a registration key with auto-approval under <strong>Settings</strong> → <strong>Access Groups</strong> and put it in the agent's configuration as <code>security.registration_key</code>. Registration keys need a Professional+ Enterprise license; see <a href="../getting-started/agent-approval.html">Agent Approval</a>.</p>
                         </div>
                     </div>
 

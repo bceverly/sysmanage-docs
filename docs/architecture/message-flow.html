@@ -3,444 +3,142 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Message Flow Architecture - SysManage</title>
-    <meta name="description" content="Detailed explanation of message passing, queuing, and state management between SysManage agents and the backend server.">
+    <title>Message Flow and Queuing - SysManage Architecture</title>
+    <meta name="description" data-i18n="docs.architecture.msgflow.meta_description" data-i18n-attr="content" content="How messages travel between the SysManage server and its agents: the store-and-forward queue in the database, the agent's local queue, acknowledgments, retries, expiry and the agent's express lane.">
     <link rel="stylesheet" href="/assets/css/style.css">
     <link rel="icon" type="image/svg+xml" href="/assets/images/favicon.svg">
-    <style>
-        .diagram-container {
-            margin: 2rem 0;
-            text-align: center;
-            background: white;
-            border: 1px solid #ddd;
-            border-radius: 8px;
-            padding: 1rem;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-        }
-
-        .diagram-container img {
-            max-width: 100%;
-            height: auto;
-        }
-
-        .flow-section {
-            margin: 2rem 0;
-            padding: 1.5rem;
-            background: #f8f9fa;
-            border-left: 4px solid #3498db;
-            border-radius: 0 8px 8px 0;
-        }
-
-        .message-types {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-            gap: 1.5rem;
-            margin: 2rem 0;
-        }
-
-        .message-type-card {
-            background: white;
-            border: 1px solid #ddd;
-            border-radius: 8px;
-            padding: 1.5rem;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-        }
-
-        .message-type-card h4 {
-            margin: 0 0 1rem 0;
-            color: #2c3e50;
-            border-bottom: 2px solid #3498db;
-            padding-bottom: 0.5rem;
-        }
-
-        .message-list {
-            list-style: none;
-            padding: 0;
-            margin: 0;
-        }
-
-        .message-list li {
-            padding: 0.5rem 0;
-            border-bottom: 1px solid #eee;
-            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
-            font-size: 0.9rem;
-        }
-
-        .message-list li:last-child {
-            border-bottom: none;
-        }
-
-        .state-flow {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin: 2rem 0;
-            padding: 1rem;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            border-radius: 8px;
-            color: white;
-        }
-
-        .state {
-            background: rgba(255, 255, 255, 0.2);
-            padding: 1rem;
-            border-radius: 6px;
-            text-align: center;
-            min-width: 120px;
-        }
-
-        .state-arrow {
-            font-size: 1.5rem;
-            color: rgba(255, 255, 255, 0.8);
-        }
-
-        .queue-details {
-            background: #e8f5e8;
-            border: 1px solid #4caf50;
-            border-radius: 8px;
-            padding: 1.5rem;
-            margin: 2rem 0;
-        }
-
-        .queue-details h4 {
-            color: #2e7d32;
-            margin: 0 0 1rem 0;
-        }
-
-        .technical-specs {
-            background: #fff3e0;
-            border: 1px solid #ff9800;
-            border-radius: 8px;
-            padding: 1.5rem;
-            margin: 2rem 0;
-        }
-
-        .technical-specs h4 {
-            color: #e65100;
-            margin: 0 0 1rem 0;
-        }
-
-        .code-block {
-            background: #2d3748;
-            color: #e2e8f0;
-            padding: 1rem;
-            border-radius: 6px;
-            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
-            font-size: 0.9rem;
-            overflow-x: auto;
-            margin: 1rem 0;
-        }
-
-        .priority-levels {
-            display: flex;
-            justify-content: space-around;
-            margin: 1rem 0;
-        }
-
-        .priority {
-            text-align: center;
-            padding: 0.5rem;
-            border-radius: 4px;
-            min-width: 80px;
-        }
-
-        .priority.urgent { background: #ffcdd2; color: #c62828; }
-        .priority.high { background: #ffe0b2; color: #e65100; }
-        .priority.normal { background: #e8f5e8; color: #2e7d32; }
-        .priority.low { background: #e3f2fd; color: #1565c0; }
-    </style>
 </head>
 <body data-auto-header="documentation" data-auto-footer>
-    <!-- Header injected automatically by components.js -->
-
     <main class="docs-main">
         <div class="container">
-            <div class="docs-header">
-                <h1 data-i18n="docs.architecture.message_flow.title" data-i18n-html>Message Flow & State Management</h1>
-                <p data-i18n="docs.architecture.message_flow.subtitle" data-i18n-html>Comprehensive overview of how messages are passed, queued, and processed between SysManage agents and the backend server.</p>
+            <div class="docs-breadcrumb">
+                <a href="../" data-i18n="docs.auto.architecture.load-balancing.001">Documentation</a> &gt; <a href="./" data-i18n="docs.auto.architecture.load-balancing.002">Architecture</a> &gt; <span data-i18n="docs.architecture.msgflow.crumb">Message Flow</span>
             </div>
 
-            <section class="docs-section">
-                <h2 data-i18n="docs.architecture.message_flow.overview.title" data-i18n-html>Architecture Overview</h2>
-                <p data-i18n="docs.architecture.message_flow.overview.description" data-i18n-html>
-                    SysManage uses a sophisticated message-passing architecture that ensures reliable, ordered communication between distributed agents and the central server. The system employs persistent message queues on both sides with automatic retry logic, priority handling, and state tracking.
-                </p>
+            <div class="docs-header">
+                <h1 data-i18n="docs.architecture.msgflow.title">Message Flow and Queuing</h1>
+                <p data-i18n="docs.architecture.msgflow.intro">Every message between the server and an agent passes through a queue that survives a restart: a table in the server's database on one side, a small SQLite database on the agent on the other. Nothing is handed straight from a WebSocket to the code that acts on it, so a disconnect, a busy server or a restart delays work instead of losing it.</p>
+            </div>
 
-                <div class="diagram-container">
-                    <img src="/assets/images/message-flow-diagram.svg" alt="SysManage Message Flow Diagram" style="max-width: 100%; height: auto;" />
-                    <p data-i18n="docs.auto.architecture.message-flow.001"><strong>Figure 1:</strong> Complete message flow and state diagram showing bidirectional communication between agents and server</p>
-                </div>
-            </section>
+            <div class="docs-content">
+                <section class="docs-section">
+                    <h2 data-i18n="docs.architecture.msgflow.h_path">The path of a message</h2>
+<pre>
+ Agent                              Server
+ -----                              ------
+ collector / command result
+   |
+   v
+ agent.db  outbound queue
+   |   (10 per pass, then 1 s)
+   v
+ WebSocket over 443 -------------> nginx -> FastAPI worker
+                                       |
+                                       v
+                                  message_queue (inbound)
+                                       |  drain thread
+                                       v
+                                  handlers -> database
 
-            <section class="docs-section">
-                <h2 data-i18n="docs.auto.architecture.message-flow.002">Communication Protocol</h2>
+ UI / API action -> message_queue (outbound)
+                        |  drain, the worker that
+                        v  holds the host's socket
+ agent.db  inbound <---- WebSocket
+   |  command_acknowledgment back
+   v
+ one command at a time (+ express lane)
+</pre>
+                    <p data-i18n="docs.architecture.msgflow.path_p1">There is no message broker. The server's queue is an ordinary table in its PostgreSQL database, and the server's worker processes coordinate through that database. With multi-tenancy, each tenant database has its own queue, and the server drains the main database's queue and every tenant's in turn; a failure in one is rolled back and logged without holding up the others.</p>
+                </section>
 
-                <div class="flow-section">
-                    <h3 data-i18n="docs.auto.architecture.message-flow.003">WebSocket Layer</h3>
-                    <p data-i18n="docs.auto.architecture.message-flow.004">
-                        All real-time communication between agents and the server occurs over WebSocket connections secured with mutual TLS (mTLS). The WebSocket layer provides:
-                    </p>
+                <section class="docs-section">
+                    <h2 data-i18n="docs.architecture.msgflow.h_queue">The server's queue</h2>
+                    <p data-i18n="docs.architecture.msgflow.queue_p1" data-i18n-html>Each row of the <code>message_queue</code> table is one message, in one direction: <strong>inbound</strong> (from an agent) or <strong>outbound</strong> (to an agent). A row records the host, the message type and its JSON payload, a priority (<code>urgent</code>, <code>high</code>, <code>normal</code> or <code>low</code>), how many times it has been tried and may be tried (<code>retry_count</code>, <code>max_retries</code>, 3 by default), a not-before time (<code>scheduled_at</code>), and a correlation ID that ties a reply to its request.</p>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th data-i18n="docs.architecture.msgflow.th_state">State</th>
+                                <th data-i18n="docs.architecture.msgflow.th_meaning">Meaning</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr><td><code>pending</code></td><td data-i18n="docs.architecture.msgflow.st_pending">Waiting to be processed or sent, from its not-before time on.</td></tr>
+                            <tr><td><code>in_progress</code></td><td data-i18n="docs.architecture.msgflow.st_in_progress">Claimed by a worker that is processing or sending it.</td></tr>
+                            <tr><td><code>sent</code></td><td data-i18n="docs.architecture.msgflow.st_sent">Outbound only: written to the agent's WebSocket, waiting for the agent to acknowledge it.</td></tr>
+                            <tr><td><code>completed</code></td><td data-i18n="docs.architecture.msgflow.st_completed">Processed (inbound), or acknowledged by the agent or answered with a result (outbound).</td></tr>
+                            <tr><td><code>failed</code></td><td data-i18n="docs.architecture.msgflow.st_failed">Its retries ran out. Kept for diagnosis.</td></tr>
+                            <tr><td><code>expired</code></td><td data-i18n="docs.architecture.msgflow.st_expired">Too old to be worth acting on; see Expiry below.</td></tr>
+                        </tbody>
+                    </table>
+                </section>
+
+                <section class="docs-section">
+                    <h2 data-i18n="docs.architecture.msgflow.h_inbound">From an agent to the server</h2>
+                    <p data-i18n="docs.architecture.msgflow.inbound_p1">A message that arrives on a verified agent session is queued with its host straight away; the WebSocket handler does no other work. A background drain then works through the queue on a thread of its own, so the event loop that serves the agents' connections never waits for it:</p>
                     <ul>
-                        <li data-i18n="docs.auto.architecture.message-flow.005"><strong>Real-time bidirectional communication</strong> for immediate message delivery</li>
-                        <li data-i18n="docs.auto.architecture.message-flow.006"><strong>Automatic reconnection logic</strong> with exponential backoff</li>
-                        <li data-i18n="docs.auto.architecture.message-flow.007"><strong>Connection state management</strong> and heartbeat monitoring</li>
-                        <li data-i18n="docs.auto.architecture.message-flow.008"><strong>Encrypted transport</strong> using certificate-based authentication</li>
+                        <li data-i18n="docs.architecture.msgflow.inbound_li1">the host that has waited longest goes first, and each host gets at most 20 messages a round, so one busy host cannot hold up the rest;</li>
+                        <li data-i18n="docs.architecture.msgflow.inbound_li2">each drain runs for a time budget of 0.75 seconds and, while work remains, starts again almost at once instead of sleeping for a second;</li>
+                        <li data-i18n="docs.architecture.msgflow.inbound_li3">with several worker processes, a worker drains a host only while it holds that host's PostgreSQL advisory lock, so one host's messages are never processed by two workers at once or out of order;</li>
+                        <li data-i18n="docs.architecture.msgflow.inbound_li4">a message left in progress by a worker that died is put back to pending after 30 seconds (5 minutes when several workers run).</li>
                     </ul>
-                </div>
+                    <p data-i18n="docs.architecture.msgflow.inbound_p2">Heartbeats take a faster path: after a connection's first heartbeat, an unchanged one only records that the host was seen, and each worker writes those in one bulk update every 5 seconds.</p>
+                </section>
 
-                <div class="flow-section">
-                    <h3 data-i18n="docs.auto.architecture.message-flow.009">Persistent Message Queuing</h3>
-                    <p data-i18n="docs.auto.architecture.message-flow.010">
-                        Both agents and server maintain persistent message queues to ensure no data is lost during network interruptions or system restarts:
-                    </p>
+                <section class="docs-section">
+                    <h2 data-i18n="docs.architecture.msgflow.h_outbound">From the server to an agent</h2>
+                    <p data-i18n="docs.architecture.msgflow.outbound_p1">A command from the UI, the API or a scheduler is written to the queue first. The outbound drain sends it in the same fair order -- the longest-waiting host first, up to 50 hosts a round and 20 messages per host, for half a second at a time. Only the worker process that holds a host's WebSocket sends to that host. A host that has fallen back to HTTP polling collects its messages when it polls.</p>
+                    <p data-i18n="docs.architecture.msgflow.outbound_p2">A command held by a closed maintenance window stays queued with a not-before time and is looked at again every minute, so it goes out when the window opens without blocking anything behind it.</p>
+                </section>
 
-                    <div class="queue-details">
-                        <h4 data-i18n="docs.auto.architecture.message-flow.011">Agent-Side Queuing (SQLite)</h4>
-                        <ul>
-                            <li data-i18n="docs.auto.architecture.message-flow.012"><strong>Local SQLite database</strong> stores messages when connection is unavailable</li>
-                            <li data-i18n="docs.auto.architecture.message-flow.013"><strong>Automatic replay</strong> of queued messages upon reconnection</li>
-                            <li data-i18n="docs.auto.architecture.message-flow.014"><strong>Priority-based processing</strong> ensures critical messages are sent first</li>
-                            <li data-i18n="docs.auto.architecture.message-flow.015"><strong>Retry logic</strong> with configurable maximum attempts</li>
-                        </ul>
-                    </div>
+                <section class="docs-section">
+                    <h2 data-i18n="docs.architecture.msgflow.h_retry">Acknowledgments and retries</h2>
+                    <p data-i18n="docs.architecture.msgflow.retry_p1" data-i18n-html>When the agent receives a command it stores it in its own queue and answers with a <code>command_acknowledgment</code>. If no acknowledgment (or result) arrives within 60 seconds -- the send worked, but the agent disconnected or crashed before storing the command -- the server schedules the command again. The wait before each retry doubles, starting at 60 seconds and capped at one hour, with 20 percent random jitter either way so messages that failed together do not come back together. After the last retry the message is marked failed.</p>
+                    <p data-i18n="docs.architecture.msgflow.retry_p2">The sweep that looks for unacknowledged messages takes at most 500 at a time and claims each one with a single conditional update, so two workers never retry the same message. A command that is sent twice is still run once: the agent recognizes the server's message ID, does not run the command again, and acknowledges it again. An acknowledgment or result that arrives late, after a retry was scheduled or the retries ran out, still closes the command instead of being thrown away.</p>
+                </section>
 
-                    <div class="queue-details">
-                        <h4 data-i18n="docs.auto.architecture.message-flow.016">Server-Side Queuing (PostgreSQL)</h4>
-                        <ul>
-                            <li data-i18n="docs.auto.architecture.message-flow.017"><strong>PostgreSQL message_queue table</strong> provides enterprise-grade persistence</li>
-                            <li data-i18n="docs.auto.architecture.message-flow.018"><strong>Host-specific and broadcast queuing</strong> for targeted or fleet-wide operations</li>
-                            <li data-i18n="docs.auto.architecture.message-flow.019"><strong>Correlation tracking</strong> for request/response matching</li>
-                            <li data-i18n="docs.auto.architecture.message-flow.020"><strong>Transaction integrity</strong> ensures consistent state management</li>
-                        </ul>
-                    </div>
-                </div>
-            </section>
-
-            <section class="docs-section">
-                <h2 data-i18n="docs.auto.architecture.message-flow.021">Message States & Lifecycle</h2>
-
-                <div class="state-flow">
-                    <div class="state">
-                        <div><strong data-i18n="docs.auto.architecture.message-flow.022">PENDING</strong></div>
-                        <div>Queued for processing</div>
-                    </div>
-                    <div class="state-arrow">→</div>
-                    <div class="state">
-                        <div><strong data-i18n="docs.auto.architecture.message-flow.023">IN_PROGRESS</strong></div>
-                        <div>Being transmitted/processed</div>
-                    </div>
-                    <div class="state-arrow">→</div>
-                    <div class="state">
-                        <div><strong data-i18n="docs.auto.architecture.message-flow.024">COMPLETED</strong></div>
-                        <div>Successfully delivered</div>
-                    </div>
-                </div>
-
-                <p data-i18n="docs.auto.architecture.message-flow.025">Messages can also transition to <strong>FAILED</strong> state if maximum retry attempts are exceeded, or <strong>EXPIRED</strong> if they exceed the configured time-to-live.</p>
-
-                <div class="technical-specs">
-                    <h4 data-i18n="docs.auto.architecture.message-flow.026">Message Queue Fields</h4>
-                    <div class="code-block">
-{
-  "message_id": "uuid4-string",
-  "direction": "outbound|inbound",
-  "message_type": "system_info|command|update_request|...",
-  "message_data": "json-encoded-payload",
-  "status": "pending|in_progress|completed|failed|expired",
-  "priority": "urgent|high|normal|low",
-  "retry_count": 0,
-  "max_retries": 3,
-  "correlation_id": "uuid4-for-request-response-matching",
-  "created_at": "2024-01-01T12:00:00Z",
-  "scheduled_at": "2024-01-01T12:00:00Z",
-  "completed_at": "2024-01-01T12:00:05Z"
-}
-                    </div>
-                </div>
-            </section>
-
-            <section class="docs-section">
-                <h2 data-i18n="docs.auto.architecture.message-flow.027">Message Types</h2>
-
-                <div class="message-types">
-                    <div class="message-type-card">
-                        <h4 data-i18n="docs.auto.architecture.message-flow.028">Agent → Server (Outbound)</h4>
-                        <ul class="message-list">
-                            <li data-i18n="docs.auto.architecture.message-flow.029">SYSTEM_INFO</li>
-                            <li data-i18n="docs.auto.architecture.message-flow.030">HEARTBEAT</li>
-                            <li data-i18n="docs.auto.architecture.message-flow.031">COMMAND_RESULT</li>
-                            <li data-i18n="docs.auto.architecture.message-flow.032">OS_VERSION_UPDATE</li>
-                            <li data-i18n="docs.auto.architecture.message-flow.033">HARDWARE_UPDATE</li>
-                            <li data-i18n="docs.auto.architecture.message-flow.034">SOFTWARE_INVENTORY_UPDATE</li>
-                            <li data-i18n="docs.auto.architecture.message-flow.035">PACKAGE_UPDATES_UPDATE</li>
-                            <li data-i18n="docs.auto.architecture.message-flow.036">USER_ACCESS_UPDATE</li>
-                            <li data-i18n="docs.auto.architecture.message-flow.037">UPDATE_APPLY_RESULT</li>
-                            <li data-i18n="docs.auto.architecture.message-flow.038">SCRIPT_EXECUTION_RESULT</li>
-                            <li data-i18n="docs.auto.architecture.message-flow.039">REBOOT_STATUS_UPDATE</li>
-                            <li data-i18n="docs.auto.architecture.message-flow.040">DIAGNOSTIC_COLLECTION_RESULT</li>
-                            <li data-i18n="docs.auto.architecture.message-flow.041">ERROR</li>
-                        </ul>
-                    </div>
-
-                    <div class="message-type-card">
-                        <h4 data-i18n="docs.auto.architecture.message-flow.042">Server → Agent (Inbound)</h4>
-                        <ul class="message-list">
-                            <li data-i18n="docs.auto.architecture.message-flow.043">COMMAND</li>
-                            <li data-i18n="docs.auto.architecture.message-flow.044">UPDATE_REQUEST</li>
-                            <li data-i18n="docs.auto.architecture.message-flow.045">PING</li>
-                            <li data-i18n="docs.auto.architecture.message-flow.046">SHUTDOWN</li>
-                            <li data-i18n="docs.auto.architecture.message-flow.047">HOST_APPROVED</li>
-                        </ul>
-                    </div>
-                </div>
-            </section>
-
-            <section class="docs-section">
-                <h2 data-i18n="docs.auto.architecture.message-flow.048">Priority & Scheduling</h2>
-
-                <p data-i18n="docs.auto.architecture.message-flow.049">
-                    Messages are processed according to priority levels, ensuring critical operations are handled first:
-                </p>
-
-                <div class="priority-levels">
-                    <div class="priority urgent">
-                        <strong data-i18n="docs.auto.architecture.message-flow.050">URGENT</strong><br>
-                        Emergency shutdown, critical security alerts
-                    </div>
-                    <div class="priority high">
-                        <strong data-i18n="docs.auto.architecture.message-flow.051">HIGH</strong><br>
-                        Security updates, system commands
-                    </div>
-                    <div class="priority normal">
-                        <strong data-i18n="docs.auto.architecture.message-flow.052">NORMAL</strong><br>
-                        Regular updates, data collection
-                    </div>
-                    <div class="priority low">
-                        <strong data-i18n="docs.auto.architecture.message-flow.053">LOW</strong><br>
-                        Heartbeats, routine maintenance
-                    </div>
-                </div>
-            </section>
-
-            <section class="docs-section">
-                <h2 data-i18n="docs.auto.architecture.message-flow.054">Heartbeat Message Flow</h2>
-                <p data-i18n="docs.auto.architecture.message-flow.055">
-                    The heartbeat mechanism is critical for monitoring agent health and maintaining connection state. This detailed diagram shows the complete flow of a heartbeat message from generation to processing:
-                </p>
-
-                <div class="diagram-container">
-                    <img src="/assets/images/heartbeat-flow-diagram.svg" alt="SysManage Heartbeat Message Flow Diagram" style="max-width: 100%; height: auto;" />
-                    <p data-i18n="docs.auto.architecture.message-flow.056"><strong>Figure 2:</strong> Detailed heartbeat message flow from agent through queuing systems to final processing</p>
-                </div>
-
-                <div class="flow-section">
-                    <h3 data-i18n="docs.auto.architecture.message-flow.057">Agent Side Processing</h3>
+                <section class="docs-section">
+                    <h2 data-i18n="docs.architecture.msgflow.h_expiry">Expiry and cleanup</h2>
                     <ul>
-                        <li data-i18n="docs.auto.architecture.message-flow.058"><strong>Timer Event:</strong> The <code>message_sender()</code> loop triggers heartbeats based on <code>ping_interval</code> configuration</li>
-                        <li data-i18n="docs.auto.architecture.message-flow.059"><strong>Message Creation:</strong> <code>create_heartbeat_message()</code> generates a heartbeat with agent status, hostname, IPs, and timestamp</li>
-                        <li data-i18n="docs.auto.architecture.message-flow.060"><strong>Local Queueing:</strong> Message is queued in SQLite database (<code>agent.db</code>) via <code>queue_outbound_message()</code></li>
-                        <li data-i18n="docs.auto.architecture.message-flow.061"><strong>Background Processing:</strong> The <code>process_outbound_queue()</code> thread picks up high-priority heartbeats</li>
-                        <li data-i18n="docs.auto.architecture.message-flow.062"><strong>WebSocket Transmission:</strong> Messages are sent via secure WebSocket with mTLS encryption</li>
+                        <li data-i18n="docs.architecture.msgflow.expiry_li1" data-i18n-html><strong>Outbound</strong> messages still pending expire by age, 60 minutes by default (<code>message_queue.expiration_timeout_minutes</code>): a reboot or a patch run delivered an hour late is worse than one not delivered. Commands held by a maintenance window are the exception: they wait up to 168 hours (<code>message_queue.held_max_age_hours</code>).</li>
+                        <li data-i18n="docs.architecture.msgflow.expiry_li2" data-i18n-html><strong>Inbound</strong> messages never expire just for waiting their turn -- that would turn a backlog into lost agent reports. They expire only when their last processing attempt is older than that timeout, or after a ceiling of 24 hours (<code>message_queue.inbound_max_age_hours</code>), and the server logs a warning when it expires any.</li>
+                        <li data-i18n="docs.architecture.msgflow.expiry_li3">Once a day, completed messages older than seven days are deleted in committed chunks; failed messages are kept for diagnosis.</li>
                     </ul>
-                </div>
+                </section>
 
-                <div class="flow-section">
-                    <h3 data-i18n="docs.auto.architecture.message-flow.063">Server Side Processing</h3>
+                <section class="docs-section">
+                    <h2 data-i18n="docs.architecture.msgflow.h_agent">On the agent</h2>
+                    <p data-i18n="docs.architecture.msgflow.agent_p1" data-i18n-html>The agent keeps its own queue in SQLite, in <code>agent.db</code> (for a system install, <code>/var/lib/sysmanage-agent/agent.db</code>), with the same directions and priorities. Everything the agent sends goes through it. The handshake message (<code>system_info</code>) and errors are urgent; heartbeats, acknowledgments and command results are high; reports are normal. While connected, the agent sends ten messages, waits a second, and repeats. A message is deleted from the queue as soon as it has been sent; a failed send is retried after a random wait of up to 60 seconds, a limit that doubles with each attempt up to an hour; messages whose retries ran out are kept for diagnosis. Messages left in progress by a crash are recovered when the agent reconnects.</p>
+                    <p data-i18n="docs.architecture.msgflow.agent_p2">Reports are sent only when they change. A snapshot report (software, users, hardware, certificates and the like) is queued only if its content differs from the last one, or if the last one is more than 24 hours old; a newer snapshot replaces an older one of the same type that is still waiting to be sent. Process lists and hardware health are sent when they change in substance and otherwise every 15 minutes; host metrics are sampled every 15 minutes. Anything the server asks for is always sent.</p>
+                    <p data-i18n="docs.architecture.msgflow.agent_p3">The available-package catalog, the largest thing an agent reports, is sent as a delta -- the packages added, changed and removed since the copy the server already holds. The two sides compare fingerprints first; the agent sends the full catalog instead when they disagree, when more than 30 percent of it changed, or when the last full copy is more than seven days old.</p>
+                </section>
+
+                <section class="docs-section">
+                    <h2 data-i18n="docs.architecture.msgflow.h_express">One command at a time, and the express lane</h2>
+                    <p data-i18n="docs.architecture.msgflow.express_p1">The agent runs the commands it receives one at a time, in priority order, so two package operations never run against each other. A long command -- the first package collection on a large Windows host can take more than ten minutes -- would then hold up everything behind it. A short list of commands that are quick and safe to run beside any other is queued as urgent and also taken by an express lane that runs alongside the main one:</p>
                     <ul>
-                        <li data-i18n="docs.auto.architecture.message-flow.064"><strong>WebSocket Reception:</strong> FastAPI WebSocket endpoint receives the message</li>
-                        <li data-i18n="docs.auto.architecture.message-flow.065"><strong>Message Routing:</strong> <code>_route_message()</code> identifies the heartbeat type</li>
-                        <li data-i18n="docs.auto.architecture.message-flow.066"><strong>Database Queueing:</strong> Message is queued in PostgreSQL with INBOUND direction</li>
-                        <li data-i18n="docs.auto.architecture.message-flow.067"><strong>Async Processing:</strong> Background <code>MessageProcessor</code> service processes queued messages</li>
-                        <li data-i18n="docs.auto.architecture.message-flow.068"><strong>Heartbeat Handling:</strong> <code>handle_heartbeat()</code> updates host's <code>last_access</code> timestamp and status</li>
-                        <li data-i18n="docs.auto.architecture.message-flow.069"><strong>Acknowledgment:</strong> Server sends ACK message back to agent</li>
+                        <li><code>resync_clock</code></li>
+                        <li><code>check_backup_storage</code></li>
                     </ul>
-                </div>
+                    <p data-i18n="docs.architecture.msgflow.express_p2">Both lanes claim a command before running it, so each command runs exactly once, whichever lane takes it.</p>
+                </section>
 
-                <div class="technical-specs">
-                    <h4 data-i18n="docs.auto.architecture.message-flow.070">Heartbeat Monitoring Service</h4>
-                    <p data-i18n="docs.auto.architecture.message-flow.071">
-                        A separate background service runs every 60 seconds to check for hosts that haven't sent heartbeats within the configured timeout period (default: 5 minutes). Hosts exceeding this threshold are automatically marked as "down" in the system.
-                    </p>
+                <section class="docs-section">
+                    <h2 data-i18n="docs.architecture.msgflow.h_heartbeat">Heartbeats and host status</h2>
+                    <p data-i18n="docs.architecture.msgflow.heartbeat_p1" data-i18n-html>An agent sends a heartbeat every 30 seconds by default (<code>websocket.ping_interval</code> in the agent's configuration). About once a minute the server marks an approved host down if it has not been heard from within <code>monitoring.heartbeat_timeout</code> (5 minutes by default), and back up when it is. Right after the server starts, every host looks silent because none could reach it while it was down, so for the timeout plus 8 minutes no host is marked down.</p>
+                </section>
+
+                <section class="docs-section">
+                    <h2 data-i18n="docs.architecture.msgflow.h_related">Related</h2>
                     <ul>
-                        <li data-i18n="docs.auto.architecture.message-flow.072"><strong>Check Interval:</strong> 60 seconds</li>
-                        <li data-i18n="docs.auto.architecture.message-flow.073"><strong>Timeout Threshold:</strong> Configurable (default: 5 minutes)</li>
-                        <li data-i18n="docs.auto.architecture.message-flow.074"><strong>State Transitions:</strong> up → down when timeout exceeded</li>
-                        <li data-i18n="docs.auto.architecture.message-flow.075"><strong>Recovery:</strong> Automatic status update to "up" on next successful heartbeat</li>
+                        <li><a href="websocket-protocol.html" data-i18n="docs.architecture.msgflow.link_ws">WebSocket Protocol</a></li>
+                        <li><a href="system-architecture.html" data-i18n="docs.architecture.msgflow.link_sysarch">System Architecture</a></li>
+                        <li><a href="performance-and-scale.html" data-i18n="docs.architecture.msgflow.link_scale">Performance and Scale -- how the queue behaves when 10,000 agents reconnect at once</a></li>
                     </ul>
-                </div>
-            </section>
-
-            <section class="docs-section">
-                <h2 data-i18n="docs.auto.architecture.message-flow.076">Reliability Features</h2>
-
-                <div class="flow-section">
-                    <h3 data-i18n="docs.auto.architecture.message-flow.077">Retry Logic</h3>
-                    <ul>
-                        <li data-i18n="docs.auto.architecture.message-flow.078"><strong>Exponential backoff</strong> prevents overwhelming disconnected endpoints</li>
-                        <li data-i18n="docs.auto.architecture.message-flow.079"><strong>Configurable retry limits</strong> (default: 3 attempts)</li>
-                        <li data-i18n="docs.auto.architecture.message-flow.080"><strong>Priority-aware scheduling</strong> ensures high-priority messages retry first</li>
-                        <li data-i18n="docs.auto.architecture.message-flow.081"><strong>Dead letter handling</strong> for messages that exceed retry limits</li>
-                    </ul>
-                </div>
-
-                <div class="flow-section">
-                    <h3 data-i18n="docs.auto.architecture.message-flow.082">Error Handling</h3>
-                    <ul>
-                        <li data-i18n="docs.auto.architecture.message-flow.083"><strong>Graceful degradation</strong> during network interruptions</li>
-                        <li data-i18n="docs.auto.architecture.message-flow.084"><strong>Comprehensive error logging</strong> with correlation IDs</li>
-                        <li data-i18n="docs.auto.architecture.message-flow.085"><strong>Automatic recovery</strong> procedures for common failure scenarios</li>
-                        <li data-i18n="docs.auto.architecture.message-flow.086"><strong>Circuit breaker patterns</strong> prevent cascading failures</li>
-                    </ul>
-                </div>
-
-                <div class="flow-section">
-                    <h3 data-i18n="docs.auto.architecture.message-flow.087">Data Integrity</h3>
-                    <ul>
-                        <li data-i18n="docs.auto.architecture.message-flow.088"><strong>Message deduplication</strong> prevents processing duplicates</li>
-                        <li data-i18n="docs.auto.architecture.message-flow.089"><strong>Checksum validation</strong> ensures data integrity</li>
-                        <li data-i18n="docs.auto.architecture.message-flow.090"><strong>Transaction boundaries</strong> maintain database consistency</li>
-                        <li data-i18n="docs.auto.architecture.message-flow.091"><strong>Audit trails</strong> track all message processing activities</li>
-                    </ul>
-                </div>
-            </section>
-
-            <section class="docs-section">
-                <h2 data-i18n="docs.auto.architecture.message-flow.092">Performance Characteristics</h2>
-
-                <div class="technical-specs">
-                    <h4 data-i18n="docs.auto.architecture.message-flow.093">Scalability Metrics</h4>
-                    <ul>
-                        <li data-i18n="docs.auto.architecture.message-flow.094"><strong>Concurrent Connections:</strong> Supports thousands of simultaneous agent connections</li>
-                        <li data-i18n="docs.auto.architecture.message-flow.095"><strong>Message Throughput:</strong> Processes 10,000+ messages per second per server instance</li>
-                        <li data-i18n="docs.auto.architecture.message-flow.096"><strong>Queue Depth:</strong> Handles millions of queued messages with minimal performance impact</li>
-                        <li data-i18n="docs.auto.architecture.message-flow.097"><strong>Latency:</strong> Sub-100ms message delivery under normal network conditions</li>
-                        <li data-i18n="docs.auto.architecture.message-flow.098"><strong>Memory Usage:</strong> Constant memory footprint regardless of queue size</li>
-                    </ul>
-                </div>
-            </section>
-
-            <section class="docs-section">
-                <h2 data-i18n="docs.auto.architecture.message-flow.099">Monitoring & Observability</h2>
-
-                <p data-i18n="docs.auto.architecture.message-flow.100">
-                    The message flow system provides comprehensive monitoring capabilities:
-                </p>
-
-                <ul>
-                    <li data-i18n="docs.auto.architecture.message-flow.101"><strong>Real-time metrics:</strong> Queue depths, message processing rates, error rates</li>
-                    <li data-i18n="docs.auto.architecture.message-flow.102"><strong>Connection monitoring:</strong> Agent connectivity status, connection quality metrics</li>
-                    <li data-i18n="docs.auto.architecture.message-flow.103"><strong>Performance tracking:</strong> Message latency, throughput statistics</li>
-                    <li data-i18n="docs.auto.architecture.message-flow.104"><strong>Alert integration:</strong> Configurable alerts for queue backups, connection failures</li>
-                    <li data-i18n="docs.auto.architecture.message-flow.105"><strong>Audit logging:</strong> Complete trail of all message processing activities</li>
-                </ul>
-            </section>
-
-            <div class="docs-footer">
-                <p data-i18n="docs.auto.architecture.message-flow.106"><strong>Next:</strong> <a href="../security/">Security Architecture</a> | <a href="../deployment/">Deployment Guide</a></p>
+                </section>
             </div>
         </div>
     </main>
-    <!-- Footer injected automatically by components.js -->    <script src="/assets/js/components.js"></script>
+    <script src="/assets/js/components.js"></script>
     <script src="/assets/js/i18n.js"></script>
     <script src="/assets/js/navbar.js"></script>
     <script src="/assets/js/main.js"></script>

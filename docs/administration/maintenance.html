@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Maintenance - Administration - SysManage</title>
-    <meta name="description" content="Regular maintenance procedures, system updates, performance optimization, and capacity planning for SysManage.">
+    <meta name="description" content="Keeping a SysManage server healthy: upgrades and database migrations, logs, database upkeep, agent updates, and capacity.">
     <link rel="stylesheet" href="/assets/css/style.css">
     <link rel="icon" type="image/svg+xml" href="/assets/images/favicon.svg">
 </head>
@@ -19,198 +19,43 @@
 
             <div class="docs-header">
                 <h1 data-i18n="docs.auto.administration.maintenance.004">Maintenance</h1>
-                <p data-i18n="docs.auto.administration.maintenance.005">Regular maintenance procedures, system updates, performance optimization, and capacity planning to ensure optimal SysManage performance and reliability.</p>
+                <p data-i18n="docs.auto.administration.maintenance.v2.subtitle">Routine upkeep for a SysManage server: upgrades and database migrations, logs, database care, agent updates, and capacity.</p>
             </div>
 
             <div class="docs-content">
                 <section class="docs-overview">
-                    <h2 data-i18n="docs.auto.administration.maintenance.006">Overview</h2>
-                    <p data-i18n="docs.auto.administration.maintenance.007">Regular maintenance is essential for keeping SysManage running optimally and preventing issues before they impact operations. This includes routine system updates, performance monitoring, database maintenance, log management, and capacity planning to ensure the system scales effectively with your infrastructure growth.</p>
-
-                    <div class="maintenance-types">
-                        <h3 data-i18n="docs.auto.administration.maintenance.008">Types of Maintenance</h3>
-                        <ul>
-                            <li data-i18n="docs.auto.administration.maintenance.009"><strong>Preventive Maintenance:</strong> Scheduled tasks to prevent problems</li>
-                            <li data-i18n="docs.auto.administration.maintenance.010"><strong>Corrective Maintenance:</strong> Fixes for identified issues</li>
-                            <li data-i18n="docs.auto.administration.maintenance.011"><strong>Adaptive Maintenance:</strong> Updates for changing requirements</li>
-                            <li data-i18n="docs.auto.administration.maintenance.012"><strong>Perfective Maintenance:</strong> Performance and efficiency improvements</li>
-                            <li data-i18n="docs.auto.administration.maintenance.013"><strong>Emergency Maintenance:</strong> Critical issues requiring immediate attention</li>
-                        </ul>
-                    </div>
+                    <h2 data-i18n="docs.auto.administration.maintenance.v2.files_title">Where Things Live</h2>
+                    <p data-i18n="docs.auto.administration.maintenance.v2.files_intro">Paths for a Linux package installation; other platforms use their own equivalents.</p>
+                    <table class="config-table">
+                        <thead><tr><th data-i18n="docs.auto.administration.maintenance.v2.th_what">What</th><th data-i18n="docs.auto.administration.maintenance.v2.th_where">Where</th></tr></thead>
+                        <tbody>
+                            <tr><td data-i18n="docs.auto.administration.maintenance.v2.row_config">Configuration</td><td data-i18n="docs.auto.administration.maintenance.v2.row_config_path" data-i18n-html><code>/etc/sysmanage.yaml</code></td></tr>
+                            <tr><td data-i18n="docs.auto.administration.maintenance.v2.row_app">Application</td><td data-i18n="docs.auto.administration.maintenance.v2.row_app_path" data-i18n-html><code>/opt/sysmanage</code></td></tr>
+                            <tr><td data-i18n="docs.auto.administration.maintenance.v2.row_logs">Server log</td><td data-i18n="docs.auto.administration.maintenance.v2.row_logs_path" data-i18n-html><code>/var/log/sysmanage/backend.log</code> (the <code>SYSMANAGE_LOG_DIR</code> directory)</td></tr>
+                            <tr><td data-i18n="docs.auto.administration.maintenance.v2.row_certs">Server CA and certificates</td><td data-i18n="docs.auto.administration.maintenance.v2.row_certs_path" data-i18n-html><code>/etc/sysmanage/certs</code></td></tr>
+                            <tr><td data-i18n="docs.auto.administration.maintenance.v2.row_modules">Professional+ engines</td><td data-i18n="docs.auto.administration.maintenance.v2.row_modules_path" data-i18n-html><code>/var/lib/sysmanage/modules</code> (<code>license.modules_path</code>)</td></tr>
+                            <tr><td data-i18n="docs.auto.administration.maintenance.v2.row_service">Service</td><td data-i18n="docs.auto.administration.maintenance.v2.row_service_name" data-i18n-html><code>sysmanage</code> (systemd), running as the <code>sysmanage</code> user</td></tr>
+                        </tbody>
+                    </table>
                 </section>
 
-                <section class="maintenance-schedules">
-                    <h2 data-i18n="docs.auto.administration.maintenance.014">Maintenance Schedules</h2>
-
-                    <div class="daily-maintenance">
-                        <h3 data-i18n="docs.auto.administration.maintenance.015">Daily Maintenance Tasks</h3>
-
-                        <h4 data-i18n="docs.auto.administration.maintenance.016">Automated Daily Tasks</h4>
-                        <ul>
-                            <li data-i18n="docs.auto.administration.maintenance.017"><strong>System Health Check:</strong> Verify all services are running</li>
-                            <li data-i18n="docs.auto.administration.maintenance.018"><strong>Database Backup:</strong> Automated daily backup verification</li>
-                            <li data-i18n="docs.auto.administration.maintenance.019"><strong>Log Rotation:</strong> Rotate and compress log files</li>
-                            <li data-i18n="docs.auto.administration.maintenance.020"><strong>Disk Space Monitoring:</strong> Check available disk space</li>
-                            <li data-i18n="docs.auto.administration.maintenance.021"><strong>Certificate Monitoring:</strong> Check SSL certificate expiration</li>
-                            <li data-i18n="docs.auto.administration.maintenance.022"><strong>Performance Metrics:</strong> Collect and analyze performance data</li>
-                        </ul>
-
-                        <h4 data-i18n="docs.auto.administration.maintenance.023">Daily Health Check Script</h4>
-                        <pre><code>#!/bin/bash
-# Daily SysManage health check
-
-LOG_FILE="/var/log/sysmanage_health_check.log"
-DATE=$(date)
-
-echo "=== SysManage Health Check - $DATE ===" >> $LOG_FILE
-
-# Check service status
-services=("sysmanage-backend" "sysmanage-worker" "postgresql" "nginx")
-for service in "${services[@]}"; do
-    if systemctl is-active --quiet $service; then
-        echo "✓ $service is running" >> $LOG_FILE
-    else
-        echo "✗ $service is not running" >> $LOG_FILE
-        # Send alert
-        mail -s "Service Down: $service" admin@example.com <<< "Service $service is not running on $(hostname)"
-    fi
-done
-
-# Check database connectivity
-if pg_isready -h localhost -p 5432 -U sysmanage; then
-    echo "✓ Database is accessible" >> $LOG_FILE
-else
-    echo "✗ Database is not accessible" >> $LOG_FILE
-    mail -s "Database Connection Failed" admin@example.com <<< "Database connection failed on $(hostname)"
-fi
-
-# Check disk space
-df -h | awk '$5 > 85 {print "✗ Disk space warning: " $0}' >> $LOG_FILE
-
-# Check memory usage
-memory_usage=$(free | awk 'NR==2{printf "%.2f", $3*100/$2}')
-if (( $(echo "$memory_usage > 90" | bc -l) )); then
-    echo "✗ Memory usage high: ${memory_usage}%" >> $LOG_FILE
-fi
-
-echo "=== Health Check Complete ===" >> $LOG_FILE</code></pre>
-                    </div>
-
-                    <div class="weekly-maintenance">
-                        <h3 data-i18n="docs.auto.administration.maintenance.024">Weekly Maintenance Tasks</h3>
-
-                        <h4 data-i18n="docs.auto.administration.maintenance.025">Scheduled Weekly Tasks</h4>
-                        <ul>
-                            <li data-i18n="docs.auto.administration.maintenance.026"><strong>System Updates:</strong> Apply security patches and updates</li>
-                            <li data-i18n="docs.auto.administration.maintenance.027"><strong>Database Maintenance:</strong> VACUUM, ANALYZE, and index optimization</li>
-                            <li data-i18n="docs.auto.administration.maintenance.028"><strong>Log Analysis:</strong> Review system and application logs</li>
-                            <li data-i18n="docs.auto.administration.maintenance.029"><strong>Performance Review:</strong> Analyze performance trends</li>
-                            <li data-i18n="docs.auto.administration.maintenance.030"><strong>Backup Verification:</strong> Test backup integrity</li>
-                            <li data-i18n="docs.auto.administration.maintenance.031"><strong>Security Audit:</strong> Review security logs and access patterns</li>
-                        </ul>
-
-                        <h4 data-i18n="docs.auto.administration.maintenance.032">Database Maintenance Script</h4>
-                        <pre><code>#!/bin/bash
-# Weekly database maintenance
-
-DB_NAME="sysmanage"
-MAINTENANCE_LOG="/var/log/db_maintenance.log"
-
-echo "$(date): Starting database maintenance" >> $MAINTENANCE_LOG
-
-# Vacuum and analyze all tables
-psql -U sysmanage -d $DB_NAME -c "VACUUM ANALYZE;" >> $MAINTENANCE_LOG 2>&1
-
-# Reindex tables if needed
-psql -U sysmanage -d $DB_NAME -c "REINDEX DATABASE $DB_NAME;" >> $MAINTENANCE_LOG 2>&1
-
-# Update table statistics
-psql -U sysmanage -d $DB_NAME -c "ANALYZE;" >> $MAINTENANCE_LOG 2>&1
-
-# Check for bloated tables
-psql -U sysmanage -d $DB_NAME -c "
-    SELECT schemaname, tablename,
-           pg_size_pretty(pg_total_relation_size(schemaname||'.'||tablename)) as size
-    FROM pg_tables
-    WHERE schemaname = 'public'
-    ORDER BY pg_total_relation_size(schemaname||'.'||tablename) DESC
-    LIMIT 10;
-" >> $MAINTENANCE_LOG 2>&1
-
-echo "$(date): Database maintenance completed" >> $MAINTENANCE_LOG</code></pre>
-                    </div>
-
-                    <div class="monthly-maintenance">
-                        <h3 data-i18n="docs.auto.administration.maintenance.033">Monthly Maintenance Tasks</h3>
-
-                        <h4 data-i18n="docs.auto.administration.maintenance.034">Comprehensive Monthly Tasks</h4>
-                        <ul>
-                            <li data-i18n="docs.auto.administration.maintenance.035"><strong>System Audit:</strong> Complete system configuration review</li>
-                            <li data-i18n="docs.auto.administration.maintenance.036"><strong>Capacity Planning:</strong> Analyze growth trends and capacity needs</li>
-                            <li data-i18n="docs.auto.administration.maintenance.037"><strong>Performance Optimization:</strong> Identify and address performance bottlenecks</li>
-                            <li data-i18n="docs.auto.administration.maintenance.038"><strong>Security Review:</strong> Comprehensive security assessment</li>
-                            <li data-i18n="docs.auto.administration.maintenance.039"><strong>Documentation Update:</strong> Update system documentation</li>
-                            <li data-i18n="docs.auto.administration.maintenance.040"><strong>Disaster Recovery Test:</strong> Test backup and recovery procedures</li>
-                            <li data-i18n="docs.auto.administration.maintenance.041"><strong>User Access Review:</strong> Audit user accounts and permissions</li>
-                        </ul>
-
-                        <h4 data-i18n="docs.auto.administration.maintenance.042">Monthly Report Generation</h4>
-                        <pre><code>#!/bin/bash
-# Generate monthly maintenance report
-
-REPORT_DIR="/opt/sysmanage/reports"
-MONTH=$(date +%Y-%m)
-REPORT_FILE="$REPORT_DIR/monthly_report_$MONTH.html"
-
-mkdir -p $REPORT_DIR
-
-cat > $REPORT_FILE << EOF
-<!DOCTYPE html>
-<html>
-<head>
-    <title>SysManage Monthly Report - $MONTH</title>
-    <style>
-        body { font-family: Arial, sans-serif; margin: 20px; }
-        table { border-collapse: collapse; width: 100%; }
-        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
-        th { background-color: #f2f2f2; }
-        .metric { margin: 10px 0; }
-        .warning { color: orange; }
-        .error { color: red; }
-        .success { color: green; }
-    </style>
-</head>
-<body data-auto-header="documentation" data-auto-footer>
-    <h1>SysManage Monthly Report - $MONTH</h1>
-    <p>Generated on: $(date)</p>
-
-    <h2>System Overview</h2>
-    <div class="metric">
-        <strong>Total Hosts:</strong> $(psql -U sysmanage -d sysmanage -t -c "SELECT COUNT(*) FROM hosts WHERE active=true;")
-    </div>
-    <div class="metric">
-        <strong>Active Users:</strong> $(psql -U sysmanage -d sysmanage -t -c "SELECT COUNT(*) FROM users WHERE active=true;")
-    </div>
-    <div class="metric">
-        <strong>Database Size:</strong> $(psql -U sysmanage -d sysmanage -t -c "SELECT pg_size_pretty(pg_database_size('sysmanage'));")
-    </div>
-
-    <h2>Performance Metrics</h2>
-    <table>
-        <tr><th>Metric</th><th>Average</th><th>Peak</th><th>Status</th></tr>
-EOF
-
-# Add performance data to report
-echo "    </table>" >> $REPORT_FILE
-echo "</body></html>" >> $REPORT_FILE
-
-echo "Monthly report generated: $REPORT_FILE"</code></pre>
-                    </div>
+                <section class="system-updates">
+                    <h2 data-i18n="docs.auto.administration.maintenance.v2.upgrade_title">Upgrading the Server</h2>
+                    <ol>
+                        <li data-i18n="docs.auto.administration.maintenance.v2.upgrade_notes">Read the release notes for the new version.</li>
+                        <li data-i18n="docs.auto.administration.maintenance.v2.upgrade_backup" data-i18n-html>Back up the database and <code>/etc/sysmanage.yaml</code>; see <a href="backup.html">Backup &amp; Recovery</a>.</li>
+                        <li data-i18n="docs.auto.administration.maintenance.v2.upgrade_pkg" data-i18n-html>Upgrade the package with your platform's package manager (for example <code>apt</code>, <code>dnf</code>, <code>zypper</code>, <code>apk</code>, <code>pkg</code> or <code>pkg_add</code>), or install the new MSI on Windows. The Debian and Ubuntu package stops the service for the upgrade and does not restart it.</li>
+                        <li data-i18n="docs.auto.administration.maintenance.v2.upgrade_migrate" data-i18n-html>Apply the database migrations: <code>sudo sysmanage-migrate --status</code> shows what is pending, and <code>sudo sysmanage-migrate</code> applies it. On a multi-tenant server it migrates every tenant database too, which needs OpenBAO running. It is safe to run when nothing is pending. Some platforms' packages run the migrations for you.</li>
+                        <li data-i18n="docs.auto.administration.maintenance.v2.upgrade_restart" data-i18n-html>Restart the server: <code>sudo systemctl restart sysmanage</code>. Professional+ engines that were refused because the schema was out of date load only after this restart.</li>
+                        <li data-i18n="docs.auto.administration.maintenance.v2.upgrade_verify" data-i18n-html>Check that <code>/api/health</code> answers, that no migration banner is shown, and that agents reconnect.</li>
+                    </ol>
+                    <p data-i18n="docs.auto.administration.maintenance.v2.upgrade_source" data-i18n-html>From a source checkout, <code>make migrate</code> stops the server and runs the same <code>sysmanage-migrate</code> tool.</p>
+                    <p data-i18n="docs.auto.administration.maintenance.v2.upgrade_ha" data-i18n-html>A single SysManage server is offline while it restarts; agents reconnect on their own and messages queued in the database are delivered afterward. Running several SysManage servers for failover is not supported yet. The database can be made highly available with an HA PostgreSQL cluster; see <a href="postgresql-ha.html">PostgreSQL High Availability</a>.</p>
                 </section>
 
                 <section class="migration-compat-banner">
                     <h2 data-i18n="maintenance.migration_compat_banner.title">Database migration banner</h2>
-                    <p data-i18n="maintenance.migration_compat_banner.description">
+                    <p data-i18n="maintenance.migration_compat_banner.description" data-i18n-html>
                         SysManage displays a yellow banner across the top of the UI when one or
                         more Pro+ modules cannot load because the database schema is older than
                         the module requires.  The banner is a fallback safety net -- the
@@ -231,14 +76,14 @@ echo "Monthly report generated: $REPORT_FILE"</code></pre>
                     <h3 data-i18n="maintenance.migration_compat_banner.action_title">What to do</h3>
                     <ol>
                         <li data-i18n="maintenance.migration_compat_banner.action_step1">Stop sysmanage on the server.</li>
-                        <li data-i18n="maintenance.migration_compat_banner.action_step2">From the project directory, run <code>alembic upgrade head</code> (or the equivalent Make target your installation uses).</li>
+                        <li data-i18n="maintenance.migration_compat_banner.action_step2" data-i18n-html>Run <code>sudo sysmanage-migrate</code> (from a source checkout, <code>make migrate</code>).</li>
                         <li data-i18n="maintenance.migration_compat_banner.action_step3">Restart sysmanage.</li>
                         <li data-i18n="maintenance.migration_compat_banner.action_step4">The banner clears once the affected modules successfully reload at the new schema revision.</li>
                     </ol>
                     <p data-i18n="maintenance.migration_compat_banner.restart_needed">A module refused at startup is only loaded when sysmanage starts again: running the migrations alone does not load it. If the migrations ran while sysmanage was running, the banner changes to "Restart SysManage to load Pro+ engines", and the features of those modules stay off until you restart sysmanage.</p>
 
                     <h3 data-i18n="maintenance.migration_compat_banner.endpoint_title">Programmatic check</h3>
-                    <p data-i18n="maintenance.migration_compat_banner.endpoint">
+                    <p data-i18n="maintenance.migration_compat_banner.endpoint" data-i18n-html>
                         The same data is exposed at <code>GET /api/v1/license/module-compat</code>;
                         a non-empty <code>incompatibilities</code> array indicates pending
                         migrations.  Monitoring systems and pre-flight checks should poll this
@@ -246,551 +91,55 @@ echo "Monthly report generated: $REPORT_FILE"</code></pre>
                     </p>
                 </section>
 
-                <section class="system-updates">
-                    <h2 data-i18n="docs.auto.administration.maintenance.043">System Updates and Patches</h2>
-
-                    <div class="update-strategy">
-                        <h3 data-i18n="docs.auto.administration.maintenance.044">Update Strategy</h3>
-
-                        <h4 data-i18n="docs.auto.administration.maintenance.045">Update Categories</h4>
-                        <ul>
-                            <li data-i18n="docs.auto.administration.maintenance.046"><strong>Security Updates:</strong> Critical security patches (immediate)</li>
-                            <li data-i18n="docs.auto.administration.maintenance.047"><strong>Bug Fixes:</strong> Application and system bug fixes (weekly)</li>
-                            <li data-i18n="docs.auto.administration.maintenance.048"><strong>Feature Updates:</strong> New features and improvements (monthly)</li>
-                            <li data-i18n="docs.auto.administration.maintenance.049"><strong>Major Releases:</strong> Major version upgrades (quarterly)</li>
-                        </ul>
-
-                        <h4 data-i18n="docs.auto.administration.maintenance.050">Update Process</h4>
-                        <ol>
-                            <li data-i18n="docs.auto.administration.maintenance.051">Review available updates and release notes</li>
-                            <li data-i18n="docs.auto.administration.maintenance.052">Test updates in staging environment</li>
-                            <li data-i18n="docs.auto.administration.maintenance.053">Schedule maintenance window</li>
-                            <li data-i18n="docs.auto.administration.maintenance.054">Create system backup before updates</li>
-                            <li data-i18n="docs.auto.administration.maintenance.055">Apply updates in controlled manner</li>
-                            <li data-i18n="docs.auto.administration.maintenance.056">Verify system functionality post-update</li>
-                            <li data-i18n="docs.auto.administration.maintenance.057">Monitor for any issues or regressions</li>
-                            <li data-i18n="docs.auto.administration.maintenance.058">Document update process and results</li>
-                        </ol>
-
-                        <h4 data-i18n="docs.auto.administration.maintenance.059">Update Automation Script</h4>
-                        <pre><code>#!/bin/bash
-# System update automation
-
-UPDATE_LOG="/var/log/system_updates.log"
-BACKUP_DIR="/opt/sysmanage/backups/pre_update"
-
-echo "$(date): Starting system updates" >> $UPDATE_LOG
-
-# Create pre-update backup
-mkdir -p $BACKUP_DIR
-DATE=$(date +%Y%m%d_%H%M%S)
-
-# Backup configuration
-tar -czf "$BACKUP_DIR/config_backup_$DATE.tar.gz" /opt/sysmanage/config/
-
-# Update system packages
-apt update >> $UPDATE_LOG 2>&1
-DEBIAN_FRONTEND=noninteractive apt upgrade -y >> $UPDATE_LOG 2>&1
-
-# Update SysManage application
-if [ -f "/opt/sysmanage/scripts/update.sh" ]; then
-    /opt/sysmanage/scripts/update.sh >> $UPDATE_LOG 2>&1
-fi
-
-# Restart services if needed
-if [ -f "/var/run/reboot-required" ]; then
-    echo "$(date): System reboot required after updates" >> $UPDATE_LOG
-    # Schedule reboot or notify administrators
-    mail -s "Reboot Required After Updates" admin@example.com <<< "System reboot required on $(hostname) after applying updates"
-fi
-
-echo "$(date): System updates completed" >> $UPDATE_LOG</code></pre>
-                    </div>
-
-                    <div class="rollback-procedures">
-                        <h3 data-i18n="docs.auto.administration.maintenance.060">Rollback Procedures</h3>
-
-                        <h4 data-i18n="docs.auto.administration.maintenance.061">Application Rollback</h4>
-                        <pre><code>#!/bin/bash
-# Application rollback script
-
-BACKUP_VERSION="$1"
-APP_DIR="/opt/sysmanage"
-BACKUP_DIR="/opt/sysmanage/backups"
-
-if [ -z "$BACKUP_VERSION" ]; then
-    echo "Usage: $0 <backup_version>"
-    echo "Available backups:"
-    ls -la $BACKUP_DIR/app_backup_*
-    exit 1
-fi
-
-# Stop services
-systemctl stop sysmanage-backend
-systemctl stop sysmanage-worker
-
-# Backup current version
-cp -r $APP_DIR "$BACKUP_DIR/rollback_backup_$(date +%Y%m%d_%H%M%S)"
-
-# Restore previous version
-tar -xzf "$BACKUP_DIR/app_backup_$BACKUP_VERSION.tar.gz" -C /opt/
-
-# Restore configuration if needed
-if [ -f "$BACKUP_DIR/config_backup_$BACKUP_VERSION.tar.gz" ]; then
-    tar -xzf "$BACKUP_DIR/config_backup_$BACKUP_VERSION.tar.gz" -C /
-fi
-
-# Restart services
-systemctl start sysmanage-backend
-systemctl start sysmanage-worker
-
-echo "Rollback to version $BACKUP_VERSION completed"</code></pre>
-                    </div>
+                <section class="log-management">
+                    <h2 data-i18n="docs.auto.administration.maintenance.107">Log Management</h2>
+                    <ul>
+                        <li data-i18n="docs.auto.administration.maintenance.v2.log_rotation" data-i18n-html>The server rotates <code>backend.log</code> at midnight, compresses the old file with gzip, and keeps 14 of them. No separate logrotate rule is needed.</li>
+                        <li data-i18n="docs.auto.administration.maintenance.v2.log_level" data-i18n-html>Set the level with <code>logging.level</code> in <code>/etc/sysmanage.yaml</code>.</li>
+                        <li data-i18n="docs.auto.administration.maintenance.v2.log_native" data-i18n-html>To also send logs to journald, syslog or the Windows Event Log, set <code>logging.native: true</code>. The nginx access and error logs are kept by nginx in its usual location.</li>
+                        <li data-i18n="docs.auto.administration.maintenance.v2.log_more" data-i18n-html>See <a href="logging-configuration.html">Logging Configuration</a> for all options, including forwarding to a remote syslog server (Professional and Enterprise).</li>
+                    </ul>
                 </section>
 
                 <section class="performance-optimization">
-                    <h2 data-i18n="docs.auto.administration.maintenance.062">Performance Optimization</h2>
+                    <h2 data-i18n="docs.auto.administration.maintenance.v2.db_title">Database Upkeep</h2>
+                    <ul>
+                        <li data-i18n="docs.auto.administration.maintenance.v2.db_vacuum">PostgreSQL's autovacuum is on by default and handles routine vacuuming and statistics. Leave it on; check that it keeps up on busy tables if the database grows quickly.</li>
+                        <li data-i18n="docs.auto.administration.maintenance.v2.db_backup" data-i18n-html>Take regular backups (for example with <code>pg_dump</code>) and test restoring them.</li>
+                        <li data-i18n="docs.auto.administration.maintenance.v2.db_queue" data-i18n-html>Messages between the server and agents pass through a queue table in the database. Expired messages are cleaned up automatically (<code>message_queue.expiration_timeout_minutes</code>, default 60, and <code>message_queue.cleanup_interval_minutes</code>, default 30).</li>
+                        <li data-i18n="docs.auto.administration.maintenance.v2.db_disk">Watch free disk space on the database host; package and inventory data grows with the number of hosts.</li>
+                    </ul>
+                </section>
 
-                    <div class="database-optimization">
-                        <h3 data-i18n="docs.auto.administration.maintenance.063">Database Performance Optimization</h3>
-
-                        <h4 data-i18n="docs.auto.administration.maintenance.064">Query Performance Analysis</h4>
-                        <pre><code>-- Identify slow queries
-SELECT query, mean_time, calls, total_time
-FROM pg_stat_statements
-ORDER BY mean_time DESC
-LIMIT 10;
-
--- Find missing indexes
-SELECT schemaname, tablename, attname, n_distinct, correlation
-FROM pg_stats
-WHERE schemaname = 'public'
-  AND n_distinct > 100
-  AND correlation < 0.1;
-
--- Check table bloat
-SELECT schemaname, tablename,
-       pg_size_pretty(pg_total_relation_size(schemaname||'.'||tablename)) as size,
-       pg_size_pretty(pg_relation_size(schemaname||'.'||tablename)) as table_size
-FROM pg_tables
-WHERE schemaname = 'public'
-ORDER BY pg_total_relation_size(schemaname||'.'||tablename) DESC;</code></pre>
-
-                        <h4 data-i18n="docs.auto.administration.maintenance.065">Index Optimization</h4>
-                        <pre><code>-- Create indexes for common queries
-CREATE INDEX CONCURRENTLY idx_metrics_timestamp
-ON metrics (timestamp)
-WHERE timestamp > NOW() - INTERVAL '30 days';
-
-CREATE INDEX CONCURRENTLY idx_hosts_active
-ON hosts (active, hostname)
-WHERE active = true;
-
-CREATE INDEX CONCURRENTLY idx_alerts_severity
-ON alerts (severity, created_at)
-WHERE resolved_at IS NULL;</code></pre>
-
-                        <h4 data-i18n="docs.auto.administration.maintenance.066">Connection Pool Optimization</h4>
-                        <pre><code># PostgreSQL connection settings (postgresql.conf)
-
-max_connections = 200
-shared_buffers = 256MB
-effective_cache_size = 1GB
-work_mem = 4MB
-maintenance_work_mem = 64MB
-
-# Connection pooling with pgbouncer
-[databases]
-sysmanage = host=localhost port=5432 dbname=sysmanage
-
-[pgbouncer]
-listen_port = 6432
-listen_addr = 127.0.0.1
-auth_type = md5
-auth_file = /etc/pgbouncer/userlist.txt
-pool_mode = transaction
-default_pool_size = 25
-max_client_conn = 200
-reserve_pool_size = 5</code></pre>
-                    </div>
-
-                    <div class="application-optimization">
-                        <h3 data-i18n="docs.auto.administration.maintenance.067">Application Performance Optimization</h3>
-
-                        <h4 data-i18n="docs.auto.administration.maintenance.068">Caching Strategy</h4>
-                        <pre><code># Redis configuration for caching
-maxmemory 512mb
-maxmemory-policy allkeys-lru
-
-# Application caching configuration
-CACHE_BACKEND = 'redis://localhost:6379/0'
-CACHE_TIMEOUT = 300  # 5 minutes
-CACHE_KEY_PREFIX = 'sysmanage:'
-
-# Cache frequently accessed data
-- Host information: 15 minutes
-- User sessions: 1 hour
-- System metrics: 5 minutes
-- Configuration data: 30 minutes</code></pre>
-
-                        <h4 data-i18n="docs.auto.administration.maintenance.069">Resource Optimization</h4>
-                        <ul>
-                            <li data-i18n="docs.auto.administration.maintenance.070"><strong>Memory Management:</strong> Monitor memory usage and implement pagination</li>
-                            <li data-i18n="docs.auto.administration.maintenance.071"><strong>CPU Optimization:</strong> Profile CPU usage and optimize algorithms</li>
-                            <li data-i18n="docs.auto.administration.maintenance.072"><strong>I/O Optimization:</strong> Minimize disk I/O and use asynchronous operations</li>
-                            <li data-i18n="docs.auto.administration.maintenance.073"><strong>Network Optimization:</strong> Implement compression and connection pooling</li>
-                        </ul>
-                    </div>
-
-                    <div name="monitoring-optimization">
-                        <h3 data-i18n="docs.auto.administration.maintenance.074">Monitoring System Optimization</h3>
-
-                        <h4 data-i18n="docs.auto.administration.maintenance.075">Data Collection Optimization</h4>
-                        <ul>
-                            <li data-i18n="docs.auto.administration.maintenance.076"><strong>Collection Intervals:</strong> Adjust based on criticality and change frequency</li>
-                            <li data-i18n="docs.auto.administration.maintenance.077"><strong>Metric Granularity:</strong> Balance detail with storage requirements</li>
-                            <li data-i18n="docs.auto.administration.maintenance.078"><strong>Batch Processing:</strong> Collect multiple metrics in single operations</li>
-                            <li data-i18n="docs.auto.administration.maintenance.079"><strong>Data Compression:</strong> Compress data before storage and transmission</li>
-                        </ul>
-
-                        <h4 data-i18n="docs.auto.administration.maintenance.080">Storage Optimization</h4>
-                        <pre><code># Data retention configuration
-retention_policies:
-  high_resolution:    # 1-minute data
-    duration: 24h
-  medium_resolution:  # 5-minute data
-    duration: 7d
-  low_resolution:     # 1-hour data
-    duration: 90d
-  archive:           # Daily summaries
-    duration: 1y
-
-# Compression settings
-compression:
-  algorithm: lz4
-  level: 1
-  batch_size: 1000</code></pre>
-                    </div>
+                <section class="maintenance-schedules">
+                    <h2 data-i18n="docs.auto.administration.maintenance.v2.agents_title">Agent Updates</h2>
+                    <ul>
+                        <li data-i18n="docs.auto.administration.maintenance.v2.agents_how" data-i18n-html>Update agents through their native packages, or select hosts on the Hosts page and use <em>Update Agent on Selected</em>.</li>
+                        <li data-i18n="docs.auto.administration.maintenance.v2.agents_order">Update the server first, then agents. Try a new agent release on a few hosts before the rest.</li>
+                        <li data-i18n="docs.auto.administration.maintenance.v2.agents_windows" data-i18n-html>Use <a href="maintenance-windows.html">maintenance windows</a> to keep changes on production hosts to agreed times.</li>
+                    </ul>
                 </section>
 
                 <section class="capacity-planning">
                     <h2 data-i18n="docs.auto.administration.maintenance.081">Capacity Planning</h2>
-
-                    <div class="growth-analysis">
-                        <h3 data-i18n="docs.auto.administration.maintenance.082">Growth Trend Analysis</h3>
-
-                        <h4 data-i18n="docs.auto.administration.maintenance.083">Capacity Metrics</h4>
-                        <ul>
-                            <li data-i18n="docs.auto.administration.maintenance.084"><strong>Host Growth:</strong> Rate of new host additions</li>
-                            <li data-i18n="docs.auto.administration.maintenance.085"><strong>Data Volume:</strong> Database and storage growth rates</li>
-                            <li data-i18n="docs.auto.administration.maintenance.086"><strong>User Growth:</strong> Number of active users and sessions</li>
-                            <li data-i18n="docs.auto.administration.maintenance.087"><strong>Performance Trends:</strong> Response times and throughput changes</li>
-                            <li data-i18n="docs.auto.administration.maintenance.088"><strong>Resource Utilization:</strong> CPU, memory, and storage trends</li>
-                        </ul>
-
-                        <h4 data-i18n="docs.auto.administration.maintenance.089">Capacity Analysis Script</h4>
-                        <pre><code>#!/bin/bash
-# Capacity analysis and reporting
-
-REPORT_FILE="/opt/sysmanage/reports/capacity_analysis.txt"
-
-echo "=== SysManage Capacity Analysis - $(date) ===" > $REPORT_FILE
-
-# Database size growth
-echo "Database Growth:" >> $REPORT_FILE
-psql -U sysmanage -d sysmanage -c "
-    SELECT
-        date_trunc('month', created_at) as month,
-        COUNT(*) as new_hosts,
-        pg_size_pretty(SUM(pg_column_size(ROW(*)))) as data_size
-    FROM hosts
-    WHERE created_at > NOW() - INTERVAL '12 months'
-    GROUP BY date_trunc('month', created_at)
-    ORDER BY month;
-" >> $REPORT_FILE
-
-# Storage utilization
-echo -e "\nStorage Utilization:" >> $REPORT_FILE
-df -h /opt/sysmanage >> $REPORT_FILE
-
-# Memory usage trends
-echo -e "\nMemory Usage:" >> $REPORT_FILE
-free -h >> $REPORT_FILE
-
-# Performance metrics
-echo -e "\nPerformance Metrics:" >> $REPORT_FILE
-psql -U sysmanage -d sysmanage -c "
-    SELECT
-        AVG(response_time) as avg_response_time,
-        MAX(response_time) as max_response_time,
-        COUNT(*) as total_requests
-    FROM api_logs
-    WHERE timestamp > NOW() - INTERVAL '24 hours';
-" >> $REPORT_FILE
-
-echo "Capacity analysis completed: $REPORT_FILE"</code></pre>
-                    </div>
-
-                    <div class="scaling-strategies">
-                        <h3 data-i18n="docs.auto.administration.maintenance.090">Scaling Strategies</h3>
-
-                        <h4 data-i18n="docs.auto.administration.maintenance.091">Vertical Scaling (Scale Up)</h4>
-                        <ul>
-                            <li data-i18n="docs.auto.administration.maintenance.092"><strong>CPU Upgrade:</strong> Increase CPU cores for better processing</li>
-                            <li data-i18n="docs.auto.administration.maintenance.093"><strong>Memory Expansion:</strong> Add RAM for better caching and performance</li>
-                            <li data-i18n="docs.auto.administration.maintenance.094"><strong>Storage Upgrade:</strong> Faster SSD storage for database performance</li>
-                            <li data-i18n="docs.auto.administration.maintenance.095"><strong>Network Upgrade:</strong> Higher bandwidth for large deployments</li>
-                        </ul>
-
-                        <h4 data-i18n="docs.auto.administration.maintenance.096">Horizontal Scaling (Scale Out)</h4>
-                        <ul>
-                            <li data-i18n="docs.auto.administration.maintenance.097"><strong>Load Balancing:</strong> Distribute traffic across multiple servers</li>
-                            <li data-i18n="docs.auto.administration.maintenance.098"><strong>Database Clustering:</strong> PostgreSQL read replicas and clustering</li>
-                            <li data-i18n="docs.auto.administration.maintenance.099"><strong>Microservices:</strong> Split application into smaller, scalable services</li>
-                            <li data-i18n="docs.auto.administration.maintenance.100"><strong>Caching Layer:</strong> Distributed caching with Redis cluster</li>
-                        </ul>
-
-                        <h4 data-i18n="docs.auto.administration.maintenance.101">Scaling Thresholds</h4>
-                        <ul>
-                            <li data-i18n="docs.auto.administration.maintenance.102"><strong>Host Count:</strong> Scale when approaching 1000+ hosts per server</li>
-                            <li data-i18n="docs.auto.administration.maintenance.103"><strong>CPU Usage:</strong> Scale when average CPU > 70% for extended periods</li>
-                            <li data-i18n="docs.auto.administration.maintenance.104"><strong>Memory Usage:</strong> Scale when memory > 80% consistently</li>
-                            <li data-i18n="docs.auto.administration.maintenance.105"><strong>Storage:</strong> Scale when storage > 85% full</li>
-                            <li data-i18n="docs.auto.administration.maintenance.106"><strong>Response Time:</strong> Scale when response times > 2 seconds</li>
-                        </ul>
-                    </div>
-                </section>
-
-                <section class="log-management">
-                    <h2 data-i18n="docs.auto.administration.maintenance.107">Log Management</h2>
-
-                    <div class="log-rotation">
-                        <h3 data-i18n="docs.auto.administration.maintenance.108">Log Rotation and Archival</h3>
-
-                        <h4 data-i18n="docs.auto.administration.maintenance.109">Log Rotation Configuration</h4>
-                        <pre><code># /etc/logrotate.d/sysmanage
-
-/opt/sysmanage/logs/*.log {
-    daily
-    missingok
-    rotate 30
-    compress
-    delaycompress
-    notifempty
-    create 644 sysmanage sysmanage
-    postrotate
-        systemctl reload sysmanage-backend
-    endscript
-}
-
-/var/log/postgresql/*.log {
-    weekly
-    missingok
-    rotate 12
-    compress
-    delaycompress
-    notifempty
-    create 640 postgres postgres
-}</code></pre>
-
-                        <h4 data-i18n="docs.auto.administration.maintenance.110">Log Cleanup Script</h4>
-                        <pre><code>#!/bin/bash
-# Log cleanup and archival
-
-LOG_DIR="/opt/sysmanage/logs"
-ARCHIVE_DIR="/opt/sysmanage/archive"
-RETENTION_DAYS=90
-
-# Create archive directory
-mkdir -p $ARCHIVE_DIR
-
-# Archive logs older than 30 days
-find $LOG_DIR -name "*.log.*" -mtime +30 -exec mv {} $ARCHIVE_DIR/ \;
-
-# Compress archived logs
-find $ARCHIVE_DIR -name "*.log.*" ! -name "*.gz" -exec gzip {} \;
-
-# Remove logs older than retention period
-find $ARCHIVE_DIR -name "*.gz" -mtime +$RETENTION_DAYS -delete
-
-# Clean up empty directories
-find $ARCHIVE_DIR -type d -empty -delete
-
-echo "Log cleanup completed"</code></pre>
-                    </div>
-
-                    <div class="log-analysis">
-                        <h3 data-i18n="docs.auto.administration.maintenance.111">Log Analysis and Monitoring</h3>
-
-                        <h4 data-i18n="docs.auto.administration.maintenance.112">Error Detection Script</h4>
-                        <pre><code>#!/bin/bash
-# Automated log analysis for errors
-
-LOG_FILE="/opt/sysmanage/logs/backend.log"
-ERROR_REPORT="/tmp/error_report.txt"
-YESTERDAY=$(date -d "yesterday" +%Y-%m-%d)
-
-# Search for errors in yesterday's logs
-grep "$YESTERDAY" $LOG_FILE | grep -i "error\|exception\|critical" > $ERROR_REPORT
-
-if [ -s $ERROR_REPORT ]; then
-    ERROR_COUNT=$(wc -l < $ERROR_REPORT)
-    echo "Found $ERROR_COUNT errors in yesterday's logs"
-
-    # Send error report
-    mail -s "SysManage Error Report - $YESTERDAY" admin@example.com < $ERROR_REPORT
-fi
-
-# Clean up
-rm -f $ERROR_REPORT</code></pre>
-                    </div>
+                    <p data-i18n="docs.auto.administration.maintenance.v2.capacity" data-i18n-html>How many agents one server can handle depends on the number of worker processes, the hardware and the database. The measured figures, and how to size workers and the database connection pool, are in the <a href="../server/scaling.html">Scaling Guide</a>. Track the number of hosts, database size and server CPU and memory over time so you can plan ahead of growth.</p>
                 </section>
 
                 <section class="troubleshooting">
                     <h2 data-i18n="docs.auto.administration.maintenance.113">Troubleshooting Procedures</h2>
+                    <div class="code-block">
+                        <pre><code># Service status and recent log lines
+sudo systemctl status sysmanage
+sudo tail -n 100 /var/log/sysmanage/backend.log
 
-                    <div class="common-issues">
-                        <h3 data-i18n="docs.auto.administration.maintenance.114">Common Issues and Solutions</h3>
+# Is the server answering?
+curl -sS https://localhost/api/health -k
 
-                        <h4 data-i18n="docs.auto.administration.maintenance.115">High CPU Usage</h4>
-                        <div class="troubleshooting-steps">
-                            <h5 data-i18n="docs.auto.administration.maintenance.116">Diagnosis:</h5>
-                            <pre><code># Check top processes
-top -p $(pgrep -d',' sysmanage)
+# Pending database migrations
+sudo sysmanage-migrate --status
 
-# Check CPU usage by process
-ps aux | grep sysmanage | sort -k3 -nr
-
-# Monitor system load
-uptime
-iostat 1 5</code></pre>
-
-                            <h5 data-i18n="docs.auto.administration.maintenance.117">Solutions:</h5>
-                            <ul>
-                                <li data-i18n="docs.auto.administration.maintenance.118">Optimize database queries</li>
-                                <li data-i18n="docs.auto.administration.maintenance.119">Reduce data collection frequency</li>
-                                <li data-i18n="docs.auto.administration.maintenance.120">Scale up CPU resources</li>
-                                <li data-i18n="docs.auto.administration.maintenance.121">Implement caching</li>
-                            </ul>
-                        </div>
-
-                        <h4 data-i18n="docs.auto.administration.maintenance.122">Memory Issues</h4>
-                        <div class="troubleshooting-steps">
-                            <h5 data-i18n="docs.auto.administration.maintenance.123">Diagnosis:</h5>
-                            <pre><code># Check memory usage
-free -h
-cat /proc/meminfo
-
-# Check for memory leaks
-ps aux --sort=-%mem | head -20
-
-# Monitor memory over time
-sar -r 1 10</code></pre>
-
-                            <h5 data-i18n="docs.auto.administration.maintenance.124">Solutions:</h5>
-                            <ul>
-                                <li data-i18n="docs.auto.administration.maintenance.125">Restart affected services</li>
-                                <li data-i18n="docs.auto.administration.maintenance.126">Optimize data structures</li>
-                                <li data-i18n="docs.auto.administration.maintenance.127">Implement pagination</li>
-                                <li data-i18n="docs.auto.administration.maintenance.128">Add more RAM</li>
-                            </ul>
-                        </div>
-
-                        <h4 data-i18n="docs.auto.administration.maintenance.129">Database Performance Issues</h4>
-                        <div class="troubleshooting-steps">
-                            <h5 data-i18n="docs.auto.administration.maintenance.130">Diagnosis:</h5>
-                            <pre><code>-- Check slow queries
-SELECT query, mean_time, calls
-FROM pg_stat_statements
-ORDER BY mean_time DESC;
-
--- Check connection count
-SELECT count(*) FROM pg_stat_activity;
-
--- Check locks
-SELECT * FROM pg_locks
-WHERE NOT granted;</code></pre>
-
-                            <h5 data-i18n="docs.auto.administration.maintenance.131">Solutions:</h5>
-                            <ul>
-                                <li data-i18n="docs.auto.administration.maintenance.132">Optimize slow queries</li>
-                                <li data-i18n="docs.auto.administration.maintenance.133">Add missing indexes</li>
-                                <li data-i18n="docs.auto.administration.maintenance.134">Run VACUUM ANALYZE</li>
-                                <li data-i18n="docs.auto.administration.maintenance.135">Increase connection pool size</li>
-                            </ul>
-                        </div>
-                    </div>
-
-                    <div class="diagnostic-tools">
-                        <h3 data-i18n="docs.auto.administration.maintenance.136">Diagnostic Tools and Commands</h3>
-
-                        <h4 data-i18n="docs.auto.administration.maintenance.137">System Diagnostics</h4>
-                        <pre><code># System information
-uname -a
-lscpu
-free -h
-df -h
-
-# Process monitoring
-ps aux | grep sysmanage
-netstat -tulpn | grep :8443
-ss -tulpn | grep :5432
-
-# Performance monitoring
-vmstat 1 5
-iostat -x 1 5
-sar -u 1 5</code></pre>
-
-                        <h4 data-i18n="docs.auto.administration.maintenance.138">Application Diagnostics</h4>
-                        <pre><code># Check service status
-systemctl status sysmanage-backend
-systemctl status sysmanage-worker
-systemctl status postgresql
-
-# View recent logs
-journalctl -u sysmanage-backend -f
-tail -f /opt/sysmanage/logs/backend.log
-
-# Test connectivity
-curl -k https://localhost:8443/api/health
-pg_isready -h localhost -p 5432</code></pre>
-                    </div>
-                </section>
-
-                <section class="maintenance-best-practices">
-                    <h2 data-i18n="docs.auto.administration.maintenance.139">Maintenance Best Practices</h2>
-
-                    <div class="planning-best-practices">
-                        <h3 data-i18n="docs.auto.administration.maintenance.140">Planning and Scheduling</h3>
-                        <ul>
-                            <li data-i18n="docs.auto.administration.maintenance.141"><strong>Maintenance Windows:</strong> Schedule during low-traffic periods</li>
-                            <li data-i18n="docs.auto.administration.maintenance.142"><strong>Change Management:</strong> Document all changes and approvals</li>
-                            <li data-i18n="docs.auto.administration.maintenance.143"><strong>Communication:</strong> Notify stakeholders of maintenance schedules</li>
-                            <li data-i18n="docs.auto.administration.maintenance.144"><strong>Rollback Plans:</strong> Always have rollback procedures ready</li>
-                            <li data-i18n="docs.auto.administration.maintenance.145"><strong>Testing:</strong> Test changes in staging before production</li>
-                        </ul>
-                    </div>
-
-                    <div class="execution-best-practices">
-                        <h3 data-i18n="docs.auto.administration.maintenance.146">Execution Best Practices</h3>
-                        <ul>
-                            <li data-i18n="docs.auto.administration.maintenance.147"><strong>Backup First:</strong> Always backup before making changes</li>
-                            <li data-i18n="docs.auto.administration.maintenance.148"><strong>Incremental Changes:</strong> Make small, manageable changes</li>
-                            <li data-i18n="docs.auto.administration.maintenance.149"><strong>Monitoring:</strong> Monitor systems during and after maintenance</li>
-                            <li data-i18n="docs.auto.administration.maintenance.150"><strong>Documentation:</strong> Document all procedures and results</li>
-                            <li data-i18n="docs.auto.administration.maintenance.151"><strong>Verification:</strong> Verify changes work as expected</li>
-                        </ul>
-                    </div>
-
-                    <div class="automation-best-practices">
-                        <h3 data-i18n="docs.auto.administration.maintenance.152">Automation Best Practices</h3>
-                        <ul>
-                            <li data-i18n="docs.auto.administration.maintenance.153"><strong>Script Testing:</strong> Test automation scripts thoroughly</li>
-                            <li data-i18n="docs.auto.administration.maintenance.154"><strong>Error Handling:</strong> Implement proper error handling and logging</li>
-                            <li data-i18n="docs.auto.administration.maintenance.155"><strong>Monitoring:</strong> Monitor automated processes</li>
-                            <li data-i18n="docs.auto.administration.maintenance.156"><strong>Alerting:</strong> Alert on automation failures</li>
-                            <li data-i18n="docs.auto.administration.maintenance.157"><strong>Regular Review:</strong> Review and update automation regularly</li>
-                        </ul>
+# Is PostgreSQL reachable?
+sudo -u postgres psql -c "SELECT 1"</code></pre>
                     </div>
                 </section>
             </div>

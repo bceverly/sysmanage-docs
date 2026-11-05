@@ -43,12 +43,13 @@ class Components {
                 </div>
                 <button class="nav-toggle" type="button" aria-label="Toggle navigation menu" aria-controls="primary-nav" aria-expanded="false">&#9776;</button>
                 <div class="nav-menu" id="primary-nav">
-                    <a href="${root}solutions/" class="nav-link${activeLink === 'solutions' ? ' active' : ''}" data-i18n="nav.solutions" data-i18n-html>Solutions</a>
-                    <a href="${root}docs/" class="nav-link${activeLink === 'documentation' ? ' active' : ''}" data-i18n="nav.documentation" data-i18n-html>Documentation</a>
-                    <a href="${root}roadmap/" class="nav-link${activeLink === 'roadmap' ? ' active' : ''}" data-i18n="nav.roadmap" data-i18n-html>Roadmap</a>
-                    <a href="${root}config-builder.html" class="nav-link${activeLink === 'config-builder' ? ' active' : ''}" data-i18n="nav.config_builder" data-i18n-html>Configuration Builder</a>
-                    <a href="https://github.com/bceverly/sysmanage" class="nav-link" target="_blank" data-i18n="nav.github_server" data-i18n-html>Server GitHub</a>
-                    <a href="https://github.com/bceverly/sysmanage-agent" class="nav-link" target="_blank" data-i18n="nav.github_agent" data-i18n-html>Agent GitHub</a>
+                    <a href="${root}platform/" class="nav-link${activeLink === 'platform' ? ' active' : ''}" data-i18n="nav.platform">Platform</a>
+                    <a href="${root}solutions/" class="nav-link${activeLink === 'solutions' ? ' active' : ''}" data-i18n="nav.solutions">Solutions</a>
+                    <a href="${root}pricing/" class="nav-link${activeLink === 'pricing' ? ' active' : ''}" data-i18n="nav.pricing">Pricing</a>
+                    <a href="${root}docs/" class="nav-link${activeLink === 'documentation' ? ' active' : ''}" data-i18n="nav.documentation">Documentation</a>
+                    <a href="${root}roadmap/" class="nav-link${activeLink === 'roadmap' ? ' active' : ''}" data-i18n="nav.roadmap">Roadmap</a>
+                    <a href="https://github.com/bceverly/sysmanage" class="nav-link" target="_blank" rel="noopener" data-i18n="nav.github">GitHub</a>
+                    <a href="${root}evaluate/" class="nav-link nav-cta${activeLink === 'evaluate' ? ' active' : ''}" data-i18n="nav.evaluate">Evaluate</a>
                 </div>
             </div>
         </nav>
@@ -76,12 +77,17 @@ class Components {
                         <li><a href="${root}docs/agent/" data-i18n="footer.agent_docs" data-i18n-html>Agent Docs</a></li>
                         <li><a href="${root}docs/api/" data-i18n="footer.api_reference" data-i18n-html>API Reference</a></li>
                         <li><a href="${root}docs/security/" data-i18n="footer.security" data-i18n-html>Security</a></li>
+                        <li><a href="${root}docs/getting-started/supported-platforms.html" data-i18n="footer.platforms">Supported Platforms</a></li>
+                        <li><a href="${root}config-builder.html" data-i18n="footer.config_builder">Configuration Builder</a></li>
                     </ul>
                 </div>
                 <div class="footer-section">
                     <h3 data-i18n="footer.company" data-i18n-html>Company</h3>
                     <ul>
+                        <li><a href="${root}platform/" data-i18n="footer.platform">Platform</a></li>
                         <li><a href="${root}solutions/" data-i18n="footer.solutions" data-i18n-html>Solutions</a></li>
+                        <li><a href="${root}pricing/" data-i18n="footer.pricing">Editions and pricing</a></li>
+                        <li><a href="${root}evaluate/" data-i18n="footer.evaluate">Evaluate</a></li>
                         <li><a href="${root}about/" data-i18n="footer.about" data-i18n-html>About &amp; Founder</a></li>
                         <li><a href="${root}air-gapped/" data-i18n="footer.airgap" data-i18n-html>Air-Gapped</a></li>
                         <li><a href="${root}contact/" data-i18n="footer.contact" data-i18n-html>Contact</a></li>
@@ -90,7 +96,8 @@ class Components {
                 <div class="footer-section">
                     <h3 data-i18n="footer.community" data-i18n-html>Community</h3>
                     <ul>
-                        <li><a href="https://github.com/bceverly/sysmanage" target="_blank" data-i18n="footer.github_repo" data-i18n-html>GitHub Repository</a></li>
+                        <li><a href="https://github.com/bceverly/sysmanage" target="_blank" data-i18n="footer.server_github_repo">Server GitHub Repository</a></li>
+                        <li><a href="https://github.com/bceverly/sysmanage-agent" target="_blank" data-i18n="footer.agent_github_repo">Agent GitHub Repository</a></li>
                         <li><a href="https://github.com/bceverly/sysmanage/issues" target="_blank" data-i18n="footer.issue_tracker" data-i18n-html>Issue Tracker</a></li>
                         <li><a href="https://github.com/bceverly/sysmanage/issues" target="_blank" data-i18n="footer.discussions" data-i18n-html>Discussions</a></li>
                     </ul>

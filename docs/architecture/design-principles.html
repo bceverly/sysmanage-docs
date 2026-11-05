@@ -4,750 +4,103 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Design Principles - SysManage Architecture</title>
-    <meta name="description" content="Core design principles, architectural patterns, and engineering decisions that guide SysManage development.">
+    <meta name="description" data-i18n="docs.architecture.principles.meta_description" data-i18n-attr="content" content="The rules SysManage is built by, each with where it shows in the code: agents dial out, a host is its credential, the database is the queue, nothing arrives all at once, and only measured numbers are claimed.">
     <link rel="stylesheet" href="/assets/css/style.css">
     <link rel="icon" type="image/svg+xml" href="/assets/images/favicon.svg">
 </head>
 <body data-auto-header="documentation" data-auto-footer>
-    <!-- Header injected automatically by components.js -->
-
     <main class="docs-main">
         <div class="container">
             <div class="docs-breadcrumb">
-                <a href="../" data-i18n="docs.auto.architecture.design-principles.001">Documentation</a> > <a href="./" data-i18n="docs.auto.architecture.design-principles.002">Architecture</a> > <span data-i18n="docs.auto.architecture.design-principles.003">Design Principles</span>
+                <a href="../" data-i18n="docs.auto.architecture.design-principles.001">Documentation</a> &gt; <a href="./" data-i18n="docs.auto.architecture.design-principles.002">Architecture</a> &gt; <span data-i18n="docs.auto.architecture.design-principles.003">Design Principles</span>
             </div>
 
             <div class="docs-header">
                 <h1 data-i18n="docs.auto.architecture.design-principles.004">Design Principles</h1>
-                <p data-i18n="docs.auto.architecture.design-principles.005">Core design principles, architectural patterns, and engineering decisions that guide SysManage development.</p>
+                <p data-i18n="docs.architecture.principles.intro">The rules SysManage is built by. Each one is a rule the code follows today, with where it shows.</p>
             </div>
 
             <div class="docs-content">
-                <section class="overview">
-                    <h2 data-i18n="docs.auto.architecture.design-principles.006">Design Philosophy</h2>
-                    <p data-i18n="docs.auto.architecture.design-principles.007">SysManage is built on a foundation of proven software engineering principles that prioritize security, scalability, maintainability, and operational excellence. Every architectural decision is guided by real-world operational requirements and enterprise-grade reliability standards.</p>
-
-                    <div class="philosophy-grid">
-                        <div class="philosophy-card">
-                            <h3 data-i18n="docs.auto.architecture.design-principles.008">Security First</h3>
-                            <p data-i18n="docs.auto.architecture.design-principles.009">Security is not an afterthought but a fundamental design constraint that influences every component and interaction.</p>
-                        </div>
-                        <div class="philosophy-card">
-                            <h3 data-i18n="docs.auto.architecture.design-principles.010">Scale by Design</h3>
-                            <p data-i18n="docs.auto.architecture.design-principles.011">Architecture anticipates growth from small deployments to enterprise-scale, with clear scaling paths at every layer.</p>
-                        </div>
-                        <div class="philosophy-card">
-                            <h3 data-i18n="docs.auto.architecture.design-principles.012">Operational Excellence</h3>
-                            <p data-i18n="docs.auto.architecture.design-principles.013">Every feature considers the operational burden on administrators, prioritizing automation and self-healing capabilities.</p>
-                        </div>
-                        <div class="philosophy-card">
-                            <h3 data-i18n="docs.auto.architecture.design-principles.014">Universal Compatibility</h3>
-                            <p data-i18n="docs.auto.architecture.design-principles.015">Cross-platform design ensures consistent functionality across diverse operating systems and environments.</p>
-                        </div>
-                    </div>
+                <section class="docs-section">
+                    <h2 data-i18n="docs.architecture.principles.h_dialout">1. Agents dial out; one door in</h2>
+                    <p data-i18n="docs.architecture.principles.dialout_p1">Managed hosts open no port. Every agent connects out to the server over 443 and keeps one WebSocket open, falling back to HTTP polling only when the network will not carry a WebSocket. On the server, nginx is the only network-facing listener on every platform; the application and OpenBAO listen on the loopback address only. One hardened entry point is easier to reason about than a listener per component.</p>
                 </section>
 
-                <section class="core-principles">
-                    <h2 data-i18n="docs.auto.architecture.design-principles.016">Core Architectural Principles</h2>
-
-                    <div class="principle">
-                        <h3 data-i18n="docs.auto.architecture.design-principles.017">1. Zero Trust Security Model</h3>
-                        <p data-i18n="docs.auto.architecture.design-principles.018">SysManage operates under the assumption that no component, network, or user can be inherently trusted.</p>
-
-                        <h4 data-i18n="docs.auto.architecture.design-principles.019">Implementation:</h4>
-                        <ul>
-                            <li data-i18n="docs.auto.architecture.design-principles.020"><strong>Mutual TLS (mTLS):</strong> Every agent-server communication is authenticated and encrypted using client certificates</li>
-                            <li data-i18n="docs.auto.architecture.design-principles.021"><strong>Certificate Rotation:</strong> Automatic certificate renewal with configurable expiration periods</li>
-                            <li data-i18n="docs.auto.architecture.design-principles.022"><strong>Least Privilege:</strong> Role-based access control with granular permissions and time-limited tokens</li>
-                            <li data-i18n="docs.auto.architecture.design-principles.023"><strong>Defense in Depth:</strong> Multiple security layers from network to application to data</li>
-                        </ul>
-
-                        <div class="security-layers">
-                            <h4 data-i18n="docs.auto.architecture.design-principles.024">Security Layer Implementation</h4>
-                            <pre class="ascii-diagram">
-Network Layer:    [mTLS] → [Certificate Validation] → [IP Filtering]
-                     ↓
-Transport Layer:  [TLS 1.3] → [Perfect Forward Secrecy] → [Cipher Suites]
-                     ↓
-Application Layer: [JWT Auth] → [RBAC] → [API Rate Limiting]
-                     ↓
-Data Layer:       [Encrypted Storage] → [Audit Logging] → [Field-level Encryption]
-                     ↓
-Infrastructure:   [Container Security] → [Network Policies] → [Resource Limits]
-                            </pre>
-                        </div>
-
-                        <h4 data-i18n="docs.auto.architecture.design-principles.025">Trade-offs:</h4>
-                        <ul>
-                            <li data-i18n="docs.auto.architecture.design-principles.026"><strong>Performance Impact:</strong> Encryption overhead vs. security assurance</li>
-                            <li data-i18n="docs.auto.architecture.design-principles.027"><strong>Complexity:</strong> Certificate management complexity vs. authentication strength</li>
-                            <li data-i18n="docs.auto.architecture.design-principles.028"><strong>Usability:</strong> Security barriers vs. ease of deployment</li>
-                        </ul>
-                    </div>
-
-                    <div class="principle">
-                        <h3 data-i18n="docs.auto.architecture.design-principles.029">2. Event-Driven Architecture</h3>
-                        <p data-i18n="docs.auto.architecture.design-principles.030">System components communicate through events and message queues, enabling loose coupling and asynchronous processing.</p>
-
-                        <h4 data-i18n="docs.auto.architecture.design-principles.031">Event Flow Pattern:</h4>
-                        <pre class="ascii-diagram">
-┌─────────────┐    Event    ┌─────────────┐    Process    ┌─────────────┐
-│   Source    │────────────▶│   Queue     │─────────────▶│  Handler    │
-│             │             │             │              │             │
-│ • API Call  │             │ • Redis     │              │ • Business  │
-│ • Agent Msg │             │ • PostgreSQL│              │   Logic     │
-│ • Timer     │             │ • Memory    │              │ • Database  │
-│ • Webhook   │             │             │              │ • External  │
-└─────────────┘             └─────────────┘              └─────────────┘
-                                   │                             │
-                                   ▼                             ▼
-                            ┌─────────────┐              ┌─────────────┐
-                            │ Dead Letter │              │   Result    │
-                            │   Queue     │              │   Event     │
-                            └─────────────┘              └─────────────┘
-                        </pre>
-
-                        <h4 data-i18n="docs.auto.architecture.design-principles.032">Benefits:</h4>
-                        <ul>
-                            <li data-i18n="docs.auto.architecture.design-principles.033"><strong>Scalability:</strong> Independent scaling of event producers and consumers</li>
-                            <li data-i18n="docs.auto.architecture.design-principles.034"><strong>Resilience:</strong> Automatic retry and dead letter handling for failed events</li>
-                            <li data-i18n="docs.auto.architecture.design-principles.035"><strong>Observability:</strong> Complete audit trail of all system events</li>
-                            <li data-i18n="docs.auto.architecture.design-principles.036"><strong>Flexibility:</strong> Easy addition of new event handlers without code changes</li>
-                        </ul>
-
-                        <h4 data-i18n="docs.auto.architecture.design-principles.037">Event Categories:</h4>
-                        <div class="event-categories">
-                            <div class="event-category">
-                                <strong data-i18n="docs.auto.architecture.design-principles.038">System Events:</strong>
-                                <ul>
-                                    <li data-i18n="docs.auto.architecture.design-principles.039">Agent connect/disconnect</li>
-                                    <li data-i18n="docs.auto.architecture.design-principles.040">Certificate expiration</li>
-                                    <li data-i18n="docs.auto.architecture.design-principles.041">Service status changes</li>
-                                </ul>
-                            </div>
-                            <div class="event-category">
-                                <strong data-i18n="docs.auto.architecture.design-principles.042">User Events:</strong>
-                                <ul>
-                                    <li data-i18n="docs.auto.architecture.design-principles.043">Task creation/completion</li>
-                                    <li data-i18n="docs.auto.architecture.design-principles.044">Configuration changes</li>
-                                    <li data-i18n="docs.auto.architecture.design-principles.045">Authentication events</li>
-                                </ul>
-                            </div>
-                            <div class="event-category">
-                                <strong data-i18n="docs.auto.architecture.design-principles.046">Data Events:</strong>
-                                <ul>
-                                    <li data-i18n="docs.auto.architecture.design-principles.047">Inventory updates</li>
-                                    <li data-i18n="docs.auto.architecture.design-principles.048">Metric collection</li>
-                                    <li data-i18n="docs.auto.architecture.design-principles.049">Alert generation</li>
-                                </ul>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="principle">
-                        <h3 data-i18n="docs.auto.architecture.design-principles.050">3. Immutable Infrastructure Mindset</h3>
-                        <p data-i18n="docs.auto.architecture.design-principles.051">Configuration and state changes are treated as immutable events with full audit trails and rollback capabilities.</p>
-
-                        <h4 data-i18n="docs.auto.architecture.design-principles.052">Implementation Patterns:</h4>
-                        <ul>
-                            <li data-i18n="docs.auto.architecture.design-principles.053"><strong>Configuration as Code:</strong> All configuration stored in version-controlled files</li>
-                            <li data-i18n="docs.auto.architecture.design-principles.054"><strong>Audit Trails:</strong> Every change recorded with who, what, when, and why</li>
-                            <li data-i18n="docs.auto.architecture.design-principles.055"><strong>Rollback Capability:</strong> Point-in-time recovery for configuration and data</li>
-                            <li data-i18n="docs.auto.architecture.design-principles.056"><strong>Validation Gates:</strong> Automated testing before configuration deployment</li>
-                        </ul>
-
-                        <h4 data-i18n="docs.auto.architecture.design-principles.057">Configuration Management Flow:</h4>
-                        <pre class="ascii-diagram">
-Developer   Git Repo    Validation   Staging    Production
-    │          │           │           │           │
-    │ 1. Edit  │           │           │           │
-    ├─────────▶│           │           │           │
-    │          │ 2. CI/CD  │           │           │
-    │          ├──────────▶│           │           │
-    │          │           │ 3. Test   │           │
-    │          │           ├──────────▶│           │
-    │          │           │           │ 4. Deploy │
-    │          │           │           ├──────────▶│
-    │          │           │           │           │
-    │          │ ← ← ← ← ← 5. Audit Log ← ← ← ← ← │
-                        </pre>
-                    </div>
-
-                    <div class="principle">
-                        <h3 data-i18n="docs.auto.architecture.design-principles.058">4. API-First Design</h3>
-                        <p data-i18n="docs.auto.architecture.design-principles.059">Every feature is accessible through well-designed APIs before UI implementation, ensuring programmatic access and integration capabilities.</p>
-
-                        <h4 data-i18n="docs.auto.architecture.design-principles.060">API Design Standards:</h4>
-                        <ul>
-                            <li data-i18n="docs.auto.architecture.design-principles.061"><strong>RESTful Principles:</strong> Consistent resource-oriented design with standard HTTP methods</li>
-                            <li data-i18n="docs.auto.architecture.design-principles.062"><strong>OpenAPI Specification:</strong> Machine-readable API documentation with code generation</li>
-                            <li data-i18n="docs.auto.architecture.design-principles.063"><strong>Versioning Strategy:</strong> Backward-compatible evolution with deprecation policies</li>
-                            <li data-i18n="docs.auto.architecture.design-principles.064"><strong>Error Handling:</strong> Standardized error responses with actionable information</li>
-                        </ul>
-
-                        <h4 data-i18n="docs.auto.architecture.design-principles.065">API Layer Architecture:</h4>
-                        <pre class="ascii-diagram">
-┌─────────────────────────────────────────────────────────────────┐
-│                        API Gateway                             │
-├─────────────────────────────────────────────────────────────────┤
-│  Authentication  │  Rate Limiting  │  Request Validation        │
-├─────────────────────────────────────────────────────────────────┤
-│  ┌─────────────┐  ┌─────────────┐  ┌─────────────────────────┐ │
-│  │   Auth      │  │   Agents    │  │   Tasks & Workflows     │ │
-│  │   /auth/*   │  │   /agents/* │  │   /tasks/*              │ │
-│  └─────────────┘  └─────────────┘  └─────────────────────────┘ │
-│  ┌─────────────┐  ┌─────────────┐  ┌─────────────────────────┐ │
-│  │  Inventory  │  │   Metrics   │  │   Configuration         │ │
-│  │  /hosts/*   │  │ /metrics/*  │  │   /config/*             │ │
-│  └─────────────┘  └─────────────┘  └─────────────────────────┘ │
-└─────────────────────────────────────────────────────────────────┘
-                        </pre>
-
-                        <h4 data-i18n="docs.auto.architecture.design-principles.066">API Evolution Strategy:</h4>
-                        <ul>
-                            <li data-i18n="docs.auto.architecture.design-principles.067"><strong>Semantic Versioning:</strong> Major.Minor.Patch version scheme</li>
-                            <li data-i18n="docs.auto.architecture.design-principles.068"><strong>Deprecation Process:</strong> 6-month notice period for breaking changes</li>
-                            <li data-i18n="docs.auto.architecture.design-principles.069"><strong>Backward Compatibility:</strong> Support for N-1 API versions</li>
-                            <li data-i18n="docs.auto.architecture.design-principles.070"><strong>Feature Flags:</strong> Gradual rollout of new API features</li>
-                        </ul>
-                    </div>
-
-                    <div class="principle">
-                        <h3 data-i18n="docs.auto.architecture.design-principles.071">5. Observability by Design</h3>
-                        <p data-i18n="docs.auto.architecture.design-principles.072">Every component produces structured logs, metrics, and traces to enable comprehensive monitoring and debugging.</p>
-
-                        <h4 data-i18n="docs.auto.architecture.design-principles.073">Three Pillars of Observability:</h4>
-                        <div class="observability-pillars">
-                            <div class="pillar">
-                                <h5 data-i18n="docs.auto.architecture.design-principles.074">Metrics</h5>
-                                <ul>
-                                    <li data-i18n="docs.auto.architecture.design-principles.075">Performance counters</li>
-                                    <li data-i18n="docs.auto.architecture.design-principles.076">Business KPIs</li>
-                                    <li data-i18n="docs.auto.architecture.design-principles.077">Resource utilization</li>
-                                    <li data-i18n="docs.auto.architecture.design-principles.078">Error rates</li>
-                                </ul>
-                            </div>
-                            <div class="pillar">
-                                <h5 data-i18n="docs.auto.architecture.design-principles.079">Logs</h5>
-                                <ul>
-                                    <li data-i18n="docs.auto.architecture.design-principles.080">Structured JSON format</li>
-                                    <li data-i18n="docs.auto.architecture.design-principles.081">Correlation IDs</li>
-                                    <li data-i18n="docs.auto.architecture.design-principles.082">Contextual information</li>
-                                    <li data-i18n="docs.auto.architecture.design-principles.083">Security events</li>
-                                </ul>
-                            </div>
-                            <div class="pillar">
-                                <h5 data-i18n="docs.auto.architecture.design-principles.084">Traces</h5>
-                                <ul>
-                                    <li data-i18n="docs.auto.architecture.design-principles.085">Distributed tracing</li>
-                                    <li data-i18n="docs.auto.architecture.design-principles.086">Request flows</li>
-                                    <li data-i18n="docs.auto.architecture.design-principles.087">Performance bottlenecks</li>
-                                    <li data-i18n="docs.auto.architecture.design-principles.088">Dependency mapping</li>
-                                </ul>
-                            </div>
-                        </div>
-
-                        <h4 data-i18n="docs.auto.architecture.design-principles.089">Monitoring Stack Integration:</h4>
-                        <pre class="ascii-diagram">
-Application    Metrics       Logs         Traces
-     │            │            │            │
-     ▼            ▼            ▼            ▼
-┌─────────────────────────────────────────────────────┐
-│             Observability Platform                 │
-├─────────────────────────────────────────────────────┤
-│ Prometheus  │  Grafana   │  Loki      │  Jaeger    │
-│ (Metrics)   │ (Dashboards│  (Logs)    │ (Traces)   │
-└─────────────────────────────────────────────────────┘
-                           │
-                           ▼
-                   ┌─────────────────┐
-                   │    Alerting     │
-                   │   (Alert Mgr)   │
-                   └─────────────────┘
-                        </pre>
-                    </div>
+                <section class="docs-section">
+                    <h2 data-i18n="docs.architecture.principles.h_identity">2. A host is its credential, not its name</h2>
+                    <p data-i18n="docs.architecture.principles.identity_p1">Host names are public, so they prove nothing. An agent proves which host it is with the credential it received when it registered; the server hands that credential only to the registration that created the host, and once a host has proven it, the server refuses that host to anyone who cannot. Data an agent sends, and commands it receives, are limited to its own host.</p>
                 </section>
 
-                <section class="architectural-patterns">
-                    <h2 data-i18n="docs.auto.architecture.design-principles.090">Architectural Patterns</h2>
-
-                    <div class="pattern">
-                        <h3 data-i18n="docs.auto.architecture.design-principles.091">Command Query Responsibility Segregation (CQRS)</h3>
-                        <p data-i18n="docs.auto.architecture.design-principles.092">Separation of read and write operations for optimized performance and scalability.</p>
-
-                        <h4 data-i18n="docs.auto.architecture.design-principles.093">Implementation in SysManage:</h4>
-                        <pre class="ascii-diagram">
-Commands (Write)              Queries (Read)
-      │                            │
-      ▼                            ▼
-┌─────────────┐              ┌─────────────┐
-│ Write Model │              │ Read Model  │
-│             │              │             │
-│ • Validation│              │ • Optimized │
-│ • Business  │              │   for Query │
-│   Rules     │              │ • Denormal- │
-│ • Events    │              │   ized Data │
-└─────────────┘              └─────────────┘
-      │                            ▲
-      ▼                            │
-┌─────────────┐              ┌─────────────┐
-│ Event Store │──────────────▶│ Projections │
-│             │   Events      │             │
-└─────────────┘              └─────────────┘
-                        </pre>
-
-                        <h4 data-i18n="docs.auto.architecture.design-principles.094">Benefits:</h4>
-                        <ul>
-                            <li data-i18n="docs.auto.architecture.design-principles.095"><strong>Performance:</strong> Optimized read and write models</li>
-                            <li data-i18n="docs.auto.architecture.design-principles.096"><strong>Scalability:</strong> Independent scaling of read/write workloads</li>
-                            <li data-i18n="docs.auto.architecture.design-principles.097"><strong>Flexibility:</strong> Multiple read models for different use cases</li>
-                            <li data-i18n="docs.auto.architecture.design-principles.098"><strong>Event Sourcing:</strong> Complete audit trail and replay capability</li>
-                        </ul>
-
-                        <h4 data-i18n="docs.auto.architecture.design-principles.099">Use Cases in SysManage:</h4>
-                        <ul>
-                            <li data-i18n="docs.auto.architecture.design-principles.100"><strong>Agent Inventory:</strong> Write to normalized schema, read from denormalized views</li>
-                            <li data-i18n="docs.auto.architecture.design-principles.101"><strong>Task Management:</strong> Commands for task operations, optimized queries for dashboards</li>
-                            <li data-i18n="docs.auto.architecture.design-principles.102"><strong>Metrics Collection:</strong> High-throughput writes, aggregated reads</li>
-                        </ul>
-                    </div>
-
-                    <div class="pattern">
-                        <h3 data-i18n="docs.auto.architecture.design-principles.103">Circuit Breaker Pattern</h3>
-                        <p data-i18n="docs.auto.architecture.design-principles.104">Automatic failure detection and recovery for external dependencies and agent communication.</p>
-
-                        <h4 data-i18n="docs.auto.architecture.design-principles.105">Circuit States:</h4>
-                        <pre class="ascii-diagram">
-     ┌─────────────┐    Failure Threshold    ┌─────────────┐
-     │   CLOSED    │────────────────────────▶│    OPEN     │
-     │             │                         │             │
-     │ • Normal    │                         │ • Fail Fast │
-     │   Operation │                         │ • Return    │
-     │ • Monitor   │◀────────────────────────│   Error     │
-     │   Failures  │    Timeout Expires     │             │
-     └─────────────┘                         └─────────────┘
-            ▲                                       │
-            │                                       │
-            │ Success Rate OK                       │ Timeout
-            │                                       │
-            │                               ┌─────────────┐
-            └───────────────────────────────│ HALF-OPEN   │
-                                            │             │
-                                            │ • Limited   │
-                                            │   Requests  │
-                                            │ • Test      │
-                                            │   Recovery  │
-                                            └─────────────┘
-                        </pre>
-
-                        <h4 data-i18n="docs.auto.architecture.design-principles.106">Implementation Areas:</h4>
-                        <ul>
-                            <li data-i18n="docs.auto.architecture.design-principles.107"><strong>Agent Communication:</strong> Prevent cascading failures when agents are unreachable</li>
-                            <li data-i18n="docs.auto.architecture.design-principles.108"><strong>Database Connections:</strong> Handle database unavailability gracefully</li>
-                            <li data-i18n="docs.auto.architecture.design-principles.109"><strong>External APIs:</strong> Protect against third-party service failures</li>
-                            <li data-i18n="docs.auto.architecture.design-principles.110"><strong>Package Repositories:</strong> Fail fast when repositories are unavailable</li>
-                        </ul>
-                    </div>
-
-                    <div class="pattern">
-                        <h3 data-i18n="docs.auto.architecture.design-principles.111">Saga Pattern for Distributed Transactions</h3>
-                        <p data-i18n="docs.auto.architecture.design-principles.112">Manage complex workflows across multiple agents and services with compensation logic.</p>
-
-                        <h4 data-i18n="docs.auto.architecture.design-principles.113">Choreography-based Saga Example:</h4>
-                        <pre class="ascii-diagram">
-Multi-Agent Package Update Workflow:
-
-Step 1: Validate Package    Step 2: Download Package    Step 3: Install Package
-        on All Agents             on All Agents              on All Agents
-              │                         │                         │
-              ▼                         ▼                         ▼
-     ┌─────────────────┐       ┌─────────────────┐       ┌─────────────────┐
-     │ Validation OK   │──────▶│  Download OK    │──────▶│  Install OK     │
-     │ on All Agents   │       │  on All Agents  │       │  on All Agents  │
-     └─────────────────┘       └─────────────────┘       └─────────────────┘
-              │                         │                         │
-              ▼ Failure                 ▼ Failure                 ▼ Failure
-     ┌─────────────────┐       ┌─────────────────┐       ┌─────────────────┐
-     │    Abort All    │       │  Cleanup Files  │       │  Rollback All   │
-     │   Operations    │       │  on All Agents  │       │   Installations │
-     └─────────────────┘       └─────────────────┘       └─────────────────┘
-                        </pre>
-
-                        <h4 data-i18n="docs.auto.architecture.design-principles.114">Compensation Strategies:</h4>
-                        <ul>
-                            <li data-i18n="docs.auto.architecture.design-principles.115"><strong>Rollback:</strong> Undo changes in reverse order</li>
-                            <li data-i18n="docs.auto.architecture.design-principles.116"><strong>Retry:</strong> Automatic retry with exponential backoff</li>
-                            <li data-i18n="docs.auto.architecture.design-principles.117"><strong>Manual Intervention:</strong> Flag for administrator attention</li>
-                            <li data-i18n="docs.auto.architecture.design-principles.118"><strong>Partial Success:</strong> Continue with successful subset</li>
-                        </ul>
-                    </div>
+                <section class="docs-section">
+                    <h2 data-i18n="docs.architecture.principles.h_queue">3. The database is the queue</h2>
+                    <p data-i18n="docs.architecture.principles.queue_p1" data-i18n-html>Messages between the server and an agent are stored before they are acted on: in a table in the server's database on one side and in a local SQLite database on the agent on the other. Commands are acknowledged, retried with backoff and run once even if sent twice. There is no separate broker to run, size or lose messages in; the worker processes coordinate through PostgreSQL. See <a href="message-flow.html">Message Flow and Queuing</a>.</p>
                 </section>
 
-                <section class="design-decisions">
-                    <h2 data-i18n="docs.auto.architecture.design-principles.119">Key Design Decisions</h2>
-
-                    <div class="decision">
-                        <h3 data-i18n="docs.auto.architecture.design-principles.120">Technology Stack Choices</h3>
-
-                        <h4 data-i18n="docs.auto.architecture.design-principles.121">Backend: Python + FastAPI</h4>
-                        <div class="decision-rationale">
-                            <div class="pros-cons">
-                                <div class="pros">
-                                    <strong data-i18n="docs.auto.architecture.design-principles.122">Rationale:</strong>
-                                    <ul>
-                                        <li data-i18n="docs.auto.architecture.design-principles.123">Rapid development with strong typing</li>
-                                        <li data-i18n="docs.auto.architecture.design-principles.124">Excellent async/await support</li>
-                                        <li data-i18n="docs.auto.architecture.design-principles.125">Rich ecosystem for system administration</li>
-                                        <li data-i18n="docs.auto.architecture.design-principles.126">Automatic API documentation</li>
-                                        <li data-i18n="docs.auto.architecture.design-principles.127">Strong security framework integration</li>
-                                    </ul>
-                                </div>
-                                <div class="cons">
-                                    <strong data-i18n="docs.auto.architecture.design-principles.128">Trade-offs:</strong>
-                                    <ul>
-                                        <li data-i18n="docs.auto.architecture.design-principles.129">Memory usage vs. Java/Go</li>
-                                        <li data-i18n="docs.auto.architecture.design-principles.130">Runtime errors vs. compiled languages</li>
-                                        <li data-i18n="docs.auto.architecture.design-principles.131">GIL limitations for CPU-bound tasks</li>
-                                    </ul>
-                                </div>
-                            </div>
-                            <p data-i18n="docs.auto.architecture.design-principles.132"><strong>Alternative Considered:</strong> Go (chosen Python for rapid development and library ecosystem)</p>
-                        </div>
-
-                        <h4 data-i18n="docs.auto.architecture.design-principles.133">Frontend: React + TypeScript</h4>
-                        <div class="decision-rationale">
-                            <div class="pros-cons">
-                                <div class="pros">
-                                    <strong data-i18n="docs.auto.architecture.design-principles.134">Rationale:</strong>
-                                    <ul>
-                                        <li data-i18n="docs.auto.architecture.design-principles.135">Component-based architecture</li>
-                                        <li data-i18n="docs.auto.architecture.design-principles.136">Strong typing with TypeScript</li>
-                                        <li data-i18n="docs.auto.architecture.design-principles.137">Excellent developer experience</li>
-                                        <li data-i18n="docs.auto.architecture.design-principles.138">Rich ecosystem and community</li>
-                                        <li data-i18n="docs.auto.architecture.design-principles.139">Real-time capabilities with WebSocket</li>
-                                    </ul>
-                                </div>
-                                <div class="cons">
-                                    <strong data-i18n="docs.auto.architecture.design-principles.140">Trade-offs:</strong>
-                                    <ul>
-                                        <li data-i18n="docs.auto.architecture.design-principles.141">Bundle size vs. performance</li>
-                                        <li data-i18n="docs.auto.architecture.design-principles.142">Complexity vs. simpler frameworks</li>
-                                        <li data-i18n="docs.auto.architecture.design-principles.143">Learning curve for administrators</li>
-                                    </ul>
-                                </div>
-                            </div>
-                            <p data-i18n="docs.auto.architecture.design-principles.144"><strong>Alternative Considered:</strong> Vue.js (chosen React for ecosystem maturity)</p>
-                        </div>
-
-                        <h4 data-i18n="docs.auto.architecture.design-principles.145">Database: PostgreSQL</h4>
-                        <div class="decision-rationale">
-                            <div class="pros-cons">
-                                <div class="pros">
-                                    <strong data-i18n="docs.auto.architecture.design-principles.146">Rationale:</strong>
-                                    <ul>
-                                        <li data-i18n="docs.auto.architecture.design-principles.147">ACID compliance and reliability</li>
-                                        <li data-i18n="docs.auto.architecture.design-principles.148">Advanced JSON support (JSONB)</li>
-                                        <li data-i18n="docs.auto.architecture.design-principles.149">Excellent performance characteristics</li>
-                                        <li data-i18n="docs.auto.architecture.design-principles.150">Rich extension ecosystem</li>
-                                        <li data-i18n="docs.auto.architecture.design-principles.151">Strong security features</li>
-                                    </ul>
-                                </div>
-                                <div class="cons">
-                                    <strong data-i18n="docs.auto.architecture.design-principles.152">Trade-offs:</strong>
-                                    <ul>
-                                        <li data-i18n="docs.auto.architecture.design-principles.153">Operational complexity vs. SQLite</li>
-                                        <li data-i18n="docs.auto.architecture.design-principles.154">Resource usage vs. simpler databases</li>
-                                        <li data-i18n="docs.auto.architecture.design-principles.155">Learning curve for optimization</li>
-                                    </ul>
-                                </div>
-                            </div>
-                            <p data-i18n="docs.auto.architecture.design-principles.156"><strong>Alternative Considered:</strong> MongoDB (chosen PostgreSQL for consistency and ACID guarantees)</p>
-                        </div>
-                    </div>
-
-                    <div class="decision">
-                        <h3 data-i18n="docs.auto.architecture.design-principles.157">Communication Patterns</h3>
-
-                        <h4 data-i18n="docs.auto.architecture.design-principles.158">mTLS for Agent-Server Communication</h4>
-                        <div class="decision-rationale">
-                            <strong data-i18n="docs.auto.architecture.design-principles.159">Rationale:</strong>
-                            <ul>
-                                <li data-i18n="docs.auto.architecture.design-principles.160">Strong authentication without passwords</li>
-                                <li data-i18n="docs.auto.architecture.design-principles.161">Encrypted communication by default</li>
-                                <li data-i18n="docs.auto.architecture.design-principles.162">Certificate-based identity management</li>
-                                <li data-i18n="docs.auto.architecture.design-principles.163">Protection against man-in-the-middle attacks</li>
-                            </ul>
-                            <strong data-i18n="docs.auto.architecture.design-principles.164">Implementation Challenges:</strong>
-                            <ul>
-                                <li data-i18n="docs.auto.architecture.design-principles.165">Certificate lifecycle management</li>
-                                <li data-i18n="docs.auto.architecture.design-principles.166">Initial agent enrollment complexity</li>
-                                <li data-i18n="docs.auto.architecture.design-principles.167">Certificate rotation procedures</li>
-                            </ul>
-                        </div>
-
-                        <h4 data-i18n="docs.auto.architecture.design-principles.168">WebSocket for Real-time Updates</h4>
-                        <div class="decision-rationale">
-                            <strong data-i18n="docs.auto.architecture.design-principles.169">Rationale:</strong>
-                            <ul>
-                                <li data-i18n="docs.auto.architecture.design-principles.170">Low-latency bidirectional communication</li>
-                                <li data-i18n="docs.auto.architecture.design-principles.171">Efficient for frequent updates</li>
-                                <li data-i18n="docs.auto.architecture.design-principles.172">Better user experience than polling</li>
-                                <li data-i18n="docs.auto.architecture.design-principles.173">Reduced server load compared to HTTP polling</li>
-                            </ul>
-                            <strong data-i18n="docs.auto.architecture.design-principles.174">Considerations:</strong>
-                            <ul>
-                                <li data-i18n="docs.auto.architecture.design-principles.175">Connection management complexity</li>
-                                <li data-i18n="docs.auto.architecture.design-principles.176">Load balancer configuration requirements</li>
-                                <li data-i18n="docs.auto.architecture.design-principles.177">Fallback to HTTP for unreliable connections</li>
-                            </ul>
-                        </div>
-                    </div>
-
-                    <div class="decision">
-                        <h3 data-i18n="docs.auto.architecture.design-principles.178">Data Architecture Decisions</h3>
-
-                        <h4 data-i18n="docs.auto.architecture.design-principles.179">Event Sourcing for Critical Operations</h4>
-                        <div class="decision-rationale">
-                            <strong data-i18n="docs.auto.architecture.design-principles.180">Benefits:</strong>
-                            <ul>
-                                <li data-i18n="docs.auto.architecture.design-principles.181">Complete audit trail for compliance</li>
-                                <li data-i18n="docs.auto.architecture.design-principles.182">Ability to replay and debug issues</li>
-                                <li data-i18n="docs.auto.architecture.design-principles.183">Support for temporal queries</li>
-                                <li data-i18n="docs.auto.architecture.design-principles.184">Natural integration with CQRS</li>
-                            </ul>
-                            <strong data-i18n="docs.auto.architecture.design-principles.185">Scope Limitation:</strong>
-                            <p data-i18n="docs.auto.architecture.design-principles.186">Applied only to critical operations (task execution, configuration changes, security events) to avoid complexity and storage overhead for routine data.</p>
-                        </div>
-
-                        <h4 data-i18n="docs.auto.architecture.design-principles.187">JSONB for Flexible Schema</h4>
-                        <div class="decision-rationale">
-                            <strong data-i18n="docs.auto.architecture.design-principles.188">Use Cases:</strong>
-                            <ul>
-                                <li data-i18n="docs.auto.architecture.design-principles.189">Agent metadata (platform-specific data)</li>
-                                <li data-i18n="docs.auto.architecture.design-principles.190">Task parameters (dynamic configuration)</li>
-                                <li data-i18n="docs.auto.architecture.design-principles.191">System inventory (varying hardware information)</li>
-                                <li data-i18n="docs.auto.architecture.design-principles.192">Metric labels (dimensional data)</li>
-                            </ul>
-                            <strong data-i18n="docs.auto.architecture.design-principles.193">Guidelines:</strong>
-                            <ul>
-                                <li data-i18n="docs.auto.architecture.design-principles.194">Use for truly dynamic data only</li>
-                                <li data-i18n="docs.auto.architecture.design-principles.195">Define clear schemas in application code</li>
-                                <li data-i18n="docs.auto.architecture.design-principles.196">Index frequently queried JSON fields</li>
-                                <li data-i18n="docs.auto.architecture.design-principles.197">Validate JSON structure at application layer</li>
-                            </ul>
-                        </div>
-                    </div>
+                <section class="docs-section">
+                    <h2 data-i18n="docs.architecture.principles.h_herd">4. Nothing arrives all at once</h2>
+                    <p data-i18n="docs.architecture.principles.herd_p1">A fleet that restarts together must not retry, report or get pushed to together. The agents wait a random time before reconnecting (full jitter, wider after the server closes connections on purpose); their timers are jittered; they send a report only when it has changed; a newly connected agent spreads its first reports over a window the server sizes from the work it already has; fleet-wide pushes such as antivirus deployment go out in waves of at most 250 hosts per database; and right after a restart the server marks no host down until the fleet has had time to come back.</p>
                 </section>
 
-                <section class="quality-attributes">
-                    <h2 data-i18n="docs.auto.architecture.design-principles.198">Quality Attributes</h2>
-
-                    <div class="quality-grid">
-                        <div class="quality-attribute">
-                            <h3 data-i18n="docs.auto.architecture.design-principles.199">Performance</h3>
-                            <h4 data-i18n="docs.auto.architecture.design-principles.200">Requirements:</h4>
-                            <ul>
-                                <li data-i18n="docs.auto.architecture.design-principles.201">API response time: &lt; 100ms (95th percentile)</li>
-                                <li data-i18n="docs.auto.architecture.design-principles.202">Agent command delivery: &lt; 5 seconds</li>
-                                <li data-i18n="docs.auto.architecture.design-principles.203">Real-time update latency: &lt; 1 second</li>
-                                <li data-i18n="docs.auto.architecture.design-principles.204">Support for 10,000+ concurrent agents</li>
-                            </ul>
-                            <h4 data-i18n="docs.auto.architecture.design-principles.205">Design Strategies:</h4>
-                            <ul>
-                                <li data-i18n="docs.auto.architecture.design-principles.206">Asynchronous processing for I/O operations</li>
-                                <li data-i18n="docs.auto.architecture.design-principles.207">Database query optimization and indexing</li>
-                                <li data-i18n="docs.auto.architecture.design-principles.208">Caching layers for frequently accessed data</li>
-                                <li data-i18n="docs.auto.architecture.design-principles.209">Connection pooling and resource management</li>
-                            </ul>
-                        </div>
-
-                        <div class="quality-attribute">
-                            <h3 data-i18n="docs.auto.architecture.design-principles.210">Scalability</h3>
-                            <h4 data-i18n="docs.auto.architecture.design-principles.211">Horizontal Scaling:</h4>
-                            <ul>
-                                <li data-i18n="docs.auto.architecture.design-principles.212">Stateless application design</li>
-                                <li data-i18n="docs.auto.architecture.design-principles.213">Database read replicas</li>
-                                <li data-i18n="docs.auto.architecture.design-principles.214">Message queue clustering</li>
-                                <li data-i18n="docs.auto.architecture.design-principles.215">Load balancer distribution</li>
-                            </ul>
-                            <h4 data-i18n="docs.auto.architecture.design-principles.216">Vertical Scaling:</h4>
-                            <ul>
-                                <li data-i18n="docs.auto.architecture.design-principles.217">Multi-threaded processing</li>
-                                <li data-i18n="docs.auto.architecture.design-principles.218">Efficient memory usage</li>
-                                <li data-i18n="docs.auto.architecture.design-principles.219">CPU optimization for hot paths</li>
-                                <li data-i18n="docs.auto.architecture.design-principles.220">Database connection pooling</li>
-                            </ul>
-                        </div>
-
-                        <div class="quality-attribute">
-                            <h3 data-i18n="docs.auto.architecture.design-principles.221">Reliability</h3>
-                            <h4 data-i18n="docs.auto.architecture.design-principles.222">Fault Tolerance:</h4>
-                            <ul>
-                                <li data-i18n="docs.auto.architecture.design-principles.223">Circuit breaker patterns</li>
-                                <li data-i18n="docs.auto.architecture.design-principles.224">Automatic retry mechanisms</li>
-                                <li data-i18n="docs.auto.architecture.design-principles.225">Graceful degradation</li>
-                                <li data-i18n="docs.auto.architecture.design-principles.226">Dead letter queue handling</li>
-                            </ul>
-                            <h4 data-i18n="docs.auto.architecture.design-principles.227">Data Integrity:</h4>
-                            <ul>
-                                <li data-i18n="docs.auto.architecture.design-principles.228">ACID transaction guarantees</li>
-                                <li data-i18n="docs.auto.architecture.design-principles.229">Database constraint enforcement</li>
-                                <li data-i18n="docs.auto.architecture.design-principles.230">Application-level validation</li>
-                                <li data-i18n="docs.auto.architecture.design-principles.231">Backup and recovery procedures</li>
-                            </ul>
-                        </div>
-
-                        <div class="quality-attribute">
-                            <h3 data-i18n="docs.auto.architecture.design-principles.232">Security</h3>
-                            <h4 data-i18n="docs.auto.architecture.design-principles.233">Authentication & Authorization:</h4>
-                            <ul>
-                                <li data-i18n="docs.auto.architecture.design-principles.234">Multi-factor authentication support</li>
-                                <li data-i18n="docs.auto.architecture.design-principles.235">Role-based access control (RBAC)</li>
-                                <li data-i18n="docs.auto.architecture.design-principles.236">JWT token management</li>
-                                <li data-i18n="docs.auto.architecture.design-principles.237">Session security and timeout</li>
-                            </ul>
-                            <h4 data-i18n="docs.auto.architecture.design-principles.238">Data Protection:</h4>
-                            <ul>
-                                <li data-i18n="docs.auto.architecture.design-principles.239">Encryption at rest and in transit</li>
-                                <li data-i18n="docs.auto.architecture.design-principles.240">Secure key management</li>
-                                <li data-i18n="docs.auto.architecture.design-principles.241">Data anonymization for logs</li>
-                                <li data-i18n="docs.auto.architecture.design-principles.242">Compliance with security standards</li>
-                            </ul>
-                        </div>
-
-                        <div class="quality-attribute">
-                            <h3 data-i18n="docs.auto.architecture.design-principles.243">Maintainability</h3>
-                            <h4 data-i18n="docs.auto.architecture.design-principles.244">Code Quality:</h4>
-                            <ul>
-                                <li data-i18n="docs.auto.architecture.design-principles.245">Comprehensive test coverage</li>
-                                <li data-i18n="docs.auto.architecture.design-principles.246">Static code analysis</li>
-                                <li data-i18n="docs.auto.architecture.design-principles.247">Consistent coding standards</li>
-                                <li data-i18n="docs.auto.architecture.design-principles.248">Documentation and commenting</li>
-                            </ul>
-                            <h4 data-i18n="docs.auto.architecture.design-principles.249">Operational Support:</h4>
-                            <ul>
-                                <li data-i18n="docs.auto.architecture.design-principles.250">Comprehensive logging and monitoring</li>
-                                <li data-i18n="docs.auto.architecture.design-principles.251">Health check endpoints</li>
-                                <li data-i18n="docs.auto.architecture.design-principles.252">Configuration management</li>
-                                <li data-i18n="docs.auto.architecture.design-principles.253">Deployment automation</li>
-                            </ul>
-                        </div>
-
-                        <div class="quality-attribute">
-                            <h3 data-i18n="docs.auto.architecture.design-principles.254">Usability</h3>
-                            <h4 data-i18n="docs.auto.architecture.design-principles.255">User Experience:</h4>
-                            <ul>
-                                <li data-i18n="docs.auto.architecture.design-principles.256">Intuitive web interface design</li>
-                                <li data-i18n="docs.auto.architecture.design-principles.257">Responsive mobile-friendly layout</li>
-                                <li data-i18n="docs.auto.architecture.design-principles.258">Accessibility compliance (WCAG)</li>
-                                <li data-i18n="docs.auto.architecture.design-principles.259">Internationalization support</li>
-                            </ul>
-                            <h4 data-i18n="docs.auto.architecture.design-principles.260">Administrator Experience:</h4>
-                            <ul>
-                                <li data-i18n="docs.auto.architecture.design-principles.261">Clear deployment documentation</li>
-                                <li data-i18n="docs.auto.architecture.design-principles.262">Automated configuration validation</li>
-                                <li data-i18n="docs.auto.architecture.design-principles.263">Self-diagnostic capabilities</li>
-                                <li data-i18n="docs.auto.architecture.design-principles.264">Comprehensive API documentation</li>
-                            </ul>
-                        </div>
-                    </div>
+                <section class="docs-section">
+                    <h2 data-i18n="docs.architecture.principles.h_workers">5. One process or many, the same answers</h2>
+                    <p data-i18n="docs.architecture.principles.workers_p1">The server runs as several worker processes, and running more of them must never change what it does. Work for the whole server runs only in the leader, chosen with a PostgreSQL advisory lock; one host's messages are processed by one worker at a time, under that host's lock; and retries are claimed with a single conditional update, so no message is retried twice.</p>
                 </section>
 
-                <section class="evolution-strategy">
-                    <h2 data-i18n="docs.auto.architecture.design-principles.265">Architecture Evolution Strategy</h2>
-
-                    <div class="evolution-timeline">
-                        <h3 data-i18n="docs.auto.architecture.design-principles.266">Planned Evolution Path</h3>
-
-                        <div class="evolution-phase">
-                            <h4 data-i18n="docs.auto.architecture.design-principles.267">Phase 1: Foundation (Current)</h4>
-                            <ul>
-                                <li data-i18n="docs.auto.architecture.design-principles.268">Core agent-server communication</li>
-                                <li data-i18n="docs.auto.architecture.design-principles.269">Basic inventory and package management</li>
-                                <li data-i18n="docs.auto.architecture.design-principles.270">Web UI with essential features</li>
-                                <li data-i18n="docs.auto.architecture.design-principles.271">PostgreSQL for data persistence</li>
-                            </ul>
-                        </div>
-
-                        <div class="evolution-phase">
-                            <h4 data-i18n="docs.auto.architecture.design-principles.272">Phase 2: Scale & Performance</h4>
-                            <ul>
-                                <li data-i18n="docs.auto.architecture.design-principles.273">Microservices decomposition</li>
-                                <li data-i18n="docs.auto.architecture.design-principles.274">Caching layer implementation</li>
-                                <li data-i18n="docs.auto.architecture.design-principles.275">Message queue clustering</li>
-                                <li data-i18n="docs.auto.architecture.design-principles.276">Advanced monitoring and alerting</li>
-                            </ul>
-                        </div>
-
-                        <div class="evolution-phase">
-                            <h4 data-i18n="docs.auto.architecture.design-principles.277">Phase 3: Advanced Features</h4>
-                            <ul>
-                                <li data-i18n="docs.auto.architecture.design-principles.278">Machine learning for predictive maintenance</li>
-                                <li data-i18n="docs.auto.architecture.design-principles.279">Advanced workflow orchestration</li>
-                                <li data-i18n="docs.auto.architecture.design-principles.280">Multi-tenant architecture</li>
-                                <li data-i18n="docs.auto.architecture.design-principles.281">Edge computing capabilities</li>
-                            </ul>
-                        </div>
-
-                        <div class="evolution-phase">
-                            <h4 data-i18n="docs.auto.architecture.design-principles.282">Phase 4: Enterprise Integration</h4>
-                            <ul>
-                                <li data-i18n="docs.auto.architecture.design-principles.283">Advanced compliance and governance</li>
-                                <li data-i18n="docs.auto.architecture.design-principles.284">Integration platform capabilities</li>
-                                <li data-i18n="docs.auto.architecture.design-principles.285">Advanced analytics and reporting</li>
-                                <li data-i18n="docs.auto.architecture.design-principles.286">Hybrid cloud management</li>
-                            </ul>
-                        </div>
-                    </div>
-
-                    <h3 data-i18n="docs.auto.architecture.design-principles.287">Architectural Flexibility</h3>
-                    <div class="flexibility-strategies">
-                        <div class="strategy">
-                            <h4 data-i18n="docs.auto.architecture.design-principles.288">Plugin Architecture</h4>
-                            <p data-i18n="docs.auto.architecture.design-principles.289">Extensible plugin system for custom functionality without core modifications.</p>
-                        </div>
-                        <div class="strategy">
-                            <h4 data-i18n="docs.auto.architecture.design-principles.290">Configuration-Driven Behavior</h4>
-                            <p data-i18n="docs.auto.architecture.design-principles.291">Extensive configuration options to adapt behavior without code changes.</p>
-                        </div>
-                        <div class="strategy">
-                            <h4 data-i18n="docs.auto.architecture.design-principles.292">API Versioning</h4>
-                            <p data-i18n="docs.auto.architecture.design-principles.293">Structured approach to API evolution maintaining backward compatibility.</p>
-                        </div>
-                        <div class="strategy">
-                            <h4 data-i18n="docs.auto.architecture.design-principles.294">Modular Deployment</h4>
-                            <p data-i18n="docs.auto.architecture.design-principles.295">Optional components that can be enabled/disabled based on requirements.</p>
-                        </div>
-                    </div>
+                <section class="docs-section">
+                    <h2 data-i18n="docs.architecture.principles.h_opencore">6. Open core, licensed engines behind seams</h2>
+                    <p data-i18n="docs.architecture.principles.opencore_p1">The open-source server is complete on its own. Licensed features are compiled engines that plug into defined seams, are verified by signature before they load, and are simply absent without a license. A license that lapses never holds anyone's safety hostage: restoring encrypted backups and exporting their keys stay in the open-source server.</p>
                 </section>
 
-                <section class="next-steps">
-                    <h2 data-i18n="docs.auto.architecture.design-principles.296">Next Steps</h2>
-                    <p data-i18n="docs.auto.architecture.design-principles.297">To understand how these principles are implemented:</p>
-                    <ol>
-                        <li data-i18n="docs.auto.architecture.design-principles.298"><strong><a href="rest-api-design.html">REST API Design</a>:</strong> See API-first principles in action</li>
-                        <li data-i18n="docs.auto.architecture.design-principles.299"><strong><a href="database-schema.html">Database Schema</a>:</strong> Explore data architecture decisions</li>
-                        <li data-i18n="docs.auto.architecture.design-principles.300"><strong><a href="websocket-protocol.html">WebSocket Protocol</a>:</strong> Real-time communication implementation</li>
-                        <li data-i18n="docs.auto.architecture.design-principles.301"><strong><a href="performance-metrics.html">Performance Metrics</a>:</strong> Observability and monitoring practices</li>
-                        <li data-i18n="docs.auto.architecture.design-principles.302"><strong><a href="scaling-strategies.html">Scaling Strategies</a>:</strong> How to scale the system effectively</li>
-                    </ol>
+                <section class="docs-section">
+                    <h2 data-i18n="docs.architecture.principles.h_expand">7. Schema changes expand first, contract later</h2>
+                    <p data-i18n="docs.architecture.principles.expand_p1" data-i18n-html>The same running server serves databases on both sides of a migration while they are migrated one by one, so a release only adds to the schema; removing or renaming waits for a later release, and a lint check enforces it. See <a href="database-migrations.html">Database Migrations</a>.</p>
                 </section>
-            </div>
 
-            <div class="docs-footer">
-                <div class="docs-navigation">
-                    <h3 data-i18n="docs.auto.architecture.design-principles.303">Navigation</h3>
-                    <div class="nav-links">
-                        <a href="database-schema.html" class="nav-link" data-i18n="docs.auto.architecture.design-principles.304">← Database Schema</a>
-                        <a href="rest-api-design.html" class="nav-link" data-i18n="docs.auto.architecture.design-principles.305">REST API Design →</a>
-                    </div>
-                </div>
+                <section class="docs-section">
+                    <h2 data-i18n="docs.architecture.principles.h_measure">8. Claim only what was measured</h2>
+                    <p data-i18n="docs.architecture.principles.measure_p1" data-i18n-html>Capacity is proven with a scale harness that restarts a real server under thousands of simulated agents, and only the numbers it proved are published -- 10,000 agents on one laptop, 20,000 across 20 tenants on one desktop. What has not been measured, such as 50,000 agents, is labeled as not proven. See <a href="performance-and-scale.html">Performance and Scale</a>.</p>
+                </section>
+
+                <section class="docs-section">
+                    <h2 data-i18n="docs.architecture.principles.h_everywhere">9. Every platform, every language</h2>
+                    <p data-i18n="docs.architecture.principles.everywhere_p1">The agent runs on Windows, Linux, macOS, FreeBSD, OpenBSD and NetBSD, using each system's own tools rather than assuming one of them, and it is tested on each. Every string a user reads -- in the console, in the server's messages and in these documents -- is externalized and translated into 14 languages.</p>
+                </section>
+
+                <section class="docs-section">
+                    <h2 data-i18n="docs.architecture.principles.h_choices">Technology choices</h2>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th data-i18n="docs.architecture.principles.th_part">Part</th>
+                                <th data-i18n="docs.architecture.principles.th_choice">Choice</th>
+                                <th data-i18n="docs.architecture.principles.th_why">Why</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr><td data-i18n="docs.architecture.principles.part_server">Server</td><td data-i18n="docs.architecture.principles.choice_server">Python, FastAPI, SQLAlchemy, Pydantic, uvicorn</td><td data-i18n="docs.architecture.principles.why_server">Asynchronous I/O for many open WebSockets, typed request validation, and the same language as the agent.</td></tr>
+                            <tr><td data-i18n="docs.architecture.principles.part_db">Database</td><td data-i18n="docs.architecture.principles.choice_db">PostgreSQL (SQLite for tests and single-worker use)</td><td data-i18n="docs.architecture.principles.why_db">Transactions and advisory locks, which the queue and the worker coordination rely on.</td></tr>
+                            <tr><td data-i18n="docs.architecture.principles.part_ui">Console</td><td data-i18n="docs.architecture.principles.choice_ui">React, TypeScript, Material UI, Vite</td><td data-i18n="docs.architecture.principles.why_ui">A typed single-page application served as static files, extended by licensed plugin bundles.</td></tr>
+                            <tr><td data-i18n="docs.architecture.principles.part_agent">Agent</td><td data-i18n="docs.architecture.principles.choice_agent">Python with a local SQLite database</td><td data-i18n="docs.architecture.principles.why_agent">One code base across six operating system families, with a queue that survives a disconnect or a restart.</td></tr>
+                            <tr><td data-i18n="docs.architecture.principles.part_secrets">Secrets</td><td data-i18n="docs.architecture.principles.choice_secrets">OpenBAO</td><td data-i18n="docs.architecture.principles.why_secrets">Secrets kept out of configuration files, and per-tenant database credentials leased on demand.</td></tr>
+                            <tr><td data-i18n="docs.architecture.principles.part_transport">Agent transport</td><td data-i18n="docs.architecture.principles.choice_transport">WebSocket over TLS on 443, HTTP polling fallback</td><td data-i18n="docs.architecture.principles.why_transport">Commands arrive at once over a connection the agent opened, through firewalls that allow outbound HTTPS.</td></tr>
+                        </tbody>
+                    </table>
+                </section>
+
+                <section class="docs-section">
+                    <h2 data-i18n="docs.architecture.principles.h_related">Related</h2>
+                    <ul>
+                        <li><a href="system-architecture.html" data-i18n="docs.architecture.principles.link_sysarch">System Architecture</a></li>
+                        <li><a href="communication-protocols.html" data-i18n="docs.architecture.principles.link_comm">Communication Protocols</a></li>
+                        <li><a href="../security/" data-i18n="docs.architecture.principles.link_security">Security</a></li>
+                    </ul>
+                </section>
             </div>
         </div>
     </main>
-    <!-- Footer injected automatically by components.js -->    <script src="/assets/js/components.js"></script>
+    <script src="/assets/js/components.js"></script>
     <script src="/assets/js/i18n.js"></script>
-    <script src="/assets/js/main.js"></script>
     <script src="/assets/js/navbar.js"></script>
+    <script src="/assets/js/main.js"></script>
 </body>
 </html>

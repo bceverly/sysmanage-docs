@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Database Design - SysManage Architecture</title>
-    <meta name="description" content="Comprehensive guide to SysManage's PostgreSQL database design, schema relationships, indexing strategies, and data persistence patterns.">
+    <meta name="description" content="How the SysManage server stores its data: SQLAlchemy 2.0 models, PostgreSQL, three Alembic migration chains, table partitions, indexes, and sized connection pools." data-i18n="docs.architecture.dbdesign.meta_description" data-i18n-attr="content">
     <link rel="stylesheet" href="/assets/css/style.css">
     <link rel="icon" type="image/svg+xml" href="/assets/images/favicon.svg">
     <style>
@@ -19,7 +19,7 @@
 
         .database-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            grid-template-columns: repeat(auto-fit, minmax(min(300px, 100%), 1fr));
             gap: 1.5rem;
             margin-top: 1.5rem;
         }
@@ -62,7 +62,7 @@
 
         .table-relationships {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            grid-template-columns: repeat(auto-fit, minmax(min(250px, 100%), 1fr));
             gap: 1.5rem;
             margin: 2rem 0;
         }
@@ -95,7 +95,7 @@
 
         .index-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            grid-template-columns: repeat(auto-fit, minmax(min(200px, 100%), 1fr));
             gap: 1.5rem;
             margin-top: 1rem;
         }
@@ -115,7 +115,7 @@
 
         .performance-features {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            grid-template-columns: repeat(auto-fit, minmax(min(250px, 100%), 1fr));
             gap: 1.5rem;
             margin: 2rem 0;
         }
@@ -208,7 +208,7 @@
 
         .performance-metrics {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            grid-template-columns: repeat(auto-fit, minmax(min(200px, 100%), 1fr));
             gap: 1.5rem;
             margin: 2rem 0;
         }
@@ -248,7 +248,6 @@
             }
         }
     </style>
-</head>
 <body data-auto-header="documentation" data-auto-footer>
     <!-- Header injected automatically by components.js -->
 
@@ -262,187 +261,130 @@
 
             <div class="database-banner">
                 <h1 data-i18n="docs.auto.architecture.database-design.004">Database Design</h1>
-                <p data-i18n="docs.auto.architecture.database-design.005">Enterprise-grade PostgreSQL architecture with advanced indexing, relationships, and performance optimization</p>
-                <p style="margin-top: 1rem; font-size: 0.9rem; opacity: 0.9;" data-i18n="docs.auto.architecture.database-design.006">
-                    📊 <a href="#erd-section" style="color: white; text-decoration: underline;">View comprehensive ERD below</a> showing all 23 tables and their relationships
-                </p>
+                <p data-i18n="docs.architecture.dbdesign.banner_lead">How the SysManage server stores its data: SQLAlchemy 2.0 models, PostgreSQL in production, three Alembic migration chains, and connection pools sized to the machine.</p>
 
                 <div class="database-grid">
                     <div class="database-card">
-                        <span class="card-title" data-i18n="docs.auto.architecture.database-design.007">🐘 PostgreSQL 15+</span>
-                        <div class="card-description">
-                            Modern relational database with JSON support, advanced indexing, full-text search, and enterprise reliability
-                        </div>
+                        <span class="card-title" data-i18n="docs.architecture.dbdesign.card_pg_title">PostgreSQL in production</span>
+                        <div class="card-description" data-i18n="docs.architecture.dbdesign.card_pg_desc">The server reaches PostgreSQL through psycopg 3. SQLite works for tests and single-worker installs; running more than one server worker needs PostgreSQL, because the workers elect a leader with PostgreSQL advisory locks.</div>
                     </div>
                     <div class="database-card">
-                        <span class="card-title" data-i18n="docs.auto.architecture.database-design.008">🔗 Normalized Schema</span>
-                        <div class="card-description">
-                            Well-designed relational schema with proper normalization, foreign key constraints, and data integrity
-                        </div>
+                        <span class="card-title" data-i18n="docs.architecture.dbdesign.card_orm_title">SQLAlchemy 2.0 models</span>
+                        <div class="card-description" data-i18n="docs.architecture.dbdesign.card_orm_desc" data-i18n-html>Every table is a model under <code>backend/persistence/models/</code>. Primary keys are UUIDs: a native UUID column on PostgreSQL, a 36-character string on SQLite.</div>
                     </div>
                     <div class="database-card">
-                        <span class="card-title" data-i18n="docs.auto.architecture.database-design.009">⚡ Performance Optimized</span>
-                        <div class="card-description">
-                            Strategic indexing, query optimization, connection pooling, and efficient data access patterns
-                        </div>
+                        <span class="card-title" data-i18n="docs.architecture.dbdesign.card_pool_title">Sized connection pools</span>
+                        <div class="card-description" data-i18n="docs.architecture.dbdesign.card_pool_desc" data-i18n-html>Each server worker keeps its own pool, sized for the machine by <code>backend/persistence/pool_sizing.py</code> and checked against PostgreSQL's <code>max_connections</code> at startup.</div>
                     </div>
                     <div class="database-card">
-                        <span class="card-title" data-i18n="docs.auto.architecture.database-design.010">🔄 Migration Ready</span>
-                        <div class="card-description">
-                            Alembic-powered schema migrations with version control, rollback capabilities, and deployment automation
-                        </div>
+                        <span class="card-title" data-i18n="docs.architecture.dbdesign.card_mig_title">Three migration chains</span>
+                        <div class="card-description" data-i18n="docs.architecture.dbdesign.card_mig_desc">Alembic migrates the tenant, registry, and shared tables as three separate chains, each with its own version table.</div>
                     </div>
                 </div>
             </div>
 
             <section>
-                <h2 data-i18n="docs.auto.architecture.database-design.011">Schema Architecture</h2>
-                <p data-i18n="docs.auto.architecture.database-design.012">SysManage implements a comprehensive relational schema designed for scalability, performance, and data integrity.</p>
+                <h2 data-i18n="docs.architecture.dbdesign.org_title">How the schema is organized</h2>
+                <p data-i18n="docs.architecture.dbdesign.org_intro">The server defines more than 240 tables. A table's name prefix says which partition it belongs to:</p>
 
                 <div class="schema-section">
-                    <div class="section-title">👥 User Management Schema</div>
-                    <p data-i18n="docs.auto.architecture.database-design.013"><strong>Authentication & Authorization:</strong> Complete user management system with secure password hashing, JWT tokens, role-based access control, user groups, and profile management including image uploads and account locking mechanisms.</p>
-                </div>
-
-                <div class="schema-section">
-                    <div class="section-title">🖥️ Host Management Schema</div>
-                    <p data-i18n="docs.auto.architecture.database-design.014"><strong>Infrastructure Tracking:</strong> Comprehensive host information including hardware specifications, operating system details, network interfaces, storage devices, certificate management, and real-time status monitoring.</p>
+                    <div class="section-title" data-i18n="docs.architecture.dbdesign.prefix_registry_title">registry_* -- control plane</div>
+                    <p data-i18n="docs.architecture.dbdesign.prefix_registry_desc">Tenants, their database placements, enrollment tokens, and host-to-tenant bindings. Used when multi-tenancy is enabled.</p>
                 </div>
 
                 <div class="schema-section">
-                    <div class="section-title">📦 Package Management Schema</div>
-                    <p data-i18n="docs.auto.architecture.database-design.015"><strong>Software Inventory:</strong> Complete package tracking system including installed packages, available packages, update operations, dependency management, and package operation history with detailed execution logs.</p>
+                    <div class="section-title" data-i18n="docs.architecture.dbdesign.prefix_shared_title">shared_* -- reference data</div>
+                    <p data-i18n="docs.architecture.dbdesign.prefix_shared_desc">Data that is the same for every tenant, such as the vulnerability and advisory catalogs, OS lifecycle dates, and content views.</p>
                 </div>
 
                 <div class="schema-section">
-                    <div class="section-title">📜 Script Management Schema</div>
-                    <p data-i18n="docs.auto.architecture.database-design.016"><strong>Automation Framework:</strong> Script repository with version control, execution tracking, parameter management, result storage, and comprehensive audit trails for all script operations.</p>
+                    <div class="section-title" data-i18n="docs.architecture.dbdesign.prefix_tenant_title">Unprefixed -- host data and identity</div>
+                    <p data-i18n="docs.architecture.dbdesign.prefix_tenant_desc">Everything about managed hosts -- inventory, packages, scripts, alerts, compliance results, and the message queue -- plus console identity tables such as user and security_roles.</p>
                 </div>
 
-                <div class="schema-section">
-                    <div class="section-title">📨 Message Queue Schema</div>
-                    <p data-i18n="docs.auto.architecture.database-design.017"><strong>Communication Infrastructure:</strong> Persistent message queuing system with delivery tracking, retry logic, expiration handling, and comprehensive message lifecycle management.</p>
-                </div>
-
-                <div class="schema-section">
-                    <div class="section-title">🏷️ Tagging & Organization Schema</div>
-                    <p data-i18n="docs.auto.architecture.database-design.018"><strong>Flexible Categorization:</strong> Dynamic tagging system for hosts and resources with hierarchical organization, color coding, and advanced filtering capabilities.</p>
-                </div>
-            </section>
-
-            <section id="erd-section">
-                <h2 data-i18n="docs.auto.architecture.database-design.019">Entity Relationship Diagram</h2>
-                <p data-i18n="docs.auto.architecture.database-design.020">The following diagram shows the complete database schema with all tables, relationships, and key constraints:</p>
-
-                <div style="text-align: center; margin: 2rem 0; background: #f8f9fa; padding: 1rem; border-radius: 8px;">
-                    <img src="/assets/images/sysmanage-erd.svg"
-                         alt="SysManage Database Entity Relationship Diagram"
-                         style="max-width: 100%; height: auto; border: 1px solid #ddd; border-radius: 4px;"
-                         onclick="window.open('../../assets/images/sysmanage-erd.svg', '_blank')"
-                         title="Click to open full-size diagram in new tab"/>
-                    <p style="margin-top: 0.5rem; font-size: 0.9rem; color: #666;">
-                        <em data-i18n="docs.auto.architecture.database-design.021">Click diagram to open full-size version</em>
-                    </p>
-                </div>
-
-                <h3 data-i18n="docs.auto.architecture.database-design.022">Key Diagram Features</h3>
-                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin: 1rem 0;">
-                    <div style="background: #e8f4fd; padding: 1rem; border-radius: 6px; border-left: 4px solid #2980b9;">
-                        <strong data-i18n="docs.auto.architecture.database-design.023">🏗️ Core Entities</strong><br>
-                        <small>User, Host, BearerToken</small>
-                    </div>
-                    <div style="background: #e8f8f5; padding: 1rem; border-radius: 6px; border-left: 4px solid #27ae60;">
-                        <strong data-i18n="docs.auto.architecture.database-design.024">🖥️ Hardware</strong><br>
-                        <small>StorageDevice, NetworkInterface</small>
-                    </div>
-                    <div style="background: #fef9e7; padding: 1rem; border-radius: 6px; border-left: 4px solid #f39c12;">
-                        <strong data-i18n="docs.auto.architecture.database-design.025">📦 Software</strong><br>
-                        <small>Packages, Updates, Operations</small>
-                    </div>
-                    <div style="background: #f4ecf7; padding: 1rem; border-radius: 6px; border-left: 4px solid #8e44ad;">
-                        <strong data-i18n="docs.auto.architecture.database-design.026">📡 Messaging</strong><br>
-                        <small>MessageQueue, QueueMetrics</small>
-                    </div>
-                    <div style="background: #fadbd8; padding: 1rem; border-radius: 6px; border-left: 4px solid #e74c3c;">
-                        <strong data-i18n="docs.auto.architecture.database-design.027">🔐 Authentication</strong><br>
-                        <small>Users, Tokens, Groups</small>
-                    </div>
-                </div>
+                <p data-i18n="docs.architecture.dbdesign.org_collapsed" data-i18n-html>Multi-tenancy is off by default, and then all three partitions live in one database. With it on, host data is served from each tenant's own database, while console identity stays in the main database. See <a href="multi-tenancy.html">Multi-Tenancy Architecture</a>.</p>
             </section>
 
             <section>
                 <h2 data-i18n="docs.auto.architecture.database-design.028">Core Table Relationships</h2>
+                <p data-i18n="docs.architecture.dbdesign.core_intro" data-i18n-html>Most host-scoped tables carry a <code>host_id</code> foreign key to <code>host</code> with <code>ON DELETE CASCADE</code>, so deleting a host removes its inventory, history, and queued work with it.</p>
                 <div class="table-relationships">
                     <div class="table-card">
                         <div class="table-icon">👤</div>
-                        <div class="table-name">users</div>
-                        <p data-i18n="docs.auto.architecture.database-design.029">Central user registry with authentication credentials, profile information, and account management features.</p>
+                        <div class="table-name" data-i18n="docs.architecture.dbdesign.t_user_name">user</div>
+                        <p data-i18n="docs.architecture.dbdesign.t_user_desc">Console accounts: login ID, password hash, account lock state and failed-login count, profile image, and an optional link to an external identity provider.</p>
                     </div>
 
                     <div class="table-card">
                         <div class="table-icon">🖥️</div>
-                        <div class="table-name">hosts</div>
-                        <p data-i18n="docs.auto.architecture.database-design.030">Complete host inventory with hardware specs, OS information, network configuration, and status tracking.</p>
+                        <div class="table-name" data-i18n="docs.architecture.dbdesign.t_host_name">host</div>
+                        <p data-i18n="docs.architecture.dbdesign.t_host_desc">One row per managed host: FQDN, addresses, approval status, up/down status, platform and OS details, the host token, and certificate details.</p>
                     </div>
 
                     <div class="table-card">
                         <div class="table-icon">📦</div>
-                        <div class="table-name">software_packages</div>
-                        <p data-i18n="docs.auto.architecture.database-design.031">Installed package inventory with version tracking, installation dates, and dependency relationships.</p>
+                        <div class="table-name" data-i18n="docs.architecture.dbdesign.t_swpkg_name">software_package</div>
+                        <p data-i18n="docs.architecture.dbdesign.t_swpkg_desc">Packages installed on each host, with version, package manager, architecture, size, and install date.</p>
                     </div>
 
                     <div class="table-card">
                         <div class="table-icon">🛒</div>
-                        <div class="table-name">available_packages</div>
-                        <p data-i18n="docs.auto.architecture.database-design.032">Package repository information with available versions, descriptions, and OS compatibility.</p>
+                        <div class="table-name" data-i18n="docs.architecture.dbdesign.t_avail_name">available_packages</div>
+                        <p data-i18n="docs.architecture.dbdesign.t_avail_desc">Packages the hosts' package managers offer, grouped by OS name and version.</p>
+                    </div>
+
+                    <div class="table-card">
+                        <div class="table-icon">⬆️</div>
+                        <div class="table-name" data-i18n="docs.architecture.dbdesign.t_pkgupd_name">package_update</div>
+                        <p data-i18n="docs.architecture.dbdesign.t_pkgupd_desc">Updates available on each host: current and available version, update type, and whether a reboot is required.</p>
                     </div>
 
                     <div class="table-card">
                         <div class="table-icon">🔄</div>
-                        <div class="table-name">package_operations</div>
-                        <p data-i18n="docs.auto.architecture.database-design.033">Package operation history including installs, updates, removals with execution status and logs.</p>
+                        <div class="table-name" data-i18n="docs.architecture.dbdesign.t_instreq_name">installation_requests</div>
+                        <p data-i18n="docs.architecture.dbdesign.t_instreq_desc">One row per install or uninstall request, with its packages in installation_packages. See Package Operation Tracking.</p>
                     </div>
 
                     <div class="table-card">
                         <div class="table-icon">📜</div>
-                        <div class="table-name">scripts</div>
-                        <p data-i18n="docs.auto.architecture.database-design.034">Script repository with content, parameters, execution history, and version management.</p>
+                        <div class="table-name" data-i18n="docs.architecture.dbdesign.t_scripts_name">saved_scripts</div>
+                        <p data-i18n="docs.architecture.dbdesign.t_scripts_desc">Stored scripts; each run is recorded in script_execution_log with its output and exit code.</p>
                     </div>
 
                     <div class="table-card">
                         <div class="table-icon">📨</div>
-                        <div class="table-name">message_queue</div>
-                        <p data-i18n="docs.auto.architecture.database-design.035">Persistent message storage with delivery tracking, retry logic, and expiration management.</p>
+                        <div class="table-name" data-i18n="docs.architecture.dbdesign.t_mq_name">message_queue</div>
+                        <p data-i18n="docs.architecture.dbdesign.t_mq_desc">The server's store-and-forward queue for messages to and from agents: direction, status, priority, retry count, and expiry.</p>
                     </div>
 
                     <div class="table-card">
                         <div class="table-icon">🏷️</div>
-                        <div class="table-name">tags</div>
-                        <p data-i18n="docs.auto.architecture.database-design.036">Dynamic tagging system for flexible resource organization and advanced filtering.</p>
+                        <div class="table-name" data-i18n="docs.architecture.dbdesign.t_tags_name">tags / host_tags</div>
+                        <p data-i18n="docs.architecture.dbdesign.t_tags_desc">Named tags and the many-to-many link between tags and hosts.</p>
                     </div>
 
                     <div class="table-card">
                         <div class="table-icon">🌐</div>
-                        <div class="table-name">network_interfaces</div>
-                        <p data-i18n="docs.auto.architecture.database-design.037">Network configuration tracking with IP addresses, MAC addresses, and interface status.</p>
+                        <div class="table-name" data-i18n="docs.architecture.dbdesign.t_nic_name">network_interface</div>
+                        <p data-i18n="docs.architecture.dbdesign.t_nic_desc">Each host's network interfaces, with IPv4 and IPv6 addresses, MAC address, MTU, and link state.</p>
                     </div>
 
                     <div class="table-card">
                         <div class="table-icon">💾</div>
-                        <div class="table-name">storage_devices</div>
-                        <p data-i18n="docs.auto.architecture.database-design.038">Storage hardware inventory with capacity, usage, health status, and performance metrics.</p>
-                    </div>
-
-                    <div class="table-card">
-                        <div class="table-icon">👥</div>
-                        <div class="table-name">user_groups</div>
-                        <p data-i18n="docs.auto.architecture.database-design.039">Role-based access control with group memberships and permission inheritance.</p>
+                        <div class="table-name" data-i18n="docs.architecture.dbdesign.t_disk_name">storage_device</div>
+                        <p data-i18n="docs.architecture.dbdesign.t_disk_desc">Each host's storage devices and mount points, with file system, capacity, and usage.</p>
                     </div>
 
                     <div class="table-card">
                         <div class="table-icon">🔒</div>
-                        <div class="table-name">issued_tokens</div>
-                        <p data-i18n="docs.auto.architecture.database-design.040">JWT token management with expiration tracking and revocation capabilities.</p>
+                        <div class="table-name" data-i18n="docs.architecture.dbdesign.t_roles_name">security_roles</div>
+                        <p data-i18n="docs.architecture.dbdesign.t_roles_desc">Console permissions, grouped by security_role_groups and granted to users through user_security_roles.</p>
+                    </div>
+
+                    <div class="table-card">
+                        <div class="table-icon">🧾</div>
+                        <div class="table-name" data-i18n="docs.architecture.dbdesign.t_audit_name">audit_log</div>
+                        <p data-i18n="docs.architecture.dbdesign.t_audit_desc">Who did what and when, with result, details, and an integrity hash per entry. Retention policies in audit_retention_policy can move old entries to audit_log_archive.</p>
                     </div>
                 </div>
             </section>
@@ -450,226 +392,176 @@
             <section>
                 <h2 data-i18n="docs.auto.architecture.database-design.041">Indexing Strategy</h2>
                 <div class="indexing-strategy">
-                    <h3 data-i18n="docs.auto.architecture.database-design.042">Performance-Optimized Database Indexes</h3>
+                    <h3 data-i18n="docs.architecture.dbdesign.idx_title">Indexes the models declare</h3>
                     <div class="index-grid">
                         <div class="index-item">
                             <div class="index-icon">🔍</div>
-                            <div>Primary Key Indexes</div>
+                            <div data-i18n="docs.architecture.dbdesign.idx_pk">UUID primary keys</div>
                         </div>
                         <div class="index-item">
                             <div class="index-icon">🔗</div>
-                            <div>Foreign Key Indexes</div>
+                            <div data-i18n="docs.architecture.dbdesign.idx_fk">Indexes on host_id and other lookup columns</div>
                         </div>
                         <div class="index-item">
                             <div class="index-icon">⚡</div>
-                            <div>Composite Indexes</div>
+                            <div data-i18n="docs.architecture.dbdesign.idx_composite">Composite indexes for queue processing</div>
                         </div>
                         <div class="index-item">
                             <div class="index-icon">🎯</div>
-                            <div>Unique Constraints</div>
-                        </div>
-                        <div class="index-item">
-                            <div class="index-icon">📝</div>
-                            <div>Full-Text Search</div>
-                        </div>
-                        <div class="index-item">
-                            <div class="index-icon">📊</div>
-                            <div>JSON Path Indexes</div>
+                            <div data-i18n="docs.architecture.dbdesign.idx_unique">Unique indexes on natural keys</div>
                         </div>
                         <div class="index-item">
                             <div class="index-icon">⏰</div>
-                            <div>Timestamp Indexes</div>
+                            <div data-i18n="docs.architecture.dbdesign.idx_time">Timestamp indexes</div>
                         </div>
                         <div class="index-item">
                             <div class="index-icon">🏷️</div>
-                            <div>Status Indexes</div>
+                            <div data-i18n="docs.architecture.dbdesign.idx_status">Status indexes</div>
                         </div>
                     </div>
                 </div>
+                <p data-i18n="docs.architecture.dbdesign.idx_note" data-i18n-html>Unique indexes include <code>user.userid</code>, <code>tags.name</code>, and <code>host.host_token</code>. The schema has no full-text search indexes and no JSON path indexes.</p>
             </section>
 
             <section>
-                <h2 data-i18n="docs.auto.architecture.database-design.043">Advanced Features</h2>
+                <h2 data-i18n="docs.architecture.dbdesign.features_title">Persistence Features</h2>
                 <div class="performance-features">
                     <div class="feature-card">
                         <div class="feature-icon">📄</div>
-                        <div class="feature-title">JSON Columns</div>
-                        <p data-i18n="docs.auto.architecture.database-design.044">Native PostgreSQL JSON support for flexible schema evolution, metadata storage, and complex configuration data.</p>
-                    </div>
-
-                    <div class="feature-card">
-                        <div class="feature-icon">🔍</div>
-                        <div class="feature-title">Full-Text Search</div>
-                        <p data-i18n="docs.auto.architecture.database-design.045">Built-in PostgreSQL text search capabilities for efficient content searching across multiple columns and tables.</p>
+                        <div class="feature-title" data-i18n="docs.architecture.dbdesign.f_json_title">JSON columns</div>
+                        <p data-i18n="docs.architecture.dbdesign.f_json_desc" data-i18n-html>Flexible fields such as <code>audit_log.details</code>, <code>alert.details</code>, and <code>registry_tenant.settings</code> use SQLAlchemy's portable JSON type. Queue payloads are stored as serialized JSON text in <code>message_queue.message_data</code>.</p>
                     </div>
 
                     <div class="feature-card">
                         <div class="feature-icon">🔗</div>
-                        <div class="feature-title">Foreign Key Constraints</div>
-                        <p data-i18n="docs.auto.architecture.database-design.046">Strict referential integrity with CASCADE options ensuring data consistency across related tables.</p>
+                        <div class="feature-title" data-i18n="docs.architecture.dbdesign.f_fk_title">Cascading foreign keys</div>
+                        <p data-i18n="docs.architecture.dbdesign.f_fk_desc">Host-scoped rows are removed with their host. Optional references, such as the user who granted a role, use ON DELETE SET NULL instead.</p>
                     </div>
 
                     <div class="feature-card">
                         <div class="feature-icon">⚡</div>
-                        <div class="feature-title">Connection Pooling</div>
-                        <p data-i18n="docs.auto.architecture.database-design.047">SQLAlchemy connection pooling with configurable pool sizes and connection lifecycle management.</p>
+                        <div class="feature-title" data-i18n="docs.architecture.dbdesign.f_pool_title">Connection pooling</div>
+                        <p data-i18n="docs.architecture.dbdesign.f_pool_desc" data-i18n-html>Per worker, the pool size is 2 x CPUs + 8 (between 10 and 40), with the same number of overflow connections, capped by the machine's RAM. Every key under <code>database_pool</code> in <code>sysmanage.yaml</code> can override the computed value.</p>
+                    </div>
+
+                    <div class="feature-card">
+                        <div class="feature-icon">🩺</div>
+                        <div class="feature-title" data-i18n="docs.architecture.dbdesign.f_failover_title">Failover tolerance</div>
+                        <p data-i18n="docs.architecture.dbdesign.f_failover_desc">Pooled connections are pinged before use and recycled after 30 minutes. Idempotent work that starts while a new PostgreSQL primary is being promoted is retried with bounded backoff.</p>
                     </div>
 
                     <div class="feature-card">
                         <div class="feature-icon">🕐</div>
-                        <div class="feature-title">Timezone Awareness</div>
-                        <p data-i18n="docs.auto.architecture.database-design.048">Proper timezone handling with UTC storage and automatic timezone conversion for global deployments.</p>
+                        <div class="feature-title" data-i18n="docs.architecture.dbdesign.f_utc_title">UTC timestamps</div>
+                        <p data-i18n="docs.architecture.dbdesign.f_utc_desc" data-i18n-html>Timestamps are UTC. Nearly all are stored in columns without a time zone; a few tables, such as <code>custom_metric_sample</code> and <code>gpg_key</code>, use time-zone-aware columns.</p>
                     </div>
 
                     <div class="feature-card">
-                        <div class="feature-icon">🛡️</div>
-                        <div class="feature-title">ACID Compliance</div>
-                        <p data-i18n="docs.auto.architecture.database-design.049">Full ACID transaction support ensuring data integrity even during complex multi-table operations.</p>
+                        <div class="feature-icon">🧹</div>
+                        <div class="feature-title" data-i18n="docs.architecture.dbdesign.f_chunk_title">Chunked deletes</div>
+                        <p data-i18n="docs.architecture.dbdesign.f_chunk_desc">Large purges, such as completed queue messages and expired custom-metric samples, delete 5,000 rows at a time and commit after each chunk, so no single transaction holds millions of row locks.</p>
                     </div>
                 </div>
             </section>
 
             <section>
                 <h2 data-i18n="docs.auto.architecture.database-design.050">Schema Examples</h2>
-
-                <h3 data-i18n="docs.auto.architecture.database-design.051">Host Table Structure</h3>
-                <div class="code-example">
-                    <div class="code-title">Core Host Information</div>
-CREATE TABLE hosts (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    fqdn VARCHAR(255) NOT NULL UNIQUE,
-    platform VARCHAR(50),
-    platform_version VARCHAR(100),
-    architecture VARCHAR(50),
-    cpu_count INTEGER,
-    memory_gb NUMERIC(10,2),
-    last_seen TIMESTAMP WITH TIME ZONE,
-    active BOOLEAN DEFAULT true,
-    approval_status VARCHAR(20) DEFAULT 'pending',
-    enabled_shells JSONB,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-);
-
--- Indexes for performance
-CREATE INDEX idx_hosts_fqdn ON hosts(fqdn);
-CREATE INDEX idx_hosts_active ON hosts(active);
-CREATE INDEX idx_hosts_platform ON hosts(platform, platform_version);
-CREATE INDEX idx_hosts_last_seen ON hosts(last_seen);
-                </div>
-
-                <h3 data-i18n="docs.auto.architecture.database-design.052">Package Operation Tracking</h3>
-                <div class="code-example">
-                    <div class="code-title">Package Management History</div>
-CREATE TABLE package_operations (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    host_id UUID NOT NULL REFERENCES hosts(id) ON DELETE CASCADE,
-    operation_type VARCHAR(20) NOT NULL,
-    package_name VARCHAR(255) NOT NULL,
-    package_version VARCHAR(100),
-    status VARCHAR(20) DEFAULT 'pending',
-    started_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    completed_at TIMESTAMP WITH TIME ZONE,
-    execution_log TEXT,
-    error_message TEXT
-);
-
--- Composite index for efficient queries
-CREATE INDEX idx_pkg_ops_host_status ON package_operations(host_id, status);
-CREATE INDEX idx_pkg_ops_package ON package_operations(package_name, operation_type);
-                </div>
+                <p data-i18n="docs.architecture.dbdesign.examples_intro">These statements are what SQLAlchemy emits for PostgreSQL from the current models.</p>
 
                 <h3 data-i18n="docs.auto.architecture.database-design.053">Message Queue Implementation</h3>
-                <div class="code-example">
-                    <div class="code-title">Persistent Message Storage</div>
-CREATE TABLE message_queue (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    target_host_id UUID REFERENCES hosts(id) ON DELETE CASCADE,
+<pre class="code-example">CREATE TABLE message_queue (
+    id UUID NOT NULL,
+    host_id UUID,
+    message_id VARCHAR(36) NOT NULL,
+    direction VARCHAR(10) NOT NULL,      -- inbound | outbound
     message_type VARCHAR(50) NOT NULL,
-    message_content JSONB NOT NULL,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    expires_at TIMESTAMP WITH TIME ZONE,
-    delivered_at TIMESTAMP WITH TIME ZONE,
-    status VARCHAR(20) DEFAULT 'pending',
-    retry_count INTEGER DEFAULT 0,
-    last_retry_at TIMESTAMP WITH TIME ZONE
+    message_data TEXT NOT NULL,          -- serialized JSON
+    status VARCHAR(15) NOT NULL,         -- pending, processing, completed, failed, expired
+    priority VARCHAR(10) NOT NULL,
+    retry_count INTEGER NOT NULL,
+    max_retries INTEGER NOT NULL,
+    created_at TIMESTAMP WITHOUT TIME ZONE NOT NULL,
+    scheduled_at TIMESTAMP WITHOUT TIME ZONE,
+    started_at TIMESTAMP WITHOUT TIME ZONE,
+    completed_at TIMESTAMP WITHOUT TIME ZONE,
+    error_message TEXT,
+    last_error_at TIMESTAMP WITHOUT TIME ZONE,
+    correlation_id VARCHAR(36),
+    reply_to VARCHAR(36),
+    expired_at TIMESTAMP WITHOUT TIME ZONE,
+    PRIMARY KEY (id)
 );
 
--- Indexes for message processing
-CREATE INDEX idx_msg_queue_target ON message_queue(target_host_id, status);
-CREATE INDEX idx_msg_queue_expires ON message_queue(expires_at);
-CREATE INDEX idx_msg_queue_type ON message_queue(message_type);
-                </div>
+-- Composite indexes for queue processing
+CREATE INDEX idx_message_queue_processing
+    ON message_queue (direction, status, priority, scheduled_at);
+CREATE INDEX ix_message_queue_host_queue
+    ON message_queue (host_id, direction, status, created_at);
+CREATE INDEX ix_message_queue_drain_order
+    ON message_queue (direction, status, created_at);</pre>
+
+                <h3 data-i18n="docs.auto.architecture.database-design.052">Package Operation Tracking</h3>
+<pre class="code-example">CREATE TABLE installation_requests (
+    id UUID NOT NULL,
+    host_id UUID NOT NULL,
+    requested_by VARCHAR(100) NOT NULL,
+    requested_at TIMESTAMP WITHOUT TIME ZONE NOT NULL,
+    completed_at TIMESTAMP WITHOUT TIME ZONE,
+    status VARCHAR(20) DEFAULT 'pending' NOT NULL,
+    operation_type VARCHAR(20) DEFAULT 'install' NOT NULL,
+    result_log TEXT,
+    created_at TIMESTAMP WITHOUT TIME ZONE NOT NULL,
+    updated_at TIMESTAMP WITHOUT TIME ZONE NOT NULL,
+    PRIMARY KEY (id),
+    FOREIGN KEY (host_id) REFERENCES host (id) ON DELETE CASCADE
+);
+CREATE INDEX ix_installation_requests_operation_type ON installation_requests (operation_type);
+CREATE INDEX ix_installation_requests_requested_at ON installation_requests (requested_at);
+CREATE INDEX ix_installation_requests_status ON installation_requests (status);</pre>
             </section>
 
             <section>
-                <h2 data-i18n="docs.auto.architecture.database-design.054">Migration Strategy</h2>
+                <h2 data-i18n="docs.architecture.dbdesign.mig_title">Migrations</h2>
                 <div class="migration-flow">
-                    <h3 data-i18n="docs.auto.architecture.database-design.055">Alembic Migration Workflow</h3>
+                    <h3 data-i18n="docs.architecture.dbdesign.mig_chains_title">Three Alembic chains</h3>
                     <div class="migration-steps">
                         <div class="migration-step">
                             <div class="step-number">1</div>
                             <div class="step-content">
-                                <div class="step-title">Schema Changes</div>
-                                <div class="step-description">Modify SQLAlchemy models with new fields, relationships, or constraints</div>
+                                <div class="step-title" data-i18n="docs.architecture.dbdesign.mig_registry_title">Registry chain</div>
+                                <div class="step-description" data-i18n="docs.architecture.dbdesign.mig_registry_desc" data-i18n-html><code>alembic/registry</code>, recorded in <code>alembic_version_registry</code>. Control-plane tables.</div>
                             </div>
                         </div>
 
                         <div class="migration-step">
                             <div class="step-number">2</div>
                             <div class="step-content">
-                                <div class="step-title">Generate Migration</div>
-                                <div class="step-description">Use Alembic autogenerate to create migration script with review and customization</div>
+                                <div class="step-title" data-i18n="docs.architecture.dbdesign.mig_shared_title">Shared chain</div>
+                                <div class="step-description" data-i18n="docs.architecture.dbdesign.mig_shared_desc" data-i18n-html><code>alembic/shared</code>, recorded in <code>alembic_version_shared</code>. Reference data.</div>
                             </div>
                         </div>
 
                         <div class="migration-step">
                             <div class="step-number">3</div>
                             <div class="step-content">
-                                <div class="step-title">Test Migration</div>
-                                <div class="step-description">Validate migration on development database with rollback testing</div>
-                            </div>
-                        </div>
-
-                        <div class="migration-step">
-                            <div class="step-number">4</div>
-                            <div class="step-content">
-                                <div class="step-title">Deploy Migration</div>
-                                <div class="step-description">Execute migration in production with backup and monitoring</div>
-                            </div>
-                        </div>
-
-                        <div class="migration-step">
-                            <div class="step-number">5</div>
-                            <div class="step-content">
-                                <div class="step-title">Verify Integrity</div>
-                                <div class="step-description">Confirm data integrity and application functionality post-migration</div>
+                                <div class="step-title" data-i18n="docs.architecture.dbdesign.mig_tenant_title">Tenant chain</div>
+                                <div class="step-description" data-i18n="docs.architecture.dbdesign.mig_tenant_desc" data-i18n-html><code>alembic/versions</code>, recorded in <code>alembic_version</code>. Every host-scoped table; applied to the main database and to every tenant database.</div>
                             </div>
                         </div>
                     </div>
                 </div>
+                <p data-i18n="docs.architecture.dbdesign.mig_tool" data-i18n-html>In production, <code>sysmanage-migrate</code> (<code>scripts/sysmanage_migrate.py</code>) runs the registry, shared, and tenant chains, then applies the tenant chain to every tenant database listed in the registry, leasing each tenant's credentials from OpenBAO. It is safe to re-run, and <code>--status</code> and <code>--dry-run</code> show pending work without changing anything. See <a href="database-migrations.html">Database Migrations</a>.</p>
             </section>
 
             <section>
-                <h2 data-i18n="docs.auto.architecture.database-design.056">Performance Metrics</h2>
-                <div class="performance-metrics">
-                    <div class="metric-card">
-                        <div class="metric-value">&lt;10ms</div>
-                        <div class="metric-label">Query Response Time</div>
-                    </div>
-                    <div class="metric-card">
-                        <div class="metric-value">1M+</div>
-                        <div class="metric-label">Records per Table</div>
-                    </div>
-                    <div class="metric-card">
-                        <div class="metric-value">99.9%</div>
-                        <div class="metric-label">Database Uptime</div>
-                    </div>
-                    <div class="metric-card">
-                        <div class="metric-value">100+</div>
-                        <div class="metric-label">Concurrent Connections</div>
-                    </div>
-                </div>
+                <h2 data-i18n="docs.architecture.dbdesign.scale_title">At Fleet Scale</h2>
+                <ul>
+                    <li data-i18n="docs.architecture.dbdesign.scale_sessions">Agent WebSocket handlers open a short-lived database session per message instead of holding one for the life of the connection, so the number of connections in use tracks work in flight, not connected agents.</li>
+                    <li data-i18n="docs.architecture.dbdesign.scale_fit" data-i18n-html>At startup the server compares every worker's pool, plus the per-tenant pools, with PostgreSQL's <code>max_connections</code> and shrinks the pools with a warning if they would not fit. It never refuses to start over this.</li>
+                    <li data-i18n="docs.architecture.dbdesign.scale_purge">Completed queue messages are purged after 7 days; failed messages are kept for troubleshooting.</li>
+                    <li data-i18n="docs.architecture.dbdesign.scale_leader">With several workers, server-wide periodic tasks run in one elected leader; each worker still drains its own queue work.</li>
+                </ul>
+                <p data-i18n="docs.architecture.dbdesign.scale_more" data-i18n-html>Measured results are on <a href="performance-and-scale.html">Performance and Scale</a>.</p>
             </section>
 
             <section>
@@ -677,8 +569,9 @@ CREATE INDEX idx_msg_queue_type ON message_queue(message_type);
                 <div class="docs-links">
                     <a href="database-schema.html" class="docs-link" data-i18n="docs.auto.architecture.database-design.058">📋 Database Schema</a>
                     <a href="package-operation-tracking.html" class="docs-link" data-i18n="docs.auto.architecture.database-design.059">📦 Package Operation Tracking</a>
-                    <a href="migration-strategy.html" class="docs-link" data-i18n="docs.auto.architecture.database-design.060">🔄 Migration Strategy</a>
-                    <a href="performance-optimization.html" class="docs-link" data-i18n="docs.auto.architecture.database-design.061">⚡ Performance Optimization</a>
+                    <a href="database-migrations.html" class="docs-link" data-i18n="docs.architecture.dbdesign.link_migrations">🔄 Database Migrations</a>
+                    <a href="performance-and-scale.html" class="docs-link" data-i18n="docs.architecture.dbdesign.link_perf">⚡ Performance and Scale</a>
+                    <a href="multi-tenancy.html" class="docs-link" data-i18n="docs.architecture.dbdesign.link_mt">🏢 Multi-Tenancy Architecture</a>
                     <a href="system-architecture.html" class="docs-link" data-i18n="docs.auto.architecture.database-design.062">🏗️ System Architecture</a>
                     <a href="../server/configuration.html" class="docs-link" data-i18n="docs.auto.architecture.database-design.063">⚙️ Database Configuration</a>
                 </div>
@@ -691,27 +584,23 @@ CREATE INDEX idx_msg_queue_type ON message_queue(message_type);
                 <div class="nav-links">
                     <a href="communication-protocols.html" class="nav-link" data-i18n="docs.auto.architecture.database-design.065">← Communication Protocols</a>
                     <a href="database-schema.html" class="nav-link" data-i18n="docs.auto.architecture.database-design.066">Database Schema</a>
-                    <a href="migration-strategy.html" class="nav-link" data-i18n="docs.auto.architecture.database-design.067">Migration Strategy</a>
-                    <a href="performance-stability.html" class="nav-link" data-i18n="docs.auto.architecture.database-design.068">Performance & Stability →</a>
+                    <a href="database-migrations.html" class="nav-link" data-i18n="docs.architecture.dbdesign.nav_migrations">Database Migrations</a>
+                    <a href="performance-and-scale.html" class="nav-link" data-i18n="docs.architecture.dbdesign.nav_perf">Performance and Scale →</a>
                 </div>
             </div>
 
             <div class="docs-resources">
                 <h3 data-i18n="docs.auto.architecture.database-design.069">Database Resources</h3>
                 <div class="resource-links">
-                    <a href="/assets/images/sysmanage-erd.svg" target="_blank" class="resource-link" data-i18n="docs.auto.architecture.database-design.070">
-                        <span class="resource-icon">🗄️</span>
-                        <span>Database ERD</span>
-                    </a>
-                    <a href="database-schema.html" class="resource-link" data-i18n="docs.auto.architecture.database-design.071">
+                    <a href="database-schema.html" class="resource-link" data-i18n="docs.auto.architecture.database-design.071" data-i18n-html>
                         <span class="resource-icon">📋</span>
                         <span>Schema Documentation</span>
                     </a>
-                    <a href="package-operation-tracking.html" class="resource-link" data-i18n="docs.auto.architecture.database-design.072">
+                    <a href="package-operation-tracking.html" class="resource-link" data-i18n="docs.auto.architecture.database-design.072" data-i18n-html>
                         <span class="resource-icon">📦</span>
                         <span>Package Tracking</span>
                     </a>
-                    <a href="../server/configuration.html" class="resource-link" data-i18n="docs.auto.architecture.database-design.073">
+                    <a href="../server/configuration.html" class="resource-link" data-i18n="docs.auto.architecture.database-design.073" data-i18n-html>
                         <span class="resource-icon">⚙️</span>
                         <span>Database Setup</span>
                     </a>
@@ -719,9 +608,10 @@ CREATE INDEX idx_msg_queue_type ON message_queue(message_type);
             </div>
         </div>
     </main>
-    <!-- Footer injected automatically by components.js -->    <script src="/assets/js/components.js"></script>
+    <!-- Footer injected automatically by components.js -->
+    <script src="/assets/js/components.js"></script>
     <script src="/assets/js/i18n.js"></script>
-    <script src="/assets/js/main.js"></script>
     <script src="/assets/js/navbar.js"></script>
+    <script src="/assets/js/main.js"></script>
 </body>
 </html>

@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Database Migrations - SysManage Architecture</title>
+    <meta name="description" data-i18n="docs.architecture.migrations.meta_description" data-i18n-attr="content" content="How SysManage changes its database schema: Alembic chains, the rules every migration follows, the sysmanage-migrate tool operators run, what a downgrade does, and why a Professional+ engine can wait for a restart after a migration.">
+    <link rel="stylesheet" href="/assets/css/style.css">
+    <link rel="icon" type="image/svg+xml" href="/assets/images/favicon.svg">
+</head>
+<body data-auto-header="documentation" data-auto-footer>
+    <main class="docs-main">
+        <div class="container">
+            <div class="docs-breadcrumb">
+                <a href="../" data-i18n="docs.auto.architecture.load-balancing.001">Documentation</a> &gt; <a href="./" data-i18n="docs.auto.architecture.load-balancing.002">Architecture</a> &gt; <span data-i18n="docs.architecture.migrations.crumb">Database Migrations</span>
+            </div>
+
+            <div class="docs-header">
+                <h1 data-i18n="docs.architecture.migrations.title">Database Migrations</h1>
+                <p data-i18n="docs.architecture.migrations.intro">SysManage changes its database schema with Alembic migrations that ship inside each server release. Installing or upgrading a package never changes the database by itself: the operator applies the migrations with one command, and the package's install message says so.</p>
+            </div>
+
+            <div class="docs-content">
+                <section class="docs-section">
+                    <h2 data-i18n="docs.architecture.migrations.h_chains">Three chains</h2>
+                    <p data-i18n="docs.architecture.migrations.chains_p1">The migrations form three separate chains, each recording its own version in its own table, so that each kind of table can be migrated wherever it lives. Today the registry and shared tables are in the main database, and with multi-tenancy the tenant chain also runs against every tenant's own database:</p>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th data-i18n="docs.architecture.migrations.th_chain">Chain</th>
+                                <th data-i18n="docs.architecture.migrations.th_holds">What it holds</th>
+                                <th data-i18n="docs.architecture.migrations.th_version">Version table</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr><td data-i18n="docs.architecture.migrations.chain_registry">Registry</td><td data-i18n="docs.architecture.migrations.holds_registry" data-i18n-html>The control plane: which tenants exist and where their databases are (tables named <code>registry_*</code>)</td><td><code>alembic_version_registry</code></td></tr>
+                            <tr><td data-i18n="docs.architecture.migrations.chain_shared">Shared</td><td data-i18n="docs.architecture.migrations.holds_shared" data-i18n-html>Reference data every tenant reads, such as vulnerability and advisory catalogs (tables named <code>shared_*</code>)</td><td><code>alembic_version_shared</code></td></tr>
+                            <tr><td data-i18n="docs.architecture.migrations.chain_tenant">Tenant</td><td data-i18n="docs.architecture.migrations.holds_tenant">Everything else -- hosts, users, the message queue, settings -- applied to the main database and to every tenant database</td><td><code>alembic_version</code></td></tr>
+                        </tbody>
+                    </table>
+                    <p data-i18n="docs.architecture.migrations.chains_p2">A server without multi-tenancy has one database, and all three chains apply to it. Tests check that each chain creates only the tables its prefix allows, and that every chain applies to the end on a real PostgreSQL database.</p>
+                </section>
+
+                <section class="docs-section">
+                    <h2 data-i18n="docs.architecture.migrations.h_rules">The rules every migration follows</h2>
+                    <ul>
+                        <li data-i18n="docs.architecture.migrations.rule_linear" data-i18n-html><strong>One line per chain.</strong> Each migration follows the current end of its chain, so a chain always has exactly one head; when two branches meet, a merge migration joins them.</li>
+                        <li data-i18n="docs.architecture.migrations.rule_idempotent" data-i18n-html><strong>Safe to run twice.</strong> A migration checks before it acts -- it creates a table, column or index only when it is absent, and its downgrade drops one only when it is present -- so re-running a migration, or running it against a database that already has the change, does no harm.</li>
+                        <li data-i18n="docs.architecture.migrations.rule_dialects" data-i18n-html><strong>PostgreSQL and SQLite.</strong> Production runs on PostgreSQL and the test suites on SQLite, so a migration uses no type or statement that one of them rejects.</li>
+                        <li data-i18n="docs.architecture.migrations.rule_expand" data-i18n-html><strong>Expand, then contract.</strong> A release only adds: new tables and columns, nullable or with a default, backfilled, with the code reading and writing both shapes. Removing or renaming something happens in a later release, once every database is past the addition.</li>
+                    </ul>
+                    <p data-i18n="docs.architecture.migrations.rules_p1" data-i18n-html>Expand-contract matters because databases are not migrated all at once. Between installing a release and running the migrations, and while the tenant databases are migrated one after another, the same running server serves databases on both sides of a migration. A check in the server's lint run (<code>make check-migrations</code>, <code>scripts/check_migrations.py</code>) scans every migration's <code>upgrade()</code> and fails on dropping a table, column or constraint, or renaming a table or column. A drop that really is the contract step of an earlier expansion is allowed only with a <code># expand-contract-ok:</code> comment giving the reason. <code>downgrade()</code> is not checked; dropping things is its job.</p>
+                </section>
+
+                <section class="docs-section">
+                    <h2 data-i18n="docs.architecture.migrations.h_tool">Applying migrations</h2>
+                    <p data-i18n="docs.architecture.migrations.tool_p1" data-i18n-html>Operators run one command, from the SysManage server: <code>sudo sysmanage-migrate</code> (installed as a command by the Debian and RPM packages; elsewhere, <code>scripts/sysmanage_migrate.py</code> run with the server's own Python environment). It applies, in order:</p>
+                    <ol>
+                        <li data-i18n="docs.architecture.migrations.step1">the registry chain;</li>
+                        <li data-i18n="docs.architecture.migrations.step2">the shared chain;</li>
+                        <li data-i18n="docs.architecture.migrations.step3">the tenant chain, against the main database;</li>
+                        <li data-i18n="docs.architecture.migrations.step4">with multi-tenancy, the tenant chain against every tenant database listed in the registry, one at a time, with a progress count.</li>
+                    </ol>
+                    <p data-i18n="docs.architecture.migrations.tool_p2">For the tenant databases the tool leases each tenant's database credentials from OpenBAO, so OpenBAO must be running. A tenant that fails is reported and the others still migrate; the command then exits with an error. Databases that are already current are skipped, so the command is safe to run again after fixing a failure.</p>
+<pre>
+sudo sysmanage-migrate --status     # what is current and what is pending
+sudo sysmanage-migrate --dry-run    # what would run, changing nothing
+sudo sysmanage-migrate              # apply everything
+sudo sysmanage-migrate --no-tenants # the three chains only
+sudo sysmanage-migrate --tenants-only
+</pre>
+                    <p data-i18n="docs.architecture.migrations.tool_p3" data-i18n-html>In a development checkout, <code>make migrate</code> runs the same tool, so the path operators use is exercised on every development run. The scale test harness migrates its throwaway databases with it too.</p>
+                </section>
+
+                <section class="docs-section">
+                    <h2 data-i18n="docs.architecture.migrations.h_downgrade">Downgrades</h2>
+                    <p data-i18n="docs.architecture.migrations.downgrade_p1" data-i18n-html>Every migration has a <code>downgrade()</code> that removes what its <code>upgrade()</code> added, and migration tests use it to check that a migration can be applied, removed and applied again. <code>sysmanage-migrate</code> only moves forward; it has no downgrade option. A downgrade changes the schema only: a dropped table or column takes its data with it, and nothing brings that data back. Because releases are expand-contract, rolling the schema back is not needed to keep a server running while its databases catch up.</p>
+                </section>
+
+                <section class="docs-section">
+                    <h2 data-i18n="docs.architecture.migrations.h_engines">Professional+ engines and the schema</h2>
+                    <p data-i18n="docs.architecture.migrations.engines_p1">A licensed Professional+ engine can declare the oldest tenant-chain revision it needs. When the server loads the engine it compares that revision with the database's; if the database is behind, the engine is not loaded and the console shows a banner saying why:</p>
+                    <ul>
+                        <li data-i18n="docs.architecture.migrations.engines_li1" data-i18n-html><strong>Migrations pending</strong> -- the revision ships with this server but has not been applied: run <code>sysmanage-migrate</code>.</li>
+                        <li data-i18n="docs.architecture.migrations.engines_li2" data-i18n-html><strong>Server too old</strong> -- the engine was built for a newer server release; no migration on this server can reach that revision. Upgrade the server.</li>
+                        <li data-i18n="docs.architecture.migrations.engines_li3" data-i18n-html><strong>Restart needed</strong> -- the migrations have run since the server started. An engine refused at startup stays refused until the server restarts, so restart it after migrating.</li>
+                    </ul>
+                    <p data-i18n="docs.architecture.migrations.engines_p2">This check is a safety net. The normal order is: install the new release, run the migrations, restart the server.</p>
+                </section>
+
+                <section class="docs-section">
+                    <h2 data-i18n="docs.architecture.migrations.h_related">Related</h2>
+                    <ul>
+                        <li><a href="database-design.html" data-i18n="docs.architecture.migrations.link_design">Database Design</a></li>
+                        <li><a href="multi-tenancy.html" data-i18n="docs.architecture.migrations.link_mt">Multi-Tenancy Architecture</a></li>
+                        <li><a href="system-architecture.html" data-i18n="docs.architecture.migrations.link_sysarch">System Architecture</a></li>
+                    </ul>
+                </section>
+            </div>
+        </div>
+    </main>
+    <script src="/assets/js/components.js"></script>
+    <script src="/assets/js/i18n.js"></script>
+    <script src="/assets/js/navbar.js"></script>
+    <script src="/assets/js/main.js"></script>
+</body>
+</html>

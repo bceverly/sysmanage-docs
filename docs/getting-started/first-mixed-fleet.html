@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en" data-i18n-title="docs.firstfleet.meta_title">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title data-i18n="docs.firstfleet.meta_title">Your First Mixed Fleet in 30 Minutes - SysManage</title>
+    <meta name="description" data-i18n="docs.firstfleet.meta_description" data-i18n-attr="content" content="Install a SysManage Community server on Ubuntu, connect an Ubuntu host and a FreeBSD host, approve them, see their inventory and updates side by side, install a package on both, and find the record in the audit log.">
+    <link rel="stylesheet" href="/assets/css/style.css">
+    <link rel="icon" type="image/svg+xml" href="/assets/images/favicon.svg">
+</head>
+<body data-auto-header="documentation" data-auto-footer>
+    <main class="docs-main">
+        <div class="container">
+            <div class="docs-breadcrumb"><a href="../" data-i18n="docs.firstfleet.crumb_docs">Documentation</a> &gt; <a href="./" data-i18n="docs.firstfleet.crumb_section">Getting Started</a> &gt; <span data-i18n="docs.firstfleet.crumb_page">Your First Mixed Fleet</span></div>
+            <div class="docs-header">
+                <h1 data-i18n="docs.firstfleet.title">Your First Mixed Fleet in 30 Minutes</h1>
+                <p data-i18n="docs.firstfleet.intro">Install the free Community server, connect two machines running different operating systems -- Ubuntu and FreeBSD -- and manage them as one fleet: approve them, compare their inventory and updates, install a package on both, and find the record of it in the audit log.</p>
+                <p class="docs-note" data-i18n="docs.firstfleet.tested" data-i18n-html><strong>Tested end to end</strong> on fresh virtual machines -- an Ubuntu 24.04 LTS server and a FreeBSD 14.5 host -- with SysManage server and agent 3.12.1.7. Every command and every expected result below comes from that run.</p>
+            </div>
+            <div class="docs-content">
+                <section class="docs-section">
+                    <h2 data-i18n="docs.firstfleet.h_need">What you need</h2>
+                    <ul>
+                        <li data-i18n="docs.firstfleet.need_server" data-i18n-html><strong>A server:</strong> Ubuntu 24.04 LTS with 2 CPUs, 4 GB of memory and 25 GB of disk, and a sudo account. The other two machines must reach it on port 443.</li>
+                        <li data-i18n="docs.firstfleet.need_ubuntu" data-i18n-html><strong>An Ubuntu host</strong> to manage. The server itself works fine as the first host, which is what this walkthrough does.</li>
+                        <li data-i18n="docs.firstfleet.need_bsd" data-i18n-html><strong>A FreeBSD 14 host</strong> with root access. To use Windows instead, install the agent with <code>winget install --id sysmanage.sysmanage-agent --exact</code> and follow the <a href="../agent/installation.html">agent installation guide</a> for its configuration file; the rest of the walkthrough is the same.</li>
+                        <li data-i18n="docs.firstfleet.need_net">Internet access on all three, to download packages. Nothing needs to reach them from outside: agents connect out to the server.</li>
+                    </ul>
+
+                    <h2 data-i18n="docs.firstfleet.h_step1">1. Install the server</h2>
+                    <p data-i18n="docs.firstfleet.step1_p">On the Ubuntu server, add the SysManage repository and install the server with PostgreSQL. The package installs nginx and OpenBAO (the secrets store) for you.</p>
+<pre><code class="language-bash">sudo add-apt-repository -y ppa:bceverly/sysmanage
+sudo apt-get update
+sudo apt-get install -y sysmanage postgresql</code></pre>
+                    <p data-i18n="docs.firstfleet.step1_expect" data-i18n-html><strong>Expect:</strong> the install ends with "SysManage Server installation complete!" and a notice that a TLS certificate is required. You add one in step 3.</p>
+
+                    <h2 data-i18n="docs.firstfleet.h_step2">2. Create the database</h2>
+                    <p data-i18n="docs.firstfleet.step2_p" data-i18n-html>Create a database and its user, and put the password into <code>/etc/sysmanage.yaml</code>. These commands generate a random password and write it there for you.</p>
+<pre><code class="language-bash">DBPASS=$(openssl rand -base64 18)
+sudo -u postgres createuser sysmanage
+sudo -u postgres createdb sysmanage -O sysmanage
+sudo -u postgres psql -c "ALTER USER sysmanage WITH PASSWORD '$DBPASS';"
+sudo sed -i "s|password: \"CHANGE_ME_IN_PRODUCTION\"|password: \"$DBPASS\"|" /etc/sysmanage.yaml</code></pre>
+
+                    <h2 data-i18n="docs.firstfleet.h_step3">3. Give the server a certificate</h2>
+                    <p data-i18n="docs.firstfleet.step3_p">SysManage serves everything on port 443 and will not start without a certificate. For an evaluation, a self-signed certificate is enough; the agents are told to trust it in steps 6 and 7. Use the address your hosts will reach the server by.</p>
+<pre><code class="language-bash">SERVER=$(hostname -I | awk '{print $1}')     # or the server's DNS name
+sudo install -d -m 755 /etc/sysmanage/tls
+sudo openssl req -x509 -newkey rsa:3072 -nodes -days 90 -subj "/CN=$SERVER" \
+  -addext "subjectAltName=IP:$SERVER" \
+  -keyout /etc/sysmanage/tls/server.key -out /etc/sysmanage/tls/server.crt
+sudo chmod 600 /etc/sysmanage/tls/server.key
+# A copy anyone can read, for the agents
+sudo install -m 644 /etc/sysmanage/tls/server.crt /usr/local/share/ca-certificates/sysmanage-eval.crt</code></pre>
+                    <p data-i18n="docs.firstfleet.step3_dns" data-i18n-html>If the hosts reach the server by name, use <code>subjectAltName=DNS:your.server.name</code> instead. For production, use a certificate from your own certificate authority or Let's Encrypt, as described in the <a href="../server/installation.html">server installation guide</a>.</p>
+
+                    <h2 data-i18n="docs.firstfleet.h_step4">4. Migrate the database and start</h2>
+<pre><code class="language-bash">sudo sysmanage-migrate
+sudo systemctl restart sysmanage
+sudo nginx -t &amp;&amp; sudo systemctl reload nginx
+curl --cacert /usr/local/share/ca-certificates/sysmanage-eval.crt https://$SERVER/api/health/db</code></pre>
+                    <p data-i18n="docs.firstfleet.step4_expect" data-i18n-html><strong>Expect:</strong> <code>sysmanage-migrate</code> ends with "[OK] Migrations complete.", <code>nginx -t</code> says the test is successful, and the health check answers <code>{"status":"healthy","database":"up"}</code>.</p>
+
+                    <h2 data-i18n="docs.firstfleet.h_step5">5. Sign in and create your administrator</h2>
+                    <p data-i18n="docs.firstfleet.step5_p1" data-i18n-html>The package generated a recovery account. Read it from the configuration file, then open <code>https://&lt;server&gt;/</code> in a browser. Accept the certificate warning -- it is your own self-signed certificate.</p>
+<pre><code class="language-bash">sudo grep -E 'admin_(userid|password)' /etc/sysmanage.yaml</code></pre>
+                    <p data-i18n="docs.firstfleet.step5_p2" data-i18n-html>Sign in with that email address and password. A red banner says you are using the recovery account. Choose <strong>Create your administrator</strong>, enter your own email address and a password, then sign out and sign in as the new administrator. No email setup is needed. The recovery account is only for getting in; remove it from <code>sysmanage.yaml</code> when you go to production.</p>
+
+                    <h2 data-i18n="docs.firstfleet.h_step6">6. Connect the Ubuntu host</h2>
+                    <p data-i18n="docs.firstfleet.step6_p" data-i18n-html>Install the agent and point it at the server. On a host other than the server, copy <code>/usr/local/share/ca-certificates/sysmanage-eval.crt</code> from the server to the same path first.</p>
+<pre><code class="language-bash">sudo add-apt-repository -y ppa:bceverly/sysmanage-agent
+sudo apt-get update
+sudo apt-get install -y sysmanage-agent
+sudo sed -i "s|url: \"https://sysmanage.example.com\"|url: \"https://$SERVER\"\n  ca_bundle: \"/usr/local/share/ca-certificates/sysmanage-eval.crt\"|" /etc/sysmanage-agent.yaml
+sudo systemctl restart sysmanage-agent
+sudo grep -m1 "Connected to server successfully" /var/log/sysmanage-agent/agent.log</code></pre>
+                    <p data-i18n="docs.firstfleet.step6_expect" data-i18n-html><strong>Expect:</strong> the last command prints a line ending in "Connected to server successfully" within about half a minute.</p>
+
+                    <h2 data-i18n="docs.firstfleet.h_step7">7. Connect the FreeBSD host</h2>
+                    <p data-i18n="docs.firstfleet.step7_p" data-i18n-html>As root on the FreeBSD host, download the agent package and check its SHA-256 checksum against the published one -- the two lines must match. <code>pkg install</code> fetches the agent's dependencies from the FreeBSD repository. Copy <code>sysmanage-eval.crt</code> from the server first.</p>
+<pre><code class="language-bash">VERSION=$(fetch -qo - https://repo.sysmanage.org/agent/freebsd/latest.txt)
+BASE=https://repo.sysmanage.org/agent/freebsd/packages/$VERSION
+fetch "$BASE/sysmanage-agent-$VERSION.pkg" "$BASE/sysmanage-agent-$VERSION.pkg.sha256"
+sha256 -q "sysmanage-agent-$VERSION.pkg"; cut -d' ' -f1 "sysmanage-agent-$VERSION.pkg.sha256"
+pkg install -y "./sysmanage-agent-$VERSION.pkg"
+
+mkdir -p /usr/local/etc/ssl
+install -m 644 sysmanage-eval.crt /usr/local/etc/ssl/sysmanage-eval.crt
+CONF=/usr/local/etc/sysmanage-agent/config.yaml
+sed -i '' -e 's|url: "https://sysmanage.example.com"|url: "https://SERVER-ADDRESS"|' \
+  -e 's|# ca_bundle: "/etc/ssl/certs/corporate-root.pem"|ca_bundle: "/usr/local/etc/ssl/sysmanage-eval.crt"|' "$CONF"
+sysrc sysmanage_agent_enable=YES
+service sysmanage_agent start
+service sysmanage_agent status</code></pre>
+                    <p data-i18n="docs.firstfleet.step7_expect" data-i18n-html>Replace <code>SERVER-ADDRESS</code> with the server's address. <strong>Expect:</strong> "sysmanage_agent is running as pid ...", and "Connected to server successfully" in <code>/var/log/sysmanage-agent/agent.log</code>.</p>
+
+                    <h2 data-i18n="docs.firstfleet.h_step8">8. Approve both hosts</h2>
+                    <p data-i18n="docs.firstfleet.step8_p" data-i18n-html>A new host waits for an administrator before it is managed. In the console, open <strong>Fleet &gt; Hosts</strong>. Both hosts are listed as <strong>Approval Needed</strong>. Select them and choose <strong>Approve Selected</strong>. Within a minute both show <strong>Up</strong>, and each host's page fills in: operating system, kernel, hardware, software.</p>
+                    <p data-i18n="docs.firstfleet.step8_auto" data-i18n-html>For more hosts than you want to approve by hand, a registration key approves hosts as they enroll; see <a href="agent-approval.html">Agent Setup and Approval</a>.</p>
+
+                    <h2 data-i18n="docs.firstfleet.h_step9">9. See them side by side</h2>
+                    <ul>
+                        <li data-i18n="docs.firstfleet.step9_hosts" data-i18n-html><strong>Fleet &gt; Hosts</strong> lists both, with platform, status and whether updates are pending.</li>
+                        <li data-i18n="docs.firstfleet.step9_detail" data-i18n-html>Open each host: <strong>Info</strong>, <strong>Hardware</strong> and <strong>Software</strong> read the same on both. The Ubuntu host's software comes from apt and snap, the FreeBSD host's from pkg.</li>
+                        <li data-i18n="docs.firstfleet.step9_updates" data-i18n-html><strong>Patching &gt; Updates</strong> lists every pending update across the fleet, security updates first, with the package manager for each. A freshly installed host may have none.</li>
+                    </ul>
+
+                    <h2 data-i18n="docs.firstfleet.h_step10">10. Install a package on both</h2>
+                    <p data-i18n="docs.firstfleet.step10_p" data-i18n-html>On each host's page, open <strong>Software</strong>, choose <strong>Add Package</strong>, search for <code>tree</code>, choose <strong>Install</strong> next to it, then <strong>Install Selected Packages</strong>. The same steps run apt on Ubuntu and pkg on FreeBSD. Within a minute <code>tree</code> appears in each host's software list, and the request shows <strong>Completed</strong> under <strong>Software Changes</strong>.</p>
+
+                    <h2 data-i18n="docs.firstfleet.h_step11">11. Find it in the audit log</h2>
+                    <p data-i18n="docs.firstfleet.step11_p" data-i18n-html>Open <strong>Reports</strong>, choose the <strong>Security</strong> tab, and choose <strong>View Report</strong> on <strong>Audit Log</strong>. Each approval ("Approved host ...") and each installation ("Queued installation of 1 packages on host ...") is there with who did it and when. Export it as CSV or PDF from the same page.</p>
+
+                    <h2 data-i18n="docs.firstfleet.h_trouble">If something goes wrong</h2>
+                    <table class="docs-table">
+                        <thead><tr><th data-i18n="docs.firstfleet.t_symptom">What you see</th><th data-i18n="docs.firstfleet.t_fix">What to do</th></tr></thead>
+                        <tbody>
+                            <tr><td data-i18n="docs.firstfleet.t1_s" data-i18n-html><code>nginx -t</code>: <code>unknown directive "http2"</code></td><td data-i18n="docs.firstfleet.t1_f" data-i18n-html>A server package older than 3.12.1.7 on nginx older than 1.25. Upgrade the package, or in <code>/etc/nginx/sites-available/sysmanage-nginx.conf</code> delete the line <code>http2 on;</code> and change both <code>listen ... 443 ssl;</code> lines to <code>listen ... 443 ssl http2;</code>.</td></tr>
+                            <tr><td data-i18n="docs.firstfleet.t2_s" data-i18n-html>The agent log says <code>certificate verify failed</code></td><td data-i18n="docs.firstfleet.t2_f" data-i18n-html>The agent cannot trust the server's certificate. Check that <code>ca_bundle</code> points at the copy of <code>server.crt</code>, and that the address in <code>url</code> is the one in the certificate's subjectAltName (step 3).</td></tr>
+                            <tr><td data-i18n="docs.firstfleet.t3_s">A host never appears in the console</td><td data-i18n="docs.firstfleet.t3_f" data-i18n-html>From the host, run <code>curl --cacert &lt;the certificate&gt; https://&lt;server&gt;/api/health</code>. If it cannot connect, open port 443 on the server (<code>sudo ufw allow 443/tcp</code>) and check the address in the agent's <code>url</code>.</td></tr>
+                            <tr><td data-i18n="docs.firstfleet.t4_s">Approve Selected does nothing; the host stays Approval Needed</td><td data-i18n="docs.firstfleet.t4_f" data-i18n-html>You are signed in as the recovery account, which cannot approve hosts. Create your administrator (step 5) and sign in as it.</td></tr>
+                            <tr><td data-i18n="docs.firstfleet.t5_s" data-i18n-html>FreeBSD: <code>pkg add</code> stops at "Missing dependency"</td><td data-i18n="docs.firstfleet.t5_f" data-i18n-html>Use <code>pkg install -y ./sysmanage-agent-VERSION.pkg</code> as in step 7: <code>pkg add</code> does not fetch dependencies from the FreeBSD repository.</td></tr>
+                            <tr><td data-i18n="docs.firstfleet.t6_s" data-i18n-html><code>http://&lt;server&gt;/</code> shows "Welcome to nginx!"</td><td data-i18n="docs.firstfleet.t6_f" data-i18n-html>Ubuntu's stock nginx site is answering port 80. Run <code>sudo rm /etc/nginx/sites-enabled/default</code> and <code>sudo systemctl reload nginx</code>; HTTP then redirects to SysManage over HTTPS.</td></tr>
+                        </tbody>
+                    </table>
+
+                    <h2 data-i18n="docs.firstfleet.h_cleanup">Cleaning up</h2>
+                    <p data-i18n="docs.firstfleet.cleanup_p" data-i18n-html>On Ubuntu: <code>sudo apt-get purge sysmanage-agent sysmanage</code>. On FreeBSD: <code>service sysmanage_agent stop</code>, then <code>pkg delete sysmanage-agent</code>. Delete the host from <strong>Fleet &gt; Hosts</strong> if the server stays.</p>
+
+                    <h2 data-i18n="docs.firstfleet.h_next">Where to go next</h2>
+                    <ul>
+                        <li data-i18n="docs.firstfleet.next_prod" data-i18n-html>Running it for real: <a href="../server/installation.html">server installation</a>, <a href="../server/scaling.html">sizing</a> and <a href="../security/best-practices.html">security best practices</a>.</li>
+                        <li data-i18n="docs.firstfleet.next_editions" data-i18n-html>What the other editions add -- vulnerability scanning, compliance checks, fleet automation: <a href="editions.html">Editions and Availability</a>.</li>
+                        <li data-i18n="docs.firstfleet.next_platforms" data-i18n-html>What each capability does on each operating system: <a href="supported-platforms.html">Supported Platforms</a>.</li>
+                        <li data-i18n="docs.firstfleet.next_talk" data-i18n-html>Evaluating for an organization: <a href="/evaluate/">plan an evaluation</a> or <a href="/contact/">talk to us</a>.</li>
+                    </ul>
+                </section>
+            </div>
+        </div>
+    </main>
+    <script src="/assets/js/components.js"></script>
+    <script src="/assets/js/i18n.js"></script>
+    <script src="/assets/js/navbar.js"></script>
+    <script src="/assets/js/main.js"></script>
+</body>
+</html>

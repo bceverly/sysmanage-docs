@@ -25,24 +25,39 @@ This repository contains the complete documentation for SysManage, an open-sourc
 
 ## 🚀 Quick Start
 
-1. **Install SysManage Server**
+SysManage installs from signed native packages. On Ubuntu:
+
+1. **Install the SysManage server**
 
    ```bash
-   # Download and install the server
-   curl -sSL https://install.sysmanage.org/server | bash
+   sudo add-apt-repository ppa:bceverly/sysmanage
+   sudo apt update
+   sudo apt install sysmanage
    ```
 
-2. **Deploy Agents**
+   Then create the PostgreSQL database, set it in `/etc/sysmanage.yaml`, run
+   `sudo sysmanage-migrate`, install a TLS certificate and start the service, as
+   the [Quick Start](docs/getting-started/quick-start.html) describes.
+
+2. **Install agents on the hosts you want to manage**
 
    ```bash
-   # Install agent on managed hosts
-   curl -sSL https://install.sysmanage.org/agent | bash
+   sudo add-apt-repository ppa:bceverly/sysmanage-agent
+   sudo apt update
+   sudo apt install sysmanage-agent
    ```
 
-3. **Access Dashboard**
-   - Open your web browser to `https://your-server:8443`
-   - Complete the initial setup wizard
-   - Start managing your infrastructure
+   Set `server.url` in `/etc/sysmanage-agent.yaml` to your server and restart
+   the agent. Agents need outbound port 443 to the server and nothing else.
+
+3. **Open the web interface** at `https://your-server.example.com/`, sign in,
+   and approve the new hosts on the Hosts page.
+
+Every other platform (Debian, the RHEL family, openSUSE, Arch Linux, Alpine,
+macOS, Windows and the BSDs) is covered in the
+[Server Installation](docs/server/installation.html) and
+[Agent Installation](docs/agent/installation.html) guides. SysManage does not
+publish container images.
 
 ## 🏗️ Building Documentation
 
@@ -240,10 +255,16 @@ We welcome contributions to improve SysManage documentation!
 
 ## 📦 Package Repositories
 
-The package repositories for installing SysManage Agent on various platforms are
-hosted on **Cloudflare R2** at `https://repo.sysmanage.org` (the `repo/` tree in
-this repo is synced there by `deploy.yml`; it is no longer served from GitHub
-Pages, which caps artifacts at 1 GB):
+The SysManage package repositories are hosted on **Cloudflare R2** at
+`https://repo.sysmanage.org`. They are published there directly by the
+`sysmanage` and `sysmanage-agent` release pipelines; this repository holds no
+`repo/` tree, and `deploy.yml` only deploys the documentation site. Version
+retention is `make prune-repo` here.
+
+The canonical, per-platform install instructions are the
+[Server Installation](docs/server/installation.html) and
+[Agent Installation](docs/agent/installation.html) pages; this section is a
+summary.
 
 ### DEB Repository (Ubuntu/Debian)
 
@@ -258,59 +279,63 @@ echo "deb [signed-by=/usr/share/keyrings/sysmanage-archive-keyring.gpg] https://
 sudo apt update && sudo apt install sysmanage-agent
 ```
 
+The server has its own repository on the same key: replace `agent` with
+`server` in both URLs and install `sysmanage`.
+
 The repository is GPG-signed; apt verifies every update against that key.
 Primary key fingerprint `896E ED43 9F5E 9BB1 FCA6 69A5 E033 E691 377F 0AE3`
 (confirm with `gpg --show-keys /usr/share/keyrings/sysmanage-archive-keyring.gpg`).
 This README previously documented `[trusted=yes]`, which installs whatever the
 CDN serves without verifying it -- do not reintroduce it.
 
-**Supported Platforms (x86_64/amd64 and aarch64/arm64):**
+On Ubuntu (22.04, 24.04 and 26.04 LTS) the Launchpad PPAs `ppa:bceverly/sysmanage`
+and `ppa:bceverly/sysmanage-agent` are the recommended source. The SysManage
+APT repository serves Debian 12 and newer (amd64 and arm64).
 
-- Ubuntu 26.04 LTS (Resolute) and earlier LTS releases back to 22.04
-- Debian 12 (Bookworm) and later
-
-`apt` automatically selects the correct architecture (amd64 or arm64) for your
-host. The same repository also serves Launchpad PPA builds for both architectures.
-
-### RPM Repository (RHEL/CentOS/Fedora/Rocky/AlmaLinux/Oracle Linux)
-
-RPM packages are available via [Fedora Copr](https://copr.fedorainfracloud.org/coprs/bceverly/sysmanage/) for both **x86_64** and **aarch64** architectures:
+### RHEL family and Fedora (Fedora Copr)
 
 ```bash
-sudo dnf copr enable bceverly/sysmanage
-sudo dnf install sysmanage        # Server
-sudo dnf install sysmanage-agent  # Agent
+sudo dnf install epel-release           # RHEL family only
+sudo dnf copr enable bceverly/sysmanage        # server
+sudo dnf install sysmanage
+sudo dnf copr enable bceverly/sysmanage-agent  # agent
+sudo dnf install sysmanage-agent
 ```
 
-**Supported targets (x86_64 and aarch64):**
+- **Server** (`bceverly/sysmanage`): RHEL, Rocky Linux, AlmaLinux, Oracle Linux
+  and CentOS Stream 9 and 10, x86_64 and aarch64.
+- **Agent** (`bceverly/sysmanage-agent`): the same, plus Fedora 43 and Amazon
+  Linux 2023. Release 8 of the RHEL family is not supported (the agent needs
+  Python 3.9 or newer).
 
-- **EPEL 10 / CentOS Stream 10** - Python 3.12
-- **EPEL 9 / RHEL 9 / Rocky 9 / AlmaLinux 9 / Oracle Linux 9 / CentOS Stream 9** - Python 3.9+
-- **EPEL 8 / RHEL 8 / Rocky 8 / AlmaLinux 8 / Oracle Linux 8** - Python 3.11 via AppStream
-- **Fedora 41, 42, 43** - Python 3.13+
+The agent also has a signed DNF repository for EL9 at
+`https://repo.sysmanage.org/agent/rpm/el9/$basearch`, with `gpgcheck=1` and the
+key at `https://repo.sysmanage.org/agent/rpm/RPM-GPG-KEY-sysmanage`.
 
-### openSUSE/SLES (via Open Build Service)
+### openSUSE and SLES
 
-- **openSUSE Leap 15.x** - Python 3.11
-- **openSUSE Tumbleweed** - Python 3.11+
-- **SUSE Linux Enterprise Server 15** - Python 3.11
+- **Agent:** signed RPM repositories on the mirror for openSUSE Tumbleweed
+  (`agent/rpm/opensuse-tumbleweed/x86_64`) and SLES 15 (`agent/rpm/sles/15/x86_64`).
+- **Server:** the openSUSE Build Service project `home:bryaneverly`.
 
 ### Other Platforms
 
-- **Alpine Linux** 3.19, 3.20, 3.21 - APK packages
-- **macOS** 11+ (Big Sur) - Universal `.pkg` installer (Intel and Apple Silicon)
-- **Windows** 10+ / Server 2019+ - MSI installer (x64 and ARM64)
-- **FreeBSD** 14.0+ - `.pkg` packages (x86_64)
-- **OpenBSD** 7.9, 8.0 - Port tarballs and binary packages (x86_64)
-- **NetBSD** 10.0+ - `.tgz` packages (x86_64)
-- **Snap** - Available via `snap install sysmanage`
-- **Flatpak** - Agent available via Flatpak (x86_64)
+| Platform | Server | Agent |
+| --- | --- | --- |
+| Snap | `snap install sysmanage` (stable) | `sysmanage-agent-strict` (edge, read-only) |
+| Flatpak | -- | [SysManage Flatpak repository](flatpak.html) (read-only, x86_64) |
+| Arch Linux | AUR `sysmanage` | AUR `sysmanage-agent` |
+| macOS | `brew install --cask bceverly/tap/sysmanage` | `brew install bceverly/tap/sysmanage-agent` |
+| Windows | `winget install sysmanage.sysmanage` (MSI, x64 and ARM64) | `winget install sysmanage.sysmanage-agent` (MSI, x64); `.exe` bundle download for x64 and ARM64 |
+| Alpine Linux 3.21, 3.22 | `.apk` download | `.apk` download |
+| FreeBSD | `.pkg` download | `.pkg` download |
+| OpenBSD 7.9, 8.0 | binary package download | binary package download |
+| NetBSD | `.tgz` download | `.tgz` download |
 
-For more details, see:
-
-- [DEB Repository Documentation](https://repo.sysmanage.org/deb/README.md)
-- [RPM Repository Documentation](https://repo.sysmanage.org/rpm/README.md)
-- [General Repository Documentation](https://repo.sysmanage.org/README.md)
+The downloads (Alpine, the BSDs, and the macOS `.pkg` and Windows installers
+when installed by hand) are not signed. Each is published with a `.sha256`
+checksum on the same host; check it before installing. The checksum proves the
+file is complete and unchanged, not who published it.
 
 ## 📁 Repository Structure
 
@@ -329,15 +354,6 @@ sysmanage-docs/
 │   └── administration/    # Admin guides
 ├── roadmap/               # Public roadmap page
 ├── screenshots/           # Capture harness + generated product screenshots
-├── repo/                  # Package repositories
-│   ├── deb/              # Debian/Ubuntu APT repository
-│   ├── rpm/              # Red Hat/Fedora YUM/DNF repository
-│   │   ├── el8/          # RHEL 8, Rocky 8, AlmaLinux 8, Oracle Linux 8
-│   │   ├── el9/          # RHEL 9, Rocky 9, AlmaLinux 9, Oracle Linux 9
-│   │   ├── el10/         # RHEL 10, CentOS Stream 10
-│   │   └── fedora/       # Fedora 41+
-│   ├── agent/            # Agent-specific packages
-│   └── server/           # Server-specific packages
 ├── assets/                # Static assets
 │   ├── css/              # Stylesheets
 │   ├── js/               # JavaScript
@@ -352,7 +368,6 @@ sysmanage-docs/
 
 - **[SysManage Server](https://github.com/bceverly/sysmanage)** - Core management server
 - **[SysManage Agent](https://github.com/bceverly/sysmanage-agent)** - Lightweight monitoring agent
-- **[SysManage CLI](https://github.com/bceverly/sysmanage-cli)** - Command-line interface (coming soon)
 
 ## 📜 License
 

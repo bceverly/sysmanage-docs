@@ -19,7 +19,7 @@
 
             <div class="docs-header">
                 <h1 data-i18n="docs.auto.getting-started.quick-start.004">Quick Start Guide</h1>
-                <p data-i18n="server_quickstart.intro">Install the SysManage server from a native package, point it at PostgreSQL, give nginx a certificate, and open the console. About fifteen minutes on a fresh host.</p>
+                <p data-i18n="server_quickstart.intro_agent">Install the SysManage server from its Ubuntu package, point it at PostgreSQL, give nginx a certificate, open the console, and connect your first agent. About fifteen minutes on a fresh host.</p>
                 <figure class="docs-screenshot">
                     <img src="/assets/images/login-page.png" alt="SysManage login page">
                     <figcaption data-i18n="docs.auto.getting-started.quick-start.126">The SysManage login page.</figcaption>
@@ -29,7 +29,7 @@
             <div class="docs-content">
                 <section class="docs-overview">
                     <h2 data-i18n="server_quickstart.before.title">Before You Begin</h2>
-                    <p data-i18n="server_quickstart.before.body_pkg" data-i18n-html>This guide installs the server from the package built for your platform. For the package on every platform, and for building from source, see the <a href="/docs/server/installation.html">Server Installation</a> guide.</p>
+                    <p data-i18n="server_quickstart.before.body_ubuntu" data-i18n-html>This guide takes the shortest path: the server on Ubuntu 22.04, 24.04 or 26.04 LTS from the signed Launchpad PPA, then one agent. For every other platform, see the <a href="/docs/server/installation.html">Server Installation</a> and <a href="/docs/agent/installation.html">Agent Installation</a> guides; the steps after the install are the same.</p>
                     <ul>
                         <li data-i18n="server_quickstart.before.postgres" data-i18n-html><strong>PostgreSQL 12 or newer</strong>, on this host or a remote one. SysManage will not start without it.</li>
                         <li data-i18n="server_quickstart.before.cert" data-i18n-html><strong>A TLS certificate and private key</strong> for the server's hostname. nginx refuses to start without one -- deliberately, because a management console must not come up in cleartext just because a certificate was missing.</li>
@@ -56,13 +56,8 @@
 sudo apt update
 sudo apt install sysmanage</code></pre>
 
-                            <h4 data-i18n="server_quickstart.step1.rhel_copr">RHEL and compatible distributions</h4>
-                            <pre><code>sudo dnf install epel-release
-sudo dnf copr enable bceverly/sysmanage
-sudo dnf install sysmanage</code></pre>
-
                             <h4 data-i18n="server_quickstart.step1.other">Other platforms</h4>
-                            <p data-i18n="server_quickstart.step1.other_pkg" data-i18n-html>Debian, openSUSE, Arch Linux, Alpine, Snap, macOS, Windows and the BSDs have their own packages; the <a href="/docs/server/installation.html#packages">Server Installation</a> guide gives the command for each. The steps that follow are the same on every platform. Only the paths differ, and the post-install message prints them for you.</p>
+                            <p data-i18n="server_quickstart.step1.other_pkg" data-i18n-html>Debian, the RHEL family, openSUSE, Arch Linux, Alpine, Snap, macOS, Windows and the BSDs have their own packages; the <a href="/docs/server/installation.html#packages">Server Installation</a> guide gives the command for each. The steps that follow are the same on every platform. Only the paths differ, and the post-install message prints them for you.</p>
                         </div>
                     </div>
 
@@ -120,9 +115,6 @@ sudo sysmanage-migrate</code></pre>
 ssl_certificate_key /etc/sysmanage/tls/server.key;</code></pre>
                             <p data-i18n="server_quickstart.step5.letsencrypt" data-i18n-html>If you do not have a certificate yet, <code>certbot certonly --standalone -d your-server.example.com</code> will obtain one; then point the two lines at that name's <code>fullchain.pem</code> and <code>privkey.pem</code>. Check the result before starting:</p>
                             <pre><code>sudo nginx -t</code></pre>
-                            <div class="browser-warning">
-                                <strong data-i18n="server_quickstart.step5.dev_label">Evaluating locally?</strong> <span data-i18n="server_quickstart.step5.dev" data-i18n-html>Set <code>dev_mode: true</code> in <code>/etc/sysmanage.yaml</code> to skip nginx and TLS entirely. The server then serves the web interface on port 3000 and the API on 8080 over plain HTTP, binding every interface so agents elsewhere on your LAN can reach it. Never do this on a production host.</span>
-                            </div>
                         </div>
                     </div>
 
@@ -133,7 +125,12 @@ ssl_certificate_key /etc/sysmanage/tls/server.key;</code></pre>
                         </div>
                         <div class="step-content">
                             <pre><code>sudo systemctl start sysmanage
-sudo systemctl status sysmanage</code></pre>
+sudo systemctl restart nginx
+sudo systemctl status sysmanage
+
+# Open the firewall for HTTPS (and the HTTP redirect), nothing else
+sudo ufw allow 443/tcp
+sudo ufw allow 80/tcp</code></pre>
                             <p data-i18n="server_quickstart.step6.body" data-i18n-html>On the BSDs and other non-systemd platforms, use the service command the post-install message printed.</p>
                         </div>
                     </div>
@@ -146,6 +143,25 @@ sudo systemctl status sysmanage</code></pre>
                         <div class="step-content">
                             <pre><code>https://your-server.example.com/</code></pre>
                             <p data-i18n="server_quickstart.step7.body" data-i18n-html>The web interface and the API share this one origin. Log in with the administrator account from your configuration file -- the user name is an email address.</p>
+                        </div>
+                    </div>
+
+                    <div class="install-step">
+                        <div class="step-header">
+                            <div class="step-number">8</div>
+                            <h3 data-i18n="server_quickstart.step8.title">Connect Your First Agent</h3>
+                        </div>
+                        <div class="step-content">
+                            <p data-i18n="server_quickstart.step8.body" data-i18n-html>On an Ubuntu host you want to manage, install the agent from its Launchpad PPA. For every other platform, see <a href="/docs/agent/installation.html">Agent Installation</a>.</p>
+                            <pre><code>sudo add-apt-repository ppa:bceverly/sysmanage-agent
+sudo apt update
+sudo apt install sysmanage-agent</code></pre>
+                            <p data-i18n="server_quickstart.step8.config" data-i18n-html>Point it at your server in <code>/etc/sysmanage-agent.yaml</code>, using the host name on the server's certificate, then restart it. The agent needs outbound port 443 to the server and nothing else.</p>
+                            <pre><code>server:
+  url: "https://your-server.example.com"
+  verify_ssl: true</code></pre>
+                            <pre><code>sudo systemctl restart sysmanage-agent</code></pre>
+                            <p data-i18n="server_quickstart.step8.approve" data-i18n-html>Within a minute the host appears on the <strong>Hosts</strong> page waiting for approval. Approve it, and it starts reporting.</p>
                         </div>
                     </div>
                 </section>
@@ -176,7 +192,7 @@ curl https://your-server.example.com/api/health/db</code></pre>
 
                 <section class="next-steps">
                     <h2 data-i18n="server_quickstart.next.title">Next Steps</h2>
-                    <p data-i18n="server_quickstart.next.body" data-i18n-html>A server with no hosts does not do much. Install the agent on the machines you want to manage, then approve them:</p>
+                    <p data-i18n="server_quickstart.next.body_more" data-i18n-html>Install the agent on the rest of the machines you want to manage, then approve them:</p>
                     <ul>
                         <li data-i18n="server_quickstart.next.agent" data-i18n-html><a href="/docs/agent/installation.html">Agent Installation</a> -- packages for Windows, Linux, macOS and the BSDs.</li>
                         <li data-i18n="server_quickstart.next.approval" data-i18n-html><a href="/docs/getting-started/agent-approval.html">Agent Approval</a> -- how a new host joins the fleet.</li>

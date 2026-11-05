@@ -1291,7 +1291,7 @@ lint-css-fix: ensure-css-lint-tools
 	@./node_modules/.bin/stylelint "assets/css/**/*.css" --fix
 	@echo "[OK] CSS auto-fix completed"
 
-lint: lint-file-length lint-license-headers lint-python lint-security lint-js lint-css i18n-validate i18n-strict i18n-verify i18n-markup i18n-code i18n-html-sync translate-check
+lint: lint-file-length lint-license-headers lint-python lint-security lint-js lint-css matrix-check i18n-validate i18n-strict i18n-verify i18n-markup i18n-code i18n-html-sync translate-check
 	@echo "[OK] docs lint (python + security + js + i18n) passed"
 
 # Structure gate. i18n-validate asks "is the key there?", translate-check asks
@@ -1322,6 +1322,24 @@ i18n-html-sync:
 	@echo "=== i18n html sync (page English == en.json) ==="
 	@$(PYTHON) scripts/i18n_check_html_sync.py
 	@echo "[OK] i18n html sync gate passed"
+
+# Editions and platform tables: one source, data/capabilities.yaml, written
+# into every page that shows them (between <!-- matrix:NAME:start/end -->).
+# matrix-check (in lint) fails when a page no longer matches the data.
+matrix: $(VENV_ACTIVATE)
+	@$(PYTHON) scripts/build_matrix.py
+
+matrix-check: $(VENV_ACTIVATE)
+	@$(PYTHON) scripts/build_matrix.py --check
+.PHONY: matrix matrix-check
+
+# The fix for an html-sync failure after rewording a page: carries the page's
+# English into en.json and marks the 13 translations [TODO] for `make
+# translate` (keys whose words did not change keep their translations).
+# PAGES="docs/x.html ..." limits it to those pages; default is every page.
+i18n-resync:
+	@$(PYTHON) scripts/i18n_resync.py $(PAGES)
+.PHONY: i18n-resync
 
 # i18n: collect data-i18n="..." attributes from every .html and verify
 # every key exists in every locale .json within budget.  Run

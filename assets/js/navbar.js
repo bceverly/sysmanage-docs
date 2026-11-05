@@ -17,10 +17,22 @@
         },
         links: [
             {
+                href: '/platform/',
+                text: 'Platform',
+                i18n: 'nav.platform',
+                activePattern: /\/(platform|cross-platform-management|bsd-management|air-gapped)\//
+            },
+            {
                 href: '/solutions/',
                 text: 'Solutions',
                 i18n: 'nav.solutions',
-                activePattern: /\/(solutions|air-gapped|cross-platform-management|bsd-management)\//
+                activePattern: /\/solutions\//
+            },
+            {
+                href: '/pricing/',
+                text: 'Pricing',
+                i18n: 'nav.pricing',
+                activePattern: /\/pricing\//
             },
             {
                 href: '/docs/',
@@ -35,21 +47,17 @@
                 activePattern: /\/roadmap\//
             },
             {
-                href: '/config-builder.html',
-                text: 'Configuration Builder',
-                i18n: 'nav.config_builder'
-            },
-            {
                 href: 'https://github.com/bceverly/sysmanage',
-                text: 'Server GitHub',
-                i18n: 'nav.github_server',
+                text: 'GitHub',
+                i18n: 'nav.github',
                 external: true
             },
             {
-                href: 'https://github.com/bceverly/sysmanage-agent',
-                text: 'Agent GitHub',
-                i18n: 'nav.github_agent',
-                external: true
+                href: '/evaluate/',
+                text: 'Evaluate',
+                i18n: 'nav.evaluate',
+                cta: true,
+                activePattern: /\/evaluate\//
             }
         ]
     };
@@ -116,9 +124,10 @@
             const href = adjustPath(link.href);
             const isExternal = link.external;
             const active = isActive(link) ? ' active' : '';
-            const externalAttrs = isExternal ? ' target="_blank"' : '';
+            const externalAttrs = isExternal ? ' target="_blank" rel="noopener"' : '';
+            const cta = link.cta ? ' nav-cta' : '';
 
-            return `<a href="${href}" class="nav-link${active}" data-i18n="${link.i18n}"${externalAttrs}>${link.text}</a>`;
+            return `<a href="${href}" class="nav-link${cta}${active}" data-i18n="${link.i18n}"${externalAttrs}>${link.text}</a>`;
         }).join('\n                    ');
 
         // Build complete navigation HTML

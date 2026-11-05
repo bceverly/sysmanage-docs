@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Package Operation Tracking - SysManage Architecture</title>
-    <meta name="description" content="Database schema design and architecture for tracking package installation and uninstallation operations in SysManage.">
+    <meta name="description" content="How SysManage tracks package install and uninstall requests: the installation_requests and installation_packages tables, statuses, and the request flow between server and agent." data-i18n="docs.architecture.pkgops.meta_description" data-i18n-attr="content">
     <link rel="stylesheet" href="/assets/css/style.css">
     <link rel="icon" type="image/svg+xml" href="/assets/images/favicon.svg">
 </head>
@@ -19,34 +19,22 @@
 
             <div class="docs-header">
                 <h1 data-i18n="docs.auto.architecture.package-operation-tracking.004">Package Operation Tracking</h1>
-                <p data-i18n="docs.auto.architecture.package-operation-tracking.005">Database schema design and implementation for comprehensive tracking of package installation and uninstallation operations.</p>
+                <p data-i18n="docs.architecture.pkgops.lead">How SysManage records a request to install or uninstall packages on a host, sends it to the agent, and records the result.</p>
             </div>
 
             <div class="docs-content">
                 <section class="overview">
                     <h2 data-i18n="docs.auto.architecture.package-operation-tracking.006">Architecture Overview</h2>
-                    <p data-i18n="docs.auto.architecture.package-operation-tracking.007">SysManage implements a comprehensive package operation tracking system that provides full audit trails, real-time status monitoring, and historical analysis of all package management activities across the infrastructure.</p>
+                    <p data-i18n="docs.architecture.pkgops.overview">Each request from the console becomes one row in installation_requests, one row per package in installation_packages, and one queued command to the host's agent. The request ID is a UUID that travels to the agent and back, so the agent's completion report lands on the right row.</p>
 
                     <div class="key-features">
                         <h3 data-i18n="docs.auto.architecture.package-operation-tracking.008">Key Features</h3>
                         <ul>
-                            <li data-i18n="docs.auto.architecture.package-operation-tracking.009"><strong>Unified Operation Tracking:</strong> Single schema for both installation and uninstallation operations</li>
-                            <li data-i18n="docs.auto.architecture.package-operation-tracking.010"><strong>UUID-based Grouping:</strong> Efficient tracking of bulk operations using unique identifiers</li>
-                            <li data-i18n="docs.auto.architecture.package-operation-tracking.011"><strong>Real-time Status Updates:</strong> Live progress monitoring through WebSocket connections</li>
-                            <li data-i18n="docs.auto.architecture.package-operation-tracking.012"><strong>Complete Audit Trail:</strong> Full user attribution and timestamping for compliance</li>
-                            <li data-i18n="docs.auto.architecture.package-operation-tracking.013"><strong>Performance Optimization:</strong> Indexed queries for efficient reporting and filtering</li>
-                            <li data-i18n="docs.auto.architecture.package-operation-tracking.014"><strong>Backward Compatibility:</strong> Seamless migration from installation-only tracking</li>
-                        </ul>
-                    </div>
-
-                    <div class="design-principles">
-                        <h3 data-i18n="docs.auto.architecture.package-operation-tracking.015">Design Principles</h3>
-                        <ul>
-                            <li data-i18n="docs.auto.architecture.package-operation-tracking.016"><strong>Atomicity:</strong> Operations are tracked as atomic units with clear success/failure states</li>
-                            <li data-i18n="docs.auto.architecture.package-operation-tracking.017"><strong>Traceability:</strong> Every operation can be traced back to the requesting user and timestamp</li>
-                            <li data-i18n="docs.auto.architecture.package-operation-tracking.018"><strong>Scalability:</strong> Schema designed to handle high-volume operations across large infrastructures</li>
-                            <li data-i18n="docs.auto.architecture.package-operation-tracking.019"><strong>Extensibility:</strong> Architecture supports future operation types and metadata expansion</li>
-                            <li data-i18n="docs.auto.architecture.package-operation-tracking.020"><strong>Consistency:</strong> Standardized status values and operation lifecycle management</li>
+                            <li data-i18n="docs.architecture.pkgops.feat_unified" data-i18n-html><strong>One schema for both directions:</strong> <code>operation_type</code> is <code>install</code> or <code>uninstall</code>.</li>
+                            <li data-i18n="docs.architecture.pkgops.feat_grouped" data-i18n-html><strong>One UUID per request:</strong> several packages travel in one command and are reported as one result.</li>
+                            <li data-i18n="docs.architecture.pkgops.feat_queue" data-i18n-html><strong>Store-and-forward delivery:</strong> the command goes through the server's <code>message_queue</code>, and the agent's report goes through the agent's own outbound queue, so neither side loses the message if the connection drops.</li>
+                            <li data-i18n="docs.architecture.pkgops.feat_audit" data-i18n-html><strong>Audit trail:</strong> every queued request is written to <code>audit_log</code> with the user, host, and package list.</li>
+                            <li data-i18n="docs.architecture.pkgops.feat_rbac" data-i18n-html><strong>Role checks:</strong> installing needs the Add Package role and uninstalling needs the Remove Package role.</li>
                         </ul>
                     </div>
                 </section>
@@ -55,123 +43,55 @@
                     <h2 data-i18n="docs.auto.architecture.package-operation-tracking.021">Database Schema Design</h2>
 
                     <div class="primary-table">
-                        <h3 data-i18n="docs.auto.architecture.package-operation-tracking.022">Software Installation Log Table</h3>
-                        <p data-i18n="docs.auto.architecture.package-operation-tracking.023">The core table for tracking all package operations:</p>
-
-                        <div class="code-block">
-                            <pre><code>CREATE TABLE software_installation_log (
-    -- Primary key and relationships
-    id SERIAL PRIMARY KEY,
-    host_id INTEGER REFERENCES host(id) ON DELETE CASCADE,
-
-    -- Package identification
-    package_name VARCHAR(255) NOT NULL,
-    package_manager VARCHAR(50) NOT NULL,
-    requested_version VARCHAR(100),
-
-    -- User attribution and tracking
-    requested_by VARCHAR(100) NOT NULL,
-    installation_id VARCHAR(36) NOT NULL UNIQUE,  -- UUID for operation tracking
-
-    -- Operation control
-    status VARCHAR(20) DEFAULT 'pending' NOT NULL,
-    operation_type VARCHAR(20) DEFAULT 'install' NOT NULL,  -- NEW: install/uninstall
-
-    -- Lifecycle timestamps
-    requested_at TIMESTAMP WITH TIME ZONE NOT NULL,
-    queued_at TIMESTAMP WITH TIME ZONE,
-    started_at TIMESTAMP WITH TIME ZONE,
-    completed_at TIMESTAMP WITH TIME ZONE,
-
-    -- Operation results
-    installed_version VARCHAR(100),
-    success BOOLEAN,
-    error_message TEXT,
-    installation_log TEXT,  -- Full command output and logs
-
-    -- Record metadata
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP NOT NULL,
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP NOT NULL
-);</code></pre>
-                        </div>
-
-                        <h4 data-i18n="docs.auto.architecture.package-operation-tracking.024">Key Schema Enhancements for Uninstall Support</h4>
-                        <ul>
-                            <li data-i18n="docs.auto.architecture.package-operation-tracking.025"><strong>operation_type Column:</strong> Differentiates between 'install' and 'uninstall' operations</li>
-                            <li data-i18n="docs.auto.architecture.package-operation-tracking.026"><strong>Enhanced Indexing:</strong> Optimized for filtering by operation type and status</li>
-                            <li data-i18n="docs.auto.architecture.package-operation-tracking.027"><strong>Backward Compatibility:</strong> Existing records default to 'install' operation type</li>
-                            <li data-i18n="docs.auto.architecture.package-operation-tracking.028"><strong>Unified Workflow:</strong> Same status lifecycle for both operation types</li>
-                        </ul>
-                    </div>
-
-                    <div class="supporting-tables">
-                        <h3 data-i18n="docs.auto.architecture.package-operation-tracking.029">UUID-based Request Tracking Tables</h3>
-                        <p data-i18n="docs.auto.architecture.package-operation-tracking.030">Additional tables for managing grouped operations:</p>
-
-                        <h4 data-i18n="docs.auto.architecture.package-operation-tracking.031">Installation Requests Table</h4>
+                        <h3 data-i18n="docs.auto.architecture.package-operation-tracking.031">Installation Requests Table</h3>
+                        <p data-i18n="docs.architecture.pkgops.req_intro">One row per console request:</p>
                         <div class="code-block">
                             <pre><code>CREATE TABLE installation_requests (
-    id VARCHAR(36) PRIMARY KEY,  -- UUID
-    host_id INTEGER REFERENCES host(id) ON DELETE CASCADE,
+    id UUID NOT NULL,                        -- the request ID sent to the agent
+    host_id UUID NOT NULL,
     requested_by VARCHAR(100) NOT NULL,
-    requested_at TIMESTAMP WITH TIME ZONE NOT NULL,
-    completed_at TIMESTAMP WITH TIME ZONE,
+    requested_at TIMESTAMP WITHOUT TIME ZONE NOT NULL,
+    completed_at TIMESTAMP WITHOUT TIME ZONE,
     status VARCHAR(20) DEFAULT 'pending' NOT NULL,
-    result_log TEXT,
-    created_at TIMESTAMP WITH TIME ZONE NOT NULL,
-    updated_at TIMESTAMP WITH TIME ZONE NOT NULL
+    operation_type VARCHAR(20) DEFAULT 'install' NOT NULL,   -- install | uninstall
+    result_log TEXT,                         -- output reported by the agent
+    created_at TIMESTAMP WITHOUT TIME ZONE NOT NULL,
+    updated_at TIMESTAMP WITHOUT TIME ZONE NOT NULL,
+    PRIMARY KEY (id),
+    FOREIGN KEY (host_id) REFERENCES host (id) ON DELETE CASCADE
 );</code></pre>
                         </div>
 
-                        <h4 data-i18n="docs.auto.architecture.package-operation-tracking.032">Installation Packages Table</h4>
+                        <h3 data-i18n="docs.auto.architecture.package-operation-tracking.032">Installation Packages Table</h3>
+                        <p data-i18n="docs.architecture.pkgops.pkgs_intro">One row per package in a request:</p>
                         <div class="code-block">
                             <pre><code>CREATE TABLE installation_packages (
-    id SERIAL PRIMARY KEY,
-    installation_request_id VARCHAR(36) REFERENCES installation_requests(id) ON DELETE CASCADE,
+    id UUID NOT NULL,
+    installation_request_id UUID NOT NULL,
     package_name VARCHAR(255) NOT NULL,
-    package_manager VARCHAR(50) NOT NULL
+    package_manager VARCHAR(50) NOT NULL,    -- 'auto': the agent picks
+    PRIMARY KEY (id),
+    FOREIGN KEY (installation_request_id)
+        REFERENCES installation_requests (id) ON DELETE CASCADE
 );</code></pre>
                         </div>
-
-                        <h4 data-i18n="docs.auto.architecture.package-operation-tracking.033">Benefits of UUID-based Tracking</h4>
-                        <ul>
-                            <li data-i18n="docs.auto.architecture.package-operation-tracking.034"><strong>Atomic Operations:</strong> Multiple packages grouped under single UUID for all-or-nothing operations</li>
-                            <li data-i18n="docs.auto.architecture.package-operation-tracking.035"><strong>Simplified Tracking:</strong> Single request ID for monitoring bulk operations</li>
-                            <li data-i18n="docs.auto.architecture.package-operation-tracking.036"><strong>Improved Performance:</strong> Reduced query complexity for grouped operations</li>
-                            <li data-i18n="docs.auto.architecture.package-operation-tracking.037"><strong>Better User Experience:</strong> Clear progress indication for multi-package operations</li>
-                        </ul>
                     </div>
 
                     <div class="indexing-strategy">
                         <h3 data-i18n="docs.auto.architecture.package-operation-tracking.038">Index Strategy</h3>
-                        <p data-i18n="docs.auto.architecture.package-operation-tracking.039">Optimized indexes for efficient querying and reporting:</p>
-
                         <div class="code-block">
-                            <pre><code>-- Primary indexes for software_installation_log
-CREATE INDEX ix_software_installation_log_host_id ON software_installation_log(host_id);
-CREATE INDEX ix_software_installation_log_installation_id ON software_installation_log(installation_id);
-CREATE INDEX ix_software_installation_log_status ON software_installation_log(status);
-CREATE INDEX ix_software_installation_log_operation_type ON software_installation_log(operation_type);
-CREATE INDEX ix_software_installation_log_requested_at ON software_installation_log(requested_at);
-CREATE INDEX ix_software_installation_log_package_name ON software_installation_log(package_name);
-
--- Composite indexes for common query patterns
-CREATE INDEX ix_software_installation_log_host_operation ON software_installation_log(host_id, operation_type);
-CREATE INDEX ix_software_installation_log_status_operation ON software_installation_log(status, operation_type);
-
--- Supporting table indexes
-CREATE INDEX ix_installation_requests_requested_at ON installation_requests(requested_at);
-CREATE INDEX ix_installation_requests_status ON installation_requests(status);
-CREATE INDEX ix_installation_packages_installation_request_id ON installation_packages(installation_request_id);</code></pre>
+                            <pre><code>CREATE INDEX ix_installation_requests_requested_at ON installation_requests (requested_at);
+CREATE INDEX ix_installation_requests_status ON installation_requests (status);
+CREATE INDEX ix_installation_requests_operation_type ON installation_requests (operation_type);
+CREATE INDEX ix_installation_packages_installation_request_id
+    ON installation_packages (installation_request_id);</code></pre>
                         </div>
+                        <p data-i18n="docs.architecture.pkgops.idx_note" data-i18n-html>The history view reads a host's requests newest first by <code>requested_at</code>; the packages of each request are found through <code>installation_request_id</code>.</p>
+                    </div>
 
-                        <h4 data-i18n="docs.auto.architecture.package-operation-tracking.040">Index Usage Patterns</h4>
-                        <ul>
-                            <li data-i18n="docs.auto.architecture.package-operation-tracking.041"><strong>Host-based Queries:</strong> Quick lookup of operations for specific hosts</li>
-                            <li data-i18n="docs.auto.architecture.package-operation-tracking.042"><strong>Status Filtering:</strong> Efficient filtering by operation status and type</li>
-                            <li data-i18n="docs.auto.architecture.package-operation-tracking.043"><strong>Time-based Reporting:</strong> Chronological analysis of operations</li>
-                            <li data-i18n="docs.auto.architecture.package-operation-tracking.044"><strong>Package Search:</strong> Fast package name lookups across operations</li>
-                        </ul>
+                    <div class="supporting-tables">
+                        <h3 data-i18n="docs.auto.architecture.package-operation-tracking.022">Software Installation Log Table</h3>
+                        <p data-i18n="docs.architecture.pkgops.swlog_intro" data-i18n-html><code>software_installation_log</code> tracks single-package installs by an <code>installation_id</code>. When an agent sends <code>package_installation_status</code> for such an install, the server sets the row's status, sets <code>started_at</code> on <code>installing</code>, and on <code>completed</code> or <code>failed</code> records <code>completed_at</code>, <code>success</code>, the installed version, the error message, and the log. Console install and uninstall requests use <code>installation_requests</code> instead.</p>
                     </div>
                 </section>
 
@@ -181,319 +101,38 @@ CREATE INDEX ix_installation_packages_installation_request_id ON installation_pa
                     <div class="status-flow">
                         <h3 data-i18n="docs.auto.architecture.package-operation-tracking.046">Status Flow Diagram</h3>
                         <div class="code-block">
-                            <pre><code>pending → queued → in_progress → completed
-   ↓          ↓           ↓           ↓
-cancelled   cancelled   failed    (final state)
-   ↓          ↓           ↓
-(final)    (final)    (final)</code></pre>
+                            <pre><code>pending --&gt; in_progress --+--&gt; completed
+                          |
+                          +--&gt; failed</code></pre>
                         </div>
 
                         <h4 data-i18n="docs.auto.architecture.package-operation-tracking.047">Status Definitions</h4>
                         <ul>
-                            <li data-i18n="docs.auto.architecture.package-operation-tracking.048"><strong>pending:</strong> Operation created but not yet queued for execution</li>
-                            <li data-i18n="docs.auto.architecture.package-operation-tracking.049"><strong>queued:</strong> Operation queued and waiting for agent processing</li>
-                            <li data-i18n="docs.auto.architecture.package-operation-tracking.050"><strong>in_progress:</strong> Agent actively executing the operation</li>
-                            <li data-i18n="docs.auto.architecture.package-operation-tracking.051"><strong>completed:</strong> Operation finished successfully</li>
-                            <li data-i18n="docs.auto.architecture.package-operation-tracking.052"><strong>failed:</strong> Operation encountered an error and could not complete</li>
-                            <li data-i18n="docs.auto.architecture.package-operation-tracking.053"><strong>canceled:</strong> Operation was canceled before completion</li>
-                        </ul>
-                    </div>
-
-                    <div class="timestamp-tracking">
-                        <h3 data-i18n="docs.auto.architecture.package-operation-tracking.054">Timestamp Tracking</h3>
-                        <p data-i18n="docs.auto.architecture.package-operation-tracking.055">Comprehensive timestamp tracking for performance analysis and SLA monitoring:</p>
-
-                        <ul>
-                            <li data-i18n="docs.auto.architecture.package-operation-tracking.056"><strong>requested_at:</strong> When the user initiated the operation</li>
-                            <li data-i18n="docs.auto.architecture.package-operation-tracking.057"><strong>queued_at:</strong> When the operation was added to the agent queue</li>
-                            <li data-i18n="docs.auto.architecture.package-operation-tracking.058"><strong>started_at:</strong> When the agent began executing the operation</li>
-                            <li data-i18n="docs.auto.architecture.package-operation-tracking.059"><strong>completed_at:</strong> When the operation finished (success or failure)</li>
-                            <li data-i18n="docs.auto.architecture.package-operation-tracking.060"><strong>created_at:</strong> Record creation timestamp (audit trail)</li>
-                            <li data-i18n="docs.auto.architecture.package-operation-tracking.061"><strong>updated_at:</strong> Last record modification timestamp</li>
-                        </ul>
-
-                        <h4 data-i18n="docs.auto.architecture.package-operation-tracking.062">Performance Metrics Derived from Timestamps</h4>
-                        <ul>
-                            <li data-i18n="docs.auto.architecture.package-operation-tracking.063"><strong>Queue Wait Time:</strong> queued_at - requested_at</li>
-                            <li data-i18n="docs.auto.architecture.package-operation-tracking.064"><strong>Execution Time:</strong> completed_at - started_at</li>
-                            <li data-i18n="docs.auto.architecture.package-operation-tracking.065"><strong>Total Operation Time:</strong> completed_at - requested_at</li>
-                            <li data-i18n="docs.auto.architecture.package-operation-tracking.066"><strong>Agent Response Time:</strong> started_at - queued_at</li>
-                        </ul>
-                    </div>
-
-                    <div class="operation-results">
-                        <h3 data-i18n="docs.auto.architecture.package-operation-tracking.067">Operation Results Storage</h3>
-                        <p data-i18n="docs.auto.architecture.package-operation-tracking.068">Detailed storage of operation outcomes for troubleshooting and compliance:</p>
-
-                        <h4 data-i18n="docs.auto.architecture.package-operation-tracking.069">Success Tracking</h4>
-                        <ul>
-                            <li data-i18n="docs.auto.architecture.package-operation-tracking.070"><strong>success (boolean):</strong> Overall operation success/failure indicator</li>
-                            <li data-i18n="docs.auto.architecture.package-operation-tracking.071"><strong>installed_version:</strong> Actual version installed/uninstalled</li>
-                            <li data-i18n="docs.auto.architecture.package-operation-tracking.072"><strong>installation_log:</strong> Complete command output and system logs</li>
-                        </ul>
-
-                        <h4 data-i18n="docs.auto.architecture.package-operation-tracking.073">Error Handling</h4>
-                        <ul>
-                            <li data-i18n="docs.auto.architecture.package-operation-tracking.074"><strong>error_message:</strong> High-level error description for UI display</li>
-                            <li data-i18n="docs.auto.architecture.package-operation-tracking.075"><strong>installation_log:</strong> Detailed error output for debugging</li>
-                            <li data-i18n="docs.auto.architecture.package-operation-tracking.076"><strong>Structured Error Codes:</strong> Standardized error classification for automated handling</li>
+                            <li data-i18n="docs.architecture.pkgops.st_pending" data-i18n-html><strong>pending:</strong> The request and package rows are written, before the command is queued.</li>
+                            <li data-i18n="docs.architecture.pkgops.st_inprogress" data-i18n-html><strong>in_progress:</strong> The command is in the server's message queue or with the agent.</li>
+                            <li data-i18n="docs.architecture.pkgops.st_completed" data-i18n-html><strong>completed:</strong> The agent reported success for every package in the request.</li>
+                            <li data-i18n="docs.architecture.pkgops.st_failed" data-i18n-html><strong>failed:</strong> The agent reported that at least one package failed.</li>
                         </ul>
                     </div>
                 </section>
 
-                <section class="data-migration">
-                    <h2 data-i18n="docs.auto.architecture.package-operation-tracking.077">Data Migration and Compatibility</h2>
-
-                    <div class="migration-strategy">
-                        <h3 data-i18n="docs.auto.architecture.package-operation-tracking.078">Migration from Installation-Only Schema</h3>
-                        <p data-i18n="docs.auto.architecture.package-operation-tracking.079">The migration to support uninstall operations was designed for zero-downtime deployment:</p>
-
-                        <h4 data-i18n="docs.auto.architecture.package-operation-tracking.080">Migration Steps</h4>
-                        <ol>
-                            <li data-i18n="docs.auto.architecture.package-operation-tracking.081"><strong>Schema Extension:</strong> Add operation_type column with default 'install' value</li>
-                            <li data-i18n="docs.auto.architecture.package-operation-tracking.082"><strong>Index Creation:</strong> Add new indexes for operation type filtering</li>
-                            <li data-i18n="docs.auto.architecture.package-operation-tracking.083"><strong>Backward Compatibility:</strong> Existing application code continues to work</li>
-                            <li data-i18n="docs.auto.architecture.package-operation-tracking.084"><strong>Gradual Adoption:</strong> New uninstall features enabled incrementally</li>
-                        </ol>
-
-                        <div class="code-block">
-                            <pre><code>-- Migration SQL for adding uninstall support
-ALTER TABLE software_installation_log
-ADD COLUMN operation_type VARCHAR(20) DEFAULT 'install' NOT NULL;
-
-CREATE INDEX ix_software_installation_log_operation_type
-ON software_installation_log(operation_type);
-
-CREATE INDEX ix_software_installation_log_host_operation
-ON software_installation_log(host_id, operation_type);</code></pre>
-                        </div>
-                    </div>
-
-                    <div class="compatibility-considerations">
-                        <h3 data-i18n="docs.auto.architecture.package-operation-tracking.085">Compatibility Considerations</h3>
-                        <ul>
-                            <li data-i18n="docs.auto.architecture.package-operation-tracking.086"><strong>API Versioning:</strong> New endpoints maintain backward compatibility</li>
-                            <li data-i18n="docs.auto.architecture.package-operation-tracking.087"><strong>Default Values:</strong> Schema defaults ensure existing queries continue to work</li>
-                            <li data-i18n="docs.auto.architecture.package-operation-tracking.088"><strong>UI Graceful Degradation:</strong> Interface works with both old and new data</li>
-                            <li data-i18n="docs.auto.architecture.package-operation-tracking.089"><strong>Report Compatibility:</strong> Existing reports automatically include new operation types</li>
-                        </ul>
-                    </div>
+                <section class="request-flow">
+                    <h2 data-i18n="docs.architecture.pkgops.flow_title">Request Flow</h2>
+                    <ol>
+                        <li data-i18n="docs.architecture.pkgops.flow_1" data-i18n-html><strong>Request:</strong> the console calls <code>POST /api/v1/packages/install/{host_id}</code> or <code>POST /api/v1/packages/uninstall/{host_id}</code> with the package names. The server checks the user's role and that the host is active and approved.</li>
+                        <li data-i18n="docs.architecture.pkgops.flow_2" data-i18n-html><strong>Record:</strong> the server generates the request UUID, writes the <code>installation_requests</code> row as <code>pending</code> and one <code>installation_packages</code> row per package, and commits.</li>
+                        <li data-i18n="docs.architecture.pkgops.flow_3" data-i18n-html><strong>Queue:</strong> the server enqueues one outbound <code>command</code> message for the host, a <code>generic_command</code> that carries <code>install_packages</code> or <code>uninstall_packages</code> with the request ID, the packages, and who asked. It then marks the request <code>in_progress</code> and writes the audit entry.</li>
+                        <li data-i18n="docs.architecture.pkgops.flow_4" data-i18n-html><strong>Run:</strong> the agent records the request in its local database, groups the packages by package manager, and installs or removes them.</li>
+                        <li data-i18n="docs.architecture.pkgops.flow_5" data-i18n-html><strong>Report:</strong> the agent queues an <code>installation_complete</code> message with the request ID, overall success, and the combined log. The server sets the request to <code>completed</code> or <code>failed</code>, stores <code>completed_at</code> and <code>result_log</code>, and replies with <code>installation_complete_ack</code>.</li>
+                    </ol>
                 </section>
 
-                <section class="performance-considerations">
-                    <h2 data-i18n="docs.auto.architecture.package-operation-tracking.090">Performance and Scalability</h2>
-
-                    <div class="query-optimization">
-                        <h3 data-i18n="docs.auto.architecture.package-operation-tracking.091">Query Optimization Strategies</h3>
-
-                        <h4 data-i18n="docs.auto.architecture.package-operation-tracking.092">Common Query Patterns</h4>
-                        <div class="code-block">
-                            <pre><code>-- Get recent operations for a host (optimized with host_id index)
-SELECT * FROM software_installation_log
-WHERE host_id = ?
-ORDER BY requested_at DESC
-LIMIT 50;
-
--- Filter by operation type (optimized with composite index)
-SELECT * FROM software_installation_log
-WHERE host_id = ? AND operation_type = 'uninstall'
-ORDER BY requested_at DESC;
-
--- Status monitoring query (optimized with status index)
-SELECT COUNT(*) FROM software_installation_log
-WHERE status = 'in_progress'
-GROUP BY operation_type;
-
--- Performance analytics query
-SELECT
-    operation_type,
-    AVG(EXTRACT(EPOCH FROM (completed_at - started_at))) as avg_execution_time,
-    COUNT(*) as operation_count
-FROM software_installation_log
-WHERE completed_at IS NOT NULL
-    AND started_at IS NOT NULL
-    AND requested_at > NOW() - INTERVAL '30 days'
-GROUP BY operation_type;</code></pre>
-                        </div>
-
-                        <h4 data-i18n="docs.auto.architecture.package-operation-tracking.093">Index Effectiveness</h4>
-                        <ul>
-                            <li data-i18n="docs.auto.architecture.package-operation-tracking.094"><strong>Single Column Indexes:</strong> Efficient for status and operation type filtering</li>
-                            <li data-i18n="docs.auto.architecture.package-operation-tracking.095"><strong>Composite Indexes:</strong> Optimal for multi-column WHERE clauses</li>
-                            <li data-i18n="docs.auto.architecture.package-operation-tracking.096"><strong>Timestamp Indexes:</strong> Essential for time-based reporting and cleanup</li>
-                            <li data-i18n="docs.auto.architecture.package-operation-tracking.097"><strong>Foreign Key Indexes:</strong> Critical for join performance with host table</li>
-                        </ul>
-                    </div>
-
-                    <div class="scalability-design">
-                        <h3 data-i18n="docs.auto.architecture.package-operation-tracking.098">Scalability Considerations</h3>
-
-                        <h4 data-i18n="docs.auto.architecture.package-operation-tracking.099">High-Volume Environments</h4>
-                        <ul>
-                            <li data-i18n="docs.auto.architecture.package-operation-tracking.100"><strong>Partitioning Strategy:</strong> Time-based partitioning for large installations</li>
-                            <li data-i18n="docs.auto.architecture.package-operation-tracking.101"><strong>Archive Strategy:</strong> Automated archival of old operation records</li>
-                            <li data-i18n="docs.auto.architecture.package-operation-tracking.102"><strong>Read Replicas:</strong> Separate read replicas for reporting queries</li>
-                            <li data-i18n="docs.auto.architecture.package-operation-tracking.103"><strong>Connection Pooling:</strong> Efficient database connection management</li>
-                        </ul>
-
-                        <h4 data-i18n="docs.auto.architecture.package-operation-tracking.104">Storage Optimization</h4>
-                        <ul>
-                            <li data-i18n="docs.auto.architecture.package-operation-tracking.105"><strong>Log Compression:</strong> Compress installation_log field for large outputs</li>
-                            <li data-i18n="docs.auto.architecture.package-operation-tracking.106"><strong>Retention Policies:</strong> Configurable retention for compliance and storage management</li>
-                            <li data-i18n="docs.auto.architecture.package-operation-tracking.107"><strong>Archival Automation:</strong> Automated movement of old records to cold storage</li>
-                        </ul>
-                    </div>
-
-                    <div class="monitoring-metrics">
-                        <h3 data-i18n="docs.auto.architecture.package-operation-tracking.108">Database Performance Monitoring</h3>
-
-                        <h4 data-i18n="docs.auto.architecture.package-operation-tracking.109">Key Metrics to Monitor</h4>
-                        <ul>
-                            <li data-i18n="docs.auto.architecture.package-operation-tracking.110"><strong>Query Performance:</strong> Average execution time for common queries</li>
-                            <li data-i18n="docs.auto.architecture.package-operation-tracking.111"><strong>Index Usage:</strong> Utilization rates for all indexes</li>
-                            <li data-i18n="docs.auto.architecture.package-operation-tracking.112"><strong>Table Growth:</strong> Rate of record insertion and table size growth</li>
-                            <li data-i18n="docs.auto.architecture.package-operation-tracking.113"><strong>Lock Contention:</strong> Database lock wait times during high activity</li>
-                            <li data-i18n="docs.auto.architecture.package-operation-tracking.114"><strong>Connection Usage:</strong> Database connection pool utilization</li>
-                        </ul>
-
-                        <h4 data-i18n="docs.auto.architecture.package-operation-tracking.115">Performance Alerts</h4>
-                        <ul>
-                            <li data-i18n="docs.auto.architecture.package-operation-tracking.116">Query execution time exceeding thresholds</li>
-                            <li data-i18n="docs.auto.architecture.package-operation-tracking.117">Index usage dropping below expected levels</li>
-                            <li data-i18n="docs.auto.architecture.package-operation-tracking.118">Table size growing beyond planned capacity</li>
-                            <li data-i18n="docs.auto.architecture.package-operation-tracking.119">Long-running transactions blocking operations</li>
-                        </ul>
-                    </div>
-                </section>
-
-                <section class="security-compliance">
-                    <h2 data-i18n="docs.auto.architecture.package-operation-tracking.120">Security and Compliance Features</h2>
-
-                    <div class="audit-capabilities">
-                        <h3 data-i18n="docs.auto.architecture.package-operation-tracking.121">Audit Trail Implementation</h3>
-                        <p data-i18n="docs.auto.architecture.package-operation-tracking.122">Comprehensive audit capabilities for regulatory compliance and security monitoring:</p>
-
-                        <h4 data-i18n="docs.auto.architecture.package-operation-tracking.123">Audit Data Points</h4>
-                        <ul>
-                            <li data-i18n="docs.auto.architecture.package-operation-tracking.124"><strong>User Attribution:</strong> Every operation linked to requesting user account</li>
-                            <li data-i18n="docs.auto.architecture.package-operation-tracking.125"><strong>Timestamp Precision:</strong> Microsecond-precision timestamps with timezone information</li>
-                            <li data-i18n="docs.auto.architecture.package-operation-tracking.126"><strong>Operation Details:</strong> Complete record of what was changed and how</li>
-                            <li data-i18n="docs.auto.architecture.package-operation-tracking.127"><strong>Source Tracking:</strong> API endpoint or UI interaction that initiated the operation</li>
-                            <li data-i18n="docs.auto.architecture.package-operation-tracking.128"><strong>Result Logging:</strong> Success/failure status with detailed error information</li>
-                        </ul>
-
-                        <h4 data-i18n="docs.auto.architecture.package-operation-tracking.129">Immutable Records</h4>
-                        <ul>
-                            <li data-i18n="docs.auto.architecture.package-operation-tracking.130">Records are never deleted, only marked as archived</li>
-                            <li data-i18n="docs.auto.architecture.package-operation-tracking.131">Update operations only modify status and timestamp fields</li>
-                            <li data-i18n="docs.auto.architecture.package-operation-tracking.132">Original request data is preserved for audit purposes</li>
-                            <li data-i18n="docs.auto.architecture.package-operation-tracking.133">Database triggers prevent unauthorized modifications</li>
-                        </ul>
-                    </div>
-
-                    <div class="data-protection">
-                        <h3 data-i18n="docs.auto.architecture.package-operation-tracking.134">Data Protection and Privacy</h3>
-
-                        <h4 data-i18n="docs.auto.architecture.package-operation-tracking.135">Sensitive Data Handling</h4>
-                        <ul>
-                            <li data-i18n="docs.auto.architecture.package-operation-tracking.136"><strong>User Information:</strong> Only essential user identifiers stored</li>
-                            <li data-i18n="docs.auto.architecture.package-operation-tracking.137"><strong>Log Sanitization:</strong> System logs filtered to remove sensitive information</li>
-                            <li data-i18n="docs.auto.architecture.package-operation-tracking.138"><strong>Access Controls:</strong> Database-level permissions restrict access to audit data</li>
-                            <li data-i18n="docs.auto.architecture.package-operation-tracking.139"><strong>Encryption:</strong> Sensitive fields encrypted at rest and in transit</li>
-                        </ul>
-
-                        <h4 data-i18n="docs.auto.architecture.package-operation-tracking.140">Compliance Support</h4>
-                        <ul>
-                            <li data-i18n="docs.auto.architecture.package-operation-tracking.141"><strong>GDPR Compliance:</strong> Data retention and deletion policies</li>
-                            <li data-i18n="docs.auto.architecture.package-operation-tracking.142"><strong>SOX Compliance:</strong> Immutable audit trails with timestamp integrity</li>
-                            <li data-i18n="docs.auto.architecture.package-operation-tracking.143"><strong>PCI DSS:</strong> Secure handling of system change records</li>
-                            <li data-i18n="docs.auto.architecture.package-operation-tracking.144"><strong>HIPAA:</strong> Protected health information handling in healthcare environments</li>
-                        </ul>
-                    </div>
-
-                    <div class="access-control">
-                        <h3 data-i18n="docs.auto.architecture.package-operation-tracking.145">Database Access Control</h3>
-
-                        <h4 data-i18n="docs.auto.architecture.package-operation-tracking.146">Role-Based Permissions</h4>
-                        <ul>
-                            <li data-i18n="docs.auto.architecture.package-operation-tracking.147"><strong>Read-Only Users:</strong> Limited to SELECT operations for reporting</li>
-                            <li data-i18n="docs.auto.architecture.package-operation-tracking.148"><strong>Application Users:</strong> INSERT and UPDATE permissions for operation tracking</li>
-                            <li data-i18n="docs.auto.architecture.package-operation-tracking.149"><strong>Administrative Users:</strong> Full access for maintenance and troubleshooting</li>
-                            <li data-i18n="docs.auto.architecture.package-operation-tracking.150"><strong>Audit Users:</strong> Specialized access for compliance and security teams</li>
-                        </ul>
-
-                        <h4 data-i18n="docs.auto.architecture.package-operation-tracking.151">Security Monitoring</h4>
-                        <ul>
-                            <li data-i18n="docs.auto.architecture.package-operation-tracking.152">Database access logging for all operations</li>
-                            <li data-i18n="docs.auto.architecture.package-operation-tracking.153">Automated alerts for unusual access patterns</li>
-                            <li data-i18n="docs.auto.architecture.package-operation-tracking.154">Regular access reviews and permission audits</li>
-                            <li data-i18n="docs.auto.architecture.package-operation-tracking.155">Integration with security information and event management (SIEM) systems</li>
-                        </ul>
-                    </div>
-                </section>
-
-                <section class="implementation-notes">
-                    <h2 data-i18n="docs.auto.architecture.package-operation-tracking.156">Implementation Notes and Best Practices</h2>
-
-                    <div class="development-guidelines">
-                        <h3 data-i18n="docs.auto.architecture.package-operation-tracking.157">Development Guidelines</h3>
-
-                        <h4 data-i18n="docs.auto.architecture.package-operation-tracking.158">Database Operations</h4>
-                        <ul>
-                            <li data-i18n="docs.auto.architecture.package-operation-tracking.159"><strong>Transaction Management:</strong> Use explicit transactions for multi-table operations</li>
-                            <li data-i18n="docs.auto.architecture.package-operation-tracking.160"><strong>Error Handling:</strong> Implement comprehensive error handling with detailed logging</li>
-                            <li data-i18n="docs.auto.architecture.package-operation-tracking.161"><strong>Retry Logic:</strong> Build retry mechanisms for transient database errors</li>
-                            <li data-i18n="docs.auto.architecture.package-operation-tracking.162"><strong>Connection Management:</strong> Use connection pooling and proper resource cleanup</li>
-                        </ul>
-
-                        <h4 data-i18n="docs.auto.architecture.package-operation-tracking.163">Performance Best Practices</h4>
-                        <ul>
-                            <li data-i18n="docs.auto.architecture.package-operation-tracking.164"><strong>Bulk Operations:</strong> Use batch inserts for high-volume operations</li>
-                            <li data-i18n="docs.auto.architecture.package-operation-tracking.165"><strong>Query Optimization:</strong> Regular review and optimization of query plans</li>
-                            <li data-i18n="docs.auto.architecture.package-operation-tracking.166"><strong>Index Maintenance:</strong> Monitor and maintain index effectiveness</li>
-                            <li data-i18n="docs.auto.architecture.package-operation-tracking.167"><strong>Statistics Updates:</strong> Regular database statistics updates for optimal query planning</li>
-                        </ul>
-                    </div>
-
-                    <div class="operational-procedures">
-                        <h3 data-i18n="docs.auto.architecture.package-operation-tracking.168">Operational Procedures</h3>
-
-                        <h4 data-i18n="docs.auto.architecture.package-operation-tracking.169">Backup and Recovery</h4>
-                        <ul>
-                            <li data-i18n="docs.auto.architecture.package-operation-tracking.170"><strong>Regular Backups:</strong> Daily full backups with transaction log backups</li>
-                            <li data-i18n="docs.auto.architecture.package-operation-tracking.171"><strong>Point-in-Time Recovery:</strong> Capability to restore to specific timestamps</li>
-                            <li data-i18n="docs.auto.architecture.package-operation-tracking.172"><strong>Backup Testing:</strong> Regular validation of backup integrity and restore procedures</li>
-                            <li data-i18n="docs.auto.architecture.package-operation-tracking.173"><strong>Disaster Recovery:</strong> Documented procedures for database recovery</li>
-                        </ul>
-
-                        <h4 data-i18n="docs.auto.architecture.package-operation-tracking.174">Maintenance Tasks</h4>
-                        <ul>
-                            <li data-i18n="docs.auto.architecture.package-operation-tracking.175"><strong>Index Reorganization:</strong> Regular index maintenance for optimal performance</li>
-                            <li data-i18n="docs.auto.architecture.package-operation-tracking.176"><strong>Statistics Updates:</strong> Automated statistics updates for query optimization</li>
-                            <li data-i18n="docs.auto.architecture.package-operation-tracking.177"><strong>Log Cleanup:</strong> Automated cleanup of old operation logs based on retention policies</li>
-                            <li data-i18n="docs.auto.architecture.package-operation-tracking.178"><strong>Performance Monitoring:</strong> Continuous monitoring of database performance metrics</li>
-                        </ul>
-                    </div>
-
-                    <div class="future-considerations">
-                        <h3 data-i18n="docs.auto.architecture.package-operation-tracking.179">Future Enhancements</h3>
-
-                        <h4 data-i18n="docs.auto.architecture.package-operation-tracking.180">Planned Improvements</h4>
-                        <ul>
-                            <li data-i18n="docs.auto.architecture.package-operation-tracking.181"><strong>Enhanced Metadata:</strong> Additional operation metadata for better analytics</li>
-                            <li data-i18n="docs.auto.architecture.package-operation-tracking.182"><strong>Advanced Filtering:</strong> More sophisticated query and filtering capabilities</li>
-                            <li data-i18n="docs.auto.architecture.package-operation-tracking.183"><strong>Real-time Analytics:</strong> Streaming analytics for operation monitoring</li>
-                            <li data-i18n="docs.auto.architecture.package-operation-tracking.184"><strong>Integration APIs:</strong> Enhanced APIs for external system integration</li>
-                        </ul>
-
-                        <h4 data-i18n="docs.auto.architecture.package-operation-tracking.185">Scalability Roadmap</h4>
-                        <ul>
-                            <li data-i18n="docs.auto.architecture.package-operation-tracking.186"><strong>Horizontal Scaling:</strong> Sharding strategy for very large deployments</li>
-                            <li data-i18n="docs.auto.architecture.package-operation-tracking.187"><strong>Time-series Optimization:</strong> Specialized storage for time-series operation data</li>
-                            <li data-i18n="docs.auto.architecture.package-operation-tracking.188"><strong>Machine Learning:</strong> Predictive analytics for operation success rates</li>
-                            <li data-i18n="docs.auto.architecture.package-operation-tracking.189"><strong>Advanced Reporting:</strong> Enhanced reporting and visualization capabilities</li>
-                        </ul>
-                    </div>
+                <section class="api-endpoints">
+                    <h2 data-i18n="docs.architecture.pkgops.api_title">History Endpoints</h2>
+                    <ul>
+                        <li data-i18n="docs.architecture.pkgops.api_history" data-i18n-html><code>GET /api/v1/packages/installation-history/{host_id}</code>: a host's requests, newest first, each with its comma-separated package names, status, operation type, and log. Paged with <code>limit</code> (1-100, default 50) and <code>offset</code>.</li>
+                        <li data-i18n="docs.architecture.pkgops.api_delete" data-i18n-html><code>DELETE /api/v1/packages/installation-history/{request_id}</code>: deletes a request and its package rows.</li>
+                    </ul>
                 </section>
             </div>
 
@@ -501,7 +140,7 @@ GROUP BY operation_type;</code></pre>
                 <div class="docs-navigation">
                     <h3 data-i18n="docs.auto.architecture.package-operation-tracking.190">Related Architecture Documentation</h3>
                     <div class="nav-links">
-                        <a href="database-schema.html" class="nav-link" data-i18n="docs.auto.architecture.package-operation-tracking.191">← Database Design</a>
+                        <a href="database-schema.html" class="nav-link" data-i18n="docs.architecture.pkgops.nav_schema">← Database Schema</a>
                         <a href="message-flow.html" class="nav-link" data-i18n="docs.auto.architecture.package-operation-tracking.192">Message Flow & Queuing →</a>
                         <a href="../administration/package-management.html" class="nav-link" data-i18n="docs.auto.architecture.package-operation-tracking.193">Package Management Guide →</a>
                     </div>
@@ -509,9 +148,10 @@ GROUP BY operation_type;</code></pre>
             </div>
         </div>
     </main>
-    <!-- Footer injected automatically by components.js -->    <script src="/assets/js/components.js"></script>
+    <!-- Footer injected automatically by components.js -->
+    <script src="/assets/js/components.js"></script>
     <script src="/assets/js/i18n.js"></script>
-    <script src="/assets/js/main.js"></script>
     <script src="/assets/js/navbar.js"></script>
+    <script src="/assets/js/main.js"></script>
 </body>
 </html>
