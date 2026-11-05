@@ -20,8 +20,7 @@ WHAT IT HAS TO SHOW
       - Jordan Lee    Waiting for the two-factor code: the "Enter code"
                       button the code-dialog shot presses;
       - Priya Patel   Needs sign-in: Apple's sign-in ran out;
-      - Morgan Diaz   Failed: Advanced Data Protection without web access,
-                      and "Deletes from iCloud after download" set.
+      - Morgan Diaz   Failed: Advanced Data Protection without web access.
 
 The storage host is inactive in the VM, so the cloud tick starts nothing; the
 running and waiting jobs report "now", so its stuck-job reaper (3 hours
@@ -56,13 +55,13 @@ ICLOUDPD = "1.32.3"  # the agent's pinned version (cloud_backup/tool.py)
 ALT = os.environ.get("SEED_BACKUPS_ALT", "").strip().lower() in ("1", "true", "yes")
 
 # (name, Apple ID, state, days since sign-in, last good hours ago, photos,
-#  GB stored, auto-delete)
+#  GB stored)
 ACCOUNTS = (
-    ("Alex Rivera", "alex.rivera@example.com", "ok", 20, 5, 18_432, 96.4, False),
-    ("Sam Chen", "sam.chen@example.com", "running", 41, 26, 9_210, 41.7, False),
-    ("Jordan Lee", "jordan.lee@example.com", "waiting_code", None, None, None, None, False),
-    ("Priya Patel", "priya.patel@example.com", "needs_sign_in", 61, 50, 27_905, 158.2, False),
-    ("Morgan Diaz", "morgan.diaz@example.com", "failed", 12, 75, 4_388, 19.6, True),
+    ("Alex Rivera", "alex.rivera@example.com", "ok", 20, 5, 18_432, 96.4),
+    ("Sam Chen", "sam.chen@example.com", "running", 41, 26, 9_210, 41.7),
+    ("Jordan Lee", "jordan.lee@example.com", "waiting_code", None, None, None, None),
+    ("Priya Patel", "priya.patel@example.com", "needs_sign_in", 61, 50, 27_905, 158.2),
+    ("Morgan Diaz", "morgan.diaz@example.com", "failed", 12, 75, 4_388, 19.6),
 )
 
 
@@ -121,7 +120,7 @@ def _history(session, account, storage, state, last_good):
 
 
 def _accounts(session, target, storage):
-    for index, (name, apple_id, state, signed_in, last_good, photos, stored, auto_delete) \
+    for index, (name, apple_id, state, signed_in, last_good, photos, stored) \
             in enumerate(ACCOUNTS):  # fmt: skip
         account_id = uuid.uuid4()
         account = CloudBackupAccount(
@@ -130,7 +129,7 @@ def _accounts(session, target, storage):
             password_ref=f"secret/data/sysmanage/cloud-backup/{account_id}",
             password_set_at=NOW - timedelta(days=30 - index),
             dir_name="icloud-" + account_id.hex[:8], enabled=True, interval_hours=24,
-            until_found=50, auto_delete=auto_delete,
+            until_found=50,
             state="needs_sign_in" if state == "needs_sign_in" else
                   ("failed" if state == "failed" else ("new" if signed_in is None else "ok")),
             session_created_at=NOW - timedelta(days=signed_in) if signed_in is not None else None,

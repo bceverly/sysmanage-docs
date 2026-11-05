@@ -63,7 +63,11 @@ jobs:
           aws configure set default.s3.multipart_threshold 512MB
           # The classic client moves 10 files at a time by default; the flatpak
           # OSTree store alone is thousands of small objects.
-          aws configure set default.s3.max_concurrent_requests 64
+          # Not 64: R2 answers that with 503 "Reduce your concurrent request rate"
+          # (agent 3.12.1.1, 2026-11-04).  Adaptive retries back off on a 503.
+          aws configure set default.s3.max_concurrent_requests 16
+          aws configure set default.retry_mode adaptive
+          aws configure set default.max_attempts 10
           CC="public, max-age=31536000, immutable"
           DRY=""
           [ "$DRY_RUN" = "true" ] && DRY="--dryrun"
