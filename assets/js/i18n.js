@@ -323,11 +323,42 @@ class I18n {
         });
     }
 
+    // What the page itself says, kept before the first translation replaces
+    // it: a string not translated yet in the reader's language (still
+    // "[TODO]") shows this English, never the marker or the key.  Only the
+    // reader's language file is fetched, so this is the English at hand.
+    // Copies of the element's own nodes, never parsed from text.
+    static original(element) {
+        if (!element.__i18nOriginal) {
+            const attr = element.getAttribute('data-i18n-attr');
+            element.__i18nOriginal = attr
+                ? { attr, value: element.getAttribute(attr) }
+                : { nodes: Array.from(element.childNodes, node => node.cloneNode(true)) };
+        }
+        return element.__i18nOriginal;
+    }
+
+    static restoreOriginal(element) {
+        const original = I18n.original(element);
+        if (original.attr) {
+            if (original.value !== null) element.setAttribute(original.attr, original.value);
+        } else {
+            element.replaceChildren(...original.nodes.map(node => node.cloneNode(true)));
+        }
+    }
+
     applyLanguage() {
         const elements = document.querySelectorAll('[data-i18n]');
         elements.forEach(element => {
             const key = element.getAttribute('data-i18n');
-            const translation = I18n.fillInlineParts(this.t(key), element);
+            I18n.original(element);
+            I18n.inlineParts(element);
+            const found = this.lookup(key);
+            if (found === undefined) {
+                I18n.restoreOriginal(element);
+                return;
+            }
+            const translation = I18n.fillInlineParts(found, element);
 
             if (element.hasAttribute('data-i18n-attr')) {
                 const attr = element.getAttribute('data-i18n-attr');
@@ -349,14 +380,20 @@ class I18n {
         const placeholderElements = document.querySelectorAll('[data-i18n-placeholder]');
         placeholderElements.forEach(element => {
             const key = element.getAttribute('data-i18n-placeholder');
-            const translation = this.t(key);
-            element.setAttribute('placeholder', translation);
+            if (element.__i18nPlaceholder === undefined) {
+                element.__i18nPlaceholder = element.getAttribute('placeholder');
+            }
+            const found = this.lookup(key);
+            const translation = found !== undefined ? found : element.__i18nPlaceholder;
+            if (translation !== null) element.setAttribute('placeholder', translation);
         });
 
         // Update document title
         const titleKey = document.documentElement.getAttribute('data-i18n-title');
         if (titleKey) {
-            document.title = this.t(titleKey);
+            if (this.originalTitle === undefined) this.originalTitle = document.title;
+            const found = this.lookup(titleKey);
+            document.title = found !== undefined ? found : this.originalTitle;
         }
     }
 
@@ -364,12 +401,8 @@ class I18n {
         const langTranslations = this.translations[this.currentLanguage] || {};
         const fallbackTranslations = this.translations['en'] || {};
 
-        // A value still marked "[TODO]" is not translated yet: show the
-        // English, never the marker (a page may be published before every
-        // language has caught up).
-        let translation = I18n.translated(this.getNestedValue(langTranslations, key)) ||
-                         this.getNestedValue(fallbackTranslations, key) ||
-                         key;
+        let translation = this.lookup(key, langTranslations, fallbackTranslations);
+        if (translation === undefined) translation = key;
 
         // Replace parameters
         Object.entries(params).forEach(([param, value]) => {
@@ -377,6 +410,17 @@ class I18n {
         });
 
         return translation;
+    }
+
+    /** The reader's translation of ``key``, else English when it is loaded,
+     * else undefined.  A value still marked "[TODO]" is not translated yet:
+     * a page may be published before every language has caught up. */
+    lookup(key, own = this.translations[this.currentLanguage] || {},
+        english = this.translations['en'] || {}) {
+        const mine = I18n.translated(this.getNestedValue(own, key));
+        if (typeof mine === 'string' && mine) return mine;
+        const fallback = I18n.translated(this.getNestedValue(english, key));
+        return typeof fallback === 'string' && fallback ? fallback : undefined;
     }
 
     static translated(value) {
