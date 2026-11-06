@@ -32,8 +32,8 @@ SKIP_DIRS = {"node_modules", "screenshots", "scripts", "Presentations", "SignPat
 # (pattern, why) -- each matched against page text with tags kept, so a
 # command in <pre><code> and prose both count.
 FORBIDDEN = [
-    (r"curl[^\n|<]*\|\s*(sudo\s+)?(ba)?sh\b", "curl piped to a shell -- install the signed packages instead"),
-    (r"wget[^\n|<]*\|\s*(sudo\s+)?(ba)?sh\b", "wget piped to a shell -- install the signed packages instead"),
+    (r"curl[^\n|<]*\|\s*(sudo\s+)?(bash|sh)\b", "curl piped to a shell -- install the signed packages instead"),
+    (r"wget[^\n|<]*\|\s*(sudo\s+)?(bash|sh)\b", "wget piped to a shell -- install the signed packages instead"),
     (r"install\.sysmanage\.(org|com)", "install.sysmanage.* does not exist"),
     (r"releases\.sysmanage\.org", "releases.sysmanage.org does not exist; use repo.sysmanage.org"),
     (r"\[\s*trusted=yes\s*\]", "trusted=yes disables APT signature checks"),

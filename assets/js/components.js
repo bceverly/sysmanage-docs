@@ -191,7 +191,17 @@ class Components {
         }
         const tag = document.createElement('p');
         tag.className = 'docs-version-tag';
-        tag.innerHTML = `<span data-i18n="docs.version_tag">Describes SysManage</span> <strong>${DOCS_VERSION}</strong> &middot; <a href="${this.siteRoot}docs/release-notes.html" data-i18n="docs.version_tag_notes">Release notes</a>`;
+        // Built from elements, not an HTML string: nothing here is parsed.
+        const label = document.createElement('span');
+        label.setAttribute('data-i18n', 'docs.version_tag');
+        label.textContent = 'Describes SysManage';
+        const version = document.createElement('strong');
+        version.textContent = DOCS_VERSION;
+        const notes = document.createElement('a');
+        notes.href = `${this.siteRoot}docs/release-notes.html`;
+        notes.setAttribute('data-i18n', 'docs.version_tag_notes');
+        notes.textContent = 'Release notes';
+        tag.append(label, ' ', version, ' \u00b7 ', notes);
         anchor.insertAdjacentElement(anchor.classList.contains('docs-breadcrumb') ? 'afterend' : 'afterbegin', tag);
     }
 }
