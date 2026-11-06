@@ -5,6 +5,9 @@
 // SysManage Documentation Site - Reusable Components
 // This file contains HTML components that are dynamically injected into pages
 
+// The release these documentation pages describe (shown on every docs page).
+const DOCS_VERSION = '3.12';
+
 class Components {
     constructor() {
         this.siteRoot = this.detectSiteRoot();
@@ -168,6 +171,28 @@ class Components {
         if (body.hasAttribute('data-auto-footer')) {
             this.injectFooter();
         }
+
+        // Every documentation page says which release it describes, so a
+        // reader cannot apply instructions to the wrong version.
+        if (body.getAttribute('data-auto-header') === 'documentation') {
+            this.injectVersionTag();
+        }
+    }
+
+    /**
+     * Insert "These pages describe SysManage X.Y" under the breadcrumb (or at
+     * the top of the docs header).  The version lives in DOCS_VERSION below;
+     * change it with each feature release.
+     */
+    injectVersionTag() {
+        const anchor = document.querySelector('.docs-breadcrumb') || document.querySelector('.docs-header');
+        if (!anchor || document.querySelector('.docs-version-tag')) {
+            return;
+        }
+        const tag = document.createElement('p');
+        tag.className = 'docs-version-tag';
+        tag.innerHTML = `<span data-i18n="docs.version_tag">Describes SysManage</span> <strong>${DOCS_VERSION}</strong> &middot; <a href="${this.siteRoot}docs/release-notes.html" data-i18n="docs.version_tag_notes">Release notes</a>`;
+        anchor.insertAdjacentElement(anchor.classList.contains('docs-breadcrumb') ? 'afterend' : 'afterbegin', tag);
     }
 }
 

@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en" data-i18n-title="docs.upgrade.meta_title">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title data-i18n="docs.upgrade.meta_title">Upgrading and Rolling Back - SysManage</title>
+    <meta name="description" data-i18n="docs.upgrade.meta_description" data-i18n-attr="content" content="How to upgrade a SysManage server on each platform, what each package does during an upgrade, how to apply the database migrations, how to update agents, and what rolling back can and cannot do.">
+    <link rel="stylesheet" href="/assets/css/style.css">
+    <link rel="icon" type="image/svg+xml" href="/assets/images/favicon.svg">
+</head>
+<body data-auto-header="documentation" data-auto-footer>
+    <main class="docs-main">
+        <div class="container">
+            <div class="docs-breadcrumb"><a href="../" data-i18n="docs.upgrade.crumb_docs">Documentation</a> &gt; <a href="./" data-i18n="docs.upgrade.crumb_section">Deployment</a> &gt; <span data-i18n="docs.upgrade.crumb_page">Upgrading and Rolling Back</span></div>
+            <div class="docs-header">
+                <h1 data-i18n="docs.upgrade.title">Upgrading and Rolling Back</h1>
+                <p data-i18n="docs.upgrade.intro">How to move a SysManage server to a new release, what each platform's package does on its own and what it leaves to you, how to update the agents, and what to do if the new release has to come off again.</p>
+            </div>
+            <div class="docs-content">
+                <section class="docs-section">
+                    <h2 data-i18n="docs.upgrade.h_before">Before you upgrade</h2>
+                    <ol>
+                        <li data-i18n="docs.upgrade.before_notes" data-i18n-html><strong>Read the release notes</strong> for every release between yours and the new one.</li>
+                        <li data-i18n="docs.upgrade.before_backup" data-i18n-html><strong>Take a full backup</strong> -- databases, OpenBAO, configuration and certificates -- as described in <a href="../administration/backup.html">Backing Up and Recovering the Server</a>. It is your way back if a rollback is not enough.</li>
+                        <li data-i18n="docs.upgrade.before_status" data-i18n-html><strong>Check the current schema:</strong> <code>sudo sysmanage-migrate --status</code> should show nothing pending, so the upgrade's migrations are the only ones that run.</li>
+                        <li data-i18n="docs.upgrade.before_engines" data-i18n-html><strong>Professional+: check the engines.</strong> <code>GET /api/v1/license/module-compat</code> lists engines that cannot load on this server (<code>incompatibilities</code>) and engine updates held back because they need a newer server (<code>pending_updates</code>). Held-back updates install after the server upgrade; the installed engine stays in use until then.</li>
+                        <li data-i18n="docs.upgrade.before_window" data-i18n-html><strong>Plan a short outage.</strong> A single server is offline while it restarts. Agents reconnect on their own and messages queued in the database are delivered afterward; see <a href="../server/scaling.html">Scaling</a> for how long a large fleet takes to reconnect.</li>
+                    </ol>
+
+                    <h2 data-i18n="docs.upgrade.h_packages">Upgrading the package</h2>
+                    <p data-i18n="docs.upgrade.packages_intro">The packages differ in whether they restart the server and whether they apply the database migrations. None of them loses your configuration.</p>
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th data-i18n="docs.upgrade.pkg_col_platform">Platform</th>
+                                <th data-i18n="docs.upgrade.pkg_col_command">Upgrade command</th>
+                                <th data-i18n="docs.upgrade.pkg_col_does">What the package does</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td data-i18n="docs.upgrade.pkg_deb_platform">Ubuntu, Debian</td>
+                                <td data-i18n="docs.upgrade.pkg_deb_command" data-i18n-html><code>sudo apt update &amp;&amp; sudo apt install --only-upgrade sysmanage</code></td>
+                                <td data-i18n="docs.upgrade.pkg_deb_does">Stops the server for the upgrade and leaves it stopped. Does not migrate. Prints the two steps that remain: migrate, then restart.</td>
+                            </tr>
+                            <tr>
+                                <td data-i18n="docs.upgrade.pkg_rhel_platform">RHEL family (Copr)</td>
+                                <td data-i18n="docs.upgrade.pkg_rhel_command" data-i18n-html><code>sudo dnf upgrade sysmanage</code></td>
+                                <td data-i18n="docs.upgrade.pkg_rhel_does">Restarts the server if it was running, without migrating. The new release then runs on the old schema until you migrate.</td>
+                            </tr>
+                            <tr>
+                                <td data-i18n="docs.upgrade.pkg_suse_platform">openSUSE</td>
+                                <td data-i18n="docs.upgrade.pkg_suse_command" data-i18n-html><code>sudo zypper refresh &amp;&amp; sudo zypper update sysmanage</code></td>
+                                <td data-i18n="docs.upgrade.pkg_suse_does" data-i18n-html>Restarts the server after the update (the openSUSE default, unless <code>DISABLE_RESTART_ON_UPDATE=yes</code> is set in <code>/etc/sysconfig/services</code>), without migrating.</td>
+                            </tr>
+                            <tr>
+                                <td data-i18n="docs.upgrade.pkg_fbsd_platform">FreeBSD</td>
+                                <td data-i18n="docs.upgrade.pkg_fbsd_command" data-i18n-html>Install the new <code>sysmanage-X.Y.Z.pkg</code> as in <a href="../server/installation.html">Installation</a></td>
+                                <td data-i18n="docs.upgrade.pkg_fbsd_does" data-i18n-html>Removing the old version stops the server; the new one does not start it or migrate. Migrate with <code>cd /usr/local/lib/sysmanage &amp;&amp; doas -u sysmanage .venv/bin/python scripts/sysmanage_migrate.py</code>, then <code>service sysmanage start</code>.</td>
+                            </tr>
+                            <tr>
+                                <td data-i18n="docs.upgrade.pkg_mac_platform">macOS</td>
+                                <td data-i18n="docs.upgrade.pkg_mac_command" data-i18n-html><code>brew upgrade --cask bceverly/tap/sysmanage</code></td>
+                                <td data-i18n="docs.upgrade.pkg_mac_does" data-i18n-html>Does not migrate or restart the server. Migrate with <code>cd /usr/local/lib/sysmanage &amp;&amp; sudo .venv/bin/python scripts/sysmanage_migrate.py</code>, then <code>sudo launchctl kickstart -k system/com.sysmanage.server</code>.</td>
+                            </tr>
+                            <tr>
+                                <td data-i18n="docs.upgrade.pkg_win_platform">Windows</td>
+                                <td data-i18n="docs.upgrade.pkg_win_command" data-i18n-html><code>winget upgrade --id sysmanage.sysmanage --exact</code>, or run the new MSI</td>
+                                <td data-i18n="docs.upgrade.pkg_win_does" data-i18n-html>Applies the migrations and starts <code>SysManageServer</code> by itself. If the migration fails, the server still starts, shows the migration banner, and the failure is written to the install log and to the Application event log (source SysManage, event 1001) with the command to run again.</td>
+                            </tr>
+                        </tbody>
+                    </table>
+
+                    <h2 data-i18n="docs.upgrade.h_migrate">Applying the migrations and restarting</h2>
+                    <p data-i18n="docs.upgrade.migrate_intro" data-i18n-html>On Linux, after the package upgrade:</p>
+                    <pre><code>sudo sysmanage-migrate --status   # what is pending; changes nothing
+sudo sysmanage-migrate            # apply it; safe to run again
+sudo systemctl restart sysmanage
+sudo systemctl status sysmanage</code></pre>
+                    <p data-i18n="docs.upgrade.migrate_what" data-i18n-html><code>sysmanage-migrate</code> runs the server's own migration tool as the <code>sysmanage</code> user against <code>/etc/sysmanage.yaml</code>: the registry, shared and tenant chains of the bootstrap database, then every tenant database. It only moves forward. <code>--dry-run</code> shows what would run, <code>--no-tenants</code> skips the tenant databases and <code>--tenants-only</code> runs only them.</p>
+                    <p data-i18n="docs.upgrade.migrate_restart" data-i18n-html><strong>Restart after migrating, even if the server was already running.</strong> A Professional+ engine that was refused at startup because the schema was too old loads only when the server starts again. If you migrated while the server was running, the yellow banner changes to "Restart SysManage to load Pro+ engines", and those engines' features stay off until you restart. See <a href="../administration/maintenance.html">Maintenance</a> for the banner.</p>
+                    <p data-i18n="docs.upgrade.migrate_verify" data-i18n-html>Then check that <code>/api/health</code> and <code>/api/health/db</code> answer, that no migration banner is shown, and that hosts turn active as their agents reconnect.</p>
+
+                    <h3 data-i18n="docs.upgrade.h_tenants">Multi-tenant servers</h3>
+                    <ul>
+                        <li data-i18n="docs.upgrade.tenants_openbao" data-i18n-html>The tenant step leases each tenant's database credentials from OpenBAO, so OpenBAO must be running and unsealed when you migrate.</li>
+                        <li data-i18n="docs.upgrade.tenants_order">Tenant databases are migrated one at a time, with a progress bar. A tenant that fails does not stop the others; the command reports how many failed and exits with an error.</li>
+                        <li data-i18n="docs.upgrade.tenants_retry" data-i18n-html>Fix the cause, then run <code>sudo sysmanage-migrate --tenants-only</code>. <code>--status</code> lists every tenant with its revision and marks the ones still <code>PENDING</code>.</li>
+                        <li data-i18n="docs.upgrade.tenants_mixed">While the tenants are migrated, the running server serves migrated and unmigrated tenants side by side. Migrations are written for exactly this: a release only adds to the schema.</li>
+                    </ul>
+
+                    <h2 data-i18n="docs.upgrade.h_agents">Updating the agents</h2>
+                    <p data-i18n="docs.upgrade.agents_compat">The server has no minimum agent version. Each agent reports what it can do, and the server sends a host only the commands its agent supports; a host whose agent lacks a capability is shown as limited, and an older agent that reports nothing is never blocked. Mixed versions are therefore fine. New features need both a new server and a new agent, so upgrade the server first, then the agents at your own pace.</p>
+                    <ul>
+                        <li data-i18n="docs.upgrade.agents_ui" data-i18n-html><strong>From the console:</strong> <strong>Update Agent</strong> on a host's page, or <strong>Update Agent on Selected</strong> in the Hosts list (needs the Update Agent role). This works for agents on Linux and FreeBSD.</li>
+                        <li data-i18n="docs.upgrade.agents_pkg" data-i18n-html><strong>With the package manager:</strong> Windows and macOS agents answer that self-update is not supported yet, and OpenBSD and NetBSD agents do not update themselves either. Update those with winget, Homebrew or the platform's package tools, or through your own software distribution. See <a href="../agent/installation.html">Agent Installation</a>.</li>
+                    </ul>
+
+                    <h2 data-i18n="docs.upgrade.h_rollback">Rolling back</h2>
+                    <p data-i18n="docs.upgrade.rollback_intro" data-i18n-html><code>sysmanage-migrate</code> has no downgrade option, and rolling the schema back is not the way back: a downgrade drops what the upgrade added, data included. Instead, releases follow the expand-contract rule: a release only adds tables and columns, and removing anything waits for a later release. The previous release is designed to keep running against a database that one release has migrated. So to roll back, put the previous package back and leave the database as it is.</p>
+                    <ol>
+                        <li data-i18n="docs.upgrade.rollback_stop" data-i18n-html>Stop the server: <code>sudo systemctl stop sysmanage</code>.</li>
+                        <li data-i18n="docs.upgrade.rollback_pkg" data-i18n-html>Install the previous version: <code>sudo apt install sysmanage=&lt;version&gt;</code>, <code>sudo dnf downgrade sysmanage-&lt;version&gt;</code> or <code>sudo zypper install --oldpackage sysmanage-&lt;version&gt;</code>. If the repository no longer offers it, install the package file you kept (apt keeps downloaded packages in <code>/var/cache/apt/archives</code> until they are cleaned). On Windows, macOS and FreeBSD, install the previous release's package from the releases page.</li>
+                        <li data-i18n="docs.upgrade.rollback_start" data-i18n-html>Start the server and check <code>/api/health</code>, the banner and the agents, as after an upgrade.</li>
+                    </ol>
+                    <div class="warning-box">
+                        <h3 data-i18n="docs.upgrade.rollback_remove_title">Never remove the package to reinstall it</h3>
+                        <p data-i18n="docs.upgrade.rollback_remove_body" data-i18n-html>Removing the RHEL or openSUSE package (<code>dnf remove</code>, <code>zypper remove</code>), or purging the Debian package (<code>apt purge</code>), deletes <code>/etc/sysmanage</code> -- the agents' CA, the TLS certificate and the OpenBAO token -- and <code>/var/lib/sysmanage</code>. Downgrade in place as shown above.</p>
+                    </div>
+                    <p data-i18n="docs.upgrade.rollback_engines" data-i18n-html><strong>Professional+ engines after a rollback.</strong> The previous release does not know the newest migration in the database, so an engine that declares a minimum schema revision can be refused, with a banner asking for migrations that cannot help. If engines you depend on stay refused, use the fallback below.</p>
+                    <p data-i18n="docs.upgrade.rollback_restore" data-i18n-html><strong>The fallback: restore the pre-upgrade backup.</strong> Install the previous package, then restore the databases and OpenBAO from the backup you took before upgrading, as in <a href="../administration/backup.html">Backing Up and Recovering the Server</a>. Everything that happened since that backup is lost, so this is the last resort, not the first.</p>
+                    <p data-i18n="docs.upgrade.rollback_tenants" data-i18n-html>On a multi-tenant server the same applies to every tenant database: rolling back the package leaves all of them migrated; restoring means restoring every tenant database from the same backup run.</p>
+
+                    <h2 data-i18n="docs.upgrade.h_related">Related pages</h2>
+                    <ul>
+                        <li data-i18n="docs.upgrade.related_migrations" data-i18n-html><a href="../architecture/database-migrations.html">Database Migrations</a> -- the chains, expand-contract and downgrades.</li>
+                        <li data-i18n="docs.upgrade.related_maintenance" data-i18n-html><a href="../administration/maintenance.html">Maintenance</a> -- the migration banner and routine upkeep.</li>
+                        <li data-i18n="docs.upgrade.related_checklist" data-i18n-html><a href="production-checklist.html">Production Readiness Checklist</a></li>
+                    </ul>
+                </section>
+            </div>
+        </div>
+    </main>
+    <script src="/assets/js/components.js"></script>
+    <script src="/assets/js/i18n.js"></script>
+    <script src="/assets/js/navbar.js"></script>
+    <script src="/assets/js/main.js"></script>
+</body>
+</html>

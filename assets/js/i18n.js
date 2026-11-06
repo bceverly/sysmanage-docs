@@ -364,7 +364,10 @@ class I18n {
         const langTranslations = this.translations[this.currentLanguage] || {};
         const fallbackTranslations = this.translations['en'] || {};
 
-        let translation = this.getNestedValue(langTranslations, key) ||
+        // A value still marked "[TODO]" is not translated yet: show the
+        // English, never the marker (a page may be published before every
+        // language has caught up).
+        let translation = I18n.translated(this.getNestedValue(langTranslations, key)) ||
                          this.getNestedValue(fallbackTranslations, key) ||
                          key;
 
@@ -374,6 +377,10 @@ class I18n {
         });
 
         return translation;
+    }
+
+    static translated(value) {
+        return typeof value === 'string' && value.startsWith('[TODO]') ? undefined : value;
     }
 
     getNestedValue(obj, path) {

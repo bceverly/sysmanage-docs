@@ -1,649 +1,202 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-i18n-title="docs.dr.meta_title">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Backup & Recovery - Administration - SysManage</title>
-    <meta name="description" content="Data protection strategies including backup procedures, disaster recovery planning, and data restoration in SysManage.">
+    <title data-i18n="docs.dr.meta_title">Backing Up and Recovering the Server - SysManage</title>
+    <meta name="description" data-i18n="docs.dr.meta_description" data-i18n-attr="content" content="What to back up on a SysManage server, where it lives on each platform, the exact commands to back it up, and how to rebuild the server on a new machine or recover from losing one piece.">
     <link rel="stylesheet" href="/assets/css/style.css">
     <link rel="icon" type="image/svg+xml" href="/assets/images/favicon.svg">
 </head>
 <body data-auto-header="documentation" data-auto-footer>
-    <!-- Header injected automatically by components.js -->
-
     <main class="docs-main">
         <div class="container">
-            <div class="docs-breadcrumb">
-                <a href="../" data-i18n="docs.auto.administration.backup.001">Documentation</a> > <a href="./" data-i18n="docs.auto.administration.backup.002">Administration</a> > <span data-i18n="docs.auto.administration.backup.003">Backup & Recovery</span>
-            </div>
-
+            <div class="docs-breadcrumb"><a href="../" data-i18n="docs.auto.administration.backup.001">Documentation</a> &gt; <a href="./" data-i18n="docs.auto.administration.backup.002">Administration</a> &gt; <span data-i18n="docs.dr.crumb_page">Server Backup and Recovery</span></div>
             <div class="docs-header">
-                <h1 data-i18n="docs.auto.administration.backup.004">Backup & Recovery</h1>
-                <p data-i18n="docs.auto.administration.backup.005">Comprehensive data protection strategies including backup procedures, disaster recovery planning, and data restoration for business continuity.</p>
+                <h1 data-i18n="docs.dr.title">Backing Up and Recovering the SysManage Server</h1>
+                <p data-i18n="docs.dr.intro">Everything a SysManage server needs to come back after a disk failure, a lost machine or a bad change: what to back up, where it lives on each platform, the commands to back it up, and the order in which to put it back. Written to be followed during an outage.</p>
             </div>
-
             <div class="docs-content">
-                <section class="docs-overview">
-                    <h2 data-i18n="docs.auto.administration.backup.006">Overview</h2>
-                    <p data-i18n="docs.auto.administration.backup.007">Data protection is critical for maintaining business continuity and protecting against data loss. SysManage backup and recovery procedures ensure that your monitoring infrastructure and historical data remain protected and can be quickly restored in case of system failures, disasters, or data corruption.</p>
-
-                    <div class="backup-strategy">
-                        <h3 data-i18n="docs.auto.administration.backup.008">Backup Strategy Components</h3>
-                        <ul>
-                            <li data-i18n="docs.auto.administration.backup.009" data-i18n-html><strong>Database Backups:</strong> Regular backups of all monitoring data and configurations</li>
-                            <li data-i18n="docs.auto.administration.backup.010" data-i18n-html><strong>Configuration Backups:</strong> System configuration files and settings</li>
-                            <li data-i18n="docs.auto.administration.backup.011" data-i18n-html><strong>Certificate Backups:</strong> SSL/TLS certificates and private keys</li>
-                            <li data-i18n="docs.auto.administration.backup.012" data-i18n-html><strong>Log Backups:</strong> Critical log files and audit trails</li>
-                            <li data-i18n="docs.auto.administration.backup.013" data-i18n-html><strong>Code and Scripts:</strong> Custom scripts and automation code</li>
-                            <li data-i18n="docs.auto.administration.backup.014" data-i18n-html><strong>Documentation:</strong> System documentation and procedures</li>
-                        </ul>
-                    </div>
-                </section>
-
-                <section class="database-backup">
-                    <h2 data-i18n="docs.auto.administration.backup.015">Database Backup Procedures</h2>
-
-                    <div class="postgres-backup">
-                        <h3 data-i18n="docs.auto.administration.backup.016">PostgreSQL Database Backup</h3>
-                        <p data-i18n="docs.auto.administration.backup.017">SysManage uses PostgreSQL as its primary database. Regular backups are essential for data protection.</p>
-
-                        <h4 data-i18n="docs.auto.administration.backup.018">Full Database Backup</h4>
-                        <pre><code>#!/bin/bash
-# Full database backup script
-
-BACKUP_DIR="/opt/sysmanage/backups"
-DATE=$(date +%Y%m%d_%H%M%S)
-DB_NAME="sysmanage"
-DB_USER="sysmanage"
-
-# Create backup directory
-mkdir -p $BACKUP_DIR
-
-# Perform full backup
-pg_dump -h localhost -U $DB_USER -d $DB_NAME \
-    --verbose --clean --create --if-exists \
-    --format=custom \
-    --file="$BACKUP_DIR/sysmanage_full_$DATE.backup"
-
-# Compress the backup
-gzip "$BACKUP_DIR/sysmanage_full_$DATE.backup"
-
-# Verify backup integrity
-pg_restore --list "$BACKUP_DIR/sysmanage_full_$DATE.backup.gz" > /dev/null
-
-if [ $? -eq 0 ]; then
-    echo "Backup completed successfully: sysmanage_full_$DATE.backup.gz"
-else
-    echo "Backup verification failed!"
-    exit 1
-fi</code></pre>
-
-                        <h4 data-i18n="docs.auto.administration.backup.019">Incremental Backup with WAL Archiving</h4>
-                        <pre><code># PostgreSQL configuration for WAL archiving
-# Add to postgresql.conf
-
-wal_level = replica
-archive_mode = on
-archive_command = 'cp %p /opt/sysmanage/wal_archive/%f'
-max_wal_senders = 3
-wal_keep_segments = 64</code></pre>
-
-                        <h4 data-i18n="docs.auto.administration.backup.020">Point-in-Time Recovery Setup</h4>
-                        <pre><code>#!/bin/bash
-# Base backup for PITR
-
-BACKUP_DIR="/opt/sysmanage/backups"
-DATE=$(date +%Y%m%d_%H%M%S)
-
-# Create base backup
-pg_basebackup -h localhost -U postgres \
-    --pgdata="$BACKUP_DIR/basebackup_$DATE" \
-    --format=tar \
-    --wal-method=stream \
-    --checkpoint=fast \
-    --progress \
-    --verbose
-
-echo "Base backup completed: basebackup_$DATE"</code></pre>
+                <section class="docs-section">
+                    <div class="warning-box">
+                        <h3 data-i18n="docs.dr.not_automatic_title">The server does not back itself up yet</h3>
+                        <p data-i18n="docs.dr.not_automatic_body" data-i18n-html>Nothing on this page happens on its own. A built-in "Back up this SysManage server" policy is planned (roadmap Phase 25.9) and is not available yet. Until then, schedule the commands below yourself and copy the result off the machine. The <a href="fleet-backups.html">host backups</a> protect your managed hosts, not the SysManage server itself.</p>
                     </div>
 
-                    <div class="backup-automation">
-                        <h3 data-i18n="docs.auto.administration.backup.021">Automated Backup Scheduling</h3>
+                    <h2 data-i18n="docs.dr.h_what">What to back up, most important first</h2>
+                    <ol>
+                        <li data-i18n="docs.dr.what_ca" data-i18n-html><strong>The agents' CA and the server identity</strong> -- <code>/etc/sysmanage/certs/</code> (<code>ca.crt</code>, <code>ca.key</code>, <code>server.crt</code>, <code>server.key</code>), or the directory set by <code>certificates.path</code>. The CA signs every approved host's certificate. If it is missing, the server quietly creates a new one the next time it needs it.</li>
+                        <li data-i18n="docs.dr.what_openbao" data-i18n-html><strong>OpenBAO</strong> -- its data directory <code>/var/lib/openbao/data</code>, its key file <code>/var/lib/openbao/init.json</code> (unseal key and root token), its configuration <code>/etc/openbao/openbao.hcl</code>, and the server's token file <code>/etc/sysmanage/openbao-token</code>. OpenBAO holds the tenant database credentials, backup encryption keys, SSH keys and any server secrets that were moved out of <code>sysmanage.yaml</code> (the JWT secret, password salt, recovery password, database password and SMTP password).</li>
+                        <li data-i18n="docs.dr.what_db" data-i18n-html><strong>PostgreSQL</strong> -- the database named in the <code>registry:</code> block of <code>/etc/sysmanage.yaml</code> (normally <code>sysmanage</code>), which holds the control-plane registry, the shared reference data and, on a single-tenant server, all host data. With multi-tenancy on, also every tenant database. Back up the roles too (<code>pg_dumpall --globals-only</code>).</li>
+                        <li data-i18n="docs.dr.what_yaml" data-i18n-html><strong><code>/etc/sysmanage.yaml</code></strong> -- the database connection and password, the JWT secret, the password salt, the recovery account and the license key.</li>
+                        <li data-i18n="docs.dr.what_tls" data-i18n-html><strong>The TLS certificate nginx serves</strong> -- <code>/etc/sysmanage/tls/server.crt</code> and <code>server.key</code>, or wherever your nginx site file points (for example <code>/etc/letsencrypt/</code>), and the nginx site file itself if you edited it.</li>
+                        <li data-i18n="docs.dr.what_license" data-i18n-html><strong>The license</strong> -- the key is <code>license.key</code> in <code>/etc/sysmanage.yaml</code>. The server also caches the license server's public key in <code>/var/lib/sysmanage/license/public_key.pem</code>; a connected server fetches it again, but an offline or air-gapped server needs the copy.</li>
+                        <li data-i18n="docs.dr.what_varlib" data-i18n-html><strong>Other keys in <code>/var/lib/sysmanage</code></strong> -- the federation identity (<code>federation/</code>) and the air-gap collector keys (<code>airgap/</code>), when you use those features.</li>
+                        <li data-i18n="docs.dr.what_optional" data-i18n-html><strong>Optional</strong> -- the Professional+ engines in <code>/var/lib/sysmanage/modules</code> are downloaded again with your license, and logs are not needed to recover. Leave both out unless the server is air-gapped, where engines come from the bundle you imported.</li>
+                    </ol>
 
-                        <h4 data-i18n="docs.auto.administration.backup.022">Cron Schedule Example</h4>
-                        <pre><code># Add to crontab for automated backups
-
-# Full backup daily at 2 AM
-0 2 * * * /opt/sysmanage/scripts/backup_database.sh
-
-# Configuration backup weekly on Sunday at 3 AM
-0 3 * * 0 /opt/sysmanage/scripts/backup_config.sh
-
-# Log rotation and backup daily at 4 AM
-0 4 * * * /opt/sysmanage/scripts/backup_logs.sh
-
-# Cleanup old backups weekly on Monday at 5 AM
-0 5 * * 1 /opt/sysmanage/scripts/cleanup_backups.sh</code></pre>
-
-                        <h4 data-i18n="docs.auto.administration.backup.023">Backup Verification Script</h4>
-                        <pre><code>#!/bin/bash
-# Backup verification and notification
-
-BACKUP_DIR="/opt/sysmanage/backups"
-TODAY=$(date +%Y%m%d)
-
-# Check if today's backup exists
-if [ -f "$BACKUP_DIR/sysmanage_full_${TODAY}_*.backup.gz" ]; then
-    echo "✓ Database backup found for today"
-
-    # Test restore capability
-    pg_restore --list "$BACKUP_DIR/sysmanage_full_${TODAY}_*.backup.gz" > /dev/null
-
-    if [ $? -eq 0 ]; then
-        echo "✓ Backup integrity verified"
-    else
-        echo "✗ Backup integrity check failed"
-        # Send alert
-        mail -s "SysManage Backup Integrity Alert" admin@example.com < /dev/null
-    fi
-else
-    echo "✗ No backup found for today"
-    # Send alert
-    mail -s "SysManage Backup Missing Alert" admin@example.com < /dev/null
-fi</code></pre>
-                    </div>
-                </section>
-
-                <section class="configuration-backup">
-                    <h2 data-i18n="docs.auto.administration.backup.024">Configuration Backup</h2>
-
-                    <div class="system-config">
-                        <h3 data-i18n="docs.auto.administration.backup.025">System Configuration Files</h3>
-
-                        <h4 data-i18n="docs.auto.administration.backup.026">Critical Configuration Files</h4>
-                        <ul>
-                            <li data-i18n="docs.auto.administration.backup.027" data-i18n-html><strong>Application Config:</strong> <code>/opt/sysmanage/config/</code></li>
-                            <li data-i18n="docs.auto.administration.backup.028" data-i18n-html><strong>Nginx Configuration:</strong> <code>/etc/nginx/sites-available/sysmanage</code></li>
-                            <li data-i18n="docs.auto.administration.backup.029" data-i18n-html><strong>PostgreSQL Config:</strong> <code>/etc/postgresql/*/main/</code></li>
-                            <li data-i18n="docs.auto.administration.backup.030" data-i18n-html><strong>SSL Certificates:</strong> <code>/opt/sysmanage/ssl/</code></li>
-                            <li data-i18n="docs.auto.administration.backup.031" data-i18n-html><strong>Systemd Services:</strong> <code>/etc/systemd/system/sysmanage*</code></li>
-                            <li data-i18n="docs.auto.administration.backup.032" data-i18n-html><strong>Log Configuration:</strong> <code>/opt/sysmanage/logs/</code></li>
-                        </ul>
-
-                        <h4 data-i18n="docs.auto.administration.backup.033">Configuration Backup Script</h4>
-                        <pre><code>#!/bin/bash
-# Configuration backup script
-
-BACKUP_DIR="/opt/sysmanage/backups/config"
-DATE=$(date +%Y%m%d_%H%M%S)
-BACKUP_FILE="sysmanage_config_$DATE.tar.gz"
-
-mkdir -p $BACKUP_DIR
-
-# Create configuration backup
-tar -czf "$BACKUP_DIR/$BACKUP_FILE" \
-    /opt/sysmanage/config/ \
-    /etc/nginx/sites-available/sysmanage \
-    /etc/postgresql/*/main/ \
-    /opt/sysmanage/ssl/ \
-    /etc/systemd/system/sysmanage* \
-    --exclude="*.log" \
-    --exclude="*.pid"
-
-# Verify backup
-if [ -f "$BACKUP_DIR/$BACKUP_FILE" ]; then
-    echo "Configuration backup completed: $BACKUP_FILE"
-    # Test archive integrity
-    tar -tzf "$BACKUP_DIR/$BACKUP_FILE" > /dev/null
-
-    if [ $? -eq 0 ]; then
-        echo "Configuration backup verified successfully"
-    else
-        echo "Configuration backup verification failed"
-        exit 1
-    fi
-else
-    echo "Configuration backup failed"
-    exit 1
-fi</code></pre>
+                    <div class="warning-box">
+                        <h3 data-i18n="docs.dr.risk_title">Risk: the unseal key is stored on the same server</h3>
+                        <p data-i18n="docs.dr.risk_body" data-i18n-html>The key that unseals OpenBAO is kept next to the data it protects. A package install writes it to <code>/var/lib/openbao/init.json</code> (root only, mode 0600). A configuration made with <code>sysmanage_secure_installation</code> also carries the unseal key in <code>/etc/sysmanage.yaml</code> as <code>vault.server.unseal_keys</code>, with the root token as <code>vault.token</code>, beside the database password. Anyone who can read that file, or any backup of it, holds every secret. Encrypt your backups, keep them off the server, and limit who can read them. Moving the unseal key out of the server is planned (roadmap Phase 25.9).</p>
                     </div>
 
-                    <div class="certificate-backup">
-                        <h3 data-i18n="docs.auto.administration.backup.034">Certificate Management</h3>
+                    <h2 data-i18n="docs.dr.h_where">Where it lives on each platform</h2>
+                    <p data-i18n="docs.dr.where_intro" data-i18n-html>The commands on this page use the Ubuntu and Debian paths. The OpenBAO data directory and key file are the same on every Unix platform; the other paths differ as shown.</p>
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th data-i18n="docs.dr.where_col_platform">Platform</th>
+                                <th data-i18n="docs.dr.where_col_config">Configuration</th>
+                                <th data-i18n="docs.dr.where_col_tls">TLS certificate and nginx site</th>
+                                <th data-i18n="docs.dr.where_col_openbao">OpenBAO</th>
+                                <th data-i18n="docs.dr.where_col_services">Services</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td data-i18n="docs.dr.where_deb_platform">Ubuntu, Debian</td>
+                                <td data-i18n="docs.dr.where_deb_config" data-i18n-html><code>/etc/sysmanage.yaml</code>, <code>/etc/sysmanage/</code></td>
+                                <td data-i18n="docs.dr.where_deb_tls" data-i18n-html><code>/etc/sysmanage/tls/</code>, <code>/etc/nginx/sites-available/sysmanage-nginx.conf</code></td>
+                                <td data-i18n="docs.dr.where_deb_openbao" data-i18n-html><code>/var/lib/openbao/</code>, <code>/etc/openbao/openbao.hcl</code></td>
+                                <td data-i18n="docs.dr.where_deb_services" data-i18n-html><code>sysmanage</code>, <code>openbao</code>, <code>sysmanage-openbao-init</code>, <code>nginx</code></td>
+                            </tr>
+                            <tr>
+                                <td data-i18n="docs.dr.where_rpm_platform">RHEL family, openSUSE</td>
+                                <td data-i18n="docs.dr.where_rpm_config" data-i18n-html><code>/etc/sysmanage.yaml</code>, <code>/etc/sysmanage/</code></td>
+                                <td data-i18n="docs.dr.where_rpm_tls" data-i18n-html><code>/etc/sysmanage/tls/</code>, <code>/etc/nginx/conf.d/sysmanage-nginx.conf</code></td>
+                                <td data-i18n="docs.dr.where_rpm_openbao" data-i18n-html><code>/var/lib/openbao/</code>, <code>/etc/openbao/openbao.hcl</code></td>
+                                <td data-i18n="docs.dr.where_rpm_services" data-i18n-html><code>sysmanage</code>, <code>openbao</code>, <code>sysmanage-openbao-init</code>, <code>nginx</code></td>
+                            </tr>
+                            <tr>
+                                <td data-i18n="docs.dr.where_fbsd_platform">FreeBSD</td>
+                                <td data-i18n="docs.dr.where_fbsd_config" data-i18n-html><code>/etc/sysmanage.yaml</code>, <code>/usr/local/etc/sysmanage/</code> (including <code>config.yaml</code>), <code>/etc/sysmanage/</code></td>
+                                <td data-i18n="docs.dr.where_fbsd_tls" data-i18n-html><code>/usr/local/etc/sysmanage/tls/</code>, <code>/usr/local/etc/nginx/sysmanage-nginx.conf</code></td>
+                                <td data-i18n="docs.dr.where_fbsd_openbao" data-i18n-html><code>/var/lib/openbao/</code>, <code>/usr/local/etc/openbao/openbao.hcl</code></td>
+                                <td data-i18n="docs.dr.where_fbsd_services" data-i18n-html><code>service sysmanage</code>, <code>service openbao</code> (unseals when it starts), <code>service nginx</code></td>
+                            </tr>
+                            <tr>
+                                <td data-i18n="docs.dr.where_mac_platform">macOS</td>
+                                <td data-i18n="docs.dr.where_mac_config" data-i18n-html><code>/etc/sysmanage.yaml</code>, <code>/etc/sysmanage/</code></td>
+                                <td data-i18n="docs.dr.where_mac_tls" data-i18n-html><code>/usr/local/etc/sysmanage/tls/</code>, <code>etc/nginx/servers/sysmanage-nginx.conf</code> under the Homebrew prefix</td>
+                                <td data-i18n="docs.dr.where_mac_openbao" data-i18n-html><code>/var/lib/openbao/</code>, <code>/usr/local/etc/openbao/openbao.hcl</code></td>
+                                <td data-i18n="docs.dr.where_mac_services" data-i18n-html>launchd jobs <code>com.sysmanage.server</code> and <code>com.sysmanage.openbao</code>; nginx through <code>brew services</code></td>
+                            </tr>
+                            <tr>
+                                <td data-i18n="docs.dr.where_win_platform">Windows</td>
+                                <td data-i18n="docs.dr.where_win_config" data-i18n-html><code>C:\ProgramData\SysManage\sysmanage.yaml</code>; the CA is in <code>C:\ProgramData\SysManage\certs</code></td>
+                                <td data-i18n="docs.dr.where_win_tls" data-i18n-html><code>C:\ProgramData\SysManage\tls\</code>, <code>C:\Program Files\SysManage Server\nginx\conf\sysmanage-nginx.conf</code></td>
+                                <td data-i18n="docs.dr.where_win_openbao" data-i18n-html><code>C:\ProgramData\SysManage\openbao\</code> (<code>data\</code>, <code>init.json</code>, <code>openbao.hcl</code>)</td>
+                                <td data-i18n="docs.dr.where_win_services" data-i18n-html><code>SysManageServer</code>, <code>SysManageOpenBAO</code>, <code>SysManageNginx</code></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                    <p data-i18n="docs.dr.where_fbsd_note" data-i18n-html>On FreeBSD the package writes its settings to <code>/usr/local/etc/sysmanage/config.yaml</code>, while the server reads <code>/etc/sysmanage.yaml</code> unless <code>SYSMANAGE_CONFIG_PATH</code> says otherwise. Back up both.</p>
 
-                        <h4 data-i18n="docs.auto.administration.backup.035">SSL Certificate Backup</h4>
-                        <pre><code>#!/bin/bash
-# SSL certificate backup and monitoring
+                    <h2 data-i18n="docs.dr.h_backup">Taking a backup (Ubuntu and Debian)</h2>
+                    <p data-i18n="docs.dr.backup_intro" data-i18n-html>Run these as root (<code>sudo -i</code>). The database dump does not need the server stopped. OpenBAO uses the <code>file</code> storage backend (<code>storage "file"</code> in <code>openbao.hcl</code>), which has no online snapshot: copy it with OpenBAO stopped. Stop SysManage first, so nothing asks OpenBAO for a secret while it is down. If you changed OpenBAO to the <code>raft</code> backend, use <code>bao operator raft snapshot save</code> instead of the copy.</p>
+                    <h3 data-i18n="docs.dr.h_backup_record">1. Record the version and the tenant databases</h3>
+                    <pre><code>mkdir -p /var/backups/sysmanage &amp;&amp; chmod 700 /var/backups/sysmanage
+cd /var/backups/sysmanage
+dpkg-query -W sysmanage &gt; package-version.txt
 
-CERT_DIR="/opt/sysmanage/ssl"
-BACKUP_DIR="/opt/sysmanage/backups/certificates"
-DATE=$(date +%Y%m%d_%H%M%S)
+# Multi-tenancy only: every tenant database and the server that holds it
+sudo -u postgres psql -d sysmanage -Atc \
+  "SELECT t.slug, p.host, p.port, p.dbname
+     FROM registry_tenant t
+     JOIN registry_tenant_placement p ON p.tenant_id = t.id
+    ORDER BY t.slug" &gt; tenants.txt</code></pre>
+                    <h3 data-i18n="docs.dr.h_backup_db">2. Dump the databases</h3>
+                    <pre><code># Roles (the sysmanage owner and any roles OpenBAO created), then the bootstrap database
+sudo -u postgres pg_dumpall --globals-only &gt; globals.sql
+sudo -u postgres pg_dump -Fc sysmanage &gt; sysmanage.dump
 
-mkdir -p $BACKUP_DIR
-
-# Backup certificates with encryption
-tar -czf - -C $CERT_DIR . | \
-    openssl enc -aes-256-cbc -salt -k "your-encryption-key" > \
-    "$BACKUP_DIR/certificates_$DATE.tar.gz.enc"
-
-# Check certificate expiration
-for cert in $CERT_DIR/*.crt $CERT_DIR/*.pem; do
-    if [ -f "$cert" ]; then
-        expiry=$(openssl x509 -in "$cert" -noout -enddate | cut -d= -f2)
-        expiry_epoch=$(date -d "$expiry" +%s)
-        current_epoch=$(date +%s)
-        days_until_expiry=$(( (expiry_epoch - current_epoch) / 86400 ))
-
-        if [ $days_until_expiry -lt 30 ]; then
-            echo "WARNING: Certificate $cert expires in $days_until_expiry days"
-            # Send notification
-            mail -s "Certificate Expiration Warning" admin@example.com <<< \
-                "Certificate $cert expires in $days_until_expiry days on $expiry"
-        fi
-    fi
+# Multi-tenancy only: one dump per tenant database on this PostgreSQL server
+# (remove from tenants.txt any whose host column names another server)
+for db in $(cut -d'|' -f4 tenants.txt); do
+  sudo -u postgres pg_dump -Fc "$db" &gt; "tenant-$db.dump"
 done</code></pre>
-                    </div>
-                </section>
-
-                <section class="disaster-recovery">
-                    <h2 data-i18n="docs.auto.administration.backup.036">Disaster Recovery Planning</h2>
-
-                    <div class="recovery-strategy">
-                        <h3 data-i18n="docs.auto.administration.backup.037">Recovery Strategy</h3>
-
-                        <h4 data-i18n="docs.auto.administration.backup.038">Recovery Time Objectives (RTO)</h4>
-                        <ul>
-                            <li data-i18n="docs.auto.administration.backup.039" data-i18n-html><strong>Critical Systems:</strong> 2 hours maximum downtime</li>
-                            <li data-i18n="docs.auto.administration.backup.040" data-i18n-html><strong>Standard Systems:</strong> 8 hours maximum downtime</li>
-                            <li data-i18n="docs.auto.administration.backup.041" data-i18n-html><strong>Development Systems:</strong> 24 hours maximum downtime</li>
-                            <li data-i18n="docs.auto.administration.backup.042" data-i18n-html><strong>Archive Systems:</strong> 72 hours maximum downtime</li>
-                        </ul>
-
-                        <h4 data-i18n="docs.auto.administration.backup.043">Recovery Point Objectives (RPO)</h4>
-                        <ul>
-                            <li data-i18n="docs.auto.administration.backup.044" data-i18n-html><strong>Critical Data:</strong> 15 minutes maximum data loss</li>
-                            <li data-i18n="docs.auto.administration.backup.045" data-i18n-html><strong>Standard Data:</strong> 4 hours maximum data loss</li>
-                            <li data-i18n="docs.auto.administration.backup.046" data-i18n-html><strong>Archive Data:</strong> 24 hours maximum data loss</li>
-                        </ul>
-
-                        <h4 data-i18n="docs.auto.administration.backup.047">Disaster Scenarios</h4>
-                        <ul>
-                            <li data-i18n="docs.auto.administration.backup.048" data-i18n-html><strong>Hardware Failure:</strong> Server or storage system failure</li>
-                            <li data-i18n="docs.auto.administration.backup.049" data-i18n-html><strong>Software Corruption:</strong> Application or database corruption</li>
-                            <li data-i18n="docs.auto.administration.backup.050" data-i18n-html><strong>Natural Disasters:</strong> Fire, flood, earthquake, power outage</li>
-                            <li data-i18n="docs.auto.administration.backup.051" data-i18n-html><strong>Cyber Attacks:</strong> Ransomware, data breaches, DDoS attacks</li>
-                            <li data-i18n="docs.auto.administration.backup.052" data-i18n-html><strong>Human Error:</strong> Accidental deletion or misconfiguration</li>
-                        </ul>
-                    </div>
-
-                    <div class="high-availability">
-                        <h3 data-i18n="docs.auto.administration.backup.053">High Availability Setup</h3>
-
-                        <h4 data-i18n="docs.auto.administration.backup.054">Database High Availability</h4>
-                        <pre><code># PostgreSQL streaming replication setup
-# Master server configuration (postgresql.conf)
-
-listen_addresses = '*'
-wal_level = replica
-max_wal_senders = 3
-wal_keep_segments = 64
-synchronous_commit = on
-synchronous_standby_names = 'standby1'</code></pre>
-
-                        <pre><code># Standby server recovery configuration (recovery.conf)
-
-standby_mode = 'on'
-primary_conninfo = 'host=master-server port=5432 user=replicator'
-trigger_file = '/opt/sysmanage/failover_trigger'
-restore_command = 'cp /opt/sysmanage/wal_archive/%f %p'</code></pre>
-
-                        <h4 data-i18n="docs.auto.administration.backup.055">Application Load Balancing</h4>
-                        <pre><code># Nginx load balancer configuration
-
-upstream sysmanage_backend {
-    server 192.168.1.10:8443 weight=3 max_fails=3 fail_timeout=30s;
-    server 192.168.1.11:8443 weight=2 max_fails=3 fail_timeout=30s backup;
-}
-
-server {
-    listen 443 ssl http2;
-    server_name sysmanage.example.com;
-
-    location / {
-        proxy_pass https://sysmanage_backend;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-
-        # Health check
-        proxy_next_upstream error timeout invalid_header http_500 http_502 http_503;
-        proxy_connect_timeout 5s;
-        proxy_send_timeout 10s;
-        proxy_read_timeout 10s;
-    }
-}</code></pre>
-                    </div>
-
-                    <div class="failover-procedures">
-                        <h3 data-i18n="docs.auto.administration.backup.056">Failover Procedures</h3>
-
-                        <h4 data-i18n="docs.auto.administration.backup.057">Automatic Failover Script</h4>
-                        <pre><code>#!/bin/bash
-# Automatic failover script for database
-
-MASTER_HOST="192.168.1.10"
-STANDBY_HOST="192.168.1.11"
-TRIGGER_FILE="/opt/sysmanage/failover_trigger"
-LOG_FILE="/var/log/sysmanage_failover.log"
-
-# Check master database availability
-pg_isready -h $MASTER_HOST -p 5432 -U sysmanage
-
-if [ $? -ne 0 ]; then
-    echo "$(date): Master database not responding, initiating failover" >> $LOG_FILE
-
-    # Trigger failover on standby
-    ssh postgres@$STANDBY_HOST "touch $TRIGGER_FILE"
-
-    if [ $? -eq 0 ]; then
-        echo "$(date): Failover triggered successfully" >> $LOG_FILE
-
-        # Update DNS or load balancer to point to standby
-        # Update application configuration
-        # Send notifications
-
-        mail -s "SysManage Failover Initiated" admin@example.com <<< \
-            "Database failover has been initiated. Standby server is now primary."
-    else
-        echo "$(date): Failed to trigger failover" >> $LOG_FILE
-    fi
-fi</code></pre>
-
-                        <h4 data-i18n="docs.auto.administration.backup.058">Manual Failover Checklist</h4>
-                        <ol>
-                            <li data-i18n="docs.auto.administration.backup.059">Assess the situation and confirm need for failover</li>
-                            <li data-i18n="docs.auto.administration.backup.060">Notify stakeholders of planned failover</li>
-                            <li data-i18n="docs.auto.administration.backup.061">Stop application services on primary server</li>
-                            <li data-i18n="docs.auto.administration.backup.062">Verify data synchronization on standby</li>
-                            <li data-i18n="docs.auto.administration.backup.063">Promote standby to primary role</li>
-                            <li data-i18n="docs.auto.administration.backup.064">Update DNS records or load balancer configuration</li>
-                            <li data-i18n="docs.auto.administration.backup.065">Start application services on new primary</li>
-                            <li data-i18n="docs.auto.administration.backup.066">Verify system functionality</li>
-                            <li data-i18n="docs.auto.administration.backup.067">Document the failover process and issues</li>
-                            <li data-i18n="docs.auto.administration.backup.068">Plan for recovery of original primary server</li>
-                        </ol>
-                    </div>
-                </section>
-
-                <section class="data-restoration">
-                    <h2 data-i18n="docs.auto.administration.backup.069">Data Restoration Procedures</h2>
-
-                    <div class="database-restore">
-                        <h3 data-i18n="docs.auto.administration.backup.070">Database Restoration</h3>
-
-                        <h4 data-i18n="docs.auto.administration.backup.071">Full Database Restore</h4>
-                        <pre><code>#!/bin/bash
-# Full database restore script
-
-BACKUP_FILE="$1"
-DB_NAME="sysmanage"
-DB_USER="sysmanage"
-
-if [ -z "$BACKUP_FILE" ]; then
-    echo "Usage: $0 <backup_file>"
-    exit 1
-fi
-
-# Verify backup file exists
-if [ ! -f "$BACKUP_FILE" ]; then
-    echo "Backup file not found: $BACKUP_FILE"
-    exit 1
-fi
-
-# Stop SysManage services
-systemctl stop sysmanage-backend
-systemctl stop sysmanage-worker
-
-# Drop existing database (be careful!)
-read -p "Are you sure you want to drop the existing database? (yes/no): " confirm
-if [ "$confirm" = "yes" ]; then
-    dropdb -h localhost -U postgres $DB_NAME
-
-    # Restore database
-    pg_restore -h localhost -U postgres \
-        --create --verbose \
-        --dbname=postgres \
-        "$BACKUP_FILE"
-
-    if [ $? -eq 0 ]; then
-        echo "Database restored successfully"
-
-        # Start services
-        systemctl start sysmanage-backend
-        systemctl start sysmanage-worker
-
-        echo "SysManage services restarted"
-    else
-        echo "Database restore failed"
-        exit 1
-    fi
-else
-    echo "Database restore cancelled"
-    exit 1
-fi</code></pre>
-
-                        <h4 data-i18n="docs.auto.administration.backup.072">Point-in-Time Recovery</h4>
-                        <pre><code>#!/bin/bash
-# Point-in-time recovery script
-
-BACKUP_DIR="$1"
-RECOVERY_TIME="$2"
-DATA_DIR="/var/lib/postgresql/12/main"
-
-if [ -z "$BACKUP_DIR" ] || [ -z "$RECOVERY_TIME" ]; then
-    echo "Usage: $0 <backup_directory> <recovery_time>"
-    echo "Example: $0 /opt/backups/basebackup_20240315 '2024-03-15 14:30:00'"
-    exit 1
-fi
-
-# Stop PostgreSQL
-systemctl stop postgresql
-
-# Remove current data directory
-rm -rf $DATA_DIR/*
-
-# Extract base backup
-tar -xf "$BACKUP_DIR/base.tar" -C $DATA_DIR
-
-# Create recovery configuration
-cat > $DATA_DIR/recovery.conf << EOF
-restore_command = 'cp /opt/sysmanage/wal_archive/%f %p'
-recovery_target_time = '$RECOVERY_TIME'
-recovery_target_action = 'promote'
-EOF
-
-# Set permissions
-chown -R postgres:postgres $DATA_DIR
-chmod 700 $DATA_DIR
-
-# Start PostgreSQL
-systemctl start postgresql
-
-echo "Point-in-time recovery initiated to: $RECOVERY_TIME"</code></pre>
-                    </div>
-
-                    <div class="configuration-restore">
-                        <h3 data-i18n="docs.auto.administration.backup.073">Configuration Restoration</h3>
-
-                        <h4 data-i18n="docs.auto.administration.backup.074">System Configuration Restore</h4>
-                        <pre><code>#!/bin/bash
-# Configuration restore script
-
-CONFIG_BACKUP="$1"
-RESTORE_DIR="/opt/sysmanage/restore"
-
-if [ -z "$CONFIG_BACKUP" ]; then
-    echo "Usage: $0 <config_backup_file>"
-    exit 1
-fi
-
-# Create restore directory
-mkdir -p $RESTORE_DIR
-
-# Extract configuration backup
-tar -xzf "$CONFIG_BACKUP" -C $RESTORE_DIR
-
-# Stop services
-systemctl stop sysmanage-backend
-systemctl stop sysmanage-worker
-systemctl stop nginx
-
-# Backup current configuration
-cp -r /opt/sysmanage/config /opt/sysmanage/config.backup.$(date +%Y%m%d_%H%M%S)
-
-# Restore configuration files
-cp -r $RESTORE_DIR/opt/sysmanage/config/* /opt/sysmanage/config/
-cp $RESTORE_DIR/etc/nginx/sites-available/sysmanage /etc/nginx/sites-available/
-cp -r $RESTORE_DIR/opt/sysmanage/ssl/* /opt/sysmanage/ssl/
-
-# Set proper permissions
-chown -R sysmanage:sysmanage /opt/sysmanage/config
-chown -R sysmanage:sysmanage /opt/sysmanage/ssl
-chmod 600 /opt/sysmanage/ssl/*.key
-
-# Reload systemd and restart services
-systemctl daemon-reload
-systemctl start sysmanage-backend
-systemctl start sysmanage-worker
-systemctl start nginx
-
-echo "Configuration restored successfully"</code></pre>
-                    </div>
-                </section>
-
-                <section class="backup-testing">
-                    <h2 data-i18n="docs.auto.administration.backup.075">Backup Testing and Validation</h2>
-
-                    <div class="restore-testing">
-                        <h3 data-i18n="docs.auto.administration.backup.076">Regular Restore Testing</h3>
-
-                        <h4 data-i18n="docs.auto.administration.backup.077">Monthly Restore Test Procedure</h4>
-                        <ol>
-                            <li data-i18n="docs.auto.administration.backup.078">Select a recent backup for testing</li>
-                            <li data-i18n="docs.auto.administration.backup.079">Set up an isolated test environment</li>
-                            <li data-i18n="docs.auto.administration.backup.080">Perform full system restore on test environment</li>
-                            <li data-i18n="docs.auto.administration.backup.081">Verify data integrity and completeness</li>
-                            <li data-i18n="docs.auto.administration.backup.082">Test application functionality</li>
-                            <li data-i18n="docs.auto.administration.backup.083">Document any issues or improvements needed</li>
-                            <li data-i18n="docs.auto.administration.backup.084">Update restore procedures if necessary</li>
-                        </ol>
-
-                        <h4 data-i18n="docs.auto.administration.backup.085">Automated Backup Validation</h4>
-                        <pre><code>#!/bin/bash
-# Automated backup validation script
-
-BACKUP_DIR="/opt/sysmanage/backups"
-TEST_DB="sysmanage_test"
-VALIDATION_LOG="/var/log/backup_validation.log"
-
-echo "$(date): Starting backup validation" >> $VALIDATION_LOG
-
-# Find latest backup
-LATEST_BACKUP=$(ls -t $BACKUP_DIR/sysmanage_full_*.backup.gz | head -n1)
-
-if [ -z "$LATEST_BACKUP" ]; then
-    echo "$(date): No backup files found" >> $VALIDATION_LOG
-    exit 1
-fi
-
-# Create test database
-createdb -U postgres $TEST_DB
-
-# Restore backup to test database
-pg_restore -U postgres -d $TEST_DB "$LATEST_BACKUP"
-
-if [ $? -eq 0 ]; then
-    echo "$(date): Backup restore successful: $LATEST_BACKUP" >> $VALIDATION_LOG
-
-    # Basic data validation
-    HOST_COUNT=$(psql -U postgres -d $TEST_DB -t -c "SELECT COUNT(*) FROM hosts;")
-    USER_COUNT=$(psql -U postgres -d $TEST_DB -t -c "SELECT COUNT(*) FROM users;")
-
-    echo "$(date): Hosts: $HOST_COUNT, Users: $USER_COUNT" >> $VALIDATION_LOG
-
-    # Cleanup test database
-    dropdb -U postgres $TEST_DB
-
-    echo "$(date): Backup validation completed successfully" >> $VALIDATION_LOG
-else
-    echo "$(date): Backup validation failed for: $LATEST_BACKUP" >> $VALIDATION_LOG
-    # Send alert
-    mail -s "Backup Validation Failed" admin@example.com < $VALIDATION_LOG
-fi</code></pre>
-                    </div>
-
-                    <div class="dr-testing">
-                        <h3 data-i18n="docs.auto.administration.backup.086">Disaster Recovery Testing</h3>
-
-                        <h4 data-i18n="docs.auto.administration.backup.087">Annual DR Test Schedule</h4>
-                        <ul>
-                            <li data-i18n="docs.auto.administration.backup.088" data-i18n-html><strong>Q1:</strong> Database failover test</li>
-                            <li data-i18n="docs.auto.administration.backup.089" data-i18n-html><strong>Q2:</strong> Complete system recovery test</li>
-                            <li data-i18n="docs.auto.administration.backup.090" data-i18n-html><strong>Q3:</strong> Network isolation recovery test</li>
-                            <li data-i18n="docs.auto.administration.backup.091" data-i18n-html><strong>Q4:</strong> Full disaster simulation</li>
-                        </ul>
-
-                        <h4 data-i18n="docs.auto.administration.backup.092">DR Test Checklist</h4>
-                        <ul>
-                            <li data-i18n="docs.auto.administration.backup.093">□ Backup integrity verification</li>
-                            <li data-i18n="docs.auto.administration.backup.094">□ Network connectivity testing</li>
-                            <li data-i18n="docs.auto.administration.backup.095">□ Database recovery testing</li>
-                            <li data-i18n="docs.auto.administration.backup.096">□ Application functionality testing</li>
-                            <li data-i18n="docs.auto.administration.backup.097">□ Performance baseline verification</li>
-                            <li data-i18n="docs.auto.administration.backup.098">□ User access testing</li>
-                            <li data-i18n="docs.auto.administration.backup.099">□ Monitoring system verification</li>
-                            <li data-i18n="docs.auto.administration.backup.100">□ Documentation updates</li>
-                        </ul>
-                    </div>
-                </section>
-
-                <section class="backup-best-practices">
-                    <h2 data-i18n="docs.auto.administration.backup.101">Backup Best Practices</h2>
-
-                    <div class="strategy-best-practices">
-                        <h3 data-i18n="docs.auto.administration.backup.102">Strategy Best Practices</h3>
-                        <ul>
-                            <li data-i18n="docs.auto.administration.backup.103" data-i18n-html><strong>3-2-1 Rule:</strong> 3 copies of data, 2 different media types, 1 offsite copy</li>
-                            <li data-i18n="docs.auto.administration.backup.104" data-i18n-html><strong>Regular Testing:</strong> Test backups regularly to ensure recoverability</li>
-                            <li data-i18n="docs.auto.administration.backup.105" data-i18n-html><strong>Automation:</strong> Automate backup processes to reduce human error</li>
-                            <li data-i18n="docs.auto.administration.backup.106" data-i18n-html><strong>Monitoring:</strong> Monitor backup jobs and alert on failures</li>
-                            <li data-i18n="docs.auto.administration.backup.107" data-i18n-html><strong>Documentation:</strong> Document all procedures and keep them current</li>
-                            <li data-i18n="docs.auto.administration.backup.108" data-i18n-html><strong>Security:</strong> Encrypt backups and secure storage locations</li>
-                        </ul>
-                    </div>
-
-                    <div class="operational-best-practices">
-                        <h3 data-i18n="docs.auto.administration.backup.109">Operational Best Practices</h3>
-                        <ul>
-                            <li data-i18n="docs.auto.administration.backup.110" data-i18n-html><strong>Retention Policies:</strong> Define and enforce appropriate retention periods</li>
-                            <li data-i18n="docs.auto.administration.backup.111" data-i18n-html><strong>Storage Management:</strong> Monitor storage capacity and plan for growth</li>
-                            <li data-i18n="docs.auto.administration.backup.112" data-i18n-html><strong>Performance Impact:</strong> Schedule backups during low-activity periods</li>
-                            <li data-i18n="docs.auto.administration.backup.113" data-i18n-html><strong>Version Control:</strong> Maintain multiple backup versions for different recovery scenarios</li>
-                            <li data-i18n="docs.auto.administration.backup.114" data-i18n-html><strong>Access Control:</strong> Limit access to backup systems and data</li>
-                        </ul>
-                    </div>
-
-                    <div class="security-best-practices">
-                        <h3 data-i18n="docs.auto.administration.backup.115">Security Best Practices</h3>
-                        <ul>
-                            <li data-i18n="docs.auto.administration.backup.116" data-i18n-html><strong>Encryption:</strong> Encrypt backups both in transit and at rest</li>
-                            <li data-i18n="docs.auto.administration.backup.117" data-i18n-html><strong>Access Logging:</strong> Log all access to backup systems</li>
-                            <li data-i18n="docs.auto.administration.backup.118" data-i18n-html><strong>Separation:</strong> Keep backup systems separate from production</li>
-                            <li data-i18n="docs.auto.administration.backup.119" data-i18n-html><strong>Verification:</strong> Verify backup integrity and authenticity</li>
-                            <li data-i18n="docs.auto.administration.backup.120" data-i18n-html><strong>Incident Response:</strong> Include backup systems in incident response plans</li>
-                        </ul>
-                    </div>
+                    <p data-i18n="docs.dr.backup_db_remote" data-i18n-html>A tenant database on another PostgreSQL server (its <code>host</code> column) is dumped on that server the same way, with its own <code>pg_dumpall --globals-only</code>. A remote bootstrap database can be dumped from the SysManage server as its owner: <code>pg_dump -h &lt;host&gt; -U sysmanage -Fc sysmanage &gt; sysmanage.dump</code>.</p>
+                    <h3 data-i18n="docs.dr.h_backup_openbao">3. Copy OpenBAO with it stopped</h3>
+                    <pre><code>systemctl stop sysmanage
+systemctl stop openbao
+tar -C /var/lib -czf openbao.tar.gz openbao
+systemctl start openbao
+systemctl restart sysmanage-openbao-init     # unseals OpenBAO again
+systemctl start sysmanage</code></pre>
+                    <h3 data-i18n="docs.dr.h_backup_files">4. Copy the configuration, certificates and keys</h3>
+                    <pre><code>tar -czf files.tar.gz -C / \
+  --exclude=var/lib/sysmanage/modules \
+  --exclude=var/lib/sysmanage/airgap-iso \
+  --exclude=var/lib/sysmanage/airgap-staging \
+  etc/sysmanage.yaml etc/sysmanage etc/openbao \
+  etc/nginx/sites-available/sysmanage-nginx.conf \
+  var/lib/sysmanage
+# Add etc/letsencrypt if nginx serves a Let's Encrypt certificate</code></pre>
+                    <p data-i18n="docs.dr.backup_offsite" data-i18n-html>Then encrypt <code>/var/backups/sysmanage</code> and copy it to storage off this machine. Take the database dumps and the OpenBAO copy in the same run: OpenBAO creates database roles for tenants, so the two must describe the same moment.</p>
+                    <p data-i18n="docs.dr.backup_tenant_cmd" data-i18n-html>With multi-tenancy on, the server can also run your own per-tenant backup tool on a schedule and record each tenant's recovery point: set <code>backup.command</code> (for example a pgBackRest command) in <code>sysmanage.yaml</code>. It runs the command you give it; it does not back up OpenBAO, the CA or the configuration.</p>
+
+                    <h2 data-i18n="docs.dr.h_restore">Rebuilding the server on a new machine</h2>
+                    <ol>
+                        <li data-i18n="docs.dr.restore_install" data-i18n-html><strong>Install the same package version</strong> recorded in <code>package-version.txt</code> (for example <code>apt install sysmanage=&lt;version&gt;</code>), and the same or a newer major version of PostgreSQL. Do not create the <code>sysmanage</code> database by hand: the restore creates it. The new install creates its own configuration and its own empty OpenBAO; the next steps replace both.</li>
+                        <li data-i18n="docs.dr.restore_stop" data-i18n-html><strong>Stop everything SysManage runs:</strong> <code>systemctl stop sysmanage openbao</code>.</li>
+                        <li data-i18n="docs.dr.restore_db" data-i18n-html><strong>Restore the databases:</strong> roles first, then the bootstrap database, then each tenant database.</li>
+                    </ol>
+                    <pre><code>cd /var/backups/sysmanage
+sudo -u postgres psql -f globals.sql
+sudo -u postgres pg_restore -C -d postgres sysmanage.dump
+for f in tenant-*.dump; do sudo -u postgres pg_restore -C -d postgres "$f"; done</code></pre>
+                    <ol start="4">
+                        <li data-i18n="docs.dr.restore_files" data-i18n-html><strong>Restore the configuration, certificates and keys</strong> over the fresh install, and put OpenBAO back as one piece: its data and its <code>init.json</code> only work together.</li>
+                    </ol>
+                    <pre><code>tar -C / -xzpf files.tar.gz
+rm -rf /var/lib/openbao
+tar -C /var/lib -xzpf openbao.tar.gz
+chown root:openbao /var/lib/openbao &amp;&amp; chmod 750 /var/lib/openbao
+chown -R openbao:openbao /var/lib/openbao/data
+chown root:root /var/lib/openbao/init.json &amp;&amp; chmod 600 /var/lib/openbao/init.json
+chown -R sysmanage:sysmanage /etc/sysmanage /var/lib/sysmanage
+chown sysmanage:sysmanage /etc/sysmanage.yaml &amp;&amp; chmod 640 /etc/sysmanage.yaml</code></pre>
+                    <ol start="5">
+                        <li data-i18n="docs.dr.restore_unseal" data-i18n-html><strong>Start and unseal OpenBAO</strong>, and check that the unseal step succeeded.</li>
+                    </ol>
+                    <pre><code>systemctl start openbao
+systemctl restart sysmanage-openbao-init
+systemctl status sysmanage-openbao-init</code></pre>
+                    <ol start="6">
+                        <li data-i18n="docs.dr.restore_migrate" data-i18n-html><strong>Check the schema:</strong> <code>sudo sysmanage-migrate --status</code>. With the same package version every chain and tenant reads up to date. If anything is <code>PENDING</code>, the backup is from an older release: run <code>sudo sysmanage-migrate</code>.</li>
+                        <li data-i18n="docs.dr.restore_start" data-i18n-html><strong>Start the server:</strong> <code>nginx -t &amp;&amp; systemctl reload nginx</code>, then <code>systemctl start sysmanage</code>.</li>
+                        <li data-i18n="docs.dr.restore_dns" data-i18n-html><strong>Point the agents' server name at the new machine.</strong> Each agent connects to <code>server.hostname</code> in its <code>/etc/sysmanage-agent.yaml</code>. If the new machine keeps that name, change the DNS record. If the name changes, every agent's configuration must change, and the TLS certificate must be valid for the new name.</li>
+                        <li data-i18n="docs.dr.restore_verify" data-i18n-html><strong>Verify:</strong> <code>https://&lt;server&gt;/api/health</code> and <code>https://&lt;server&gt;/api/health/db</code> answer <code>healthy</code>, you can sign in, and hosts turn active again as their agents reconnect.</li>
+                    </ol>
+
+                    <h3 data-i18n="docs.dr.h_reconnect">Why agents reconnect without enrolling again</h3>
+                    <p data-i18n="docs.dr.reconnect_p1" data-i18n-html>An agent proves which host it is with its host token, which it keeps locally and which the server stores in the host's database row. Restore the database and the token matches again, so the agent reconnects as the same host and needs no new approval. Hosts that were registered after the backup was taken are not in the restored database and come back as new hosts.</p>
+                    <p data-i18n="docs.dr.reconnect_p2" data-i18n-html>The agent checks the server's TLS certificate the ordinary way: it must be valid for the name the agent uses (agents verify by default, <code>server.verify_ssl</code>). Agents do not pin the server or present their own certificates yet; that is planned (roadmap Phase 25.10). So today what lets agents in is the restored database plus a trusted certificate for the same name, not the CA. Restore the CA anyway: without it the server makes a new one, the host certificates already issued no longer chain to it, and pinning will depend on it once it ships.</p>
+
+                    <h2 data-i18n="docs.dr.h_partial">Losing one piece</h2>
+                    <h3 data-i18n="docs.dr.h_partial_openbao">Only OpenBAO</h3>
+                    <p data-i18n="docs.dr.partial_openbao_p1" data-i18n-html>Replace <code>/var/lib/openbao</code> as a whole from the last backup, data and <code>init.json</code> together, as in step 4 above, with <code>sysmanage</code> and <code>openbao</code> stopped. Then start <code>openbao</code>, restart <code>sysmanage-openbao-init</code> and start <code>sysmanage</code>. Secrets written after that backup are lost, for example the database credentials of a tenant created since then or a backup key created since then; recreate them. With no OpenBAO backup at all, its secrets cannot be recovered: the tenant databases still exist, but the server has no credentials to reach them.</p>
+                    <h3 data-i18n="docs.dr.h_partial_tenant">Only one tenant database</h3>
+                    <p data-i18n="docs.dr.partial_tenant_p1" data-i18n-html>Other tenants are not touched. Stop <code>sysmanage</code> so nothing holds a connection to that database, then restore it on the PostgreSQL server that holds it and bring it to the current schema:</p>
+                    <pre><code>sudo -u postgres dropdb --if-exists &lt;dbname&gt;
+sudo -u postgres pg_restore -C -d postgres tenant-&lt;dbname&gt;.dump
+sudo sysmanage-migrate --tenants-only
+sudo sysmanage-migrate --status
+systemctl start sysmanage</code></pre>
+                    <p data-i18n="docs.dr.partial_tenant_p2">That tenant's hosts return to the moment of the dump; agents reconnect with their tokens as above. The per-tenant migration step leases credentials from OpenBAO, so OpenBAO must be running and unsealed.</p>
+                    <h3 data-i18n="docs.dr.h_partial_yaml">Only the configuration or the certificates</h3>
+                    <p data-i18n="docs.dr.partial_yaml_p1" data-i18n-html>Extract just that path from <code>files.tar.gz</code>, for example <code>tar -C / -xzpf files.tar.gz etc/sysmanage.yaml</code>, fix its owner as above and restart <code>sysmanage</code> (or reload <code>nginx</code> for the TLS certificate).</p>
+
+                    <h2 data-i18n="docs.dr.h_test">Test the restore</h2>
+                    <p data-i18n="docs.dr.test_p1" data-i18n-html>A backup you have not restored is a guess. At least once, and after every major upgrade, rebuild a test server from the backup alone on a separate machine, following this page with the production server out of the picture, and time it. Keep the production agents on production: give the test server a name of its own and point one test agent at it.</p>
+
+                    <h2 data-i18n="docs.dr.h_related">Related pages</h2>
+                    <ul>
+                        <li data-i18n="docs.dr.related_upgrade" data-i18n-html><a href="../deployment/upgrade.html">Upgrading and Rolling Back</a> -- take a backup before every upgrade.</li>
+                        <li data-i18n="docs.dr.related_checklist" data-i18n-html><a href="../deployment/production-checklist.html">Production Readiness Checklist</a></li>
+                        <li data-i18n="docs.dr.related_ha" data-i18n-html><a href="postgresql-ha.html">PostgreSQL High Availability</a> -- a standby protects against losing the database machine, not against a bad change; you still need backups.</li>
+                        <li data-i18n="docs.dr.related_migrations" data-i18n-html><a href="../architecture/database-migrations.html">Database Migrations</a></li>
+                    </ul>
                 </section>
             </div>
 
@@ -658,7 +211,7 @@ fi</code></pre>
             </div>
         </div>
     </main>
-    <!-- Footer injected automatically by components.js -->    <script src="/assets/js/components.js"></script>
+    <script src="/assets/js/components.js"></script>
     <script src="/assets/js/i18n.js"></script>
     <script src="/assets/js/navbar.js"></script>
     <script src="/assets/js/main.js"></script>

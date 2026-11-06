@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="en" data-i18n-title="docs.api.examples.meta_title">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title data-i18n="docs.api.examples.meta_title">API Examples - SysManage</title>
+    <meta name="description" data-i18n="docs.api.examples.meta_description" data-i18n-attr="content" content="Authenticate to the SysManage API with an API key or a login token, and ready-to-run recipes in Bash, Python and PowerShell: list hosts, find pending security updates, approve a host, install a package and export the audit log.">
+    <link rel="stylesheet" href="/assets/css/style.css">
+    <link rel="icon" type="image/svg+xml" href="/assets/images/favicon.svg">
+</head>
+<body data-auto-header="documentation" data-auto-footer>
+    <main class="docs-main">
+        <div class="container">
+            <div class="docs-breadcrumb"><a href="../" data-i18n="docs.api.examples.crumb_docs">Documentation</a> &gt; <a href="./" data-i18n="docs.api.examples.crumb_section">API Reference</a> &gt; <span data-i18n="docs.api.examples.crumb_page">API Examples</span></div>
+            <div class="docs-header">
+                <h1 data-i18n="docs.api.examples.title">API Examples</h1>
+                <p data-i18n="docs.api.examples.intro" data-i18n-html>Copy-and-run recipes for the jobs people script most, each in Bash (<code>curl</code> and <code>jq</code>), Python (<code>requests</code>) and PowerShell (<code>Invoke-RestMethod</code>). Replace <code>https://sysmanage.example.com</code> with your server and <code>HOST-ID</code> with a host's ID. The REST API and API keys are part of every edition, Community included.</p>
+            </div>
+            <div class="docs-content">
+                <section class="docs-section">
+                    <h2 data-i18n="docs.api.examples.h_auth">Authentication</h2>
+                    <h3 data-i18n="docs.api.examples.h_apikey">With an API key (recommended for automation)</h3>
+                    <ol>
+                        <li data-i18n="docs.api.examples.apikey1" data-i18n-html>Sign in to the web interface, open the user menu at the top right, and choose <strong>API Keys</strong>.</li>
+                        <li data-i18n="docs.api.examples.apikey2" data-i18n-html>Choose <strong>Create API Key</strong>, give it a <strong>Name</strong> that says what will use it, and optionally an <strong>Expires (optional)</strong> date. Choose <strong>Create</strong>.</li>
+                        <li data-i18n="docs.api.examples.apikey3" data-i18n-html>The <strong>API key created</strong> dialog shows the key, which starts with <code>smk_</code>. Copy it now: only its hash is stored, and it is never shown again.</li>
+                    </ol>
+                    <p data-i18n="docs.api.examples.apikey_use" data-i18n-html>Send it as a Bearer token. The key acts as you, with your roles, so a recipe that changes something needs a user with the role named in that recipe. Revoke a key from the same page; automation using it stops at once. The recovery account from <code>sysmanage.yaml</code> cannot create keys -- create a user first.</p>
+<pre><code class="language-bash">export SYSMANAGE_URL=https://sysmanage.example.com
+export SYSMANAGE_API_KEY=smk_...        # the key you copied
+curl -s -H "Authorization: Bearer $SYSMANAGE_API_KEY" "$SYSMANAGE_URL/api/v1/hosts/summary"</code></pre>
+                    <h3 data-i18n="docs.api.examples.h_jwt">With a login token</h3>
+                    <p data-i18n="docs.api.examples.jwt_p" data-i18n-html>For an interactive script, sign in with <code>POST /api/v1/login</code>. The body takes <code>userid</code> (your email address) and <code>password</code>; the answer's <code>Authorization</code> field is the token to send as a Bearer token. Tokens expire after a while, and a user with multi-factor sign-in gets <code>{"mfa_required": true, "pending_token": "..."}</code> instead of a token, so prefer an API key for anything unattended.</p>
+<pre><code class="language-bash">TOKEN=$(curl -s -X POST -H "Content-Type: application/json" \
+  -d '{"userid": "you@example.com", "password": "your-password"}' \
+  "$SYSMANAGE_URL/api/v1/login" | jq -r '.Authorization')
+curl -s -H "Authorization: Bearer $TOKEN" "$SYSMANAGE_URL/api/v1/hosts/summary"</code></pre>
+                    <p data-i18n="docs.api.examples.jwt_key" data-i18n-html>A login token can also create an API key: <code>POST /api/v1/api-keys</code> with <code>{"name": "nightly-report"}</code> returns the key in its <code>key</code> field. An API key cannot be used to create another key.</p>
+                    <p class="note-box" data-i18n="docs.api.examples.ca_note" data-i18n-html>If the server's certificate comes from a private CA, tell each client about it: <code>curl --cacert ca.pem</code>, <code>requests.get(..., verify="ca.pem")</code>, or add the CA to the Windows certificate store for PowerShell.</p>
+                    <p data-i18n="docs.api.examples.setup_p">The Python and PowerShell recipes below start from this setup:</p>
+<pre><code class="language-python"># Python
+import os, requests
+BASE = os.environ.get("SYSMANAGE_URL", "https://sysmanage.example.com") + "/api/v1"
+s = requests.Session()
+s.headers["Authorization"] = "Bearer " + os.environ["SYSMANAGE_API_KEY"]</code></pre>
+<pre><code class="language-powershell"># PowerShell
+$Base = "https://sysmanage.example.com/api/v1"
+$Headers = @{ Authorization = "Bearer $env:SYSMANAGE_API_KEY" }</code></pre>
+
+                    <h2 data-i18n="docs.api.examples.h_hosts">List hosts and their status</h2>
+                    <p data-i18n="docs.api.examples.hosts_p" data-i18n-html><code>GET /api/v1/hosts</code> returns every host as a list. Useful fields: <code>id</code>, <code>fqdn</code>, <code>status</code> (<code>up</code> or <code>down</code>), <code>approval_status</code> (<code>pending</code>, <code>approved</code>, <code>rejected</code> or <code>revoked</code>), <code>platform</code>, <code>platform_release</code>, <code>last_access</code>, <code>agent_version</code>, <code>reboot_required</code> and <code>tags</code>. <code>GET /api/v1/hosts/summary</code> returns just the counts.</p>
+                    <h4 data-i18n="docs.api.examples.lang_bash">Bash</h4>
+<pre><code class="language-bash">curl -s -H "Authorization: Bearer $SYSMANAGE_API_KEY" "$SYSMANAGE_URL/api/v1/hosts" |
+  jq -r '.[] | [.fqdn, .status, .approval_status, .platform, .platform_release, .last_access] | @tsv'</code></pre>
+                    <h4 data-i18n="docs.api.examples.lang_python">Python</h4>
+<pre><code class="language-python">for h in s.get(f"{BASE}/hosts").json():
+    print(h["fqdn"], h["status"], h["approval_status"], h["platform"], h["last_access"], sep="\t")</code></pre>
+                    <h4 data-i18n="docs.api.examples.lang_powershell">PowerShell</h4>
+<pre><code class="language-powershell">Invoke-RestMethod -Uri "$Base/hosts" -Headers $Headers |
+  Select-Object fqdn, status, approval_status, platform, last_access | Format-Table</code></pre>
+
+                    <h2 data-i18n="docs.api.examples.h_security">Find hosts with pending security updates</h2>
+                    <p data-i18n="docs.api.examples.security_p" data-i18n-html>Each host in <code>GET /api/v1/hosts</code> carries <code>security_updates_count</code>, <code>system_updates_count</code> and <code>total_updates_count</code>. For the packages themselves, <code>GET /api/v1/updates/HOST-ID?security_only=true</code> returns <code>updates</code>, each with <code>package_name</code>, <code>current_version</code>, <code>available_version</code> and <code>package_manager</code>. Across the whole fleet, <code>GET /api/v1/updates/?security_only=true</code> (note the slash) pages with <code>limit</code> and <code>offset</code>.</p>
+                    <h4 data-i18n="docs.api.examples.lang_bash">Bash</h4>
+<pre><code class="language-bash">curl -s -H "Authorization: Bearer $SYSMANAGE_API_KEY" "$SYSMANAGE_URL/api/v1/hosts" |
+  jq -r '.[] | select(.security_updates_count &gt; 0) | [.id, .fqdn, .security_updates_count] | @tsv'
+
+# The packages waiting on one host
+curl -s -H "Authorization: Bearer $SYSMANAGE_API_KEY" \
+  "$SYSMANAGE_URL/api/v1/updates/HOST-ID?security_only=true" |
+  jq -r '.updates[] | [.package_name, .current_version, .available_version] | @tsv'</code></pre>
+                    <h4 data-i18n="docs.api.examples.lang_python">Python</h4>
+<pre><code class="language-python">for h in s.get(f"{BASE}/hosts").json():
+    if h["security_updates_count"] &gt; 0:
+        ups = s.get(f"{BASE}/updates/{h['id']}", params={"security_only": "true"}).json()
+        names = ", ".join(u["package_name"] for u in ups["updates"])
+        print(f"{h['fqdn']}: {h['security_updates_count']} ({names})")</code></pre>
+                    <h4 data-i18n="docs.api.examples.lang_powershell">PowerShell</h4>
+<pre><code class="language-powershell">Invoke-RestMethod -Uri "$Base/hosts" -Headers $Headers |
+  Where-Object { $_.security_updates_count -gt 0 } |
+  Select-Object id, fqdn, security_updates_count</code></pre>
+
+                    <h2 data-i18n="docs.api.examples.h_approve">Approve a pending host</h2>
+                    <p data-i18n="docs.api.examples.approve_p" data-i18n-html><code>PUT /api/v1/host/HOST-ID/approve</code>, with no body. The key or token must belong to a user in SysManage's database with the <strong>Approve Host Registration</strong> role: the recovery account is refused with 401 "User not found.", and a user without the role gets 403. A host that is not pending gets 400 "Host is not in pending status".</p>
+                    <h4 data-i18n="docs.api.examples.lang_bash">Bash</h4>
+<pre><code class="language-bash">curl -s -X PUT -H "Authorization: Bearer $SYSMANAGE_API_KEY" \
+  "$SYSMANAGE_URL/api/v1/host/HOST-ID/approve" | jq '{fqdn, approval_status}'</code></pre>
+                    <h4 data-i18n="docs.api.examples.lang_python">Python</h4>
+<pre><code class="language-python">for h in s.get(f"{BASE}/hosts").json():
+    if h["approval_status"] == "pending":
+        r = s.put(f"{BASE}/host/{h['id']}/approve")
+        print(h["fqdn"], r.status_code)</code></pre>
+                    <h4 data-i18n="docs.api.examples.lang_powershell">PowerShell</h4>
+<pre><code class="language-powershell">Invoke-RestMethod -Method Put -Uri "$Base/host/HOST-ID/approve" -Headers $Headers</code></pre>
+
+                    <h2 data-i18n="docs.api.examples.h_install">Install a package on one host</h2>
+                    <p data-i18n="docs.api.examples.install_p" data-i18n-html><code>POST /api/v1/packages/install/HOST-ID</code> with <code>package_names</code> (a list) and <code>requested_by</code> (required; free text recorded with the request, such as the script's name). The agent picks the package manager. The answer has <code>success</code>, <code>message</code> and <code>request_id</code>. It needs the <strong>Add Package</strong> role and an approved, active host; a maintenance window can hold the installation until it opens.</p>
+                    <p data-i18n="docs.api.examples.install_history" data-i18n-html>Follow it with <code>GET /api/v1/packages/installation-history/HOST-ID</code>, which returns <code>installations</code>, newest first, each with <code>request_id</code>, <code>status</code> (<code>pending</code>, <code>in_progress</code>, <code>completed</code> or <code>failed</code>), <code>package_names</code>, <code>requested_at</code>, <code>completed_at</code> and <code>installation_log</code>.</p>
+                    <h4 data-i18n="docs.api.examples.lang_bash">Bash</h4>
+<pre><code class="language-bash">REQ=$(curl -s -X POST -H "Authorization: Bearer $SYSMANAGE_API_KEY" -H "Content-Type: application/json" \
+  -d '{"package_names": ["tree"], "requested_by": "install-tree.sh"}' \
+  "$SYSMANAGE_URL/api/v1/packages/install/HOST-ID" | jq -r '.request_id')
+
+# Poll until the agent reports back
+until STATUS=$(curl -s -H "Authorization: Bearer $SYSMANAGE_API_KEY" \
+    "$SYSMANAGE_URL/api/v1/packages/installation-history/HOST-ID" |
+    jq -r --arg r "$REQ" '.installations[] | select(.request_id == $r) | .status');
+    [ "$STATUS" = completed ] || [ "$STATUS" = failed ]; do sleep 10; done
+echo "$STATUS"</code></pre>
+                    <h4 data-i18n="docs.api.examples.lang_python">Python</h4>
+<pre><code class="language-python">import time
+host = "HOST-ID"
+req = s.post(f"{BASE}/packages/install/{host}",
+             json={"package_names": ["tree"], "requested_by": "install_tree.py"}).json()["request_id"]
+while True:
+    hist = s.get(f"{BASE}/packages/installation-history/{host}").json()["installations"]
+    item = next(i for i in hist if i["request_id"] == req)
+    if item["status"] in ("completed", "failed"):
+        print(item["status"], item["installation_log"])
+        break
+    time.sleep(10)</code></pre>
+                    <h4 data-i18n="docs.api.examples.lang_powershell">PowerShell</h4>
+<pre><code class="language-powershell">$Body = @{ package_names = @("tree"); requested_by = "Install-Tree.ps1" } | ConvertTo-Json
+$Req = Invoke-RestMethod -Method Post -Uri "$Base/packages/install/HOST-ID" -Headers $Headers `
+  -ContentType "application/json" -Body $Body
+do {
+  Start-Sleep -Seconds 10
+  $Item = (Invoke-RestMethod -Uri "$Base/packages/installation-history/HOST-ID" -Headers $Headers).installations |
+    Where-Object request_id -eq $Req.request_id
+} until ($Item.status -in "completed", "failed")
+$Item.status</code></pre>
+
+                    <h2 data-i18n="docs.api.examples.h_audit">Export the audit log</h2>
+                    <p data-i18n="docs.api.examples.audit_p" data-i18n-html><code>GET /api/v1/audit-log/export</code> returns the audit log as a file. <code>fmt</code> is <code>csv</code> (the default) or <code>pdf</code>; <code>json</code>, <code>cef</code> and <code>leef</code> need Professional and answer 402 without it. The filters are the same as the audit log viewer's: <code>start_date</code> and <code>end_date</code> (ISO 8601, UTC), <code>user_id</code>, <code>action_type</code> (for example <code>UPDATE</code> or <code>EXECUTE</code>), <code>entity_type</code> (for example <code>host</code> or <code>package</code>), <code>result</code> (<code>SUCCESS</code>, <code>FAILURE</code> or <code>PENDING</code>), <code>category</code>, <code>entry_type</code> and <code>search</code>. Without dates the export covers the whole log. It needs the <strong>View Audit Log</strong> role.</p>
+                    <p data-i18n="docs.api.examples.audit_list" data-i18n-html><code>GET /api/v1/audit-log/list</code> takes the same filters as JSON, with <code>limit</code> (up to 1000) and <code>offset</code>; it returns <code>total</code> and <code>entries</code>, and without dates it covers only the last four hours. Servers before 3.12.1.7 answer the export with 400 "Invalid audit log ID format"; on those, page through the list instead, as in the second Bash example.</p>
+                    <h4 data-i18n="docs.api.examples.lang_bash">Bash</h4>
+<pre><code class="language-bash">curl -s -G -H "Authorization: Bearer $SYSMANAGE_API_KEY" -o audit-2026-10.csv \
+  --data-urlencode "fmt=csv" \
+  --data-urlencode "start_date=2026-10-01T00:00:00" --data-urlencode "end_date=2026-11-01T00:00:00" \
+  "$SYSMANAGE_URL/api/v1/audit-log/export"
+
+# The same month as JSON lines, from the list endpoint
+offset=0
+while :; do
+  page=$(curl -s -G -H "Authorization: Bearer $SYSMANAGE_API_KEY" \
+    --data-urlencode "start_date=2026-10-01T00:00:00" --data-urlencode "end_date=2026-11-01T00:00:00" \
+    --data-urlencode "limit=1000" --data-urlencode "offset=$offset" \
+    "$SYSMANAGE_URL/api/v1/audit-log/list")
+  echo "$page" | jq -c '.entries[]'
+  [ "$(echo "$page" | jq '.entries | length')" -lt 1000 ] &amp;&amp; break
+  offset=$((offset + 1000))
+done &gt; audit-2026-10.jsonl</code></pre>
+                    <h4 data-i18n="docs.api.examples.lang_python">Python</h4>
+<pre><code class="language-python">params = {"fmt": "csv", "start_date": "2026-10-01T00:00:00", "end_date": "2026-11-01T00:00:00"}
+r = s.get(f"{BASE}/audit-log/export", params=params)
+r.raise_for_status()
+open("audit-2026-10.csv", "wb").write(r.content)</code></pre>
+                    <h4 data-i18n="docs.api.examples.lang_powershell">PowerShell</h4>
+<pre><code class="language-powershell">$Q = "fmt=csv&amp;start_date=2026-10-01T00:00:00&amp;end_date=2026-11-01T00:00:00"
+Invoke-WebRequest -Uri "$Base/audit-log/export?$Q" -Headers $Headers -OutFile audit-2026-10.csv</code></pre>
+
+                    <h2 data-i18n="docs.api.examples.h_errors">When a call fails</h2>
+                    <table class="data-table">
+                        <thead><tr><th data-i18n="docs.api.examples.t_code">Answer</th><th data-i18n="docs.api.examples.t_meaning">What it means</th></tr></thead>
+                        <tbody>
+                            <tr><td data-i18n="docs.api.examples.t401_s">401</td><td data-i18n="docs.api.examples.t401_f">The key or token is missing, revoked or expired, or it belongs to the recovery account.</td></tr>
+                            <tr><td data-i18n="docs.api.examples.t403_s">403</td><td data-i18n="docs.api.examples.t403_f">The user lacks the role the call needs; the detail names it.</td></tr>
+                            <tr><td data-i18n="docs.api.examples.t402_s">402</td><td data-i18n="docs.api.examples.t402_f">The feature needs a higher edition than the server's license.</td></tr>
+                            <tr><td data-i18n="docs.api.examples.t422_s">422</td><td data-i18n="docs.api.examples.t422_f">The request does not match the expected shape, for example a malformed host ID or a missing field; the detail says which.</td></tr>
+                        </tbody>
+                    </table>
+
+                    <h2 data-i18n="docs.api.examples.h_reference">API reference by area</h2>
+                    <ul>
+                        <li data-i18n="docs.api.examples.ref_auth" data-i18n-html><a href="authentication.html">Authentication</a></li>
+                        <li data-i18n="docs.api.examples.ref_hosts" data-i18n-html><a href="hosts.html">Host management</a></li>
+                        <li data-i18n="docs.api.examples.ref_packages" data-i18n-html><a href="packages.html">Packages and updates</a></li>
+                        <li data-i18n="docs.api.examples.ref_users" data-i18n-html><a href="users.html">Users</a></li>
+                        <li data-i18n="docs.api.examples.ref_reports" data-i18n-html><a href="reports.html">Reports</a></li>
+                        <li data-i18n="docs.api.examples.ref_monitoring" data-i18n-html><a href="monitoring.html">Monitoring</a></li>
+                        <li data-i18n="docs.api.examples.ref_config" data-i18n-html><a href="configuration.html">Configuration</a></li>
+                        <li data-i18n="docs.api.examples.ref_repos" data-i18n-html><a href="third-party-repositories.html">Third-party repositories</a></li>
+                        <li data-i18n="docs.api.examples.ref_ws" data-i18n-html><a href="websockets.html">WebSockets</a></li>
+                        <li data-i18n="docs.api.examples.ref_engines" data-i18n-html><a href="engines.html">Professional+ engines</a>, <a href="federation.html">federation</a>, <a href="airgap.html">air-gap</a> and <a href="control-plane.html">control plane</a></li>
+                        <li data-i18n="docs.api.examples.ref_runbooks" data-i18n-html>Task runbooks that use these calls: <a href="../runbooks/">Runbooks</a></li>
+                    </ul>
+                </section>
+            </div>
+        </div>
+    </main>
+    <script src="/assets/js/components.js"></script>
+    <script src="/assets/js/i18n.js"></script>
+    <script src="/assets/js/navbar.js"></script>
+    <script src="/assets/js/main.js"></script>
+</body>
+</html>

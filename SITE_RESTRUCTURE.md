@@ -55,28 +55,43 @@ come from `make screenshots`; American spelling; ASCII hyphens.
   load-balancing, queue-management, data-synchronization, retry-logic,
   migration-strategy, system-overview/system-architecture,
   scaling-strategies. Old URLs become short pages that point at the new ones.
-- [ ] **Editions match the code.** One edition data source drives the
+- [x] **Editions match the code.** One edition data source drives the
   homepage cards, the Pro+ index and the Enterprise SaaS page; fix every
   conflict found by the audit (vuln/compliance/secrets = Professional; MFA and
   RBAC = Community; reporting = Professional; host metrics and NTP policy =
   Enterprise; Community has firewall *status*, not firewall management;
   remove "Advanced RBAC"; Enterprise SaaS "hosted on request").
-- [ ] **Softer, defensible positioning.** "Consolidate fragmented fleet
+- [x] **Softer, defensible positioning.** "Consolidate fragmented fleet
   operations" instead of wholesale replacement; remove absolutes the code
   contradicts ("works the same way on every OS", "structurally impossible",
   "most secure platform available", "military-grade").
-- [ ] **BSD everywhere it belongs** in platform lists.
+- [x] **BSD everywhere it belongs** in platform lists.
 - [x] **Every docs page has the site shell** (42 pages load no scripts: no
   header, footer or translation).
-- [ ] **Stale facts:** EOL OS releases, "Phase N" pages and headings, old
+- [x] **Stale facts:** EOL OS releases, "Phase N" pages and headings, old
   version references, the Windows 10 diagram, British spellings.
+  British spellings: none in prose ("cancelled" is the product's status
+  value). EOL releases: only in cited competitor facts and sample output.
+  Supported-platforms page gained the release x architecture x install
+  method table (`releases` in data/capabilities.yaml). "Phase N" removed
+  from every title and heading (file names kept, so links hold). The
+  architecture diagram claimed mTLS, CentOS, Windows 10 and macOS 10.15;
+  it now says TLS and names what is packaged.
+- [ ] **"Phase" in body text (after the translation run; sysmanage ROADMAP
+  25.6):** phases are an internal planning term (Bryan, 2026-11-05) and
+  ten pages still cite them in prose -- roadmap/index.html, five
+  architecture pages, server/deployment, server/troubleshooting,
+  deployment/production-checklist, getting-started/first-deployment
+  ("Phase 34" for HA, "Phase 29", "ROADMAP 27.3"). Name the feature or say
+  "planned", update the strings in 14 locales, and add a lint check that
+  fails on "Phase <number>" / "ROADMAP <number>" in published pages.
 
 ## Week 2 -- The evaluation journey
 
 - [x] **Supported platforms matrix** (docs): OS x release x architecture x
   install method, and capability x OS (Yes / Partial, with what is missing /
   No), generated from one data file.
-- [ ] **Editions and availability** (docs + marketing): capability x edition x
+- [x] **Editions and availability** (docs + marketing): capability x edition x
   status (Available with the version that shipped it / In development /
   Planned with its phase).
 - [x] **"Your first mixed fleet in 30 minutes"** tutorial: Community server on
@@ -84,7 +99,7 @@ come from `make screenshots`; American spelling; ASCII hyphens.
   unified inventory, updates on both, one safe operation, its result and audit
   record. Exact commands, expected output, recovery for common errors. Run end
   to end on fresh VMs before publishing.
-- [ ] **/evaluate/** marketing page: what the evaluator needs, how long it
+- [x] **/evaluate/** marketing page: what the evaluator needs, how long it
   takes, what Community includes, what success looks like, a note an
   infrastructure director can forward to an engineer, and the commercial
   evaluation path.
@@ -94,9 +109,9 @@ come from `make screenshots`; American spelling; ASCII hyphens.
 - [x] **Homepage in six steps:** problem, Monday 9:04, outcome, proof (short
   real-product walkthrough), buyer journeys, next action (Try Community /
   Evaluate for my organization / Talk to us about MSP or Enterprise SaaS).
-- [ ] **Detail moves to its own pages:** /platform/ (capabilities, BSD,
+- [x] **Detail moves to its own pages:** /platform/ (capabilities, BSD,
   packages), /pricing/ (editions with availability), /compare/ (by product).
-- [ ] **Buyer journeys:** infrastructure operations, security and compliance,
+- [x] **Buyer journeys:** infrastructure operations, security and compliance,
   MSPs -- each with its problem, an example workflow and an evaluation CTA.
 - [x] **Comparison by product and use case** (Ansible, Puppet, Salt, Chef,
   Satellite, Landscape, Intune, Jamf, SCCM/MECM), each cell cited to vendor
@@ -112,18 +127,18 @@ come from `make screenshots`; American spelling; ASCII hyphens.
 
 ## Week 4 -- Docs usability
 
-- [ ] **Docs landing by task:** Evaluate, Deploy in production, Operate your
+- [x] **Docs landing by task:** Evaluate, Deploy in production, Operate your
   fleet, Security & trust, Integrate & extend, Architecture & development.
-- [ ] **Search:** a client-side index built by a make target, with a gate that
+- [x] **Search:** a client-side index built by a make target, with a gate that
   fails when the index is stale.
-- [ ] **Version information:** every docs page says which release it
+- [x] **Version information:** every docs page says which release it
   describes; a release notes page.
-- [ ] **Production guides:** upgrade, rollback, server disaster recovery
+- [x] **Production guides:** upgrade, rollback, server disaster recovery
   (database, OpenBAO, sysmanage.yaml, certificates, license), a
   production-readiness checklist; rewrite administration/backup.html.
-- [ ] **Runbooks:** patch a critical CVE across the fleet, onboard 100 hosts,
+- [x] **Runbooks:** patch a critical CVE across the fleet, onboard 100 hosts,
   rotate certificates, replace a failed server.
-- [ ] **API examples** in Python, Bash and PowerShell for common tasks; API
+- [x] **API examples** in Python, Bash and PowerShell for common tasks; API
   tokens linked from the API docs.
 - [ ] **Docs that stay true:** a gate that checks install commands against
   the published repositories and keys, and a release-gated review of the
@@ -158,15 +173,60 @@ the VMs, tests added -- they ship with the next release (3.12.1.7):
 - [x] Host approval was audited only as "Updated host" (now "Approved host").
 - [x] Agent Recommends pulled virtinst/qemu/GTK onto every Ubuntu/RPM host
   (now Suggests -- Bryan, 2026-11-05).
-- [ ] The server's FreeBSD package has the same py311 / relative-path
-  problems as the agent's had (needs the same treatment and a server-side
-  install test).
+- [x] The server's FreeBSD package: same no-files / py311 / relative-path
+  defects as the agent's, plus: pip-built venv (compiling pydantic-core),
+  nginx config with literal `%%PREFIX%%` tokens and a wrong frontend root,
+  never included by FreeBSD's stock nginx.conf, no TLS directory; rc ran
+  from / (backend not importable, `logs/` unwritable) and migrated with a
+  bare `alembic upgrade head`; OpenBAO rc set `openbao_user` (daemon could
+  not open its log) and called python3.11; post-install started OpenBAO,
+  which pkg reaps; `sysmanage-migrate` missing and unable to read the
+  root:wheel config. Fixed with `installer/freebsd/build_pkg_manifest.py`
+  (deps read from the port's RUN_DEPENDS, which gained regex + packaging)
+  and proven end to end on FreeBSD 14.5: install, migrate, OpenBAO
+  unsealed, HTTPS console and /api/health through nginx, 80 -> 301.
 - [ ] FreeBSD install reports installed_version None (cosmetic).
 - [ ] RHEL/openSUSE nginx default server may also answer port 80 (check).
+- [x] **RPM removal wipes the server's identity:** `dnf remove` / `zypper
+  remove` run `rm -rf /etc/sysmanage /var/lib/sysmanage` (CA, TLS key,
+  OpenBAO token) -- `installer/centos/sysmanage.spec:410-420`,
+  `installer/opensuse/sysmanage.spec:382-396`; Debian does it only on purge.
+- [x] `scripts/sysmanage-migrate` and `installer/ubuntu/sysmanage.service`
+  export `SYSMANAGE_CONFIG`; `backend/config/config.py` reads
+  `SYSMANAGE_CONFIG_PATH`, so the wrapper's /usr/local/etc and /usr/pkg/etc
+  search does nothing.
+- [x] FreeBSD server: the package writes `/usr/local/etc/sysmanage/config.yaml`
+  but the server reads `/etc/sysmanage.yaml` (rc.d never sets the path).
+- [ ] Windows: OpenBAO init/unseal runs only at MSI install, nothing unseals
+  at boot (unverified at runtime).
+- [ ] Package rollback: `migration_compat.is_at_or_above` refuses engines
+  when the database is at a revision the older code does not know.
+- [ ] Containers: `container_engine` is Professional but child-host listing
+  needs the Enterprise child_host_handlers engine; decide which is right and
+  align `data/capabilities.yaml` (`child_hosts`).
+- [ ] ROADMAP 25.9: unseal keys live in `/var/lib/openbao/init.json` on
+  package installs (the YAML only via the secure-installation script).
 
 - [ ] Update apply has no zypper, pacman or pkgin handler (detected, never
   applied): `sysmanage-agent/src/sysmanage_agent/collection/update_detection_linux.py:360-370`,
   `update_detection_bsd.py:852-869`.
+- [x] Audit-log export never worked (`/{audit_id}` declared before
+  `/export`); fixed, proven on the eval VM.
+- [x] Community had no menu entry for its own audit log (Reports needs the
+  Professional reporting engine); Security > Audit Log added.
+- [x] RPM removal no longer deletes /etc/sysmanage and /var/lib/sysmanage.
+- [x] `SYSMANAGE_CONFIG` now honored by the server; FreeBSD server rc exports
+  its config path; its "database configured" check no longer passes on a
+  comment.
+- [ ] Update execution log endpoint reads columns UpdateExecutionLog lacks
+  (`status`, `success`, `error_message`) -- 500 for any host with rows.
+- [ ] Enterprise Update Profiles "Trigger Now" sends apply_updates with no
+  packages; the agent answers "No packages specified".
+- [ ] Reports menu needs the `reports` feature, which TIER_FEATURES grants
+  only to Enterprise, while reporting_engine is Professional.
+- [ ] /api/v1/updates/results and /update-status shadowed by /{host_id}.
+- [ ] Agent config templates carry server.reconnect_interval /
+  max_reconnect_attempts, which the agent never reads.
 - [ ] Advisory engine fetches only Ubuntu USN and OpenBSD errata; RHSA,
   SUSE-SU, DSA and FreeBSD-SA are recognized but skipped.
 - [ ] Child-host listing needs the Enterprise-only child_host_handlers_engine

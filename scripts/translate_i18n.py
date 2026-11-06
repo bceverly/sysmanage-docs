@@ -32,7 +32,7 @@ import sys
 import urllib.error
 import urllib.request
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
+from typing import Callable, Dict, List, Optional, Tuple
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 # pylint: disable=wrong-import-position  # import must follow the sys.path insert
@@ -45,6 +45,10 @@ PROJECT = "sysmanage-docs"
 FORMAT = "json"  # "json" | "po"
 LOCALES_REL = "assets/locales"  # relative to the repo root (parent of scripts/)
 FILE_TEMPLATE = "{lang}.json"  # per-language file under LOCALES_REL
+# Save a language's file after about this many strings come back, not only
+# when the language finishes: a slow language (hi took ~20 h on beast,
+# 2026-11-05) that dies near the end would otherwise lose everything.
+CHECKPOINT_STRINGS = 200
 # ===========================================================================
 
 # The 13 translation targets (English is the source, never a target).
@@ -163,8 +167,16 @@ def _unwrap_envelope(value):
     return None
 
 
+# Called after each request with that request's sources and their results.
+ChunkHook = Callable[[List[str], List[Tuple[str, bool]]], None]
+
+
 def translate_to(
-    service: str, texts: List[str], lang: str, client_batch: int
+    service: str,
+    texts: List[str],
+    lang: str,
+    client_batch: int,
+    on_chunk: Optional[ChunkHook] = None,
 ) -> List[str]:
     out: List[str] = []
     for i in range(0, len(texts), client_batch):
@@ -193,7 +205,7 @@ def translate_to(
                 )
             sys.exit(
                 f"\nERROR: lost connection to the translation service at {service}: {exc}\n"
-                "  Already-finished languages are saved; re-run to resume." + hint
+                "  Everything translated so far is saved; re-run to resume." + hint
             )
         for item in resp["results"]:
             # Take the service's OWN verdict rather than inferring one by
@@ -205,12 +217,18 @@ def translate_to(
             status = (item.get("status") or {}).get(lang, "ok")
             text = _unwrap_envelope(item["translations"].get(lang))
             out.append((text or "", status == "ok" and text is not None))
+        if on_chunk is not None:
+            on_chunk(chunk, out[-len(chunk) :])
         print(f"      …{min(i + client_batch, len(texts))}/{len(texts)}", flush=True)
     return out
 
 
 def _resolve_translations(
-    service: str, sources: List[str], lang: str, client_batch: int
+    service: str,
+    sources: List[str],
+    lang: str,
+    client_batch: int,
+    on_chunk: Optional[ChunkHook] = None,
 ) -> Dict[str, str]:
     """``{source: translation}`` for what the service actually translated.
 
@@ -227,7 +245,7 @@ def _resolve_translations(
     """
     resolved: Dict[str, str] = {}
     for src, (text, ok) in zip(
-        sources, translate_to(service, sources, lang, client_batch)
+        sources, translate_to(service, sources, lang, client_batch, on_chunk)
     ):
         if ok:
             resolved[src] = text
@@ -256,6 +274,52 @@ def _set_dotted(obj: dict, dotted: str, value: str) -> None:
     for p in parts[:-1]:
         cur = cur.setdefault(p, {})
     cur[parts[-1]] = value
+
+
+def _write_json(path: Path, doc: dict) -> None:
+    # Write beside the file and rename, so a run killed mid-write never leaves
+    # a truncated locale file behind.
+    tmp = path.with_suffix(path.suffix + ".tmp")
+    tmp.write_text(json.dumps(doc, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    os.replace(tmp, path)
+
+
+class _JsonCheckpoint:  # pylint: disable=too-few-public-methods
+    """Applies each request's translations to one locale as they arrive and
+    saves the file every ``CHECKPOINT_STRINGS`` strings."""
+
+    def __init__(self, path: Path, doc: dict, lang: str, todo, translated_keys):
+        self.path = path
+        self.doc = doc
+        self.lang = lang
+        self.translated_keys = translated_keys
+        self.keys_by_source: Dict[str, List[str]] = {}
+        for key, en_src in todo:
+            self.keys_by_source.setdefault(en_src, []).append(key)
+        self.written: set = set()
+        self.unsaved = 0
+
+    def __call__(self, sources: List[str], results: List[Tuple[str, bool]]) -> None:
+        for src, (text, ok) in zip(sources, results):
+            # Write ONLY what the service actually translated.  Writing the
+            # English source as a fallback (which this used to do) turned a
+            # [TODO] gap into an English-identical value -- so gaps hit zero
+            # while the untranslated count GREW, and each run manufactured
+            # more of the very thing it was meant to fix.  Leave it untouched
+            # instead: a gap stays a gap, and stays visible.
+            if not ok:
+                continue
+            for key in self.keys_by_source.get(src, ()):
+                _set_dotted(self.doc, key, text)
+                self.translated_keys.setdefault(key, set()).add(self.lang)
+            self.written.add(src)
+        self.unsaved += len(sources)
+        if self.unsaved >= CHECKPOINT_STRINGS:
+            self.save()
+
+    def save(self) -> None:
+        _write_json(self.path, self.doc)
+        self.unsaved = 0
 
 
 def _is_json_gap(value: Optional[str]) -> bool:
@@ -371,24 +435,13 @@ def run_json(
         locale_flats[lang] = lang_flat
         if not todo or service is None:
             continue
-        translations = _resolve_translations(service, uniq, lang, client_batch)
-        written = set()
-        for key, en_src in todo:
-            cand = translations.get(en_src)
-            # Write ONLY what the service actually translated.  Writing the
-            # English source as a fallback (which this used to do) turned a
-            # [TODO] gap into an English-identical value -- so gaps hit zero
-            # while the untranslated count GREW, and each run manufactured more
-            # of the very thing it was meant to fix.  Leave it untouched
-            # instead: a gap stays a gap, and stays visible.
-            if cand is None:
-                continue
-            _set_dotted(doc, key, cand)
-            written.add(en_src)
-            translated_keys.setdefault(key, set()).add(lang)
-        path.write_text(
-            json.dumps(doc, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
-        )
+        checkpoint = _JsonCheckpoint(path, doc, lang, todo, translated_keys)
+        try:
+            _resolve_translations(service, uniq, lang, client_batch, checkpoint)
+        finally:
+            # Also on a lost connection (sys.exit): keep what came back.
+            checkpoint.save()
+        written = checkpoint.written
         # Count what the pass ACTUALLY leaves untranslated -- gaps AND values
         # still equal to their English source.  Counting only [TODO] here is
         # how the run could report "0 gap(s) remaining" while dozens of strings

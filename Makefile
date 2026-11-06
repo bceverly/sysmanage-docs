@@ -1291,7 +1291,7 @@ lint-css-fix: ensure-css-lint-tools
 	@./node_modules/.bin/stylelint "assets/css/**/*.css" --fix
 	@echo "[OK] CSS auto-fix completed"
 
-lint: lint-file-length lint-license-headers lint-python lint-security lint-js lint-css matrix-check i18n-validate i18n-strict i18n-verify i18n-markup i18n-code i18n-html-sync translate-check
+lint: lint-file-length lint-license-headers lint-python lint-security lint-js lint-css matrix-check check-install-docs i18n-validate i18n-strict i18n-verify i18n-markup i18n-code i18n-html-sync translate-check
 	@echo "[OK] docs lint (python + security + js + i18n) passed"
 
 # Structure gate. i18n-validate asks "is the key there?", translate-check asks
@@ -1332,6 +1332,19 @@ matrix: $(VENV_ACTIVATE)
 matrix-check: $(VENV_ACTIVATE)
 	@$(PYTHON) scripts/build_matrix.py --check
 .PHONY: matrix matrix-check
+
+# Installation instructions that cannot work or are unsafe (curl | bash,
+# trusted=yes, gpgcheck=0, images that do not exist, wrong ports) fail lint.
+# ONLINE=1 also fetches every repo.sysmanage.org file the pages name.
+check-install-docs: $(VENV_ACTIVATE)
+	@$(PYTHON) scripts/check_install_docs.py $(if $(ONLINE),--online,)
+.PHONY: check-install-docs
+
+# Documentation search index (assets/search/<lang>.json).  Built at deploy
+# time by deploy.yml and never committed; run this to try search locally.
+search-index: $(VENV_ACTIVATE)
+	@$(PYTHON) scripts/build_search_index.py
+.PHONY: search-index
 
 # The fix for an html-sync failure after rewording a page: carries the page's
 # English into en.json and marks the 13 translations [TODO] for `make

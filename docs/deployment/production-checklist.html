@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en" data-i18n-title="docs.prodcheck.meta_title">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title data-i18n="docs.prodcheck.meta_title">Production Readiness Checklist - SysManage</title>
+    <meta name="description" data-i18n="docs.prodcheck.meta_description" data-i18n-attr="content" content="One checklist for putting a SysManage server into production: sizing, PostgreSQL, TLS, network exposure, accounts, email, backups, monitoring, logs, time, upgrades, licensing and what high availability covers today.">
+    <link rel="stylesheet" href="/assets/css/style.css">
+    <link rel="icon" type="image/svg+xml" href="/assets/images/favicon.svg">
+</head>
+<body data-auto-header="documentation" data-auto-footer>
+    <main class="docs-main">
+        <div class="container">
+            <div class="docs-breadcrumb"><a href="../" data-i18n="docs.prodcheck.crumb_docs">Documentation</a> &gt; <a href="./" data-i18n="docs.prodcheck.crumb_section">Deployment</a> &gt; <span data-i18n="docs.prodcheck.crumb_page">Production Readiness Checklist</span></div>
+            <div class="docs-header">
+                <h1 data-i18n="docs.prodcheck.title">Production Readiness Checklist</h1>
+                <p data-i18n="docs.prodcheck.intro">Go through this list before a SysManage server carries a real fleet, and again after any large change. Each item is one line; the link goes to the page with the details.</p>
+            </div>
+            <div class="docs-content">
+                <section class="docs-section">
+                    <h2 data-i18n="docs.prodcheck.h_capacity">Capacity</h2>
+                    <ul class="checklist">
+                        <li data-i18n="docs.prodcheck.size_server" data-i18n-html>Give the server about 3 CPU cores and 4 GB of memory per 10,000 agents, plus the database -- <a href="../server/scaling.html">Scaling</a>.</li>
+                        <li data-i18n="docs.prodcheck.size_workers" data-i18n-html>Keep to about 2,500 agents per worker; the server picks the worker count for its machine unless <code>api.workers</code> is set -- <a href="../server/scaling.html">Scaling</a>.</li>
+                        <li data-i18n="docs.prodcheck.size_pool" data-i18n-html>Set PostgreSQL's <code>max_connections</code> from the formula, and look for "Database pool reduced to fit the server" in the log after a restart -- <a href="../server/scaling.html">Scaling</a>.</li>
+                    </ul>
+
+                    <h2 data-i18n="docs.prodcheck.h_database">Database</h2>
+                    <ul class="checklist">
+                        <li data-i18n="docs.prodcheck.db_version" data-i18n-html>Run PostgreSQL 12 or newer, with its own machine past about 20,000 agents -- <a href="../server/scaling.html">Scaling</a>.</li>
+                        <li data-i18n="docs.prodcheck.db_ha" data-i18n-html>For a database that survives losing its machine, run an HA PostgreSQL cluster -- <a href="../administration/postgresql-ha.html">PostgreSQL High Availability</a>.</li>
+                        <li data-i18n="docs.prodcheck.db_pooler" data-i18n-html>Do not put a transaction-mode pooler such as PgBouncer in front of it: the server holds session-level advisory locks -- <a href="../server/scaling.html">Scaling</a>.</li>
+                    </ul>
+
+                    <h2 data-i18n="docs.prodcheck.h_network">TLS and network exposure</h2>
+                    <ul class="checklist">
+                        <li data-i18n="docs.prodcheck.tls_cert" data-i18n-html>Install a real certificate for the server's name at <code>/etc/sysmanage/tls/server.crt</code> and <code>server.key</code>; nginx will not start without one, and agents verify it -- <a href="../server/installation.html">Installation</a>.</li>
+                        <li data-i18n="docs.prodcheck.net_nginx" data-i18n-html>Only nginx listens on the network, on 443 (80 only redirects); the backend stays on <code>127.0.0.1:8080</code> and OpenBAO on <code>127.0.0.1:8200</code> -- <a href="../security/network-security.html">Network Security</a>.</li>
+                        <li data-i18n="docs.prodcheck.net_bind" data-i18n-html>Leave <code>api.host</code> on <code>localhost</code> and <code>dev_mode</code> out of the configuration; the server warns at startup if the API is bound to a public address -- <a href="../server/configuration.html">Configuration</a>.</li>
+                        <li data-i18n="docs.prodcheck.net_firewall" data-i18n-html>Allow inbound 443 (and 80 for the redirect) and nothing else; agents need only outbound 443 to the server -- <a href="../security/network-security.html">Network Security</a>.</li>
+                    </ul>
+
+                    <h2 data-i18n="docs.prodcheck.h_accounts">Accounts and email</h2>
+                    <ul class="checklist">
+                        <li data-i18n="docs.prodcheck.acct_email" data-i18n-html>Configure SMTP so invitations and password resets reach people -- <a href="../administration/settings-guide.html">Settings</a>, <a href="../administration/administrator-invitations.html">Administrator Invitations</a>.</li>
+                        <li data-i18n="docs.prodcheck.acct_recovery" data-i18n-html>Create your own administrators, then remove <code>admin_userid</code> and <code>admin_password</code> from <code>/etc/sysmanage.yaml</code> and restart -- <a href="../server/installation.html">Installation</a>.</li>
+                        <li data-i18n="docs.prodcheck.acct_mfa" data-i18n-html>Turn on multi-factor sign-in for administrators -- <a href="../security/authentication.html">Authentication</a>.</li>
+                    </ul>
+
+                    <h2 data-i18n="docs.prodcheck.h_recovery">Backups and recovery</h2>
+                    <ul class="checklist">
+                        <li data-i18n="docs.prodcheck.bk_schedule" data-i18n-html>Back up the databases, OpenBAO, the configuration, the agents' CA and the TLS certificate on a schedule, off the machine -- <a href="../administration/backup.html">Server Backup and Recovery</a>.</li>
+                        <li data-i18n="docs.prodcheck.bk_protect" data-i18n-html>Encrypt those backups and limit who can read them: they carry the OpenBAO unseal key and the database password -- <a href="../administration/backup.html">Server Backup and Recovery</a>.</li>
+                        <li data-i18n="docs.prodcheck.bk_test" data-i18n-html>Restore one onto a test machine and time it before you need it -- <a href="../administration/backup.html">Server Backup and Recovery</a>.</li>
+                    </ul>
+
+                    <h2 data-i18n="docs.prodcheck.h_operations">Monitoring, logs and time</h2>
+                    <ul class="checklist">
+                        <li data-i18n="docs.prodcheck.mon_health" data-i18n-html>Poll <code>/api/health</code> for liveness and <code>/api/health/db</code> (HTTP 503 when the database is unreachable; not for high-frequency polling) for readiness -- <a href="../administration/monitoring.html">Monitoring</a>.</li>
+                        <li data-i18n="docs.prodcheck.mon_canary" data-i18n-html>Watch the server from outside with the production canary -- <a href="best-practices.html">Best-Practice Deployment</a>.</li>
+                        <li data-i18n="docs.prodcheck.mon_engines" data-i18n-html>Professional+: alert when <code>/api/v1/license/module-compat</code> lists an engine that cannot load -- <a href="../administration/maintenance.html">Maintenance</a>.</li>
+                        <li data-i18n="docs.prodcheck.logs" data-i18n-html>The server log is <code>/var/log/sysmanage/backend.log</code>, rotated at midnight with 14 kept; forward it if you need more -- <a href="../administration/logging-configuration.html">Logging Configuration</a>.</li>
+                        <li data-i18n="docs.prodcheck.time" data-i18n-html>Keep the server's and the database's clocks synchronized; the server measures every host's clock against its own -- <a href="../administration/time-sync.html">Time Sync</a>.</li>
+                    </ul>
+
+                    <h2 data-i18n="docs.prodcheck.h_lifecycle">Upgrades, license and availability</h2>
+                    <ul class="checklist">
+                        <li data-i18n="docs.prodcheck.upgrades" data-i18n-html>Plan upgrades: back up, upgrade, migrate, restart, and know how to roll back -- <a href="upgrade.html">Upgrading and Rolling Back</a>.</li>
+                        <li data-i18n="docs.prodcheck.license" data-i18n-html>Professional+: put the license key in <code>license.key</code>, let the server reach the license server for engine downloads, and keep the license in your backups -- <a href="../professional-plus/">Professional+</a>.</li>
+                        <li data-i18n="docs.prodcheck.tenants" data-i18n-html>Multi-tenancy: OpenBAO must be running and unsealed for the server and for every migration -- <a href="multi-tenancy.html">Multi-Tenancy</a>.</li>
+                        <li data-i18n="docs.prodcheck.ha" data-i18n-html>Plan for one active server: several SysManage servers for failover are not available yet (roadmap Phase 34); while it restarts, agents wait and reconnect -- <a href="../administration/maintenance.html">Maintenance</a>.</li>
+                    </ul>
+                </section>
+            </div>
+        </div>
+    </main>
+    <script src="/assets/js/components.js"></script>
+    <script src="/assets/js/i18n.js"></script>
+    <script src="/assets/js/navbar.js"></script>
+    <script src="/assets/js/main.js"></script>
+</body>
+</html>

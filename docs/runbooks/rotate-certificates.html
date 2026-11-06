@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en" data-i18n-title="docs.runbooks.certs.meta_title">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title data-i18n="docs.runbooks.certs.meta_title">Renew the Server Certificate - SysManage</title>
+    <meta name="description" data-i18n="docs.runbooks.certs.meta_description" data-i18n-attr="content" content="Renew or replace the TLS certificate the SysManage server presents, keep the agents trusting it, and know what the agents do while the certificate changes.">
+    <link rel="stylesheet" href="/assets/css/style.css">
+    <link rel="icon" type="image/svg+xml" href="/assets/images/favicon.svg">
+</head>
+<body data-auto-header="documentation" data-auto-footer>
+    <main class="docs-main">
+        <div class="container">
+            <div class="docs-breadcrumb"><a href="../" data-i18n="docs.runbooks.crumb_docs">Documentation</a> &gt; <a href="./" data-i18n="docs.runbooks.crumb_section">Runbooks</a> &gt; <span data-i18n="docs.runbooks.certs.crumb_page">Renew the Server Certificate</span></div>
+            <div class="docs-header">
+                <h1 data-i18n="docs.runbooks.certs.title">Renew the Server Certificate</h1>
+                <p data-i18n="docs.runbooks.certs.intro">The server's TLS certificate protects the web interface, the API and every agent connection, all on port 443. This runbook renews it, or replaces it with one from a different certificate authority, without losing the agents.</p>
+            </div>
+            <div class="docs-content">
+                <section class="docs-section">
+                    <h2 data-i18n="docs.runbooks.certs.h_when">When to use it</h2>
+                    <ul>
+                        <li data-i18n="docs.runbooks.certs.when_expiry">The certificate is close to expiry and does not renew by itself.</li>
+                        <li data-i18n="docs.runbooks.certs.when_ca">You are moving to a different certificate authority, for example from a self-signed evaluation certificate to your company's CA or Let's Encrypt.</li>
+                        <li data-i18n="docs.runbooks.certs.when_name">The server gets a new name, which the certificate must cover.</li>
+                        <li data-i18n="docs.runbooks.certs.when_key">The private key may have been exposed.</li>
+                    </ul>
+
+                    <h2 data-i18n="docs.runbooks.certs.h_need">What you need</h2>
+                    <ul>
+                        <li data-i18n="docs.runbooks.certs.need_edition" data-i18n-html>Any edition: this is all <strong>Community</strong>.</li>
+                        <li data-i18n="docs.runbooks.certs.need_root">Root access to the server, and to the agents if their trusted CA changes.</li>
+                        <li data-i18n="docs.runbooks.certs.need_cert">The new certificate (with its intermediate certificates) and its private key, or certbot set up to obtain one.</li>
+                    </ul>
+
+                    <h2 data-i18n="docs.runbooks.certs.h_where">Where the certificate lives</h2>
+                    <p data-i18n="docs.runbooks.certs.where_p" data-i18n-html>Only nginx presents the certificate; the SysManage server behind it listens on loopback port 8080 and never sees it. The package's nginx site (on Ubuntu, <code>/etc/nginx/sites-available/sysmanage-nginx.conf</code>) reads:</p>
+<pre><code class="language-nginx">ssl_certificate     /etc/sysmanage/tls/server.crt;
+ssl_certificate_key /etc/sysmanage/tls/server.key;</code></pre>
+                    <p data-i18n="docs.runbooks.certs.where_le" data-i18n-html>If you followed the Let's Encrypt steps in the <a href="../server/installation.html">server installation guide</a>, these two lines point at <code>/etc/letsencrypt/live/&lt;name&gt;/fullchain.pem</code> and <code>privkey.pem</code> instead. Check what yours says, and when the certificate expires:</p>
+<pre><code class="language-bash">sudo grep -E 'ssl_certificate(_key)?\s' /etc/nginx/sites-available/sysmanage-nginx.conf
+echo | openssl s_client -connect sysmanage.example.com:443 -servername sysmanage.example.com 2&gt;/dev/null |
+  openssl x509 -noout -subject -issuer -enddate -ext subjectAltName</code></pre>
+
+                    <h2 data-i18n="docs.runbooks.certs.h_le">A. Let's Encrypt with certbot</h2>
+                    <p data-i18n="docs.runbooks.certs.le_p" data-i18n-html>certbot renews by itself, about a month before expiry, with the hooks you gave it the first time: with the HTTP challenge it stops nginx for a few seconds and starts it again; with a DNS challenge and <code>--deploy-hook "systemctl reload nginx"</code>, nginx keeps running. Check that renewal works:</p>
+<pre><code class="language-bash">sudo certbot renew --dry-run</code></pre>
+                    <p data-i18n="docs.runbooks.certs.le_copy" data-i18n-html>If nginx reads copies in <code>/etc/sysmanage/tls/</code> rather than the files in <code>/etc/letsencrypt/live/</code>, a renewal changes nothing nginx sees. Either point the two nginx lines at the live files, or add a deploy hook that copies them after each renewal. certbot runs every executable file in this directory after a successful renewal; <code>--dry-run</code> does not run it.</p>
+<pre><code class="language-bash">sudo tee /etc/letsencrypt/renewal-hooks/deploy/sysmanage.sh &gt;/dev/null &lt;&lt;'EOF'
+#!/bin/sh
+install -m 644 "$RENEWED_LINEAGE/fullchain.pem" /etc/sysmanage/tls/server.crt
+install -m 600 "$RENEWED_LINEAGE/privkey.pem"   /etc/sysmanage/tls/server.key
+nginx -t &amp;&amp; systemctl reload nginx
+EOF
+sudo chmod 755 /etc/letsencrypt/renewal-hooks/deploy/sysmanage.sh</code></pre>
+                    <p data-i18n="docs.runbooks.certs.le_agents">Agents trust Let's Encrypt through their operating system's trust store, so they need nothing.</p>
+
+                    <h2 data-i18n="docs.runbooks.certs.h_ca">B. A certificate from your own or a commercial CA</h2>
+                    <ol>
+                        <li data-i18n="docs.runbooks.certs.ca1" data-i18n-html><strong>If the issuing CA changes, tell the agents first.</strong> An agent with <code>ca_bundle</code> in its configuration trusts only the CA in that file. Put the old and the new CA certificates in the file, one after the other, on every such agent before you swap the server's certificate. The agent reads the file again on each new connection; restarting the agent applies it at once. Agents without <code>ca_bundle</code> use the operating system's trust store, so add a private CA there instead.</li>
+                        <li data-i18n="docs.runbooks.certs.ca2" data-i18n-html><strong>Check the new certificate.</strong> Its subjectAltName must include the name (or address) in the agents' <code>server.url</code>, and the key must match it -- these two commands print the same value:</li>
+                    </ol>
+<pre><code class="language-bash">openssl x509 -in new.crt -noout -ext subjectAltName -enddate
+openssl x509 -in new.crt -noout -pubkey | openssl sha256
+openssl pkey -in new.key -pubout | openssl sha256</code></pre>
+                    <ol start="3">
+                        <li data-i18n="docs.runbooks.certs.ca3" data-i18n-html><strong>Install it and reload nginx.</strong> Put the server certificate first in <code>server.crt</code>, followed by any intermediate certificates. Keep the old files until the new ones are proven.</li>
+                    </ol>
+<pre><code class="language-bash">sudo cp -p /etc/sysmanage/tls/server.crt /etc/sysmanage/tls/server.crt.old
+sudo cp -p /etc/sysmanage/tls/server.key /etc/sysmanage/tls/server.key.old
+cat new.crt intermediate.crt | sudo tee /etc/sysmanage/tls/server.crt &gt;/dev/null
+sudo install -m 600 new.key /etc/sysmanage/tls/server.key
+sudo nginx -t &amp;&amp; sudo systemctl reload nginx</code></pre>
+                    <ol start="4">
+                        <li data-i18n="docs.runbooks.certs.ca4">When every agent is back (see below), remove the old CA from the agents' ca_bundle files, and delete the .old files.</li>
+                    </ol>
+
+                    <h2 data-i18n="docs.runbooks.certs.h_during">What the agents do during the swap</h2>
+                    <ul>
+                        <li data-i18n="docs.runbooks.certs.during_reload" data-i18n-html>A <code>reload</code> keeps nginx running: connections already open stay on the old certificate until they close, and new connections get the new one. With certbot's HTTP challenge, nginx stops for a few seconds and the agents reconnect.</li>
+                        <li data-i18n="docs.runbooks.certs.during_retry">An agent that loses its connection keeps trying, waiting a little longer each time, up to five minutes between attempts. It never gives up, so it comes back by itself once it trusts the certificate.</li>
+                        <li data-i18n="docs.runbooks.certs.during_trust" data-i18n-html>An agent that does not trust the new certificate logs <code>certificate verify failed</code> and keeps retrying. Fix its <code>ca_bundle</code> (step B1); there is nothing to re-enroll.</li>
+                        <li data-i18n="docs.runbooks.certs.during_down">A host that has not checked in for five minutes shows Down. Commands sent to it meanwhile wait on the server and are delivered when it reconnects.</li>
+                        <li data-i18n="docs.runbooks.certs.during_pin">Agents do not pin the server's certificate today, so a new certificate from a CA they trust is accepted without any change on the agents.</li>
+                    </ul>
+
+                    <h2 data-i18n="docs.runbooks.certs.h_agentcerts">Agent certificates</h2>
+                    <p data-i18n="docs.runbooks.certs.agentcerts_p">When a host is approved, the server issues it a certificate from SysManage's own certificate authority. Agents do not use these certificates to authenticate today: an agent proves who it is with its per-host token, over a connection on which only the server presents a certificate. There is nothing to renew for them. Mutual TLS between agents and server, with the agent pinning its server, is planned (ROADMAP 25.10); this page will describe the renewal steps when it ships.</p>
+
+                    <h2 data-i18n="docs.runbooks.certs.h_confirm">How to confirm it worked</h2>
+                    <ul>
+                        <li data-i18n="docs.runbooks.certs.confirm_s_client" data-i18n-html>The <code>openssl s_client</code> command above shows the new issuer and expiry date.</li>
+                        <li data-i18n="docs.runbooks.certs.confirm_browser">The web interface opens without a certificate warning.</li>
+                        <li data-i18n="docs.runbooks.certs.confirm_agents" data-i18n-html>Within five minutes, every host on <strong>Fleet &gt; Hosts</strong> is <strong>Up</strong>. On a host, the agent log has a new "Connected to server successfully" line.</li>
+                    </ul>
+
+                    <h2 data-i18n="docs.runbooks.certs.h_trouble">If a step fails</h2>
+                    <table class="data-table">
+                        <thead><tr><th data-i18n="docs.runbooks.certs.t_symptom">What you see</th><th data-i18n="docs.runbooks.certs.t_fix">What to do</th></tr></thead>
+                        <tbody>
+                            <tr><td data-i18n="docs.runbooks.certs.t1_s" data-i18n-html><code>nginx -t</code> fails with "key values mismatch"</td><td data-i18n="docs.runbooks.certs.t1_f">The key does not belong to the certificate. Compare the two sha256 values from step B2. nginx keeps serving the old certificate until a reload succeeds.</td></tr>
+                            <tr><td data-i18n="docs.runbooks.certs.t2_s">Agents stay Down and log certificate verify failed</td><td data-i18n="docs.runbooks.certs.t2_f" data-i18n-html>They do not trust the new CA, or <code>server.crt</code> lacks the intermediate certificates. Fix the bundle on the agents, or put the old files back and reload nginx while you do.</td></tr>
+                            <tr><td data-i18n="docs.runbooks.certs.t3_s">The agent log says server.ca_bundle points at a file that does not exist</td><td data-i18n="docs.runbooks.certs.t3_f" data-i18n-html>The agent will not fall back to the system trust store when <code>ca_bundle</code> is set. Fix the path, or remove the setting.</td></tr>
+                            <tr><td data-i18n="docs.runbooks.certs.t4_s">Hostname mismatch errors</td><td data-i18n="docs.runbooks.certs.t4_f" data-i18n-html>The certificate does not cover the name in the agents' <code>server.url</code>. Reissue it with that name in its subjectAltName.</td></tr>
+                        </tbody>
+                    </table>
+
+                    <h2 data-i18n="docs.runbooks.certs.h_next">Related pages</h2>
+                    <ul>
+                        <li data-i18n="docs.runbooks.certs.next_install" data-i18n-html><a href="../server/installation.html">Server installation</a> (first certificate, certbot)</li>
+                        <li data-i18n="docs.runbooks.certs.next_agentcfg" data-i18n-html><a href="../agent/configuration.html">Agent configuration</a> (<code>ca_bundle</code>, <code>verify_ssl</code>)</li>
+                        <li data-i18n="docs.runbooks.certs.next_identity" data-i18n-html><a href="../security/agent-identity.html">Agent identity</a></li>
+                    </ul>
+                </section>
+            </div>
+        </div>
+    </main>
+    <script src="/assets/js/components.js"></script>
+    <script src="/assets/js/i18n.js"></script>
+    <script src="/assets/js/navbar.js"></script>
+    <script src="/assets/js/main.js"></script>
+</body>
+</html>

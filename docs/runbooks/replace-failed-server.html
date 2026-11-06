@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en" data-i18n-title="docs.runbooks.replace.meta_title">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title data-i18n="docs.runbooks.replace.meta_title">Replace a Failed Server - SysManage</title>
+    <meta name="description" data-i18n="docs.runbooks.replace.meta_description" data-i18n-attr="content" content="Bring up a replacement SysManage server from backup, move the server's name or address to it, and know what the agents do when the server they talk to changes.">
+    <link rel="stylesheet" href="/assets/css/style.css">
+    <link rel="icon" type="image/svg+xml" href="/assets/images/favicon.svg">
+</head>
+<body data-auto-header="documentation" data-auto-footer>
+    <main class="docs-main">
+        <div class="container">
+            <div class="docs-breadcrumb"><a href="../" data-i18n="docs.runbooks.crumb_docs">Documentation</a> &gt; <a href="./" data-i18n="docs.runbooks.crumb_section">Runbooks</a> &gt; <span data-i18n="docs.runbooks.replace.crumb_page">Replace a Failed Server</span></div>
+            <div class="docs-header">
+                <h1 data-i18n="docs.runbooks.replace.title">Replace a Failed Server</h1>
+                <p data-i18n="docs.runbooks.replace.intro">The SysManage server is gone -- a dead disk, a lost virtual machine, a data center you are leaving. This runbook brings up a replacement, moves the agents to it, and checks that every host came back without being enrolled again.</p>
+            </div>
+            <div class="docs-content">
+                <section class="docs-section">
+                    <h2 data-i18n="docs.runbooks.replace.h_when">When to use it</h2>
+                    <p data-i18n="docs.runbooks.replace.when_p">Use it when the server cannot be repaired in place, or when you move it to new hardware on purpose. For a planned move, take a fresh backup just before you start, so nothing is lost between the backup and the cut-over.</p>
+
+                    <h2 data-i18n="docs.runbooks.replace.h_need">What you need</h2>
+                    <ul>
+                        <li data-i18n="docs.runbooks.replace.need_edition" data-i18n-html>Any edition: the server backup, the restore and the cut-over are all <strong>Community</strong>.</li>
+                        <li data-i18n="docs.runbooks.replace.need_backup" data-i18n-html>A backup of the old server taken as described in <a href="../administration/backup.html">Backing Up and Recovering the SysManage Server</a>: the databases, OpenBAO, <code>/etc/sysmanage.yaml</code>, and the certificates and keys.</li>
+                        <li data-i18n="docs.runbooks.replace.need_machine">A new machine with the same operating system family, and the same SysManage version as the backup.</li>
+                        <li data-i18n="docs.runbooks.replace.need_dns">Control of the DNS name the agents use, or, if they use an IP address, a way to change every agent's configuration.</li>
+                    </ul>
+
+                    <h2 data-i18n="docs.runbooks.replace.h_how">How the agents find the server</h2>
+                    <p data-i18n="docs.runbooks.replace.how_p" data-i18n-html>Each agent reads one setting, <code>server.url</code> in its configuration file, when it starts. It connects out to that address on port 443 and identifies itself with the host token it received when it first registered, which it keeps in its local database. Three things decide whether a replacement server just works for an agent:</p>
+                    <ul>
+                        <li data-i18n="docs.runbooks.replace.how_name" data-i18n-html><strong>The name.</strong> If <code>url</code> holds a DNS name and you move that name to the new machine, the agent needs no change. If it holds an IP address and the new machine has another one, every agent's file must be edited.</li>
+                        <li data-i18n="docs.runbooks.replace.how_cert" data-i18n-html><strong>The certificate.</strong> The new server must present a certificate for that name, from a CA the agent trusts. Restoring the old certificate and key from the backup is the simplest.</li>
+                        <li data-i18n="docs.runbooks.replace.how_db" data-i18n-html><strong>The database.</strong> A restored database still holds each host and its token, so the agent is recognized and carries on. On an empty database the server has never heard of the host: the agent registers again and the host waits for approval as a new one.</li>
+                    </ul>
+
+                    <h2 data-i18n="docs.runbooks.replace.h_step1">1. Lower the DNS time-to-live (planned moves)</h2>
+                    <p data-i18n="docs.runbooks.replace.step1_p">A day before a planned move, lower the time-to-live of the server's DNS record to a few minutes, so agents and browsers pick up the new address quickly. After a failure there is no time for this; the agents still follow as their resolvers' caches expire.</p>
+
+                    <h2 data-i18n="docs.runbooks.replace.h_step2">2. Restore the server</h2>
+                    <p data-i18n="docs.runbooks.replace.step2_p" data-i18n-html>On the new machine, follow the section on rebuilding the server on a new machine in <a href="../administration/backup.html">Backing Up and Recovering the SysManage Server</a>: install the same server version, restore the configuration, the certificates, OpenBAO and the databases, run the migrations, and start the services. Check it locally before any agent is pointed at it:</p>
+<pre><code class="language-bash">curl --resolve sysmanage.example.com:443:127.0.0.1 https://sysmanage.example.com/api/health/db</code></pre>
+                    <p data-i18n="docs.runbooks.replace.step2_expect" data-i18n-html><strong>Expect:</strong> <code>{"status":"healthy","database":"up"}</code>, without a certificate error. Sign in to the web interface the same way and check that the hosts are listed; they show Down until their agents reconnect.</p>
+                    <p data-i18n="docs.runbooks.replace.step2_old" data-i18n-html>If the old server is still running in any form, stop it now (<code>sudo systemctl stop sysmanage nginx</code>). Two servers answering for the same name split the fleet between them.</p>
+
+                    <h2 data-i18n="docs.runbooks.replace.h_step3">3. Move the name or the address</h2>
+                    <ul>
+                        <li data-i18n="docs.runbooks.replace.step3_dns" data-i18n-html><strong>Agents use a DNS name:</strong> point the record at the new machine's address. Nothing changes on the agents.</li>
+                        <li data-i18n="docs.runbooks.replace.step3_ip" data-i18n-html><strong>Agents use an IP address:</strong> either give the new machine the old address, or change <code>url</code> on every agent and restart it. Use the same configuration-management tool you installed the agents with; on Linux and FreeBSD:</li>
+                    </ul>
+<pre><code class="language-bash"># Linux
+sudo sed -i 's|url: "https://192.0.2.10"|url: "https://sysmanage.example.com"|' /etc/sysmanage-agent.yaml
+sudo systemctl restart sysmanage-agent
+
+# FreeBSD
+sed -i '' 's|url: "https://192.0.2.10"|url: "https://sysmanage.example.com"|' /usr/local/etc/sysmanage-agent/config.yaml
+service sysmanage_agent restart</code></pre>
+                    <p data-i18n="docs.runbooks.replace.step3_name" data-i18n-html>While you are touching every agent anyway, switch them to a DNS name: the next move then needs only a DNS change. The certificate must cover whichever name or address <code>url</code> holds.</p>
+
+                    <h2 data-i18n="docs.runbooks.replace.h_step4">4. What the agents do</h2>
+                    <ul>
+                        <li data-i18n="docs.runbooks.replace.step4_retry">While the server is unreachable, each agent keeps retrying, waiting a little longer after each failure, up to five minutes between attempts, with random spread so the fleet does not return all at once. It never gives up.</li>
+                        <li data-i18n="docs.runbooks.replace.step4_queue">What the agent could not send while disconnected stays in its local queue and is sent after it reconnects. Commands it had already received keep running.</li>
+                        <li data-i18n="docs.runbooks.replace.step4_resolve">Each attempt looks the name up again, so a DNS change is picked up without restarting the agent. A change to the agent's configuration file is read only when the agent restarts.</li>
+                        <li data-i18n="docs.runbooks.replace.step4_identity">On a restored database, the agent presents its host token, the server recognizes it, and the host is Up again with its history, tags and approval intact.</li>
+                    </ul>
+
+                    <h2 data-i18n="docs.runbooks.replace.h_step5">5. Confirm it worked</h2>
+                    <ul>
+                        <li data-i18n="docs.runbooks.replace.step5_up" data-i18n-html>On <strong>Fleet &gt; Hosts</strong>, every host is <strong>Up</strong> within about five minutes of the cut-over, and none shows <strong>Approval Needed</strong>.</li>
+                        <li data-i18n="docs.runbooks.replace.step5_summary" data-i18n-html>Compare the numbers with the old server's last known count: <code>GET /api/v1/hosts/summary</code> returns <code>total</code>, <code>approved_up</code> and <code>approved_down</code> (see <a href="../api/examples.html">API Examples</a>).</li>
+                        <li data-i18n="docs.runbooks.replace.step5_log">On a sample of hosts, the agent log has a new "Connected to server successfully" line.</li>
+                        <li data-i18n="docs.runbooks.replace.step5_work">Commands you queued on the old server after the last backup are not on the new one. Check recent work -- updates, installations, scripts -- and send again what is missing.</li>
+                    </ul>
+
+                    <h2 data-i18n="docs.runbooks.replace.h_trouble">If a step fails</h2>
+                    <table class="data-table">
+                        <thead><tr><th data-i18n="docs.runbooks.replace.t_symptom">What you see</th><th data-i18n="docs.runbooks.replace.t_fix">What to do</th></tr></thead>
+                        <tbody>
+                            <tr><td data-i18n="docs.runbooks.replace.t1_s">Hosts reappear as Approval Needed</td><td data-i18n="docs.runbooks.replace.t1_f">The server does not know them: the database was not restored, or the backup is older than those hosts. Approve them; on an empty database, reapply their tags too.</td></tr>
+                            <tr><td data-i18n="docs.runbooks.replace.t2_s">The agent log says certificate verify failed</td><td data-i18n="docs.runbooks.replace.t2_f" data-i18n-html>The new server's certificate is not one the agent trusts, or does not cover the name in <code>url</code>. Restore the old certificate, or follow <a href="rotate-certificates.html">Renew the Server Certificate</a>.</td></tr>
+                            <tr><td data-i18n="docs.runbooks.replace.t3_s">Some hosts stay Down for more than ten minutes</td><td data-i18n="docs.runbooks.replace.t3_f" data-i18n-html>They still resolve the old address (a cached record or an entry in <code>/etc/hosts</code>), or their <code>url</code> holds an IP address. Check with <code>curl https://sysmanage.example.com/api/health</code> from the host.</td></tr>
+                            <tr><td data-i18n="docs.runbooks.replace.t4_s">The server log shows a refused agent session with host_credential_required or host_credential_invalid</td><td data-i18n="docs.runbooks.replace.t4_f">The agent lost its local database (for example the host was reinstalled) while the server still has the host. Delete the host on Fleet &gt; Hosts and let the agent register again, then approve it.</td></tr>
+                            <tr><td data-i18n="docs.runbooks.replace.t5_s">Some hosts talk to the old server, some to the new one</td><td data-i18n="docs.runbooks.replace.t5_f">The old server is still answering. Stop it, then restart the agents that are still connected to it.</td></tr>
+                        </tbody>
+                    </table>
+
+                    <h2 data-i18n="docs.runbooks.replace.h_next">Related pages</h2>
+                    <ul>
+                        <li data-i18n="docs.runbooks.replace.next_backup" data-i18n-html><a href="../administration/backup.html">Backing up and restoring the server</a></li>
+                        <li data-i18n="docs.runbooks.replace.next_ha" data-i18n-html><a href="../administration/postgresql-ha.html">Running against a high-availability PostgreSQL cluster</a></li>
+                        <li data-i18n="docs.runbooks.replace.next_identity" data-i18n-html><a href="../security/agent-identity.html">Agent identity</a></li>
+                    </ul>
+                </section>
+            </div>
+        </div>
+    </main>
+    <script src="/assets/js/components.js"></script>
+    <script src="/assets/js/i18n.js"></script>
+    <script src="/assets/js/navbar.js"></script>
+    <script src="/assets/js/main.js"></script>
+</body>
+</html>

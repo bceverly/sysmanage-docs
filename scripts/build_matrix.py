@@ -15,8 +15,9 @@ this script writes every table that shows it, between markers:
     <!-- matrix:NAME:start -->  ...generated...  <!-- matrix:NAME:end -->
 
 NAME is ``editions`` (capability x edition, with availability),
-``platforms`` (capability x operating system) or ``edition-summary`` (a
-short count per edition for marketing pages).  Every label carries a
+``platforms`` (capability x operating system), ``releases`` (operating
+system x release x architecture x install method) or ``edition-summary``
+(a short count per edition for marketing pages).  Every label carries a
 ``data-i18n`` key under ``matrix.*``, so `make i18n-resync` and `make
 translate` handle the words like any other page.
 
@@ -124,6 +125,32 @@ def platforms_table(data: dict) -> str:
     return "\n".join(out)
 
 
+RELEASE_COLUMNS = [
+    ("releases", "Releases"), ("arch", "Architectures"), ("server", "Server"),
+    ("agent", "Agent"), ("ci", "Tested in CI on"),
+]
+
+
+def releases_table(data: dict) -> str:
+    out = ['<div class="matrix-wrap"><table class="matrix-table releases">', "<thead><tr>",
+           f'<th scope="col">{span("matrix.col.os", "Operating system")}</th>']
+    for field, label in RELEASE_COLUMNS:
+        out.append(f'<th scope="col">{span("matrix.col.rel_" + field, label)}</th>')
+    out.append("</tr></thead><tbody>")
+    for row in data["releases"]:
+        out.append(f'<tr><th scope="row">{span("matrix.rel." + row["id"] + ".os", row["os"])}</th>')
+        for field, _ in RELEASE_COLUMNS:
+            value = str(row[field])
+            # A bare number or "-" needs no translation.
+            if re.fullmatch(r"[-0-9.]+", value):
+                out.append(f"<td>{esc(value)}</td>")
+            else:
+                out.append(f'<td>{span("matrix.rel." + row["id"] + "." + field, value)}</td>')
+        out.append("</tr>")
+    out.append("</tbody></table></div>")
+    return "\n".join(out)
+
+
 def edition_summary(data: dict) -> str:
     counts = {ed["id"]: 0 for ed in data["editions"]}
     for group in data["groups"]:
@@ -141,7 +168,10 @@ def edition_summary(data: dict) -> str:
     return "\n".join(out)
 
 
-BUILDERS = {"editions": editions_table, "platforms": platforms_table, "edition-summary": edition_summary}
+BUILDERS = {
+    "editions": editions_table, "platforms": platforms_table,
+    "releases": releases_table, "edition-summary": edition_summary,
+}
 
 
 def validate(data: dict) -> list[str]:
@@ -169,6 +199,12 @@ def validate(data: dict) -> list[str]:
                     note = (row.get("notes") or {}).get(plat)
                     if CELL.get(value) == "partial" and not note:
                         errors.append(f"{rid}: {plat} is partial without a note saying what is missing")
+    rel_ids = set()
+    for row in data.get("releases", []):
+        missing = [f for f, _ in RELEASE_COLUMNS if not str(row.get(f, "")).strip()]
+        if missing or row.get("id") in rel_ids:
+            errors.append(f"release {row.get('id')}: duplicate id or missing {missing}")
+        rel_ids.add(row.get("id"))
     return errors
 
 

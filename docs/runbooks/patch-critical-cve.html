@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en" data-i18n-title="docs.runbooks.cve.meta_title">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title data-i18n="docs.runbooks.cve.meta_title">Patch a Critical Vulnerability Across the Fleet - SysManage</title>
+    <meta name="description" data-i18n="docs.runbooks.cve.meta_description" data-i18n-attr="content" content="Find every host exposed to a critical vulnerability, schedule the patch around maintenance windows or override them in an emergency, apply it, confirm it is gone, and find the record in the audit log.">
+    <link rel="stylesheet" href="/assets/css/style.css">
+    <link rel="icon" type="image/svg+xml" href="/assets/images/favicon.svg">
+</head>
+<body data-auto-header="documentation" data-auto-footer>
+    <main class="docs-main">
+        <div class="container">
+            <div class="docs-breadcrumb"><a href="../" data-i18n="docs.runbooks.crumb_docs">Documentation</a> &gt; <a href="./" data-i18n="docs.runbooks.crumb_section">Runbooks</a> &gt; <span data-i18n="docs.runbooks.cve.crumb_page">Patch a Critical Vulnerability</span></div>
+            <div class="docs-header">
+                <h1 data-i18n="docs.runbooks.cve.title">Patch a Critical Vulnerability Across the Fleet</h1>
+                <p data-i18n="docs.runbooks.cve.intro">A critical vulnerability has been published for a package you run. This runbook finds every host that has it, decides when the fix may run, applies it, proves it is gone, and leaves a record of who did what.</p>
+            </div>
+            <div class="docs-content">
+                <section class="docs-section">
+                    <h2 data-i18n="docs.runbooks.cve.h_when">When to use it</h2>
+                    <p data-i18n="docs.runbooks.cve.when_p">Use it when a vendor or a security notice names a package and a fixed version, and you need the fixed version on every affected host -- today, or in the next maintenance window.</p>
+
+                    <h2 data-i18n="docs.runbooks.cve.h_need">What you need</h2>
+                    <ul>
+                        <li data-i18n="docs.runbooks.cve.need_community" data-i18n-html><strong>Community</strong> is enough for every step. You find the exposed hosts by package name under <strong>Patching &gt; Updates</strong> instead of by vulnerability ID.</li>
+                        <li data-i18n="docs.runbooks.cve.need_pro" data-i18n-html><strong>Professional</strong> adds <strong>Security &gt; Vulnerabilities</strong>, which finds the hosts by vulnerability ID and shows the fixed version.</li>
+                        <li data-i18n="docs.runbooks.cve.need_roles" data-i18n-html>A user with the <strong>Apply Software Update</strong> role to apply updates, <strong>View Audit Log</strong> to read the record, and an administrator account to create maintenance windows and emergency overrides. The recovery account from <code>sysmanage.yaml</code> is not enough: sign in as a user created in SysManage.</li>
+                    </ul>
+                    <p data-i18n="docs.runbooks.cve.need_os">What SysManage can apply depends on the host's operating system:</p>
+                    <table class="data-table">
+                        <thead><tr><th data-i18n="docs.runbooks.cve.os_th_os">Operating system</th><th data-i18n="docs.runbooks.cve.os_th_updates">Updates</th></tr></thead>
+                        <tbody>
+                            <tr><td data-i18n="docs.runbooks.cve.os_linux">Linux</td><td data-i18n="docs.runbooks.cve.os_linux_n">Applied on Debian, Ubuntu, RHEL and Fedora families; detected but not yet applied on openSUSE and Arch; not on Alpine.</td></tr>
+                            <tr><td data-i18n="docs.runbooks.cve.os_windows">Windows</td><td data-i18n="docs.runbooks.cve.os_windows_n">Detected and applied.</td></tr>
+                            <tr><td data-i18n="docs.runbooks.cve.os_macos">macOS</td><td data-i18n="docs.runbooks.cve.os_macos_n">Homebrew updates applied; MacPorts and App Store updates detected only.</td></tr>
+                            <tr><td data-i18n="docs.runbooks.cve.os_freebsd">FreeBSD</td><td data-i18n="docs.runbooks.cve.os_freebsd_n">Detected and applied.</td></tr>
+                            <tr><td data-i18n="docs.runbooks.cve.os_openbsd">OpenBSD</td><td data-i18n="docs.runbooks.cve.os_openbsd_n">syspatch and sysupgrade; third-party package updates not detected.</td></tr>
+                            <tr><td data-i18n="docs.runbooks.cve.os_netbsd">NetBSD</td><td data-i18n="docs.runbooks.cve.os_netbsd_n">pkgin updates detected but not yet applied.</td></tr>
+                        </tbody>
+                    </table>
+                    <p data-i18n="docs.runbooks.cve.need_os_manual" data-i18n-html>Where an update is detected but not applied, SysManage still shows you the exposed hosts; patch those by hand or with a script from <strong>Automation &gt; Scripts</strong> (Community).</p>
+
+                    <h2 data-i18n="docs.runbooks.cve.h_step1">1. Find the exposed hosts</h2>
+                    <h3 data-i18n="docs.runbooks.cve.h_step1_pro">By vulnerability ID (Professional)</h3>
+                    <p data-i18n="docs.runbooks.cve.step1_pro_p" data-i18n-html>Open <strong>Security &gt; Vulnerabilities</strong>. Every host is listed with its <strong>Critical</strong>, <strong>High</strong>, <strong>Medium</strong> and <strong>Low</strong> counts and its <strong>Last Scanned</strong> time. Sort by <strong>Critical</strong>, choose <strong>View</strong> on a host, and type the vulnerability ID (for example <code>CVE-2026-12345</code>) in <strong>Search vulnerabilities</strong>. The row shows the <strong>Package</strong>, the <strong>Installed Version</strong> and the <strong>Fixed Version</strong>. If the host was scanned before the vulnerability was published, choose <strong>Run Scan</strong> first.</p>
+                    <p data-i18n="docs.runbooks.cve.step1_pro_note">On Linux, vendor data covers Ubuntu, Debian and Red Hat; other distributions are matched against the National Vulnerability Database only. On OpenBSD the base system is covered, from OpenBSD errata.</p>
+                    <h3 data-i18n="docs.runbooks.cve.h_step1_comm">By package name (Community)</h3>
+                    <p data-i18n="docs.runbooks.cve.step1_comm_p" data-i18n-html>Open <strong>Patching &gt; Updates</strong>, tick <strong>Security Updates Only</strong>, and type the package name in <strong>Search for package updates...</strong>. Each row is one host that has an update waiting for that package, with its current and available versions. On <strong>Fleet &gt; Hosts</strong>, a red <strong>SW Updates</strong> chip in the <strong>Status</strong> column marks every host with security updates waiting.</p>
+                    <p data-i18n="docs.runbooks.cve.step1_comm_page" data-i18n-html>The search box filters the page of results shown (50 rows). With more rows than that, narrow the list first with the package manager selector or <strong>All Affected Hosts</strong>, or ask the API for the whole list:</p>
+<pre><code class="language-bash">curl -s -H "Authorization: Bearer $SYSMANAGE_API_KEY" \
+  "https://sysmanage.example.com/api/v1/updates/?security_only=true&amp;limit=100000" |
+  jq -r '.updates[] | select(.package_name == "openssl")
+         | [.hostname, .current_version, .available_version, .package_manager] | @tsv'</code></pre>
+                    <p data-i18n="docs.runbooks.cve.step1_api" data-i18n-html>Creating the API key is described in <a href="../api/examples.html">API Examples</a>.</p>
+
+                    <h2 data-i18n="docs.runbooks.cve.h_step2">2. Decide when the fix may run</h2>
+                    <p data-i18n="docs.runbooks.cve.step2_p" data-i18n-html>Maintenance windows (Community) decide when changes reach a host. A host with no window is unrestricted: the update starts as soon as you apply it. A host inside an <strong>Allow</strong> window, and outside any <strong>Blackout</strong>, receives it at once. Any other host holds the update until its next window opens; nothing is dropped. While it waits, the host's <strong>Status</strong> column shows <strong>Held: 1</strong>.</p>
+                    <p data-i18n="docs.runbooks.cve.step2_waves" data-i18n-html><strong>To patch in waves</strong>, give each wave a tag (<strong>Administration &gt; Settings &gt; Tags &gt; Add Tag</strong>, then <strong>Add Tag</strong> on each host's <strong>Info</strong> tab), and give each tag its own window: <strong>Patching &gt; Maintenance Windows &gt; Schedule Maintenance</strong>, <strong>Kind</strong> <strong>Allow</strong>, <strong>Recurrence</strong> <strong>One-time</strong>, the <strong>Starts at (UTC)</strong> and <strong>Ends at (UTC)</strong> of that wave, and <strong>Applies to</strong> <strong>Hosts by tag</strong>. Then apply the update to every host in step 3: each wave runs when its own window opens. Enterprise rolling deployments do not include a package-update operation, so windows are the way to stage a patch.</p>
+                    <p data-i18n="docs.runbooks.cve.step2_override" data-i18n-html><strong>In an emergency</strong>, an administrator can let changes through now. On the host's page, open the <strong>Info</strong> tab and choose <strong>Emergency override</strong> on the <strong>Maintenance Window</strong> card; give a <strong>Reason</strong> and a <strong>Duration (minutes)</strong>. The host's held commands are released at once and the override is written to the audit log. For a command that is already waiting, the <strong>Held commands</strong> list on <strong>Patching &gt; Maintenance Windows</strong> has <strong>Release host now</strong>. The same override through the API:</p>
+<pre><code class="language-bash">curl -s -X POST -H "Authorization: Bearer $SYSMANAGE_API_KEY" -H "Content-Type: application/json" \
+  -d '{"host_id": "HOST-ID", "reason": "CVE-2026-12345 emergency patch", "duration_minutes": 120}' \
+  https://sysmanage.example.com/api/v1/maintenance-windows/overrides</code></pre>
+
+                    <h2 data-i18n="docs.runbooks.cve.h_step3">3. Apply the update</h2>
+                    <ul>
+                        <li data-i18n="docs.runbooks.cve.step3_bulk" data-i18n-html><strong>Across the fleet:</strong> on <strong>Patching &gt; Updates</strong>, with <strong>Security Updates Only</strong> ticked and the package name in the search box, tick <strong>Select All</strong>, then choose <strong>Execute Selected Updates</strong>. Select All covers the page shown; repeat for each page.</li>
+                        <li data-i18n="docs.runbooks.cve.step3_host" data-i18n-html><strong>On one host:</strong> open the host's page and choose <strong>Updates</strong>. Patching &gt; Updates opens filtered to that host; tick the package and choose <strong>Execute Selected Updates</strong>.</li>
+                        <li data-i18n="docs.runbooks.cve.step3_api" data-i18n-html><strong>Through the API</strong>, for any number of hosts at once. <code>host_ids</code> and <code>package_names</code> are required; <code>package_managers</code> is optional.</li>
+                    </ul>
+<pre><code class="language-bash">curl -s -X POST -H "Authorization: Bearer $SYSMANAGE_API_KEY" -H "Content-Type: application/json" \
+  -d '{"host_ids": ["HOST-ID-1", "HOST-ID-2"], "package_names": ["openssl"]}' \
+  https://sysmanage.example.com/api/v1/updates/execute | jq '.results[]'</code></pre>
+                    <p data-i18n="docs.runbooks.cve.step3_result" data-i18n-html>Each result names the host and says <code>"success": true</code> with "Update execution started", or <code>false</code> with the reason. Rows on Patching &gt; Updates show <strong>Update Requested</strong> until the agent reports back. If the update needs a restart, the host's Status column shows <strong>Reboot Required</strong>; select those hosts on <strong>Fleet &gt; Hosts</strong> and choose <strong>Reboot Selected</strong> (this needs a privileged agent, and maintenance windows hold reboots too).</p>
+
+                    <h2 data-i18n="docs.runbooks.cve.h_step4">4. Confirm it worked</h2>
+                    <ul>
+                        <li data-i18n="docs.runbooks.cve.step4_updates" data-i18n-html>After applying, the agent sends a fresh list of available updates. Repeat the search of step 1 on <strong>Patching &gt; Updates</strong>: it should say <strong>No updates match the current filters</strong>, and the hosts' red SW Updates chips should be gone.</li>
+                        <li data-i18n="docs.runbooks.cve.step4_pro" data-i18n-html>Professional: on each host's vulnerability page choose <strong>Run Scan</strong>; the vulnerability ID should no longer be found.</li>
+                        <li data-i18n="docs.runbooks.cve.step4_sw" data-i18n-html>On any host, the <strong>Software</strong> tab shows the installed version of the package.</li>
+                        <li data-i18n="docs.runbooks.cve.step4_api">To check the whole fleet at once, list the hosts that still report security updates:</li>
+                    </ul>
+<pre><code class="language-bash">curl -s -H "Authorization: Bearer $SYSMANAGE_API_KEY" https://sysmanage.example.com/api/v1/hosts |
+  jq -r '.[] | select(.security_updates_count &gt; 0) | [.fqdn, .security_updates_count] | @tsv'</code></pre>
+
+                    <h2 data-i18n="docs.runbooks.cve.h_step5">5. Record it</h2>
+                    <p data-i18n="docs.runbooks.cve.step5_p" data-i18n-html>Open <strong>Security &gt; Audit Log</strong> (on servers before 3.12.1.7, open <code>https://&lt;server&gt;/reports/audit-log</code> directly; the audit log itself is Community). Search for the package name: there is one entry per package per host, "Initiated update of package ... from ... to ... on host ...", with who did it and when. Emergency overrides appear as "Emergency maintenance override for host ...". To keep a copy outside SysManage, see <a href="../api/examples.html">API Examples</a>.</p>
+
+                    <h2 data-i18n="docs.runbooks.cve.h_trouble">If a step fails</h2>
+                    <table class="data-table">
+                        <thead><tr><th data-i18n="docs.runbooks.cve.t_symptom">What you see</th><th data-i18n="docs.runbooks.cve.t_fix">What to do</th></tr></thead>
+                        <tbody>
+                            <tr><td data-i18n="docs.runbooks.cve.t1_s">There is no Execute Selected Updates button</td><td data-i18n="docs.runbooks.cve.t1_f" data-i18n-html>Your user lacks the <strong>Apply Software Update</strong> role. An administrator grants it under <strong>Administration &gt; Users</strong>.</td></tr>
+                            <tr><td data-i18n="docs.runbooks.cve.t2_s">The host shows Held: 1 and the update does not start</td><td data-i18n="docs.runbooks.cve.t2_f">A maintenance window is holding it. Wait for the window, or use the emergency override in step 2.</td></tr>
+                            <tr><td data-i18n="docs.runbooks.cve.t3_s">The API answers "No matching updates found for specified packages"</td><td data-i18n="docs.runbooks.cve.t3_f" data-i18n-html>That host does not report an update for that package: it is already fixed, or its list is out of date. Select the host on <strong>Fleet &gt; Hosts</strong> and choose <strong>Refresh All Data</strong>, then look again.</td></tr>
+                            <tr><td data-i18n="docs.runbooks.cve.t4_s">The row stays at Update Requested</td><td data-i18n="docs.runbooks.cve.t4_f">If the host shows Down, the command waits on the server and is delivered when the agent reconnects. If the host is Up, check that its operating system can apply updates (the table above).</td></tr>
+                            <tr><td data-i18n="docs.runbooks.cve.t5_s">The row shows Update Failed</td><td data-i18n="docs.runbooks.cve.t5_f" data-i18n-html>The package manager refused it. Read the agent log on the host (<code>/var/log/sysmanage-agent/agent.log</code> on Linux and the BSDs) for the package manager's error, fix the cause, and apply again.</td></tr>
+                            <tr><td data-i18n="docs.runbooks.cve.t6_s">Emergency override answers "Permission denied: administrator required"</td><td data-i18n="docs.runbooks.cve.t6_f">Overrides and windows need an administrator account. Ask one to create the override.</td></tr>
+                        </tbody>
+                    </table>
+
+                    <h2 data-i18n="docs.runbooks.cve.h_next">Related pages</h2>
+                    <ul>
+                        <li data-i18n="docs.runbooks.cve.next_mw" data-i18n-html><a href="../administration/maintenance-windows.html">Maintenance windows</a></li>
+                        <li data-i18n="docs.runbooks.cve.next_pkg" data-i18n-html><a href="../administration/package-management.html">Package management</a></li>
+                        <li data-i18n="docs.runbooks.cve.next_vuln" data-i18n-html><a href="../professional-plus/vulnerability-scanning.html">Vulnerability scanning</a> and <a href="../professional-plus/advisory-management.html">advisory management</a> (Professional)</li>
+                        <li data-i18n="docs.runbooks.cve.next_audit" data-i18n-html><a href="../administration/audit-log-viewer.html">Audit log viewer</a></li>
+                    </ul>
+                </section>
+            </div>
+        </div>
+    </main>
+    <script src="/assets/js/components.js"></script>
+    <script src="/assets/js/i18n.js"></script>
+    <script src="/assets/js/navbar.js"></script>
+    <script src="/assets/js/main.js"></script>
+</body>
+</html>

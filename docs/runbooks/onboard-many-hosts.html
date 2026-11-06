@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en" data-i18n-title="docs.runbooks.onboard.meta_title">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title data-i18n="docs.runbooks.onboard.meta_title">Onboard a Hundred Hosts - SysManage</title>
+    <meta name="description" data-i18n="docs.runbooks.onboard.meta_description" data-i18n-attr="content" content="Install the SysManage agent on many hosts at once, approve them automatically with a registration key or in bulk, organize them with tags and asset tags, and check that every one arrived.">
+    <link rel="stylesheet" href="/assets/css/style.css">
+    <link rel="icon" type="image/svg+xml" href="/assets/images/favicon.svg">
+</head>
+<body data-auto-header="documentation" data-auto-footer>
+    <main class="docs-main">
+        <div class="container">
+            <div class="docs-breadcrumb"><a href="../" data-i18n="docs.runbooks.crumb_docs">Documentation</a> &gt; <a href="./" data-i18n="docs.runbooks.crumb_section">Runbooks</a> &gt; <span data-i18n="docs.runbooks.onboard.crumb_page">Onboard a Hundred Hosts</span></div>
+            <div class="docs-header">
+                <h1 data-i18n="docs.runbooks.onboard.title">Onboard a Hundred Hosts</h1>
+                <p data-i18n="docs.runbooks.onboard.intro">Bring a batch of machines under management in one pass: install the agent everywhere with the same configuration, approve the hosts without clicking each one, organize them with tags, and prove that none is missing.</p>
+            </div>
+            <div class="docs-content">
+                <section class="docs-section">
+                    <h2 data-i18n="docs.runbooks.onboard.h_when">When to use it</h2>
+                    <p data-i18n="docs.runbooks.onboard.when_p">Use it for a rollout, a data center migration or an acquisition -- any time more hosts arrive than you want to set up one at a time. For a first look at a few hosts, Your First Mixed Fleet is shorter.</p>
+
+                    <h2 data-i18n="docs.runbooks.onboard.h_need">What you need</h2>
+                    <ul>
+                        <li data-i18n="docs.runbooks.onboard.need_server" data-i18n-html>A running server with a TLS certificate the hosts trust, reachable from every host on port 443. Check its size against the fleet in the <a href="../server/scaling.html">Scaling Guide</a>.</li>
+                        <li data-i18n="docs.runbooks.onboard.need_list">A list of the hosts, and a way to run commands on all of them: Ansible, another configuration-management tool, or your imaging process.</li>
+                        <li data-i18n="docs.runbooks.onboard.need_community" data-i18n-html><strong>Community</strong> covers installing, bulk approval, tags and asset tags.</li>
+                        <li data-i18n="docs.runbooks.onboard.need_enterprise" data-i18n-html><strong>Enterprise</strong> adds registration keys, which approve hosts automatically as they enroll (step 1).</li>
+                        <li data-i18n="docs.runbooks.onboard.need_roles" data-i18n-html>A user created in SysManage with the <strong>Approve Host Registration</strong> role, <strong>Edit Tags</strong> for tags and <strong>Manage Asset Tags</strong> for asset tags. The recovery account from <code>sysmanage.yaml</code> cannot approve hosts.</li>
+                    </ul>
+
+                    <h2 data-i18n="docs.runbooks.onboard.h_step1">1. Create a registration key (Enterprise)</h2>
+                    <p data-i18n="docs.runbooks.onboard.step1_p" data-i18n-html>Open <strong>Administration &gt; Settings &gt; Access Groups</strong>. Under <strong>Registration Keys</strong> choose <strong>Add Key</strong>, give it a <strong>Name</strong>, tick <strong>Auto-approve registrations using this key</strong>, and set <strong>Max Uses (blank = unlimited)</strong> to the size of the batch and an <strong>Expires At</strong> date a little after the rollout ends. Choose <strong>Generate Key</strong>. The key is shown once, under <strong>Registration Key Created</strong>; copy it then. Picking an <strong>Access Group</strong> also places every host in that group.</p>
+                    <p data-i18n="docs.runbooks.onboard.step1_comm" data-i18n-html>Without Enterprise, skip this step: the hosts arrive as <strong>Approval Needed</strong> and you approve them in bulk in step 4.</p>
+
+                    <h2 data-i18n="docs.runbooks.onboard.h_step2">2. Prepare one agent configuration</h2>
+                    <p data-i18n="docs.runbooks.onboard.step2_p" data-i18n-html>Every host gets the same file. On Linux it is <code>/etc/sysmanage-agent.yaml</code>; on FreeBSD <code>/usr/local/etc/sysmanage-agent/config.yaml</code>. The <a href="../agent/configuration.html">agent configuration reference</a> lists the paths on the other platforms. The settings that matter here:</p>
+<pre><code class="language-yaml">server:
+  url: "https://sysmanage.example.com"
+  # Only if the server's certificate comes from a private CA:
+  # ca_bundle: "/etc/ssl/certs/sysmanage-ca.pem"
+
+security:
+  # Enterprise only: the key from step 1
+  registration_key: "paste-the-key-here"</code></pre>
+                    <p data-i18n="docs.runbooks.onboard.step2_name" data-i18n-html>Use the server's DNS name in <code>url</code>, never its IP address: if the server is ever replaced, a name lets you move it without touching a single agent. <code>registration_key</code> belongs under <code>security</code>, not under <code>server</code>.</p>
+
+                    <h2 data-i18n="docs.runbooks.onboard.h_step3">3. Install the agents</h2>
+                    <p data-i18n="docs.runbooks.onboard.step3_p" data-i18n-html>Install the agent package on each host, put the configuration file in place, then start the agent. The commands for every platform are in the <a href="../agent/installation.html">Agent Installation Guide</a>; <a href="../agent/deployment.html">Deploying the Agent to Many Hosts</a> has an Ansible playbook that does all three steps and suggests a phased rollout. On Ubuntu, for example:</p>
+<pre><code class="language-bash">sudo add-apt-repository -y ppa:bceverly/sysmanage-agent
+sudo apt-get update
+sudo apt-get install -y sysmanage-agent
+sudo install -m 640 -o sysmanage-agent -g sysmanage-agent sysmanage-agent.yaml /etc/sysmanage-agent.yaml
+sudo systemctl restart sysmanage-agent</code></pre>
+                    <p data-i18n="docs.runbooks.onboard.step3_canary">Start with five or ten hosts, check that they arrive (step 6), then run the rest.</p>
+
+                    <h2 data-i18n="docs.runbooks.onboard.h_step4">4. Approve the hosts</h2>
+                    <p data-i18n="docs.runbooks.onboard.step4_key" data-i18n-html>With a registration key, there is nothing to do: each host is approved as it registers, and the audit log records "Host '...' enrolled via registration key '...'".</p>
+                    <p data-i18n="docs.runbooks.onboard.step4_ui" data-i18n-html>Without one, open <strong>Fleet &gt; Hosts</strong>. New hosts show <strong>Approval Needed</strong> in the Status column. Tick the box at the top of the list; the foot of the list shows how many hosts are selected. Choose <strong>Approve Selected</strong>: of the selected hosts, the ones waiting for approval are approved and the rest are left alone. To approve every pending host from a script instead:</p>
+<pre><code class="language-bash">API=https://sysmanage.example.com/api/v1
+AUTH="Authorization: Bearer $SYSMANAGE_API_KEY"
+curl -s -H "$AUTH" "$API/hosts" | jq -r '.[] | select(.approval_status == "pending") | .id' |
+while read -r id; do
+  curl -s -o /dev/null -w "%{http_code} $id\n" -X PUT -H "$AUTH" "$API/host/$id/approve"
+done</code></pre>
+                    <p data-i18n="docs.runbooks.onboard.step4_api" data-i18n-html>Each line should start with <code>200</code>. The key or token must belong to a user with the Approve Host Registration role. More API recipes, in Python and PowerShell too, are in <a href="../api/examples.html">API Examples</a>.</p>
+
+                    <h2 data-i18n="docs.runbooks.onboard.h_step5">5. Organize them</h2>
+                    <ul>
+                        <li data-i18n="docs.runbooks.onboard.step5_tags" data-i18n-html><strong>Tags</strong> group hosts by role, site or patch wave, and maintenance windows can apply to a tag. Create them under <strong>Administration &gt; Settings &gt; Tags &gt; Add Tag</strong>; add one to a host with <strong>Add Tag</strong> on the host's <strong>Info</strong> tab. For a hundred hosts, use the API: <code>POST /api/v1/hosts/{host_id}/tags/{tag_id}</code> for each host (the tag IDs come from <code>GET /api/v1/tags</code>).</li>
+                        <li data-i18n="docs.runbooks.onboard.step5_asset" data-i18n-html><strong>Asset tags</strong> label the machine itself, and stay with it when it is reinstalled. Under <strong>Administration &gt; Settings &gt; Asset Tags</strong>, set the naming scheme, then use <strong>Import CSV...</strong> with an <code>asset_tag</code> column and a <code>system_uuid</code> or <code>system_serial</code> column. The preview shows what each row will do before anything is written; <strong>Export CSV</strong> gives back the result. A tag for a machine that has not arrived yet waits for it.</li>
+                    </ul>
+<pre><code class="language-csv">asset_tag,system_serial
+IT-00101,5CG1234ABC
+IT-00102,5CG1234ABD</code></pre>
+
+                    <h2 data-i18n="docs.runbooks.onboard.h_step6">6. Check that every host arrived</h2>
+                    <ul>
+                        <li data-i18n="docs.runbooks.onboard.step6_list" data-i18n-html>On <strong>Fleet &gt; Hosts</strong>, the count at the foot of the list is the number of hosts. Every new host should be <strong>Up</strong> and no longer Approval Needed. <strong>Filter by Tags</strong> shows one group at a time, and <strong>Untagged only</strong> shows the machines that still have no asset tag.</li>
+                        <li data-i18n="docs.runbooks.onboard.step6_summary">For a number to compare with your list, ask the server for the summary:</li>
+                    </ul>
+<pre><code class="language-bash">curl -s -H "Authorization: Bearer $SYSMANAGE_API_KEY" https://sysmanage.example.com/api/v1/hosts/summary
+# {"total": 104, "approved": 104, "approved_up": 104, "approved_down": 0, "reboot_required": 3}
+
+# Which names from your list are missing?
+curl -s -H "Authorization: Bearer $SYSMANAGE_API_KEY" https://sysmanage.example.com/api/v1/hosts |
+  jq -r '.[].fqdn' | sort &gt; arrived.txt
+sort hosts.txt | comm -23 - arrived.txt</code></pre>
+
+                    <h2 data-i18n="docs.runbooks.onboard.h_trouble">If a step fails</h2>
+                    <table class="data-table">
+                        <thead><tr><th data-i18n="docs.runbooks.onboard.t_symptom">What you see</th><th data-i18n="docs.runbooks.onboard.t_fix">What to do</th></tr></thead>
+                        <tbody>
+                            <tr><td data-i18n="docs.runbooks.onboard.t1_s">A host never appears</td><td data-i18n="docs.runbooks.onboard.t1_f" data-i18n-html>On the host, look for "Connected to server successfully" in the agent log. If the log says <code>certificate verify failed</code>, the host does not trust the server's certificate: set <code>ca_bundle</code>. If it cannot connect at all, check DNS and port 443 with <code>curl https://sysmanage.example.com/api/health</code>.</td></tr>
+                            <tr><td data-i18n="docs.runbooks.onboard.t2_s">Registration is refused with "Invalid or expired registration key"</td><td data-i18n="docs.runbooks.onboard.t2_f">The key was revoked, has expired or has reached its Max Uses. The server does not say which. Check the key under Administration &gt; Settings &gt; Access Groups, or create a new one and update the configuration.</td></tr>
+                            <tr><td data-i18n="docs.runbooks.onboard.t3_s">Hosts with a key still show Approval Needed</td><td data-i18n="docs.runbooks.onboard.t3_f" data-i18n-html>The key does not have auto-approval turned on, or <code>registration_key</code> is not under <code>security</code> in the file. Approve these hosts as in step 4.</td></tr>
+                            <tr><td data-i18n="docs.runbooks.onboard.t4_s">Approve Selected does nothing, or the API answers 401 "User not found."</td><td data-i18n="docs.runbooks.onboard.t4_f">You are signed in as the recovery account. Sign in as a user created in SysManage.</td></tr>
+                            <tr><td data-i18n="docs.runbooks.onboard.t5_s">The API answers 403 "Permission denied: APPROVE_HOST_REGISTRATION role required"</td><td data-i18n="docs.runbooks.onboard.t5_f">The user behind the key lacks the Approve Host Registration role. Grant it under Administration &gt; Users.</td></tr>
+                            <tr><td data-i18n="docs.runbooks.onboard.t6_s">Two hosts share one name</td><td data-i18n="docs.runbooks.onboard.t6_f">Cloned machines often keep the same hostname. Give each machine its own hostname before installing the agent.</td></tr>
+                        </tbody>
+                    </table>
+
+                    <h2 data-i18n="docs.runbooks.onboard.h_next">Related pages</h2>
+                    <ul>
+                        <li data-i18n="docs.runbooks.onboard.next_approval" data-i18n-html><a href="../getting-started/agent-approval.html">Agent setup and approval</a></li>
+                        <li data-i18n="docs.runbooks.onboard.next_asset" data-i18n-html><a href="../administration/asset-tags.html">Asset tags</a></li>
+                        <li data-i18n="docs.runbooks.onboard.next_hosts" data-i18n-html><a href="../administration/host-management.html">Host management</a></li>
+                    </ul>
+                </section>
+            </div>
+        </div>
+    </main>
+    <script src="/assets/js/components.js"></script>
+    <script src="/assets/js/i18n.js"></script>
+    <script src="/assets/js/navbar.js"></script>
+    <script src="/assets/js/main.js"></script>
+</body>
+</html>
