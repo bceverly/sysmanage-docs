@@ -159,6 +159,14 @@ def _clear(session, hosts):
     session.query(PackageUpdate).filter(
         PackageUpdate.host_id.in_(ids), PackageUpdate.description == "advisor-demo"
     ).delete(synchronize_session=False)
+    # An earlier seed may already list one of these packages on the web host
+    # (one row per host, package and manager): replace it, or the insert below
+    # fails and the threat model is never saved (2026-11-09: openssl).
+    session.query(PackageUpdate).filter(
+        PackageUpdate.host_id == hosts[WEB].id,
+        PackageUpdate.package_manager == "apt",
+        PackageUpdate.package_name.in_([name for name, _c, _a in SECURITY_UPDATES]),
+    ).delete(synchronize_session=False)
     session.flush()
 
 

@@ -18,10 +18,167 @@
             </div>
             <div class="docs-content">
                 <section class="docs-section">
+                    <h2 data-i18n="docs.dr2.h_builtin">The server backs itself up</h2>
+                    <p data-i18n="docs.dr2.builtin_intro" data-i18n-html>The server is one of the hosts SysManage manages, and it backs itself up the same way, with restate. On the <strong>Backups</strong> page, <strong>Back up this SysManage server</strong> creates a policy for the server's own host, preset to everything the server needs to come back. The <a href="fleet-backups.html">host backups</a> page describes targets, schedules and retention, which work the same way here.</p>
+
+                    <h3 data-i18n="docs.dr2.h_needs">What it needs</h3>
+                    <ul>
+                        <li data-i18n="docs.dr2.needs_agent" data-i18n-html><strong>The server's own agent</strong>, approved. SysManage finds the server's host by name; if it cannot tell which host is the server, it asks you to pick it.</li>
+                        <li data-i18n="docs.dr2.needs_restate" data-i18n-html><strong>restate on the server's host</strong>, installed with <strong>Equip for backup</strong> like any backed-up host. restate 3.0.0.0 or later copies the databases without stopping them (see below).</li>
+                        <li data-i18n="docs.dr2.needs_target" data-i18n-html><strong>A backup target the server can reach.</strong> Today the server mounts the storage host's repository over NFS, so the storage host must be on a network the server can reach. A server in a cloud cannot mount a storage host at home or in an office yet; until it can, back it up by hand as described further down.</li>
+                        <li data-i18n="docs.dr2.needs_escrow" data-i18n-html><strong>Professional+, for encryption:</strong> a break-glass escrow key, saved in a host's <strong>Encryption</strong> panel. The server's backup is encrypted to it.</li>
+                    </ul>
+
+                    <h3 data-i18n="docs.dr2.h_setup">Setting it up</h3>
+                    <ol>
+                        <li data-i18n="docs.dr2.setup_1" data-i18n-html>On the <strong>Backups</strong> page, choose <strong>Back up this SysManage server</strong>. If no host is named as the server is, pick the one its agent runs on.</li>
+                        <li data-i18n="docs.dr2.setup_2" data-i18n-html>Choose the target and the schedule. Pick a quiet start hour.</li>
+                        <li data-i18n="docs.dr2.setup_3" data-i18n-html>Save, then choose <strong>Back up now</strong> once and check that the run ends <em>ok</em>.</li>
+                        <li data-i18n="docs.dr2.setup_4" data-i18n-html>Copy the files listed under <em>Never backed up</em> to safe keeping away from the server, such as a password manager or a sealed envelope, and keep them up to date. Recovery needs them, and the backup never holds them.</li>
+                    </ol>
+                    <p data-i18n="docs.dr2.setup_banner" data-i18n-html>Until the server has a recent good backup, the Backups page says so at the top.</p>
+                    <figure class="docs-screenshot">
+                        <img src="/assets/images/backups-server.png" alt="The Back up this SysManage server dialog">
+                        <figcaption data-i18n="docs.dr2.fig_server_dialog" data-i18n-html>The <strong>Back up this SysManage server</strong> dialog: what goes in the server's backup, what is left out, and what is never backed up.</figcaption>
+                    </figure>
+
+                    <h3 data-i18n="docs.dr2.h_contents">What goes in the backup</h3>
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th data-i18n="docs.dr2.contents_col_kind">How it is handled</th>
+                                <th data-i18n="docs.dr2.contents_col_what">What it covers</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td data-i18n="docs.dr2.contents_kept">Backed up</td>
+                                <td data-i18n="docs.dr2.contents_kept_what" data-i18n-html>The agents' certificate authority and the server identity (<code>/etc/sysmanage/certs</code>), OpenBAO's data, PostgreSQL, <code>/etc/sysmanage.yaml</code>, the TLS certificates (including <code>/etc/letsencrypt</code>), <code>/var/lib/sysmanage</code> with the license, and the rest of the host.</td>
+                            </tr>
+                            <tr>
+                                <td data-i18n="docs.dr2.contents_skipped">Left out</td>
+                                <td data-i18n="docs.dr2.contents_skipped_what">Downloaded again when needed: engine bundles, the GeoIP database, package mirrors and logs.</td>
+                            </tr>
+                            <tr>
+                                <td data-i18n="docs.dr2.contents_never">Never backed up</td>
+                                <td data-i18n="docs.dr2.contents_never_what" data-i18n-html>OpenBAO's unseal or recovery key and root token (<code>/var/lib/openbao/init.json</code>) and the server's OpenBAO token (<code>/etc/sysmanage/openbao-token</code>). A stolen backup therefore cannot unseal the OpenBAO copy inside it.</td>
+                            </tr>
+                        </tbody>
+                    </table>
+
+                    <h3 data-i18n="docs.dr2.h_consistent">Consistent databases</h3>
+                    <p data-i18n="docs.dr2.consistent_pg" data-i18n-html><strong>PostgreSQL keeps running.</strong> With restate 3.0.0.0 or later on the server's host, restate takes one consistent dump of every database on the server's cluster (the registry and every tenant database, with their roles) while SysManage keeps serving, and leaves the cluster's own files out. The dump is the copy you restore from. With an older restate, PostgreSQL is stopped while its files are copied, and SysManage may show errors for that time.</p>
+                    <p data-i18n="docs.dr2.consistent_openbao" data-i18n-html><strong>OpenBAO is copied stopped.</strong> A packaged OpenBAO keeps its data in files, which cannot be copied while it runs. restate stops it, copies its data, starts it again and waits until it is unsealed, usually within a second or two. With raft storage, restate saves a snapshot instead.</p>
+
+                    <h3 data-i18n="docs.dr2.h_encryption">Encryption</h3>
+                    <p data-i18n="docs.dr2.encryption_community" data-i18n-html><strong>Community:</strong> the server's backup is not encrypted, and it holds the database password from the configuration. Keep the backup storage as safe as the server itself.</p>
+                    <p data-i18n="docs.dr2.encryption_proplus" data-i18n-html><strong>Professional+:</strong> the server's backup is encrypted to your break-glass escrow key, never to a key kept in the server's own OpenBAO: restoring OpenBAO cannot depend on a key that is inside it. SysManage holds only the public half. The repository's name ends in <code>-enc</code>, and it is restored by hand with the secret half of the key, as the recovery steps below describe.</p>
+
+                    <h3 data-i18n="docs.dr2.h_escrow">Keep these in escrow, never in the backup</h3>
+                    <ul>
+                        <li data-i18n="docs.dr2.escrow_init" data-i18n-html><code>/var/lib/openbao/init.json</code>: OpenBAO's unseal (or recovery) key and its root token.</li>
+                        <li data-i18n="docs.dr2.escrow_token" data-i18n-html><code>/etc/sysmanage/openbao-token</code>: the server's own OpenBAO token.</li>
+                        <li data-i18n="docs.dr2.escrow_secret" data-i18n-html><strong>Professional+ only:</strong> the secret half of your break-glass escrow key (<code>gpg --armor --export-secret-keys</code>).</li>
+                    </ul>
+                </section>
+
+                <section class="docs-section">
+                    <h2 data-i18n="docs.dr2.h_recover">Recovering the server from its own backup</h2>
+                    <p data-i18n="docs.dr2.recover_intro" data-i18n-html>Follow these steps with SysManage down and only restate and the backup. Nothing here needs SysManage to be running. The commands use the Ubuntu and Debian paths; <a href="#where">the table below</a> gives the other platforms'. In tests, a server rebuilt this way on a new machine was serving again about four minutes after the old one stopped, and its agents came back on their own with the same host identities.</p>
+
+                    <h3 data-i18n="docs.dr2.h_recover_need">What you need before you start</h3>
+                    <ul>
+                        <li data-i18n="docs.dr2.recover_need_storage" data-i18n-html><strong>The backup storage</strong>, holding the server's repository, <code>&lt;storage path&gt;/&lt;server name&gt;-&lt;short host id&gt;</code>. Its name ends in <code>-enc</code> when it is encrypted. The storage path is shown on the target's card on the Backups page.</li>
+                        <li data-i18n="docs.dr2.recover_need_escrow" data-i18n-html><strong>The files you keep in escrow</strong>, listed above.</li>
+                        <li data-i18n="docs.dr2.recover_need_machine" data-i18n-html><strong>A machine</strong> on the same operating system release as the old server, with restate installed, ideally with the same host name. Agents find the server by name, so keep the name and move its DNS record rather than renaming.</li>
+                    </ul>
+                    <p data-i18n="docs.dr2.recover_key" data-i18n-html>Below, <code>REPO</code> is the repository's path as this machine sees it, and <code>KEY</code> stands for the options that read and trust it: <code>--decrypt-with /root/escrow-secret.asc</code> on Professional+; <code>--trusted-key /root/signing.pub.asc</code> when snapshot signing is on; <code>--allow-unverified</code> when it is not. restate refuses an unsigned snapshot without that last option.</p>
+
+                    <h3 data-i18n="docs.dr2.h_step1">1. Install the server package, and keep it stopped</h3>
+                    <p data-i18n="docs.dr2.step1_p" data-i18n-html>Install the SysManage version the backup was taken with (<code>restate packages REPO</code> lists what the old server had installed). Then stop it before anything starts writing:</p>
+                    <pre><code>sudo systemctl stop sysmanage nginx openbao postgresql
+sudo systemctl disable --now sysmanage-openbao-init</code></pre>
+
+                    <h3 data-i18n="docs.dr2.h_step2">2. Reach the repository</h3>
+                    <p data-i18n="docs.dr2.step2_p1" data-i18n-html>SysManage exports each repository only to its own host's address, so the new machine cannot mount it as it is. On the storage host, export it read-only to the new machine's address for the recovery, then mount it on the new machine:</p>
+                    <pre><code># On the storage host
+sudo exportfs -o ro,sync,no_subtree_check,root_squash,all_squash,anonuid=&lt;restate uid&gt;,anongid=&lt;restate gid&gt; \
+  &lt;new address&gt;:&lt;storage path&gt;/&lt;repository&gt;
+
+# On the new machine
+sudo mkdir -p /mnt/restore
+sudo mount -t nfs4 -o ro &lt;storage host&gt;:&lt;storage path&gt;/&lt;repository&gt; /mnt/restore
+sudo restate snapshots --no-lock /mnt/restore</code></pre>
+                    <p data-i18n="docs.dr2.step2_p2" data-i18n-html>Pick the newest good snapshot. With restate 3.0.0.0 or later, add <code>--no-lock</code> to every restate command on this page and restore straight from the read-only mount (<code>REPO</code> is <code>/mnt/restore</code>); make sure no prune runs on the storage host meanwhile. An older restate takes a lock inside the repository, so copy the repository to local disk first and use the copy as <code>REPO</code>.</p>
+
+                    <h3 data-i18n="docs.dr2.h_step3">3. See what comes back, then put it back</h3>
+                    <p data-i18n="docs.dr2.step3_p1" data-i18n-html>The plan reads only the index, takes seconds and writes nothing. The restore then checks every file against the index before it writes anything, and refuses the whole image if any file is damaged:</p>
+                    <pre><code>sudo restate restore --plan --no-lock KEY REPO::SNAPSHOT
+sudo restate restore --check-first --root / --no-lock KEY REPO::SNAPSHOT</code></pre>
+                    <p data-i18n="docs.dr2.step3_p2" data-i18n-html>This brings back the certificate authority and the server identity, <code>/etc/sysmanage.yaml</code>, the TLS certificates, <code>/var/lib/sysmanage</code>, OpenBAO's data, the PostgreSQL dump (<code>pg_dumpall.sql</code> under <code>/var/lib/restate/dumps/postgresql-*/</code>) and the host's own identity files. A backup taken with an older restate also holds the cluster's own files, copied while PostgreSQL was stopped.</p>
                     <div class="warning-box">
-                        <h3 data-i18n="docs.dr.not_automatic_title">The server does not back itself up yet</h3>
-                        <p data-i18n="docs.dr.not_automatic_body" data-i18n-html>Nothing on this page happens on its own. A built-in "Back up this SysManage server" policy is planned (roadmap Phase 25.9) and is not available yet. Until then, schedule the commands below yourself and copy the result off the machine. The <a href="fleet-backups.html">host backups</a> protect your managed hosts, not the SysManage server itself.</p>
+                        <h3 data-i18n="docs.dr2.hostname_title">Set the old host name now, before anything starts</h3>
+                        <p data-i18n="docs.dr2.hostname_body" data-i18n-html>The restore puts back <code>/etc/hostname</code>, but the running system keeps the new name until it reboots. Run <code>sudo hostnamectl set-hostname &lt;old short name&gt;</code> now. The server's own agent registers by name: started under another name, it enrolls as a new host waiting for approval and replaces the identity it had. If that happened, set the name, stop the agent, restore its identity with <code>--include "/var/lib/sysmanage-agent/**"</code>, delete the new pending host on the Hosts page, and start the agent again.</p>
                     </div>
+                    <p data-i18n="docs.dr2.step3_export" data-i18n-html><strong>Remove the temporary export now</strong>, before SysManage starts: unmount it on the new machine (<code>sudo umount /mnt/restore</code>), then run <code>sudo exportfs -u &lt;new address&gt;:&lt;storage path&gt;/&lt;repository&gt;</code> on the storage host. Left in place, it hides the read-write export SysManage makes for the new address, and the next backup fails with "Read-only file system". If you removed it after SysManage started, run <code>sudo exportfs -ra</code> on the storage host to put SysManage's own exports back.</p>
+
+                    <h3 data-i18n="docs.dr2.h_step4">4. Put the escrowed OpenBAO files back</h3>
+                    <p data-i18n="docs.dr2.step4_p" data-i18n-html>The package made an <code>init.json</code> and a token of its own when it was installed. They belong to an OpenBAO that no longer exists, so replace them with the ones you kept in escrow:</p>
+                    <pre><code>sudo install -o root -g root -m 0600 init.json /var/lib/openbao/init.json
+sudo install -o sysmanage -g sysmanage -m 0640 openbao-token /etc/sysmanage/openbao-token</code></pre>
+
+                    <h3 data-i18n="docs.dr2.h_step5">5. Start OpenBAO and unseal it</h3>
+                    <p data-i18n="docs.dr2.step5_p" data-i18n-html>With file storage (packaged installs) the data came back in step 3: start OpenBAO and let the unseal unit unseal it from <code>init.json</code>. With raft storage, start OpenBAO and then load the snapshot: <code>bao operator raft snapshot restore /var/lib/restate/dumps/openbao-*/openbao.snap</code>.</p>
+                    <pre><code>sudo systemctl start openbao
+sudo systemctl enable --now sysmanage-openbao-init
+bao status        # Sealed: false</code></pre>
+
+                    <h3 data-i18n="docs.dr2.h_step6">6. Start PostgreSQL, load the databases and check the schema</h3>
+                    <p data-i18n="docs.dr2.step6_p1" data-i18n-html><strong>From the dump</strong> (restate 3.0.0.0 or later): the package left a new, empty cluster. Load every database into it. One error, <code>role "postgres" already exists</code>, is expected. The dump directory is readable by root alone, so let root expand the <code>*</code>, as <code>sudo sh -c</code> does:</p>
+                    <pre><code>sudo systemctl start postgresql
+sudo sh -c 'cat /var/lib/restate/dumps/postgresql-*/pg_dumpall.sql' | sudo -u postgres psql -X -q -d postgres
+sudo sysmanage-migrate --status</code></pre>
+                    <p data-i18n="docs.dr2.step6_p2" data-i18n-html><strong>From the cluster's own files</strong> (an older restate): they came back in step 3, copied while PostgreSQL was stopped, so start it as it is and run <code>sudo sysmanage-migrate --status</code>. To move to another PostgreSQL major version instead, load that backup's dump into a new cluster: <code>sudo sh -c 'zcat /var/lib/restate/dumps/postgresql-*/pg_dumpall.sql.gz' | sudo -u postgres psql -X -q -d postgres</code>.</p>
+                    <p data-i18n="docs.dr2.step6_p3" data-i18n-html>Every chain and every tenant should read up to date. If the backup was taken with an older SysManage than the one installed, run <code>sudo sysmanage-migrate</code> now.</p>
+
+                    <h3 data-i18n="docs.dr2.h_step7">7. Start SysManage and check it</h3>
+                    <pre><code>sudo systemctl start sysmanage nginx</code></pre>
+                    <p data-i18n="docs.dr2.step7_p1" data-i18n-html>With a Professional+ license the first start takes about a minute, while the license is checked and the engines are downloaded again. Then check:</p>
+                    <ul>
+                        <li data-i18n="docs.dr2.step7_agents">The agents reconnect on their own within a few minutes, without enrolling again: the Hosts list shows them active and nothing waits for approval.</li>
+                        <li data-i18n="docs.dr2.step7_tenants">Every tenant's hosts and data are there.</li>
+                        <li data-i18n="docs.dr2.step7_secrets" data-i18n-html><strong>Settings -&gt; Secrets</strong> reads every secret, which shows OpenBAO is whole.</li>
+                    </ul>
+                    <p data-i18n="docs.dr2.step7_expected" data-i18n-html>Two things are expected afterwards. The backup run that took this snapshot shows as failed ("restate stopped before writing a result"), because the database was copied while that run was in progress; the snapshot itself is good. And within one scheduler pass (5 minutes) SysManage notices the server's new address and has the storage host export the repository to it, so <strong>Back up now</strong> works again.</p>
+
+                    <h3 data-i18n="docs.dr2.h_newaddr">Moving to a machine with a new address</h3>
+                    <p data-i18n="docs.dr2.newaddr_p" data-i18n-html>Keep the host name and point its DNS record at the new address before step 7. A Let's Encrypt certificate restored in step 3 keeps its key, so the agents' pins still match, and one issued again later is accepted through the server's signed identity statement (see <a href="../security/mtls.html">Agent Certificates and TLS</a>). If the name itself must change, every agent's <code>server</code> setting must change too: do that before the old server is gone.</p>
+
+                    <h3 data-i18n="docs.dr2.h_onepiece">When only one piece is lost</h3>
+                    <p data-i18n="docs.dr2.onepiece_openbao" data-i18n-html><strong>OpenBAO alone.</strong> PostgreSQL and SysManage keep running. Stop OpenBAO (<code>sudo systemctl stop openbao</code>), restore only its directory, put <code>init.json</code> back from escrow as in step 4, then start it and unseal it (<code>sudo systemctl start openbao &amp;&amp; sudo systemctl restart sysmanage-openbao-init</code>). In tests this took two seconds.</p>
+                    <pre><code>sudo restate restore --check-first --root / --include "/var/lib/openbao/**" KEY REPO::SNAPSHOT</code></pre>
+                    <p data-i18n="docs.dr2.onepiece_db1" data-i18n-html><strong>One tenant's database alone</strong>, without touching the others. The dump holds every database, so restore it beside the live system, load it into a throwaway PostgreSQL cluster on another port, and copy the one database across. <code>&lt;version&gt;</code> is the PostgreSQL major version, and <code>role "postgres" already exists</code> is expected:</p>
+                    <pre><code>sudo install -d -m 0700 /srv/side
+sudo restate restore --check-first --root /srv/side \
+  --include "/var/lib/restate/dumps/postgresql-*/**" KEY REPO::SNAPSHOT
+
+sudo install -d -o postgres -g postgres -m 0700 /srv/side-pg
+sudo -u postgres /usr/lib/postgresql/&lt;version&gt;/bin/initdb -D /srv/side-pg -A trust
+sudo -u postgres /usr/lib/postgresql/&lt;version&gt;/bin/pg_ctl -D /srv/side-pg \
+  -o "-p 5499 -k /tmp -c listen_addresses=" -l /tmp/side-pg.log start
+sudo sh -c 'cat /srv/side/var/lib/restate/dumps/postgresql-*/pg_dumpall.sql' \
+  | sudo -u postgres psql -X -q -h /tmp -p 5499 -d postgres</code></pre>
+                    <p data-i18n="docs.dr2.onepiece_db2" data-i18n-html>Then copy the database across. Use the first command if the database is gone, the second if it is there but damaged:</p>
+                    <pre><code>sudo -u postgres pg_dump -h /tmp -p 5499 -Fc tenant_&lt;slug&gt; | sudo -u postgres pg_restore --create -d postgres
+sudo -u postgres pg_dump -h /tmp -p 5499 -Fc tenant_&lt;slug&gt; | sudo -u postgres pg_restore --clean --if-exists -d tenant_&lt;slug&gt;</code></pre>
+                    <p data-i18n="docs.dr2.onepiece_db3" data-i18n-html>Finally stop the throwaway cluster, remove both directories, and check the schema with <code>sudo sysmanage-migrate --status</code>. In tests a tenant's database came back this way in 14 seconds while the other tenants kept working.</p>
+                    <pre><code>sudo -u postgres /usr/lib/postgresql/&lt;version&gt;/bin/pg_ctl -D /srv/side-pg stop -m fast
+sudo rm -rf /srv/side /srv/side-pg</code></pre>
+                </section>
+
+                <section class="docs-section">
+                    <h2 data-i18n="docs.dr2.h_manual">Backing up the server by hand</h2>
+                    <p data-i18n="docs.dr2.manual_intro">Use the rest of this page when the server cannot reach a backup target, or to keep a second copy made another way. It also lists where everything lives on each platform.</p>
 
                     <h2 data-i18n="docs.dr.h_what">What to back up, most important first</h2>
                     <ol>
@@ -36,11 +193,11 @@
                     </ol>
 
                     <div class="warning-box">
-                        <h3 data-i18n="docs.dr.risk_title">Risk: the unseal key is stored on the same server</h3>
-                        <p data-i18n="docs.dr.risk_body" data-i18n-html>The key that unseals OpenBAO is kept next to the data it protects. A package install writes it to <code>/var/lib/openbao/init.json</code> (root only, mode 0600). A configuration made with <code>sysmanage_secure_installation</code> also carries the unseal key in <code>/etc/sysmanage.yaml</code> as <code>vault.server.unseal_keys</code>, with the root token as <code>vault.token</code>, beside the database password. Anyone who can read that file, or any backup of it, holds every secret. Encrypt your backups, keep them off the server, and limit who can read them. Moving the unseal key out of the server is planned (roadmap Phase 25.9).</p>
+                        <h3 data-i18n="docs.dr2.risk_title">Keep the unseal key out of every backup</h3>
+                        <p data-i18n="docs.dr2.risk_body" data-i18n-html>The key that unseals OpenBAO is kept on the server, in <code>/var/lib/openbao/init.json</code> (root only, mode 0600), never in <code>/etc/sysmanage.yaml</code>. Anyone who holds both that file and a copy of OpenBAO's data holds every secret. The built-in backup leaves it out; when you back up by hand, copy it separately into escrow, not into the same archive. Encrypt your backups, keep them off the server, and limit who can read them.</p>
                     </div>
 
-                    <h2 data-i18n="docs.dr.h_where">Where it lives on each platform</h2>
+                    <h2 id="where" data-i18n="docs.dr.h_where">Where it lives on each platform</h2>
                     <p data-i18n="docs.dr.where_intro" data-i18n-html>The commands on this page use the Ubuntu and Debian paths. The OpenBAO data directory and key file are the same on every Unix platform; the other paths differ as shown.</p>
                     <table class="data-table">
                         <thead>
@@ -85,14 +242,14 @@
                                 <td data-i18n="docs.dr.where_win_platform">Windows</td>
                                 <td data-i18n="docs.dr.where_win_config" data-i18n-html><code>C:\ProgramData\SysManage\sysmanage.yaml</code>; the CA is in <code>C:\ProgramData\SysManage\certs</code></td>
                                 <td data-i18n="docs.dr.where_win_tls" data-i18n-html><code>C:\ProgramData\SysManage\tls\</code>, <code>C:\Program Files\SysManage Server\nginx\conf\sysmanage-nginx.conf</code></td>
-                                <td data-i18n="docs.dr.where_win_openbao" data-i18n-html><code>C:\ProgramData\SysManage\openbao\</code> (<code>data\</code>, <code>init.json</code>, <code>openbao.hcl</code>)</td>
+                                <td data-i18n="docs.dr2.where_win_openbao" data-i18n-html><code>C:\ProgramData\SysManage\openbao\</code> (<code>data\</code>, <code>init.json</code>, <code>openbao.hcl</code>, and the server's token <code>openbao-token</code>)</td>
                                 <td data-i18n="docs.dr.where_win_services" data-i18n-html><code>SysManageServer</code>, <code>SysManageOpenBAO</code>, <code>SysManageNginx</code></td>
                             </tr>
                         </tbody>
                     </table>
                     <p data-i18n="docs.dr.where_fbsd_note" data-i18n-html>On FreeBSD the package writes its settings to <code>/usr/local/etc/sysmanage/config.yaml</code>, while the server reads <code>/etc/sysmanage.yaml</code> unless <code>SYSMANAGE_CONFIG_PATH</code> says otherwise. Back up both.</p>
 
-                    <h2 data-i18n="docs.dr.h_backup">Taking a backup (Ubuntu and Debian)</h2>
+                    <h2 data-i18n="docs.dr2.h_backup">Taking a backup by hand (Ubuntu and Debian)</h2>
                     <p data-i18n="docs.dr.backup_intro" data-i18n-html>Run these as root (<code>sudo -i</code>). The database dump does not need the server stopped. OpenBAO uses the <code>file</code> storage backend (<code>storage "file"</code> in <code>openbao.hcl</code>), which has no online snapshot: copy it with OpenBAO stopped. Stop SysManage first, so nothing asks OpenBAO for a secret while it is down. If you changed OpenBAO to the <code>raft</code> backend, use <code>bao operator raft snapshot save</code> instead of the copy.</p>
                     <h3 data-i18n="docs.dr.h_backup_record">1. Record the version and the tenant databases</h3>
                     <pre><code>mkdir -p /var/backups/sysmanage &amp;&amp; chmod 700 /var/backups/sysmanage
@@ -135,7 +292,7 @@ systemctl start sysmanage</code></pre>
                     <p data-i18n="docs.dr.backup_offsite" data-i18n-html>Then encrypt <code>/var/backups/sysmanage</code> and copy it to storage off this machine. Take the database dumps and the OpenBAO copy in the same run: OpenBAO creates database roles for tenants, so the two must describe the same moment.</p>
                     <p data-i18n="docs.dr.backup_tenant_cmd" data-i18n-html>With multi-tenancy on, the server can also run your own per-tenant backup tool on a schedule and record each tenant's recovery point: set <code>backup.command</code> (for example a pgBackRest command) in <code>sysmanage.yaml</code>. It runs the command you give it; it does not back up OpenBAO, the CA or the configuration.</p>
 
-                    <h2 data-i18n="docs.dr.h_restore">Rebuilding the server on a new machine</h2>
+                    <h2 data-i18n="docs.dr2.h_restore">Rebuilding from a backup taken by hand</h2>
                     <ol>
                         <li data-i18n="docs.dr.restore_install" data-i18n-html><strong>Install the same package version</strong> recorded in <code>package-version.txt</code> (for example <code>apt install sysmanage=&lt;version&gt;</code>), and the same or a newer major version of PostgreSQL. Do not create the <code>sysmanage</code> database by hand: the restore creates it. The new install creates its own configuration and its own empty OpenBAO; the next steps replace both.</li>
                         <li data-i18n="docs.dr.restore_stop" data-i18n-html><strong>Stop everything SysManage runs:</strong> <code>systemctl stop sysmanage openbao</code>.</li>
@@ -171,9 +328,9 @@ systemctl status sysmanage-openbao-init</code></pre>
 
                     <h3 data-i18n="docs.dr.h_reconnect">Why agents reconnect without enrolling again</h3>
                     <p data-i18n="docs.dr.reconnect_p1" data-i18n-html>An agent proves which host it is with its host token, which it keeps locally and which the server stores in the host's database row. Restore the database and the token matches again, so the agent reconnects as the same host and needs no new approval. Hosts that were registered after the backup was taken are not in the restored database and come back as new hosts.</p>
-                    <p data-i18n="docs.dr.reconnect_p2" data-i18n-html>The agent checks the server's TLS certificate the ordinary way: it must be valid for the name the agent uses (agents verify by default, <code>server.verify_ssl</code>). Agents do not pin the server or present their own certificates yet; that is planned (roadmap Phase 25.10). So today what lets agents in is the restored database plus a trusted certificate for the same name, not the CA. Restore the CA anyway: without it the server makes a new one, the host certificates already issued no longer chain to it, and pinning will depend on it once it ships.</p>
+                    <p data-i18n="docs.dr2.reconnect_p2" data-i18n-html>The agent also checks the server's TLS certificate: it must be valid for the name the agent uses, and its key must match what the agent pinned when it enrolled, which chains to the server's CA. Restore the CA with everything else. A server rebuilt with a new CA is refused by every agent, and the host certificates already issued no longer chain to it. See <a href="../security/mtls.html">Agent Certificates and TLS</a>.</p>
 
-                    <h2 data-i18n="docs.dr.h_partial">Losing one piece</h2>
+                    <h2 data-i18n="docs.dr2.h_partial">Losing one piece, with a backup taken by hand</h2>
                     <h3 data-i18n="docs.dr.h_partial_openbao">Only OpenBAO</h3>
                     <p data-i18n="docs.dr.partial_openbao_p1" data-i18n-html>Replace <code>/var/lib/openbao</code> as a whole from the last backup, data and <code>init.json</code> together, as in step 4 above, with <code>sysmanage</code> and <code>openbao</code> stopped. Then start <code>openbao</code>, restart <code>sysmanage-openbao-init</code> and start <code>sysmanage</code>. Secrets written after that backup are lost, for example the database credentials of a tenant created since then or a backup key created since then; recreate them. With no OpenBAO backup at all, its secrets cannot be recovered: the tenant databases still exist, but the server has no credentials to reach them.</p>
                     <h3 data-i18n="docs.dr.h_partial_tenant">Only one tenant database</h3>

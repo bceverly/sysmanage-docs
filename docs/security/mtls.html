@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Agent Certificates and TLS - SysManage Security</title>
-    <meta name="description" content="How SysManage protects agent-to-server traffic with TLS, how agents are authenticated, and what the per-host client certificates are used for.">
+    <meta name="description" data-i18n="docs.mtls3.meta_description" data-i18n-attr="content" content="How SysManage protects agent-to-server traffic with TLS: agents pin the server, present a client certificate of their own, renew it themselves, and how to turn mutual TLS on without breaking a fleet.">
     <link rel="stylesheet" href="/assets/css/style.css">
     <link rel="icon" type="image/svg+xml" href="/assets/images/favicon.svg">
 </head>
@@ -19,17 +19,17 @@
 
             <div class="docs-header">
                 <h1 data-i18n="docs.auto.security.mtls.v2.h1">Agent Certificates and TLS</h1>
-                <p data-i18n="docs.auto.security.mtls.v2.subtitle">How agent-to-server traffic is encrypted, how the server knows which host it is talking to, and what the per-host certificates SysManage issues are for.</p>
+                <p data-i18n="docs.mtls3.subtitle">How agent-to-server traffic is encrypted, how an agent knows it is talking to its own server, how the server knows which host it is talking to, and how to turn mutual TLS on across a fleet.</p>
             </div>
             <div class="docs-content">
                 <section class="overview">
                     <h2 data-i18n="docs.auto.security.mtls.v2.summary_title">Summary</h2>
                     <ul>
                         <li data-i18n="docs.auto.security.mtls.v2.summary_tls" data-i18n-html><strong>Encryption:</strong> agents connect outbound to the server over HTTPS and a WebSocket on the same port (normally 443, served by nginx). The agent refuses anything older than TLS 1.2, and the server offers only AEAD cipher suites (AES-GCM and ChaCha20-Poly1305 with forward secrecy).</li>
-                        <li data-i18n="docs.auto.security.mtls.v2.summary_server_auth" data-i18n-html><strong>Server authentication:</strong> the agent verifies the server's certificate against the system trust store, or against a CA file you name in <code>server.ca_bundle</code> in the agent configuration.</li>
+                        <li data-i18n="docs.mtls3.summary_server_auth" data-i18n-html><strong>Server authentication:</strong> the agent verifies the server's certificate against the system trust store, or against a CA file you name in <code>server.ca_bundle</code>, and then checks it against the server identity it pinned when it enrolled. A proxy or another server presenting a different key is refused, even with a certificate the system trusts.</li>
                         <li data-i18n="docs.auto.security.mtls.v2.summary_agent_auth" data-i18n-html><strong>Agent authentication:</strong> each host is identified by a secret host token issued when it registers, not by its hostname. See <a href="agent-identity.html">Agent Identity</a>.</li>
                         <li data-i18n="docs.auto.security.mtls.v2.summary_approval" data-i18n-html><strong>Approval:</strong> a newly registered host is <em>pending</em> until an administrator approves it. The server does not process messages from, or queue commands to, a host that is not approved.</li>
-                        <li data-i18n="docs.auto.security.mtls.v2.summary_client_cert" data-i18n-html><strong>Client certificates:</strong> when a host is approved, the server issues it a client certificate signed by the server's own CA, and the agent downloads and stores it. The current agent does not present this certificate during the TLS handshake, and the server does not request one, so connections are not mutually authenticated at the TLS layer today; agent authentication relies on the host token above.</li>
+                        <li data-i18n="docs.mtls3.summary_client_cert" data-i18n-html><strong>Client certificates:</strong> once a host is approved, its agent generates a key of its own, which never leaves the host, and the server's CA signs a certificate for it. The agent presents that certificate on every connection, and the server checks that the certificate and the host token name the same host. Whether a certificate is required is set by the mutual TLS mode below.</li>
                     </ul>
                 </section>
 
@@ -40,25 +40,61 @@
                         <thead><tr><th data-i18n="docs.auto.security.mtls.v2.th_cert">Certificate</th><th data-i18n="docs.auto.security.mtls.v2.th_key">Key</th><th data-i18n="docs.auto.security.mtls.v2.th_validity">Validity</th><th data-i18n="docs.auto.security.mtls.v2.th_files">Files</th></tr></thead>
                         <tbody>
                             <tr><td data-i18n="docs.auto.security.mtls.v2.row_ca">CA</td><td data-i18n="docs.auto.security.mtls.v2.rsa2048">RSA 2048</td><td data-i18n="docs.auto.security.mtls.v2.ten_years">10 years</td><td><code>ca.crt</code>, <code>ca.key</code></td></tr>
-                            <tr><td data-i18n="docs.auto.security.mtls.v2.row_server">Server</td><td data-i18n="docs.auto.security.mtls.v2.rsa2048b">RSA 2048</td><td data-i18n="docs.auto.security.mtls.v2.one_year">1 year</td><td><code>server.crt</code>, <code>server.key</code></td></tr>
-                            <tr><td data-i18n="docs.auto.security.mtls.v2.row_client">Per-host client</td><td data-i18n="docs.auto.security.mtls.v2.rsa2048c">RSA 2048</td><td data-i18n="docs.auto.security.mtls.v2.one_year_b">1 year</td><td data-i18n="docs.auto.security.mtls.v2.client_files" data-i18n-html>Stored on the host record; delivered to the agent</td></tr>
+                            <tr><td data-i18n="docs.mtls3.row_server">Server identity</td><td data-i18n="docs.auto.security.mtls.v2.rsa2048b">RSA 2048</td><td data-i18n="docs.mtls3.one_year_renewed">1 year, renewed 30 days before it expires</td><td><code>server.crt</code>, <code>server.key</code></td></tr>
+                            <tr><td data-i18n="docs.auto.security.mtls.v2.row_client">Per-host client</td><td data-i18n="docs.mtls3.p256">EC P-256, generated on the host</td><td data-i18n="docs.mtls3.one_year_renewed_b">1 year, renewed 30 days before it expires</td><td data-i18n="docs.mtls3.client_files" data-i18n-html><code>client.key</code> and <code>client.crt</code> on the agent host</td></tr>
                         </tbody>
                     </table>
                     <p data-i18n="docs.auto.security.mtls.v2.key_perms" data-i18n-html>Private keys are written with mode <code>0600</code>; the CA and server certificates are <code>0644</code> so that a non-root process can read them to validate the chain.</p>
                     <p data-i18n="docs.auto.security.mtls.v2.public_ca" data-i18n-html>In most installations nginx terminates TLS on port 443 with the certificate you configure for it (for example one from your corporate CA or a public CA), and agents validate that certificate. If agents should trust the server's own CA instead, download it from <code>/api/certificates/ca-certificate</code> and point <code>server.ca_bundle</code> at it.</p>
-                    <p data-i18n="docs.auto.security.mtls.v2.no_rotation">There is no automatic renewal of these certificates, no certificate revocation list and no OCSP responder. Plan to replace the server certificate before it expires.</p>
+                    <p data-i18n="docs.mtls3.ca_backup" data-i18n-html>The CA is what every host certificate and every agent's pin chains to. Keep it in the server's backup (see <a href="../administration/backup.html">Backing Up and Recovering the Server</a>): a server rebuilt with its old CA is recognized by every agent, and one with a new CA is refused by all of them.</p>
                 </section>
 
                 <section class="certificate-lifecycle">
                     <h2 data-i18n="docs.auto.security.mtls.v2.lifecycle_title">Host Certificate Lifecycle</h2>
                     <ol>
                         <li data-i18n="docs.auto.security.mtls.v2.step_register" data-i18n-html><strong>Registration:</strong> the agent registers and the host is created with status <em>pending</em>.</li>
-                        <li data-i18n="docs.auto.security.mtls.v2.step_approve" data-i18n-html><strong>Approval:</strong> an administrator approves the host in the web interface. The server generates the host's key pair and client certificate, signs it with its CA and records the serial number on the host.</li>
-                        <li data-i18n="docs.auto.security.mtls.v2.step_fetch" data-i18n-html><strong>Delivery:</strong> the agent requests <code>/api/certificates/client/{host_id}</code> with its bearer token. The server answers only for an approved host (HTTP 403 otherwise) and returns the client certificate, its key, the CA certificate and the server certificate's SHA-256 fingerprint.</li>
-                        <li data-i18n="docs.auto.security.mtls.v2.step_store" data-i18n-html><strong>Storage:</strong> the agent writes them to its configuration directory (<code>/etc/sysmanage-agent</code>, or <code>C:\ProgramData\SysManage</code> on Windows), which it restricts to its own user; the private key file is mode <code>0600</code>.</li>
-                        <li data-i18n="docs.auto.security.mtls.v2.step_revoke" data-i18n-html><strong>Revocation:</strong> revoking a host's certificate (<code>POST /api/certificates/revoke/{host_id}</code>) clears the certificate from the host record, sets the host's status to <em>revoked</em> and writes an audit log entry. A revoked host is treated like an unapproved one until it is approved again.</li>
+                        <li data-i18n="docs.mtls3.step_approve" data-i18n-html><strong>Approval:</strong> an administrator approves the host in the web interface.</li>
+                        <li data-i18n="docs.mtls3.step_request" data-i18n-html><strong>Request:</strong> the agent generates an EC P-256 key, writes it with mode <code>0600</code>, and sends a certificate request to <code>POST /api/agent/certificate</code> with its host credentials. The server answers only for an approved host, signs the certificate with its CA and records its serial number on the host. The private key never leaves the host.</li>
+                        <li data-i18n="docs.mtls3.step_store" data-i18n-html><strong>Storage:</strong> the agent keeps <code>client.key</code>, <code>client.crt</code> and the CA's <code>ca.crt</code> in its configuration directory (<code>/etc/sysmanage-agent</code>, or <code>C:\ProgramData\SysManage</code> on Windows), replacing the files in one step so a half-written certificate is never used.</li>
+                        <li data-i18n="docs.mtls3.step_renew" data-i18n-html><strong>Renewal:</strong> the agent checks at startup, every 24 hours, on approval and after a refused connection, and requests a new certificate 30 days before the current one expires. For a day after a renewal the server still accepts the previous certificate. An expired certificate is never presented: the host requests a new one on its token, and the Hosts list shows it as <em>Expired</em> until it has one.</li>
+                        <li data-i18n="docs.mtls3.step_revoke" data-i18n-html><strong>Revocation:</strong> revoking a host's certificate (<code>POST /api/certificates/revoke/{host_id}</code>) clears it from the host record, sets the host's status to <em>revoked</em> and writes an audit log entry. The server accepts only the serial number it last issued to a host, so a revoked or deleted host's certificate is refused at once, with no revocation list to distribute.</li>
                     </ol>
-                    <p data-i18n="docs.auto.security.mtls.v2.fingerprint_note">The agent stores the server fingerprint it receives, but the current agent does not compare it with the server's certificate when it connects; server authentication relies on normal certificate validation.</p>
+                    <p data-i18n="docs.mtls3.states" data-i18n-html>The Hosts list shows each approved host's certificate state: <em>Presented</em>, <em>Renewing</em>, <em>Not presented</em>, <em>Expired</em> or <em>None</em>.</p>
+                </section>
+
+                <section class="server-pinning">
+                    <h2 data-i18n="docs.mtls3.pin_title">The Agent Pins Its Server</h2>
+                    <p data-i18n="docs.mtls3.pin_p1" data-i18n-html>When it enrolls, the agent pins two things in <code>server_pins.json</code>: the SysManage CA, and the public key of the TLS certificate the server presented. On every connection it compares the server's public key with its pins right after the handshake, and refuses a mismatch, saying why in its log. A trusted certificate is not enough: a proxy or another server that presents a different key is refused.</p>
+                    <p data-i18n="docs.mtls3.pin_p2" data-i18n-html>A public certificate that renews every 60 to 90 days, such as one from Let's Encrypt, often comes with a new key. The server publishes the keys it serves in a statement signed with its CA-issued identity, at <code>GET /api/agent/server-identity</code>. The agent pins a new key only when such a statement, chained to the CA it pinned, names exactly the key it saw on that connection, so a proxy can neither forge the statement nor reuse it. The server reads its keys from its own nginx, or from <code>agent_tls_spki</code> in Settings when nginx runs elsewhere.</p>
+                    <p data-i18n="docs.mtls3.pin_p3" data-i18n-html>A different CA is never pinned automatically. After a deliberate change of server or CA, reset the pins on each agent host with the agent's own Python, in its install directory: <code>cd /opt/sysmanage-agent &amp;&amp; sudo .venv/bin/python -m src.security.pin_reset</code> (add <code>--certificate</code> to drop the host certificate too and start over). On a network where a TLS-inspecting proxy re-signs all traffic, set <code>server.tls_inspection: true</code> in the agent configuration: pinning is then off, and the agent logs that it is.</p>
+                </section>
+
+                <section class="rollout">
+                    <h2 data-i18n="docs.mtls3.rollout_title">Turning On Mutual TLS</h2>
+                    <p data-i18n="docs.mtls3.rollout_intro" data-i18n-html>The mode is set on <strong>Settings -&gt; Configuration</strong>, in the <strong>Agent certificates (mutual TLS)</strong> card, for each tenant when multi-tenancy is on. The card counts how many approved hosts present a valid certificate.</p>
+                    <table class="config-table">
+                        <thead><tr><th data-i18n="docs.mtls3.th_mode">Mode</th><th data-i18n="docs.mtls3.th_effect">What the server accepts</th></tr></thead>
+                        <tbody>
+                            <tr><td data-i18n="docs.mtls3.mode_off">Off</td><td data-i18n="docs.mtls3.mode_off_help">Client certificates are ignored. Agents connect with their host token alone.</td></tr>
+                            <tr><td data-i18n="docs.mtls3.mode_optional">Optional (the default)</td><td data-i18n="docs.mtls3.mode_optional_help">A certificate an agent presents must be valid for its host; an agent with none still connects on its host token. Older agents keep working.</td></tr>
+                            <tr><td data-i18n="docs.mtls3.mode_enforced">Enforced</td><td data-i18n="docs.mtls3.mode_enforced_help">Every approved host must present a valid certificate. A host without a current one may still request one, and nothing else.</td></tr>
+                        </tbody>
+                    </table>
+                    <p data-i18n="docs.mtls3.rollout_wrong">In every mode but Off, a certificate that is presented and wrong is refused: signed by another CA, expired, issued to another host, or not the host's current one.</p>
+                    <ol>
+                        <li data-i18n="docs.mtls3.rollout_step_nginx" data-i18n-html><strong>Let nginx ask for the certificate.</strong> The packages for Ubuntu, Debian, the RHEL family, openSUSE, Alpine, macOS and NetBSD write <code>/etc/sysmanage/nginx/agent-mtls.conf</code> when they install or upgrade and the SysManage CA exists, and keep it only if <code>nginx -t</code> passes. It holds two lines. nginx then asks every client for a certificate, but names only the SysManage CA, so browsers are never prompted.</li>
+                    </ol>
+                    <pre><code>ssl_verify_client optional_no_ca;
+ssl_client_certificate /etc/sysmanage/certs/ca.crt;</code></pre>
+                    <ol start="2">
+                        <li data-i18n="docs.mtls3.rollout_step_manual" data-i18n-html><strong>Where you edit nginx yourself</strong> (FreeBSD, OpenBSD, the snap, Windows, or a site file you changed, which an upgrade leaves alone): add those two lines to the <code>server</code> block, and in the two agent locations (<code>/api/</code> and <code>/ws</code>) pass the verified certificate to the server. Then run <code>nginx -t</code> and reload nginx.</li>
+                    </ol>
+                    <pre><code>proxy_set_header X-SSL-Client-Cert $ssl_client_escaped_cert;</code></pre>
+                    <ol start="3">
+                        <li data-i18n="docs.mtls3.rollout_step_agents" data-i18n-html><strong>Update the agents</strong> and leave the mode at Optional. Each agent requests its certificate on its next start and presents it from then on. Watch the Agent certificates card until every approved host presents one.</li>
+                        <li data-i18n="docs.mtls3.rollout_step_enforce" data-i18n-html><strong>Set the mode to Enforced.</strong> While some approved hosts still present no certificate, the server refuses the change and says how many; <strong>Enforce anyway</strong> confirms it.</li>
+                    </ol>
+                    <p data-i18n="docs.mtls3.rollout_header" data-i18n-html>nginx sets <code>X-SSL-Client-Cert</code> from its own variable, so a header sent by a client is discarded. nginx proves the agent holds the key; the server checks the rest: the CA's signature, the dates, the host and the serial number. Air-gapped servers work the same way, with nothing to fetch from outside.</p>
                 </section>
 
                 <section class="troubleshooting">
@@ -73,6 +109,21 @@
                             </ul>
                         </div>
                         <div class="issue-item">
+                            <h4 data-i18n="docs.mtls3.pin_issue_title">The Agent Refuses the Server</h4>
+                            <ul>
+                                <li data-i18n="docs.mtls3.pin_issue_symptom" data-i18n-html><strong>Symptoms:</strong> the agent logs that the server's key does not match its pins, and does not connect</li>
+                                <li data-i18n="docs.mtls3.pin_issue_cause" data-i18n-html><strong>Causes:</strong> a proxy between the agent and the server presents its own certificate; the server was rebuilt with a new CA; the agent was pointed at a different server</li>
+                                <li data-i18n="docs.mtls3.pin_issue_fix" data-i18n-html><strong>Solutions:</strong> find out which first. For a deliberate change, reset the pins on the agent host with <code>pin_reset</code>, as described above. For a TLS-inspecting proxy, set <code>server.tls_inspection: true</code>. For a rebuilt server, restore its old CA from the backup instead.</li>
+                            </ul>
+                        </div>
+                        <div class="issue-item">
+                            <h4 data-i18n="docs.mtls3.cert_issue_title">A Host Shows Not Presented</h4>
+                            <ul>
+                                <li data-i18n="docs.mtls3.cert_issue_symptom" data-i18n-html><strong>Symptoms:</strong> the Hosts list shows <em>Not presented</em> for a host that has a certificate</li>
+                                <li data-i18n="docs.mtls3.cert_issue_fix" data-i18n-html><strong>Solutions:</strong> nginx is not asking for it. Check that <code>/etc/sysmanage/nginx/agent-mtls.conf</code> exists and that both agent locations set <code>X-SSL-Client-Cert</code>, then run <code>nginx -t</code> and reload nginx.</li>
+                            </ul>
+                        </div>
+                        <div class="issue-item">
                             <h4 data-i18n="docs.auto.security.mtls.159">Clock Synchronization</h4>
                             <ul>
                                 <li data-i18n="docs.auto.security.mtls.160" data-i18n-html><strong>Symptoms:</strong> "Certificate not yet valid" or "expired" errors</li>
@@ -83,8 +134,8 @@
                         <div class="issue-item">
                             <h4 data-i18n="docs.auto.security.mtls.v2.pending_title">Host Stays Pending</h4>
                             <ul>
-                                <li data-i18n="docs.auto.security.mtls.v2.pending_symptom" data-i18n-html><strong>Symptoms:</strong> The agent logs "Host not yet approved for certificate retrieval"</li>
-                                <li data-i18n="docs.auto.security.mtls.v2.pending_fix" data-i18n-html><strong>Solutions:</strong> Approve the host on the Hosts page; the agent fetches its certificate on its next attempt</li>
+                                <li data-i18n="docs.mtls3.pending_symptom" data-i18n-html><strong>Symptoms:</strong> the Hosts list shows the host's certificate as <em>None</em></li>
+                                <li data-i18n="docs.mtls3.pending_fix" data-i18n-html><strong>Solutions:</strong> approve the host on the Hosts page; the agent requests its certificate as soon as it learns it is approved</li>
                             </ul>
                         </div>
                     </div>
@@ -98,8 +149,11 @@ openssl s_client -connect sysmanage.company.com:443 \
 # Check the expiry of the server's own certificate (on the server)
 openssl x509 -in /etc/sysmanage/certs/server.crt -noout -subject -dates
 
-# Check a host's stored client certificate (on the agent host)
-openssl x509 -in /etc/sysmanage-agent/client.crt -noout -subject -dates</code></pre>
+# Check a host's client certificate (on the agent host)
+openssl x509 -in /etc/sysmanage-agent/client.crt -noout -subject -dates
+
+# Check that nginx asks agents for a certificate (on the server)
+sudo nginx -T 2&gt;/dev/null | grep -E 'ssl_verify_client|X-SSL-Client-Cert'</code></pre>
                     </div>
                 </section>
 

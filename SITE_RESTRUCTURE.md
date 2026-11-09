@@ -77,7 +77,7 @@ come from `make screenshots`; American spelling; ASCII hyphens.
   from every title and heading (file names kept, so links hold). The
   architecture diagram claimed mTLS, CentOS, Windows 10 and macOS 10.15;
   it now says TLS and names what is packaged.
-- [ ] **"Phase" in body text (after the translation run; sysmanage ROADMAP
+- [x] **"Phase" in body text (after the translation run; sysmanage ROADMAP
   25.6):** phases are an internal planning term (Bryan, 2026-11-05) and
   ten pages still cite them in prose -- roadmap/index.html, five
   architecture pages, server/deployment, server/troubleshooting,
@@ -85,6 +85,11 @@ come from `make screenshots`; American spelling; ASCII hyphens.
   ("Phase 34" for HA, "Phase 29", "ROADMAP 27.3"). Name the feature or say
   "planned", update the strings in 14 locales, and add a lint check that
   fails on "Phase <number>" / "ROADMAP <number>" in published pages.
+  DONE 2026-11-09: it was 67 strings on 22 pages, not ten. Each one now
+  names the feature, says "planned", or gives the release (the 2.0 and 2.1
+  pages: "v2.0.0.0", "since v2.2.0.0"); file names kept so links hold.
+  `make no-phases` (scripts/check_no_phases.py, part of `make lint`) fails on
+  "Phase <n>" / "ROADMAP <n>" in any page or in a locale value a page shows.
 
 ## Week 2 -- The evaluation journey
 
