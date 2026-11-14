@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Backups over HTTPS with restate-proxy - Administration - SysManage</title>
+    <meta name="description" data-i18n="docs.admin.backup_proxy.meta_description" data-i18n-attr="content" content="Let hosts back up to the storage host over HTTPS through restate-proxy instead of mounting NFS: append-only grants per host, tokens the hosts make themselves, a certificate from the SysManage CA, and a route in from outside through a firewall.">
+    <link rel="stylesheet" href="/assets/css/style.css">
+    <link rel="icon" type="image/svg+xml" href="/assets/images/favicon.svg">
+</head>
+<body data-auto-header="documentation" data-auto-footer>
+    <main class="docs-main">
+        <div class="container">
+            <div class="docs-breadcrumb"><a href="../" data-i18n="docs.admin.backup_proxy.crumb_docs">Documentation</a> &gt; <a href="./" data-i18n="docs.admin.backup_proxy.crumb_admin">Administration</a> &gt; <a href="fleet-backups.html" data-i18n="docs.admin.backup_proxy.crumb_backups">Fleet Backups</a> &gt; <span data-i18n="docs.admin.backup_proxy.crumb_page">Backups over HTTPS</span></div>
+            <div class="docs-header">
+                <h1 data-i18n="docs.admin.backup_proxy.title">Backups over HTTPS with restate-proxy</h1>
+                <p data-i18n="docs.admin.backup_proxy.intro" data-i18n-html>A backup target can let its hosts reach the storage host in one of two ways: each host mounts its own NFS export, as <a href="fleet-backup-storage.html">Setting up the storage host</a> describes, or each host talks HTTPS to <code>restate-proxy</code>, a service that runs on the storage host. This page covers the proxy: why to choose it, what SysManage sets up for it, and how hosts outside your network reach it through a firewall.</p>
+            </div>
+            <div class="docs-content">
+                <section class="docs-section">
+                    <h2 data-i18n="docs.admin.backup_proxy.h_why">Why use the proxy</h2>
+                    <ul>
+                        <li data-i18n="docs.admin.backup_proxy.why_nomount" data-i18n-html><strong>No mount.</strong> A host on the proxy mounts nothing and needs no NFS client. restate on the host reaches its repository at <code>https://&lt;proxy&gt;/v1/&lt;host id&gt;</code> by running <code>curl</code>.</li>
+                        <li data-i18n="docs.admin.backup_proxy.why_append" data-i18n-html><strong>Append-only by protocol.</strong> The proxy has no way to delete, rename or overwrite anything. Every upload is checked against restate's repository format before it goes in, and a host reaches only its own repository: the host id in the address must match the host's token. Prune, check, seal and protect still run only on the storage host.</li>
+                        <li data-i18n="docs.admin.backup_proxy.why_tokens" data-i18n-html><strong>Tokens the hosts make themselves.</strong> Each host makes its own token and keeps it in a file only root can read. Only the token's SHA-256 hash goes to the SysManage server and to the storage host, so no token is ever in a command, the message queue or a database.</li>
+                        <li data-i18n="docs.admin.backup_proxy.why_anywhere" data-i18n-html><strong>Works from anywhere.</strong> Everything travels inside TLS, and hosts are known by their token, never by their address, so a host behind NAT or outside your network, such as a SysManage server in the cloud, can back up to the same storage host as the LAN.</li>
+                        <li data-i18n="docs.admin.backup_proxy.why_same" data-i18n-html><strong>Nothing else changes.</strong> Backups, restores, browsing a snapshot and comparing snapshots all go through the proxy. The repositories on the storage host are the same directories either way, and the storage host still protects, seals, prunes and checks them. With Professional+ encryption, the proxy and the storage host only ever see encrypted packs.</li>
+                    </ul>
+                    <p data-i18n="docs.admin.backup_proxy.why_data" data-i18n-html>Backup data goes straight from each host to the storage host. It never passes through the SysManage server, which only sends the settings and collects the results.</p>
+
+                    <h2 data-i18n="docs.admin.backup_proxy.h_choose">Choosing NFS or the proxy for a target</h2>
+                    <p data-i18n="docs.admin.backup_proxy.choose_p1" data-i18n-html>On the Backups page, the target card shows <strong>How hosts reach the storage</strong>. Click <strong>Change how hosts reach storage</strong> and pick <strong>Reach the storage through</strong>:</p>
+                    <ul>
+                        <li data-i18n="docs.admin.backup_proxy.choose_nfs" data-i18n-html><strong>NFS (each host mounts its own export)</strong> -- the storage host exports each host's repository to that host, and the agent mounts it while a job runs.</li>
+                        <li data-i18n="docs.admin.backup_proxy.choose_proxy" data-i18n-html><strong>restate-proxy (HTTPS to the storage host)</strong> -- then give the <strong>Proxy address hosts reach</strong>, the name or address in the proxy's certificate as the hosts resolve it, and the <strong>Port</strong> (8443 by default).</li>
+                        <li data-i18n="docs.admin.backup_proxy.choose_pin" data-i18n-html><strong>Pinned key (SHA-256, optional)</strong> -- the SHA-256 of the proxy certificate's public key, as 64 hexadecimal characters. Hosts then accept only a proxy certificate with this public key.</li>
+                        <li data-i18n="docs.admin.backup_proxy.choose_ca" data-i18n-html><strong>Site CA certificate (PEM, optional)</strong> -- only for a proxy certificate your own certificate authority signed. Hosts trust it for their backups only. Once one is saved, leaving the field empty keeps it; <strong>Remove the saved CA and trust the system store</strong> takes it away.</li>
+                    </ul>
+
+                    <figure class="docs-screenshot">
+                        <img src="/assets/images/backups-transport-proxy.png" alt="How hosts reach the storage dialog with restate-proxy chosen">
+                        <figcaption data-i18n="docs.admin.backup_proxy.fig_transport" data-i18n-html>The <strong>How hosts reach the storage</strong> dialog with restate-proxy chosen: the proxy address hosts reach, <code>backup.example.com</code>, and port 8443.</figcaption>
+                    </figure>
+                    <p data-i18n="docs.admin.backup_proxy.choose_p2" data-i18n-html>Changing it needs the Manage Backups permission and is audited. SysManage then sends new job files to every host of the target and to the storage host. You can switch either way at any time: the repositories stay where they are on the storage host and keep their snapshots, because only the way in changes.</p>
+                    <p data-i18n="docs.admin.backup_proxy.choose_p3" data-i18n-html>Each host moves to the proxy as far as its restate allows. With restate 3.1.0.0 or later, restores, browsing, status, comparisons and checks go through the proxy; with 3.2.0.0 or later, backups and snapshot listings do too, and the host mounts nothing at all. Until then, those jobs keep using NFS. A host that backs up through the proxy has no NFS export, so the storage host makes none for it, and the storage check leaves the export checks out for it. OpenBSD and NetBSD hosts, and Linux hosts without an NFS client, can back up only through the proxy.</p>
+
+                    <h2 data-i18n="docs.admin.backup_proxy.h_equip">What Equip installs on the storage host</h2>
+                    <p data-i18n="docs.admin.backup_proxy.equip_p1" data-i18n-html>On a target that uses the proxy, <strong>Equip for backup</strong> on the storage host installs <code>restate-proxy</code> beside restate, and upgrades it later, even when restate is already there: from restate's PPA on Ubuntu, its COPR on Fedora, and restate's release package on Debian 12 and 13 and FreeBSD, installed only when its checksum matches the release's list. On other systems Equip installs restate without the proxy, so choose one of these for the storage host. The server sends only that the proxy is wanted, never a package name or a command. When the storage host has no proxy, the target card warns <strong>restate-proxy is not installed on the storage host, so hosts cannot reach their backups through it.</strong> with an <strong>Install restate-proxy</strong> button.</p>
+                    <p data-i18n="docs.admin.backup_proxy.equip_p2" data-i18n-html>The proxy package installs its service turned off. SysManage's storage setup then runs it as the target's backup account, which owns the repositories (on Linux with a systemd drop-in that sets <code>User</code> and <code>Group</code> to that account and <code>UMask=0007</code>; on FreeBSD with <code>sysrc restate_proxy_user=restate restate_proxy_umask=007</code>), and turns it on and starts it once it has its certificate. When the target goes back to NFS, the agent stops and turns off the service it started, and nothing else.</p>
+
+                    <h2 data-i18n="docs.admin.backup_proxy.h_cert">The proxy's certificate</h2>
+                    <p data-i18n="docs.admin.backup_proxy.cert_p1" data-i18n-html>The storage host makes the proxy's private key, which never leaves it, and asks the SysManage server for a certificate. The server's own certificate authority, the SysManage CA, signs it for the proxy address in the target only, for 365 days. The next storage setup installs the key and the certificate together, at <code>/etc/restate/proxy.key</code> (readable only by the backup account) and <code>/etc/restate/proxy.crt</code>, and restarts the proxy. The certificate is renewed 30 days before it ends, and again whenever the proxy address changes.</p>
+                    <p data-i18n="docs.admin.backup_proxy.cert_p2" data-i18n-html>Hosts trust it through the SysManage CA, which SysManage gives them as the target's CA. The target card shows <strong>Certificate from the SysManage CA, valid until</strong> a date, or <strong>Waiting for the storage host to ask for its certificate</strong>. When you give a site CA of your own, it wins: the server issues nothing, and the card shows no certificate line. The certificate that CA signed, and its key, are then yours to put on the storage host, at the same two paths.</p>
+
+                    <figure class="docs-screenshot">
+                        <img src="/assets/images/backups-target-proxy.png" alt="Backup target card on restate-proxy">
+                        <figcaption data-i18n="docs.admin.backup_proxy.fig_target">The target card on the proxy: its address, the certificate from the SysManage CA and when it ends, and the storage check's warning that restate-proxy is not installed yet, with the button that installs it.</figcaption>
+                    </figure>
+
+                    <h2 data-i18n="docs.admin.backup_proxy.h_grants">The allow list: one grant per host</h2>
+                    <p data-i18n="docs.admin.backup_proxy.grants_p1" data-i18n-html>The proxy lets in only clients it has a grant for: one file per client in <code>/etc/restate/proxy.d</code>. The storage host's agent writes one for each host of the target, <code>/etc/restate/proxy.d/&lt;host id&gt;.conf</code>, naming that host's repository, what the host may do (add backups, and read its own repository to restore) and the SHA-256 hash of the host's token. A host whose repository was encrypted with Professional+ after it had backups also gets a read-only grant for the repository from before, <code>&lt;host id&gt;.previous.conf</code>.</p>
+                    <p data-i18n="docs.admin.backup_proxy.grants_p2" data-i18n-html>The agent marks every grant it writes with a label for the target, and only ever changes or removes those: a grant you write yourself is left alone. When a host leaves the target, or is deleted, its grant is removed, and the same token is refused on its next request. The proxy reads the directory again by itself when it changes, so nothing is restarted.</p>
+                    <p data-i18n="docs.admin.backup_proxy.grants_rotate" data-i18n-html>A token older than 90 days is replaced. The host makes the next one and reports only its hash; the storage host adds that hash to the grant beside the current one, and the host starts using the new token only once the server tells it the new hash is granted. The old hash is removed after that, so no backup fails in between.</p>
+                    <p data-i18n="docs.admin.backup_proxy.grants_repo" data-i18n-html>Through the proxy, a host cannot make its own repository. Click <strong>Prepare storage</strong> on each host's Backups card before its first backup: the storage host then makes the repository itself, with the policy's public key when the repository is encrypted. Until it does, the target card lists the host under <strong>No repository on the storage host yet</strong>.</p>
+
+                    <h2 data-i18n="docs.admin.backup_proxy.h_restore">Restores, and a busy repository</h2>
+                    <p data-i18n="docs.admin.backup_proxy.restore_p1" data-i18n-html>A restore through the proxy needs the Restore Files permission and is audited, exactly as over NFS. The host reads its own repository with its own token, and the proxy holds the repository's read lock for as long as the restore runs, so a prune on the storage host cannot remove anything the restore is reading.</p>
+                    <p data-i18n="docs.admin.backup_proxy.restore_busy" data-i18n-html>When a backup and a prune on the storage host want the same repository at the same time, one of them finds it locked, and the proxy answers that the repository is busy. A backup that does shows <strong>Busy, will retry</strong> and is due again 30 minutes later; it is not a failure. A prune that finds a backup or a restore running removes nothing, and is tried again the same way.</p>
+
+                    <h2 id="audit" data-i18n="docs.admin.backup_proxy.h_audit">What the storage check says about the proxy</h2>
+                    <p data-i18n="docs.admin.backup_proxy.audit_p1" data-i18n-html>The storage check on the target card also covers the proxy, after every storage job and once a day:</p>
+                    <ul>
+                        <li data-i18n="docs.admin.backup_proxy.audit_missing" data-i18n-html><strong>restate-proxy is not installed on the storage host</strong> -- click <strong>Install restate-proxy</strong> on the warning.</li>
+                        <li data-i18n="docs.admin.backup_proxy.audit_stopped" data-i18n-html><strong>restate-proxy is not running on the storage host</strong> -- start its service there.</li>
+                        <li data-i18n="docs.admin.backup_proxy.audit_cert" data-i18n-html><strong>The certificate</strong> is missing from <code>/etc/restate/proxy.crt</code>, cannot be read, has expired (hosts then refuse the proxy), or expires within 21 days.</li>
+                        <li data-i18n="docs.admin.backup_proxy.audit_grants" data-i18n-html><strong>restate-proxy does not accept the grant</strong> for the hosts named -- run <code>restate-proxy --check-grants</code> on the storage host to see why.</li>
+                        <li data-i18n="docs.admin.backup_proxy.audit_repo" data-i18n-html><strong>No repository on the storage host yet</strong> for the hosts named -- click <strong>Prepare storage</strong> on each one's Backups card.</li>
+                    </ul>
+                    <p data-i18n="docs.admin.backup_proxy.audit_reach" data-i18n-html>Each host is also asked whether it can reach the proxy and complete a TLS connection with a certificate it trusts (and the pinned key, when there is one), at the same times as the NFS check: before <strong>Equip for backup</strong>, when its policy is saved, once a day, and when you click <strong>Check again</strong>. A host that cannot shows <strong>This host cannot reach the backup storage's restate-proxy</strong>, with the address, the port and the error, and its backups are held until it can. It needs a network path to the proxy and must trust its certificate.</p>
+
+                    <h2 id="remote" data-i18n="docs.admin.backup_proxy.h_remote">Hosts outside your network, through a firewall</h2>
+                    <p data-i18n="docs.admin.backup_proxy.remote_p1" data-i18n-html>A host outside the storage host's network reaches the proxy through the firewall at the network's edge. The firewall passes the TLS connection through as it is, so TLS ends on the storage host: the firewall never holds the proxy's certificate or sees a token, and nothing crosses your LAN unencrypted. Use one name for the proxy everywhere, with split-horizon DNS:</p>
+                    <ul>
+                        <li data-i18n="docs.admin.backup_proxy.remote_outside" data-i18n-html><strong>Outside</strong>, the name resolves to the firewall's public address.</li>
+                        <li data-i18n="docs.admin.backup_proxy.remote_inside" data-i18n-html><strong>Inside</strong>, a DNS host override resolves the same name to the storage host itself, so LAN hosts reach the proxy directly and their nightly backups do not loop through the firewall.</li>
+                    </ul>
+                    <p data-i18n="docs.admin.backup_proxy.remote_same" data-i18n-html>Every host then uses the same address, port and certificate, so the target needs no setting of its own for remote hosts.</p>
+                    <h3 data-i18n="docs.admin.backup_proxy.h_pfsense">Example: pfSense with HAProxy in TCP mode</h3>
+                    <p data-i18n="docs.admin.backup_proxy.pf_p1" data-i18n-html>pfSense's HAProxy package, in TCP mode, reads the name the client asks for in the TLS handshake (SNI) and sends the connection to the backend for that name without decrypting it. These settings send <code>backup.example.com</code> on port 8443 of the WAN address to port 8443 of a storage host at <code>192.168.1.10</code>:</p>
+                    <ol>
+                        <li data-i18n="docs.admin.backup_proxy.pf_backend" data-i18n-html><strong>Backend</strong> (Services &gt; HAProxy &gt; Backend): a server with address <code>192.168.1.10</code>, port <code>8443</code>, Encrypt(SSL) and SSL checks off; server timeout <code>120000</code>; health check method Basic, with the check frequency left empty; Transparent ClientIP off.</li>
+                        <li data-i18n="docs.admin.backup_proxy.pf_frontend" data-i18n-html><strong>Frontend</strong> (Services &gt; HAProxy &gt; Frontend): listen on the WAN address, port <code>8443</code>, with SSL Offloading off; type <code>ssl / https(TCP mode)</code>; an access control list matching the Server Name Indication TLS extension against <code>backup.example.com</code>, with the action Use Backend for it; no default backend; client timeout <code>120000</code>.</li>
+                        <li data-i18n="docs.admin.backup_proxy.pf_rule" data-i18n-html><strong>Firewall rule</strong> (Firewall &gt; Rules &gt; WAN): pass TCP to the WAN address, port <code>8443</code>. No port forward is needed, because HAProxy listens on the WAN address itself. Where the remote hosts' addresses are known, limit the rule's source to them as an extra layer.</li>
+                        <li data-i18n="docs.admin.backup_proxy.pf_dns" data-i18n-html><strong>DNS</strong>: <code>backup.example.com</code> resolves to the WAN address outside, and a host override in pfSense's DNS Resolver (Services &gt; DNS Resolver &gt; Host Overrides) resolves it to <code>192.168.1.10</code> inside.</li>
+                    </ol>
+                    <p data-i18n="docs.admin.backup_proxy.pf_why" data-i18n-html>Keep TCP mode with SSL Offloading off: offloading would put the proxy's certificate and key on the firewall and decrypt every backup there. HAProxy can match the name only once the handshake has arrived, so the frontend needs <code>tcp-request inspect-delay 5s</code> and <code>tcp-request content accept if { req_ssl_hello_type 1 }</code>; if the configuration pfSense writes (<code>/var/etc/haproxy/haproxy.cfg</code>) has neither, add them in the frontend's Advanced pass thru. Keep both timeouts at 120 seconds, longer than the proxy's own 60, because HAProxy's default of 30 seconds can cut off a large backup while it is committed. Do not turn on <code>send-proxy</code>: restate-proxy does not take the PROXY protocol.</p>
+                    <p data-i18n="docs.admin.backup_proxy.pf_test" data-i18n-html>Then set the target's <strong>Proxy address hosts reach</strong> to <code>backup.example.com</code> and its <strong>Port</strong> to 8443. The proxy's certificate from the SysManage CA is issued for that name. A remote host that passes the reach check is offered backups like any other.</p>
+
+                    <h2 data-i18n="docs.admin.backup_proxy.h_needs">What you need</h2>
+                    <ul>
+                        <li data-i18n="docs.admin.backup_proxy.need_restate" data-i18n-html><code>restate-proxy</code> on the storage host, which <strong>Equip for backup</strong> installs, and restate 3.2.0.0 or later on each host to back up through the proxy. The agent asks restate what it can do (<code>restate features</code>), so a host with an older restate keeps using NFS for what it cannot do through the proxy.</li>
+                        <li data-i18n="docs.admin.backup_proxy.need_curl" data-i18n-html><code>curl</code> on each host, which restate runs to reach the proxy. restate's Debian and RPM packages recommend it; Equip does not install it.</li>
+                        <li data-i18n="docs.admin.backup_proxy.need_port" data-i18n-html>The proxy's port, 8443 by default, open from the hosts to the storage host.</li>
+                    </ul>
+
+                    <h2 data-i18n="docs.admin.backup_proxy.h_editions">Edition requirements</h2>
+                    <p data-i18n="docs.admin.backup_proxy.editions_p1" data-i18n-html>The proxy as a transport is part of the Community edition: the setting on the target, Equip, the grants and tokens, the job files, restores, the storage check and the target's <strong>Backups at the same time</strong>. <code>restate-proxy</code> itself is part of restate and free to run by hand. Bandwidth limits by the hour of the day, set with <strong>Change bandwidth limits</strong> on the target card (<strong>Bandwidth through restate-proxy</strong>), need Professional+ and restate 3.2.1.4 or later on the storage host. Without the license the rules are kept but not applied, and backups through the proxy run at full speed.</p>
+
+                    <figure class="docs-screenshot">
+                        <img src="/assets/images/backups-bandwidth.png" alt="Bandwidth through restate-proxy dialog">
+                        <figcaption data-i18n="docs.admin.backup_proxy.fig_bandwidth" data-i18n-html>Professional+: the <strong>Bandwidth through restate-proxy</strong> dialog with one rule, 2MiB/s from 08:00 to 18:00 by the storage host's clock, and no limit for the other hours.</figcaption>
+                    </figure>
+                </section>
+            </div>
+        </div>
+    </main>
+    <script src="/assets/js/components.js"></script>
+    <script src="/assets/js/i18n.js"></script>
+    <script src="/assets/js/navbar.js"></script>
+    <script src="/assets/js/main.js"></script>
+</body>
+</html>

@@ -14,7 +14,7 @@
             <div class="docs-breadcrumb"><a href="../" data-i18n="docs.admin.backup_storage.crumb_docs">Documentation</a> &gt; <a href="./" data-i18n="docs.admin.backup_storage.crumb_admin">Administration</a> &gt; <a href="fleet-backups.html" data-i18n="docs.admin.backup_storage.crumb_backups">Fleet Backups</a> &gt; <span data-i18n="docs.admin.backup_storage.crumb_page">Storage Host</span></div>
             <div class="docs-header">
                 <h1 data-i18n="docs.admin.backup_storage.title">Setting Up the Backup Storage Host</h1>
-                <p data-i18n="docs.admin.backup_storage.intro" data-i18n-html>The storage host serves every backed-up host's repository over NFSv4 and runs the jobs that lock, seal, prune and check the backups. It must be a managed host with the SysManage agent and restate 2.1.0.3 or later. You set up its storage and NFS server once, as this page describes; SysManage checks that setup and does everything per host itself.</p>
+                <p data-i18n="docs.admin.backup_storage.intro" data-i18n-html>The storage host keeps every backed-up host's repository and runs the jobs that lock, seal, prune and check the backups. It must be a managed host with the SysManage agent and restate 2.1.0.3 or later. Hosts reach it over NFSv4, as this page describes, or over HTTPS through <a href="backup-proxy.html">restate-proxy</a>, chosen per target. You set up its storage, and its NFS server for NFS, once; SysManage checks that setup and does everything per host itself.</p>
             </div>
             <div class="docs-content">
                 <section class="docs-section">
@@ -23,6 +23,8 @@
                         <li data-i18n="docs.admin.backup_storage.split_you" data-i18n-html><strong>You, once:</strong> the storage itself (a ZFS dataset or btrfs subvolume at the storage path), the backup account, and the NFS server's settings. SysManage never changes these. The <a href="#check">storage check</a> on the target card tells you when one is wrong, and what to change.</li>
                         <li data-i18n="docs.admin.backup_storage.split_sysmanage" data-i18n-html><strong>SysManage, per host:</strong> <a href="#prepare">Prepare storage</a> gives each host its own filesystem and an export to that host only; the agent <a href="#mounts">mounts it on the host</a> only while a job runs; and after every backup the storage host <a href="#protect">locks what was written</a>.</li>
                     </ul>
+
+                    <p data-i18n="docs.admin.backup_storage.proxy_note" data-i18n-html>On a target that uses restate-proxy, the storage itself and the backup account are set up the same way, but hosts that back up through the proxy mount nothing and get no export: the NFS server settings below are needed only for hosts that still use NFS. <a href="backup-proxy.html">Backups over HTTPS with restate-proxy</a> covers what the proxy adds: its package, its certificate and a grant for each host.</p>
 
                     <h2 data-i18n="docs.admin.backup_storage.h_freebsd_setup">1. A FreeBSD storage host with ZFS</h2>
                     <p data-i18n="docs.admin.backup_storage.fb_p1" data-i18n-html>Create the dataset the repositories live under -- each host's repository becomes a child dataset of it -- and the backup account. Root on a backed-up host must never be root on the storage host: every file a host writes belongs to this account.</p>
@@ -132,7 +134,7 @@ vers3=n</code></pre>
                     </ol>
 
                     <h2 data-i18n="docs.admin.backup_storage.h_freebsd">A FreeBSD storage host</h2>
-                    <p data-i18n="docs.admin.backup_storage.freebsd_p1" data-i18n-html>FreeBSD has no systemd, so on a FreeBSD storage host the agent starts restate's storage jobs itself, under <code>daemon(8)</code>, so they keep running if the agent restarts. restate is found in <code>/usr/local/sbin</code>. A FreeBSD host can only be a storage host; choosing one as a backed-up host is refused.</p>
+                    <p data-i18n="docs.admin.backup_storage.freebsd_p1" data-i18n-html>FreeBSD has no systemd, so on a FreeBSD storage host the agent starts restate's storage jobs itself, under <code>daemon(8)</code>, so they keep running if the agent restarts. restate is found in <code>/usr/local/sbin</code>.</p>
                     <p data-i18n="docs.admin.backup_storage.freebsd_p2" data-i18n-html>When the agent does not run as root, its sudoers file allows only these: <code>restate run</code> of this host's job files in <code>/etc/restate/jobs.d</code> (the storage jobs prune, check, copy, du, repack, protect, sign and signatures, and, when the storage host backs itself up, its capture, estimate, snapshots, restore, list, status and diff jobs); the <code>zfs create</code>, <code>zfs set sharenfs</code> and <code>setfacl</code> commands Prepare storage runs; the <code>zfs create</code> of the iCloud backup datasets; and the seal's <code>zfs snapshot</code> and the <code>zfs destroy</code> of its expired snapshots. Every rule except the snapshot one is a regular expression rather than a wildcard, so no other option can be added. It needs sudo 1.9.10 or later.</p>
 
                     <h2 data-i18n="docs.admin.backup_storage.h_other">Other storage</h2>

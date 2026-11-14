@@ -978,11 +978,12 @@
     },
     "meta_description": "SysManage 可管理无互联网连接的气隙基础设施：单租户设备、本地密钥存储、离线许可证检查，以及通过物理介质交付内容 -- 适用于国防、公用事业、医疗和关键基础设施。",
     "repos": {
-      "body": "在安全域内，SysManage 作为本地存储服务您携带进来的内容：Linux 的 apt 和 RPM (dnf、yum 和 zypper) 仓库以及 FreeBSD 的 pkg 仓库，并将主机指向它们。Windows、macOS、OpenBSD 和 NetBSD 主机将保持他们的清单、脚本和离线漏洞数据在同一个控制台上；他们仍然通过您现有的方式接收更新内容。",
+      "body": "在隔离区内，SysManage 将您带入的内容作为本地仓库提供：面向 Linux 的 apt、RPM（dnf、yum 和 zypper）和 Alpine apk 仓库，以及面向 FreeBSD 的 pkg 仓库，并将主机重新指向这些仓库。Windows、macOS、OpenBSD 和 NetBSD 主机的清单、脚本和离线漏洞数据仍保留在同一个控制台上；它们的更新内容仍通过您现有的方式送达。",
       "li1": "一个离线管道用于 Linux 和 FreeBSD 软件包内容",
       "li2": "同一断开连接控制台中的所有主机",
       "li3": "清单、本地仓库补丁、合规性检查和漏洞数据 -- 断开连接",
-      "title": "本地仓库位于隔离区内部"
+      "title": "本地仓库位于隔离区内部",
+      "li4": "留在内部的备份：主机从站点自己的签名仓库安装备份工具，并备份到隔离网络上的存储"
     },
     "title": "隔离网络环境管理 - SysManage",
     "who": {
@@ -1906,7 +1907,8 @@
           "step_validate": "<strong>验证</strong> -- 每个选择的镜像必须存在，启用，并具有一个 <code>known_version_id</code> 并与其它选择共享相同的 <code>host_id</code>（集合计划调度到单个代理，因此不支持跨主机目标）。版本字符串受制于严格的正则表达式以防止将 shell 元字符注入调度模板；同样约束 <code>iso_label</code>。",
           "summary": "由操作员（通过 UI、API 或 cron）在公网侧服务器上触发。捆绑包基于已配置的 mirror_repository 树的快照构建，而不是每次运行都再从上游获取一次 -- 从上游的一次下载（通过 repository_mirroring 引擎的常规同步）同时供局域网镜像和气隙捆绑包复用。引擎生成一个在收集器本机上本地运行的部署计划；它不会分派给受管代理。",
           "title": "采集周期（采集器端）",
-          "splay": "计划收集会在其 cron 时间之后最多 30 分钟、在每个计划固定的时间点运行，这样共享默认计划的存储库不会在同一时刻全部从上游镜像拉取。计划的下次运行显示实际时间。"
+          "splay": "计划收集会在其 cron 时间之后最多 30 分钟、在每个计划固定的时间点运行，这样共享默认计划的存储库不会在同一时刻全部从上游镜像拉取。计划的下次运行显示实际时间。",
+          "multidisc_when": "只有当运行设置了刻录设备时，才会拆分为多张光盘：刻录设备留空时，它会构建一个任意大小的 ISO，因为文件没有需要容纳进去的光盘。一套光盘中的每张光盘都带有签名清单，清单注明这是总共几张中的第几张，光盘的卷标为该运行的 ISO 标签后接 <code>-d&lt;N&gt;</code>。SysManage 工具随第 1 张光盘携带。"
         },
         "compliance": {
           "current": "current -- 主机上安装的版本与镜像中的最新版本匹配，且自上次传输以来没有公开侧的CVE出现。",
@@ -1918,8 +1920,8 @@
         },
         "config": {
           "degraded_chip": "如果角色设置为Collector或Repository，但相应的Pro+引擎未加载（通常为许可问题），芯片会变成红色，并显示一个工具提示，解释缺少什么。服务器将以降级模式运行，以便您可以修复许可证而不会失去对其余UI的访问。",
-          "opt_collector": "<strong>空隙收集器（在线侧）</strong> -- 连接互联网的一半，负责镜像上游仓库并构建已签名ISO媒体。",
-          "opt_repository": "<strong>空隙仓库（断开侧）</strong> -- 隔离一半，负责从私有网络中接收媒体并将其提供给主机。",
+          "opt_collector": "<strong>气隙收集器（联网侧）</strong> -- 连接互联网的一半，负责镜像上游仓库并构建已签名ISO媒体。",
+          "opt_repository": "<strong>气隙仓库（断网侧）</strong> -- 隔离一半，负责从私有网络中接收媒体并将其提供给主机。",
           "opt_standard": "<strong>标准（无空气隔离）</strong> -- 默认设置；通过网络直接管理主机。将所有普通服务器放在这里。",
           "persistence": "选择存储在服务器的数据库（<code>server_configuration</code>单例）中，而不是<code>sysmanage.yaml</code>。早期版本使用YAML中的顶级<code>role:</code>密钥；该密钥现在被忽略，因此您可以删除它。更改角色后，请重启SysManage服务器以使其完全生效。",
           "summary": "通过网络界面设置角色--无需编辑配置文件。前往 <strong>设置 → 服务器角色</strong>，并从三个选项中选择一个，每个选项都附有说明，说明了它的含义以及如何使用它：",
@@ -1931,19 +1933,19 @@
           "title": "空气隔绝部署"
         },
         "ingestion_cycle": {
-          "step_copy": "复制 -- 一旦验证通过，rsync -a --delete-after 将负载从挂载点复制到本地存储库根目录 /var/lib/sysmanage/airgap-repo 中。",
-          "step_metadata": "生成本地存储库元数据 --  -- 根据发行家族：apt-ftparchive packages | gzip > Packages.gz 用于APT，createrepo_c --update 用于DNF/zypper，pkg repo 用于FreeBSD，apk index 用于Alpine。",
+          "step_copy": "<strong>复制</strong> -- 验证通过后，<code>rsync</code> 会将有效负载从挂载点复制到本地仓库根目录：Linux 上为 <code>/var/lib/sysmanage/airgap-repo</code>，FreeBSD 和 OpenBSD 上为 <code>/var/db/sysmanage/airgap-repo</code>。属于多光盘套装的光盘不会改动它未携带的发行版目录树，因此一套光盘可以逐张依次导入。",
+          "step_metadata": "<strong>构建工具仓库</strong> -- 镜像按原样提供，带有它们自己的签名索引。服务器根据光盘上的 SysManage 工具，为每个发行版及其版本分别构建一个独立的仓库，并使用站点自己的密钥签名。",
           "step_mount": "挂载 -- 引擎发出一个部署计划，在/mnt/sysmanage-airgap-ingest位置以只读方式挂载ISO。",
-          "step_repoint": "重新指向代理 -- 引擎为每个托管代理生成一个主机计划，重写其包管理器配置：对于Debian / Ubuntu是/etc/apt/sources.list.d/sysmanage-airgap.list，对于RHEL系列 / openSUSE是/etc/yum.repos.d/sysmanage-airgap.repo，对于FreeBSD是/usr/local/etc/pkg/repos/sysmanage-airgap.conf。现有代理在下次包操作时会拾取更改。",
+          "step_repoint": "<strong>重新指向主机</strong> -- SysManage 将每台主机的软件包管理器指向与该主机自身发行版及版本对应的镜像，在其旁边添加工具仓库，并关闭上游源，同时保持签名检查开启：Debian 和 Ubuntu 上为 <code>/etc/apt/sources.list.d/sysmanage-airgap.list</code>，RHEL 系列上为 <code>/etc/yum.repos.d/sysmanage-airgap.repo</code>，openSUSE 上为 <code>/etc/zypp/repos.d/sysmanage-airgap.repo</code>，Alpine 上为 <code>/etc/apk/repositories</code>，FreeBSD 上为 <code>/usr/local/etc/pkg/repos/sysmanage-airgap.conf</code>。没有与其自身版本对应镜像的主机保持原样。每台主机会在下一次发送报告时获取新的导入内容，它会在连接时以及按其计划发送报告。",
           "step_unmount": "卸载 -- ISO 卸载；操作员可以弹出光盘。",
-          "step_verify_hashes": "验证文件哈希 -- 清单中列出的每个文件都会通过 SHA-256 加密并与其清单中的预期哈希进行比较。首次不匹配将终止整个导入过程；回滚部分副本。",
-          "step_verify_sig": "验证签名 -- 解码清单封套；引擎拒绝导入比其自身软件版本更新的格式版本（向前兼容性保护措施）。签名会根据仓库 sysmanage.yaml 中配置的公钥进行验证。严格模式（默认）拒绝由收集器在没有安装加密库时生成的 HMAC-SHA-256 回退封套。",
+          "step_verify_hashes": "<strong>签名涵盖的内容</strong> -- 签名清单证明光盘来自您信任的收集器。镜像的软件包在导入时不会再次计算哈希：每台主机的软件包管理器会对照镜像自带的签名索引检查它们，这些索引会原样带过来。光盘上的 SysManage 工具会逐个文件对照签名清单中的 SHA-256 哈希进行检查（参见<a href=\"#tools\">SysManage 工具仓库</a>）。",
+          "step_verify_sig": "<strong>验证签名</strong> -- 解码清单信封；如果清单的 <code>format_version</code> 比引擎自身的软件版本更新，引擎会拒绝导入该清单（前向兼容的失效保护）。签名会对照仓库的受信任收集器密钥环中的密钥进行验证，该密钥环由“设置 → 服务器角色”下的<em>受信任的收集器密钥</em>卡片管理。严格模式（默认）会拒绝 HMAC-SHA-256 回退信封，收集器只有在未安装 cryptography 时才会生成这种信封。",
           "summary": "操作员将光学介质插入隔离服务器，然后通过UI或API触发导入。仓库引擎拒绝提供任何字节，直到签名和文件哈希验证完成为止。",
           "title": "导入周期（存储库端）"
         },
         "install_channels": {
-          "apt": "Ubuntu / Debian -- Launchpad PPA (ppa:bceverly/sysmanage-agent). Repository 的 build_agent_repoint_plan 会重写 /etc/apt/sources.list.d/，使其指向本地镜像服务器，在安装之前。",
-          "bsd": "FreeBSD / OpenBSD / NetBSD -- 当前直接下载。仓库引擎仍然可以重写 pkg.conf 以指向本地镜像，因此代理通过不同于首次引导脚本预期的方式启动但仍然没有互联网访问权限。正式的上游端口/pkgsrc提交作为后续跟踪。",
+          "apt": "<strong>Ubuntu / Debian</strong> -- Launchpad PPA（<code>ppa:bceverly/sysmanage-agent</code>）。在气隙一侧，代理软件包改为来自<a href=\"#tools\">工具仓库</a>，重新指向会将该仓库添加到本地镜像旁边。",
+          "bsd": "<strong>FreeBSD / OpenBSD / NetBSD</strong> -- 直接下载。在气隙一侧，FreeBSD 的代理软件包位于<a href=\"#tools\">工具仓库</a>中，重新指向会将该仓库添加到本地 <code>pkg</code> 镜像旁边。OpenBSD 和 NetBSD 没有镜像或工具仓库，因此它们的代理需要手动安装。",
           "dnf": "Fedora / RHEL / Rocky / Alma / Oracle Linux / CentOS Stream -- Fedora Copr (bceverly/sysmanage-agent)。可以通过/etc/yum.repos.d/sysmanage-airgap.repo替换。",
           "summary": "对于在气隙网络上新创建的子主机，sysmanage-agent 本身需要从可替换的渠道安装 -- 直接从 GitHub 发布页面下载无法替换为私有镜像。因此，各发行版的 <code>agent_install_commands</code> 改用已发布的上游渠道：",
           "title": "按发行版的安装通道",
@@ -1961,14 +1963,35 @@
             "title": "多小时收集周期中途被终止"
           },
           "role_chip_red": {
-            "body": "在 {{c2}} 中设置的 {{c1}} 为 {{c3}} 或 {{c4}}，但相应的 Pro+ 引擎未加载。最常见的原因：企业许可证无效（已过期、缺失或不包括空气隔绝引擎）。请检查设置中的许可证页面；如果许可证正常，请检查 {{c5}} 的模块加载器错误。",
+            "body": "服务器角色设置为 <code>collector</code> 或 <code>repository</code>，但对应的 Pro+ 引擎未加载。最常见的原因：Enterprise 许可证无效（已过期、缺失或不包含气隙引擎）。请在“设置”中检查“许可证”页面；如果许可证没有问题，请检查 <code>/var/log/sysmanage/server.log</code> 中的模块加载器错误。",
             "title": "角色芯片在标题栏中为红色"
           },
           "signature": {
-            "body": "存储库配置的公钥与签名该光盘的私钥不匹配。要么光盘在传输过程中被篡改，要么收集器上的密钥对已被再生但新公钥未分发到存储库中。从收集器导出新的公钥，并替换存储库{{c1}}中的值。",
+            "body": "仓库的受信任收集器密钥环中没有任何密钥与签署此光盘的私钥匹配。要么光盘在运输途中被篡改，要么操作员在收集器上重新生成了密钥对，却没有将新的公钥分发给仓库。请从收集器复制公钥，并在仓库的<em>受信任的收集器密钥</em>卡片中导入它。",
             "title": "摄入失败：\"签名与清单负载不匹配\""
           },
           "title": "故障排除"
+        },
+        "tools": {
+          "title": "SysManage 工具仓库",
+          "summary": "镜像携带的是操作系统自己的软件包。SysManage 代理、restate 和 restate-proxy 来自其他地方，因此每次收集运行也会把它们带过去，并由仓库服务器作为一个独立的仓库提供。",
+          "collect": "<strong>每次运行都会收集。</strong>对于运行中的每个发行版及版本，收集器按照发布者列出的信息，指明确切的 <code>sysmanage-agent</code>、<code>restate</code> 和 <code>restate-proxy</code> 软件包及其 SHA-256，并在镜像旁边获取它们，逐个对照其哈希进行检查。它们的名称和哈希会写入光盘的签名清单。无法获取的软件包绝不会导致运行失败。",
+          "systems": "<strong>涵盖的系统：</strong>Ubuntu、Debian 12 和 13、Fedora、RHEL 及其重建版、openSUSE、Alpine 和 FreeBSD。OpenBSD、NetBSD、macOS 和 Windows 没有工具仓库。",
+          "build": "<strong>在内部构建。</strong>每次导入之后，仓库服务器会对照签名清单检查每个工具文件，只保留匹配的文件，并在 <code>/airgap-tools/</code> 下为每个发行版及版本构建一个仓库：带签名 <code>InRelease</code> 的 apt 仓库、带签名 <code>repomd.xml</code> 的 RPM 仓库、一个 Alpine 索引和一个 FreeBSD <code>pkg</code> 目录。镜像则完全保持原样。",
+          "keys": "<strong>使用站点自己的密钥签名。</strong>仓库服务器在第一次需要这些密钥时生成它们，并且它们从不离开该服务器：用于 apt 和 RPM 的 OpenPGP 密钥（RSA 3072），以及用于 Alpine 和 FreeBSD 的 RSA 4096 密钥。它们的公钥部分以 <code>sysmanage-tools.asc</code> 和 <code>sysmanage-tools.rsa.pub</code> 的形式发布在仓库旁边。",
+          "trust": "<strong>受主机信任。</strong>重新指向会在每台主机上安装站点的密钥，并在镜像旁边添加工具仓库，同时开启签名检查：apt 通过 <code>signed-by</code>，dnf 和 zypper 通过 <code>repo_gpgcheck=1</code>，Alpine 将密钥放在 <code>/etc/apk/keys</code> 中，FreeBSD 通过 <code>signature_type: \"pubkey\"</code>。没有该密钥，主机会拒绝工具仓库。",
+          "serve": "<strong>通过普通 HTTP 提供。</strong>nginx 在 80 端口上提供 <code>/airgap-repo/</code> 和 <code>/airgap-tools/</code>，主机的软件包管理器从那里获取它们，并将该端口上的其他所有请求重定向到 HTTPS。两个目录树都经过签名，并且每台主机都会检查签名。",
+          "packages": "要构建并签名这些仓库，仓库服务器需要 <code>gnupg</code>、<code>apt-utils</code>、<code>createrepo-c</code> 和 <code>zstd</code>；服务器的 Ubuntu 软件包会推荐安装它们。"
+        },
+        "backups": {
+          "title": "气隙站点上的备份",
+          "summary": "备份从不跨越气隙。气隙网络上的主机以及仓库服务器本身，都备份到该网络上的一台存储主机。位于连接互联网一侧的收集器，则备份到它自己的另一台存储主机。每一侧都按照<a href=\"fleet-backups.html\">主机群备份</a>中的说明进行设置。",
+          "equip": "<strong>从站点自己的仓库配备。</strong>在角色为<em>气隙仓库</em>的服务器上，<strong>为备份做准备</strong>会让每台主机的代理从该主机已在使用的仓库进行安装，重新指向操作已将这些仓库指向镜像和工具仓库。代理使用系统自带的软件包工具按名称安装 restate 和 NFS 客户端，从不添加 PPA 或 COPR，从不从 GitHub 下载，也从不使用 Homebrew。服务器仍然不发送任何软件包名称或命令。",
+          "proxy": "<strong>restate-proxy 也一样。</strong>在使用 <a href=\"backup-proxy.html\">restate-proxy</a> 的目标的存储主机上，同一次配备还会通过 apt、dnf 或 FreeBSD 的 <code>pkg</code> 安装 <code>restate-proxy</code>。请为此类目标选择 Ubuntu、Debian、Fedora、RHEL 系列或 FreeBSD 存储主机。",
+          "order": "<strong>先重新指向。</strong>配备从主机已有的仓库进行安装，因此只有在主机被重新指向其发行版本对应的镜像和工具仓库之后，它才能找到 restate；这会在导入之后主机下一次发送报告时发生。",
+          "nopackage": "<strong>没有软件包时。</strong>工具仓库未覆盖的系统（例如 macOS）会返回<strong>此隔离站点自己的存储库中没有适用于此系统的 restate 软件包</strong>。请在该系统上手动安装 restate。",
+          "icloud": "<strong>不提供 iCloud 照片备份。</strong>它需要互联网，因此气隙服务器不提供此功能。",
+          "recover": "<strong>从介质恢复服务器。</strong>服务器恢复操作手册同样适用于气隙站点，此时用服务器、代理和 Pro+ 软件包介质代替软件包仓库。参见<a href=\"backup.html#recover\">从服务器自己的备份恢复服务器</a>。"
         }
       },
       "airgap_runbook": {
@@ -1995,7 +2018,7 @@
           "title": "气隙操作运行手册"
         },
         "keyprov": {
-          "embed": "公钥随安装包一起传输。在收集器上构建 Pro+ 气隙安装包时（scripts/buildAirGapBundle.sh server），会将收集器的 .pub 嵌入安装包。仓库的覆盖安装程序会自动将其放入 /var/lib/sysmanage/airgap/trusted-collectors/ -- 因此从该安装包部署的仓库无需单独交换密钥即可信任该收集器。只有公钥会被传输；签名私钥永远不会离开收集器。",
+          "embed": "<strong>公钥随安装包一起传递。</strong>在收集器上构建 Pro+ 气隙包时（“设置 → 空隙包”下的<strong>构建 Pro+ 包</strong>，或 <code>scripts/buildAirGapBundle.sh proplus</code>），会将收集器的 <code>.pub</code> 嵌入包中。仓库的覆盖安装程序会自动将其放入 <code>/var/lib/sysmanage/airgap/trusted-collectors/</code> -- 因此，由该包配置的仓库无需单独交换密钥即可信任该收集器。只有公钥会被传递；私有签名密钥从不离开收集器。",
           "ingest": "摄入是自动驱动的，不是手动操作。向仓库的摄入端点 POST ISO 路径会插入一个 QUEUED AirgapIngestionRun；后台编排器随后以只读方式循环挂载 ISO，验证嵌入的 /manifest.json 签名是否与密钥环匹配，并将已验证负载同步到 /var/lib/sysmanage/airgap-repo 中并注册每个发行版本地仓库。监控卡住运行的状态：VERIFYING_SIG 表示签名步骤正在运行或失败（检查密钥环），COPYING 表示验证通过且 rsync 正在传输中。",
           "keygen": "选择角色时生成密钥。在 设置 → 服务器角色 中将服务器角色设置为收集器，会在标准路径下生成 ed25519 密钥对。该角色存储在数据库中（而不是 sysmanage.yaml），因此新服务器启动时为标准角色，在您选择收集器角色的那一刻才会创建密钥。",
           "strict": "默认严格验证。除非在 sysmanage.yaml 中将 airgap.verify_strict 设置为 false，否则仓库会拒绝未签名和 HMAC 回退的清单。生产环境中请保持严格；仅在收集器上未安装 cryptography 的开发循环中才放宽。",
@@ -2017,10 +2040,11 @@
           "security": "数据库安全参考",
           "settings": "配置参考",
           "title": "相关文档",
-          "workflow": "气隙端到端工作流程"
+          "workflow": "气隙端到端工作流程",
+          "recover": "<a href=\"backup.html#recover\">从服务器自己的备份恢复服务器</a> -- 利用备份和气隙介质重建 SysManage 服务器"
         },
         "signature_failure": {
-          "step_check_disc": "如果密钥匹配，请检查光盘。篡改通常也会破坏每个文件的 SHA-256 校验，因此在哈希通过的情况下仅签名失败是可疑的。检查光盘表面是否有物理损坏；以只读方式挂载 ISO 并手动验证文件校验和与清单是否一致。",
+          "step_check_disc": "<strong>如果密钥匹配，请检查光盘。</strong>检查光盘表面是否有物理损伤；以只读方式挂载 ISO，并手动对照清单验证文件校验和。仓库在导入时只逐个文件检查 SysManage 工具；镜像的软件包由每台主机的软件包管理器对照镜像自带的签名索引进行检查，因此手动检查是找出光盘上哪些内容被改动的方法。",
           "step_check_keys": "验证收集器的公钥是否存在于仓库密钥环中。最常见的（无害的）原因是密钥轮换未完全传播。从收集器导出公共密钥 (/var/lib/sysmanage/airgap/collector-ed25519.pub)，将其与仓库 /var/lib/sysmanage/airgap/trusted-collectors/ 密钥环中的 .pub 文件进行比较，如果缺少则添加该密钥并重新导入。",
           "step_escalate": "如果无法通过密钥漂移或物理损坏解释，则升级。隔离光盘，向您的安全团队报告事件，并作为预防措施更换收集器的密钥对。下一个采集周期应在全新映像的收集器上执行，如果原始收集器本身可疑的话。",
           "step_isolate": "不要重试摄取。重复的签名验证失败不会让数据变得更可信。将磁盘放在标记为“待调查”的信封中。",
@@ -2040,11 +2064,14 @@
       "airgap_workflow": {
         "breadcrumb": "端到端离线工作流程",
         "collect": {
-          "download": "当构建达到 <code>ISO_BUILT</code>/<code>COMPLETE</code> 状态时，请使用下载图标。下载会直接通过短期令牌流到磁盘，因此多 GB 的 ISO 文件可以不缓冲地在浏览器中下载。",
+          "download": "当运行到达 <code>ISO_BUILT</code>/<code>COMPLETE</code> 时，使用下载图标。下载通过一个短期令牌直接以流式方式写入磁盘，因此数 GB 的 ISO 下载时不会在浏览器中缓冲。对于生成了多张光盘的运行，下载时会询问要获取哪张光盘；请按其在套装中的编号为每张光盘贴上标签。",
           "media": "留空刻录设备以构建任何大小的单个可下载 ISO（用于附加到虚拟机或自己写入 USB）；设置一个设备以添加刻录阶段。大小列反映实际构建的 ISO 大小。",
           "run": "使用ISO标签启动新的收集运行，并包括要包含的发行版/存储库。该运行会走<code>QUEUED → MIRRORING → STAGING_COMPLETE → BUILDING_ISO → ISO_BUILT → COMPLETE</code>; 页面轮询并显示实时状态。",
-          "summary": "在收集器上，<strong>空气间隙集合</strong> 页面驱动一次集合运行，镜像选定的仓库，构建签名 ISO，并（可选）将其刻录到光盘中。",
-          "title": "步骤3 -- 收集并在收集器上烧录"
+          "summary": "在收集器上，<strong>气隙收集</strong> 页面驱动一次集合运行，镜像选定的仓库，构建签名 ISO，并（可选）将其刻录到光盘中。",
+          "title": "步骤3 -- 收集并在收集器上烧录",
+          "multidisc": "设置了刻录设备时，大于<strong>介质大小（MB）</strong>（默认为 4700，即一张单层 DVD）的运行会被拆分为一套光盘，每张光盘都包含完整的镜像。大于一张光盘的镜像会被拒绝，因此请为其选择更大的介质。每次运行还会携带 SysManage 工具（适用于该运行所含系统的代理、restate 和 restate-proxy），位于套装的第 1 张光盘上。",
+          "fig_disc_picker": "一张光盘放不下的运行：下载时会询问要获取三张光盘中的哪一张，并显示每张光盘的大小。",
+          "fig_new_run": "<strong>新建收集运行</strong>对话框：ISO 标签、<strong>介质大小（MB）</strong>、CVE 和合规快照、要收集的镜像以及刻录设备。"
         },
         "header": {
           "description": "使用SysManage跨空气间隙移动软件包的完整操作员工作流程，从选择服务器角色到空气间隙主机从本地镜像安装更新。部署指南<a href=\"airgap-deployment.html\">覆盖架构</a>和运行手册<a href=\"airgap-runbook.html\">涵盖日常运营</a>; 本页是将它们串联起来的具体UI控制路径。",
@@ -2052,13 +2079,14 @@
         },
         "meta_description": "SysManage 空气隔绝设置步骤端到端流程：设置角色，复制收集器公钥，构建签名后的集合 ISO，在存储库上信任密钥，从光盘/USB 驱动器导入媒体，提供镜像并自动重新指向代理。",
         "overview": {
-          "step1": "<strong>设置角色：</strong> 将一个服务器设为 <em>Air-Gap Collector</em>，另一个设为 <em>Air-Gap Repository</em>（设置 → 服务器角色）。",
+          "step1": "<strong>设置角色：</strong> 将一个服务器设为 <em>气隙收集器</em>，另一个设为 <em>气隙仓库</em>（设置 → 服务器角色）。",
           "step2": "<strong>建立信任：</strong> 复制采集器的公钥，并在仓库中导入。",
           "step3": "<strong>收集 &amp; 烧录</strong> -- 在采集器上运行一次收集以生成签名 ISO；将其写入光盘/USB 媒体。",
           "step4": "<strong>导入：</strong> 将媒体带到仓库中，选择驱动器并导入。",
           "step5": "<strong>服务 &amp; 指向</strong> -- 存储库提供镜像，代理自动重新指向。",
           "summary": "离线部署是一对 SysManage 服务器。<strong>收集器</strong>位于互联网连接的一侧，镜像上游包，并生成一个加密签名的 ISO。您将这个 ISO 物理携带到隔离区。<strong>仓库</strong>位于隔离区一侧，验证并导入 ISO，在 HTTP 上提供这些包，并自动重新指向每个托管代理以使用本地镜像，使代理永远不会连接互联网。",
-          "title": "概述"
+          "title": "概述",
+          "step6": "<strong>备份</strong> -- 从站点自己的工具仓库为主机配备备份，并将它们备份到内部的存储主机。"
         },
         "page_title": "SysManage 端到端离线工作流程 - SysManage",
         "related": {
@@ -2072,27 +2100,30 @@
           "title": "持续更新"
         },
         "repoint": {
-          "summary": "任何由角色为 <em>离线仓库</em> 的服务器管理的代理都会被自动重新指向到本地镜像：其软件包管理器配置为使用仓库的镜像并禁用在线源。这发生在代理正常通信周期中，因此它也会捕获在您更改角色时已经连接的代理----它们会在下次检查时更新。该指令是自我节流的：只有当镜像配置实际改变（角色切换或新鲜导入）时才会重新调度，所以不会有重复的 <code>apt-get update</code> 操作。",
+          "summary": "任何由角色为 <em>气隙仓库</em> 的服务器管理的代理都会被自动重新指向到本地镜像：其软件包管理器配置为使用仓库的镜像并禁用在线源。这发生在代理正常通信周期中，因此它也会捕获在您更改角色时已经连接的代理----它们会在下次检查时更新。该指令是自我节流的：只有当镜像配置实际改变（角色切换或新鲜导入）时才会重新调度，所以不会有重复的 <code>apt-get update</code> 操作。",
           "title": "步骤6 -- 代理会自动重新指向",
-          "verify": "在隔离网络的主机上，您可以使用 <code>apt-cache policy &lt;pkg&gt;</code>（候选版本应来自 <code>/airgap-repo/</code> URL）和 <code>apt list --upgradable</code>（完全从镜像源获取）。"
+          "verify": "在隔离网络的主机上，您可以使用 <code>apt-cache policy &lt;pkg&gt;</code>（候选版本应来自 <code>/airgap-repo/</code> URL）和 <code>apt list --upgradable</code>（完全从镜像源获取）。",
+          "tools": "重新指向涵盖 apt、dnf、zypper、Alpine 的 <code>apk</code> 和 FreeBSD 的 <code>pkg</code>。每台主机会获得与其自身发行版及版本对应的镜像（如果有），以及位于其旁边的工具仓库，并安装站点的密钥，以便其软件包管理器检查签名。"
         },
         "roles": {
-          "collector": "在联网的设备上，选择 <em>Air-Gap Collector</em>。选择此角色会自动在 <code>/var/lib/sysmanage/airgap/collector-ed25519.pem</code> 生成 ed25519 安装清单签名密钥对（私有，模式为 0600）及其 <code>.pub</code> 哥弟文件 -- 不需要手动创建密钥。",
-          "repository": "在隔离的环境中，选择 <em>空气隔绝仓库</em>。",
+          "collector": "在联网的设备上，选择 <em>气隙收集器</em>。选择此角色会自动在 <code>/var/lib/sysmanage/airgap/collector-ed25519.pem</code> 生成 ed25519 安装清单签名密钥对（私有，模式为 0600）及其 <code>.pub</code> 哥弟文件 -- 不需要手动创建密钥。",
+          "repository": "在隔离的环境中，选择 <em>气隙仓库</em>。",
           "summary": "在每个服务器上，进入<strong>设置 → 服务器角色</strong>并选择角色。该角色将存储在数据库中，并在下次服务器重启后完全生效（启动时加载特定于角色的Pro+引擎）。",
           "title": "步骤 1 -- 分配服务器角色"
         },
         "serve": {
-          "summary": "在 <code>COMPLETE</code> 状态下，仓库注册一个特定发行版的本地仓库（在脱机仓库页面上可见，带有包计数、最后摄入时间、新鲜度和签名指纹），并通过 SysManage web 端口从 <code>/airgap-repo/</code> 提供。注册的仓库 URL 指向实际 apt/dnf 树中的媒体内部，因此无需手动 web 服务器或符号链接设置。",
+          "summary": "在 <code>COMPLETE</code> 时，仓库会注册一个按发行版划分的本地仓库（在“空气隔断的仓库”页面上可见，显示软件包数量、上次导入时间、新鲜度和签名者指纹），并通过 nginx 在 80 端口上以普通 HTTP 在 <code>/airgap-repo/</code> 提供它，SysManage 工具仓库位于其旁边的 <code>/airgap-tools/</code>，使用站点自己的密钥签名。注册的仓库 URL 指向介质中的实际软件包目录树，因此无需手动设置 Web 服务器或符号链接。参见<a href=\"airgap-deployment.html#tools\">SysManage 工具仓库</a>。",
           "title": "第5步 -- 服务镜像"
         },
         "transport": {
           "device": "在 <strong>repository</strong> 中，进入设置 → 服务器角色，在 <em>导入驱动器</em> 卡中列出符合条件的块设备（操作系统磁盘永远不会被提供）。选择光驱或 USB 驱动器 -- 默认情况下会选择编号最低的光驱。插入介质后使用 <strong>重新扫描</strong>。",
-          "import": "前往 <strong>离线存储库</strong> 页面。在 <em>从介质导入</em> 面板中，会显示驱动器的实时状态；当驱动器上存在可读取的 ISO 文件时， <strong>导入 ISO</strong> 按钮将启用，请点击它。（如果刚刚插入或修复了光盘，请使用 <strong>重新扫描</strong>。）",
+          "import": "前往 <strong>气隙仓库</strong> 页面。在 <em>从介质导入</em> 面板中，会显示驱动器的实时状态；当驱动器上存在可读取的 ISO 文件时， <strong>导入 ISO</strong> 按钮将启用，请点击它。（如果刚刚插入或修复了光盘，请使用 <strong>重新扫描</strong>。）",
           "insert": "插入该媒体到驱动器中。",
           "summary": "将光盘或USB媒体插入到存储库中。存储库直接从驱动器导入 --  -- 无需先将ISO复制到服务器的磁盘上。",
           "title": "第4步 -- 将数据传输到并导入到仓库",
-          "verify": "导入将媒体挂载为只读，验证嵌入的签名 <code>/manifest.json</code> 并将其同步到 <code>/var/lib/sysmanage/airgap-repo</code>。查看运行状态：<code>VERIFYING_SIG</code>（签名检查），<code>COPYING</code>（rsync 进行中），<code>COMPLETE</code>。来自不受信任的收集器的光盘在验证时会失败。"
+          "verify": "导入将媒体挂载为只读，验证嵌入的签名 <code>/manifest.json</code> 并将其同步到 <code>/var/lib/sysmanage/airgap-repo</code>。查看运行状态：<code>VERIFYING_SIG</code>（签名检查），<code>COPYING</code>（rsync 进行中），<code>COMPLETE</code>。来自不受信任的收集器的光盘在验证时会失败。",
+          "multidisc": "对于一套光盘，按同样的方式逐张依次导入每张光盘。每张光盘添加自己的镜像，并保留其他光盘的镜像不变；第 1 张光盘还会构建工具仓库，之后的光盘会保持该仓库原样。",
+          "fig_import": "逐张导入一套光盘：光盘 1 已导入，光盘 2 已放入驱动器并就绪，<strong>导入 ISO</strong> 已启用。"
         },
         "trust": {
           "copy": "在 <strong>collector</strong> 上，在设置 → 服务器角色中，<em>收集器公钥</em> 卡片显示公钥及其指纹。点击 <strong>复制公钥</strong> 将 PEM 放到剪贴板上（并记录指纹 -- 它与每个清单中的 <code>signer_fingerprint</code> 相匹配）",
@@ -2100,6 +2131,10 @@
           "summary": "存储库只会摄取由其信任的收集器签名的媒体。信任是通过将收集器的<em>公钥</em>复制到存储库中来建立的----私钥永远不会离开收集器。",
           "title": "步骤 2 -- 建立信任（复制并导入公钥）",
           "transfer": "将密钥文本通过任何你信任的渠道移动到仓库（它是一个公钥 --  -- 隐形网络、签名邮件，或现有的受信任的进站所有工作）。"
+        },
+        "backup": {
+          "title": "步骤 7 -- 备份气隙主机",
+          "summary": "按照<a href=\"fleet-backups.html\">主机群备份</a>中的说明，设置一个存储主机位于气隙网络上的备份目标，并在主机上点击<strong>为备份做准备</strong>。在仓库服务器上，配备会安装 restate、NFS 客户端，并在使用 <a href=\"backup-proxy.html\">restate-proxy</a> 的目标的存储主机上安装 restate-proxy，全部来自主机自己的仓库：镜像和工具仓库。不会从互联网获取任何内容。请将收集器单独备份到位于气隙其自身一侧的存储主机。参见<a href=\"airgap-deployment.html#backups\">气隙站点上的备份</a>。"
         }
       },
       "antivirus": {
@@ -3172,12 +3207,12 @@
         "crumb_backups": "主机群备份",
         "crumb_docs": "文档",
         "crumb_page": "存储主机",
-        "freebsd_p1": "FreeBSD 没有 systemd，因此在 FreeBSD 存储主机上，代理会在 <code>daemon(8)</code> 下自行启动 restate 的存储作业，这样即使代理重启，这些作业也会继续运行。restate 位于 <code>/usr/local/sbin</code> 中。FreeBSD 主机只能作为存储主机；将其选为被备份主机会被拒绝。",
+        "freebsd_p1": "FreeBSD 没有 systemd，因此在 FreeBSD 存储主机上，代理会自行在 <code>daemon(8)</code> 下启动 restate 的存储作业，这样即使代理重启，这些作业也会继续运行。restate 位于 <code>/usr/local/sbin</code>。",
         "freebsd_p2": "当代理不以 root 身份运行时，它的 sudoers 文件只允许以下操作：对本主机在 <code>/etc/restate/jobs.d</code> 中的作业文件执行 <code>restate run</code>（存储作业 prune、check、copy、du、repack、protect、sign 和 signatures；当存储主机备份自身时，还包括它的 capture、estimate、snapshots、restore、list、status 和 diff 作业）；“准备存储”运行的 <code>zfs create</code>、<code>zfs set sharenfs</code> 和 <code>setfacl</code> 命令；iCloud 备份数据集的 <code>zfs create</code>；以及封存的 <code>zfs snapshot</code> 和对其过期快照的 <code>zfs destroy</code>。除快照规则外，每条规则都是正则表达式而不是通配符，因此无法添加其他选项。需要 sudo 1.9.10 或更高版本。",
         "h_freebsd": "FreeBSD 存储主机",
         "h_other": "其他存储",
         "h_target": "3. SysManage 中的目标",
-        "intro": "存储主机通过 NFSv4 提供每台被备份主机的仓库，并运行锁定、封存、清理和检查备份的作业。它必须是装有 SysManage 代理和 restate 2.1.0.3 或更高版本的受管主机。您只需按本页所述设置一次它的存储和 NFS 服务器；SysManage 会检查这些设置，并自行完成每台主机的所有工作。",
+        "intro": "存储主机保存每台被备份主机的仓库，并运行锁定、封存、清理和检查备份的作业。它必须是装有 SysManage 代理和 restate 2.1.0.3 或更高版本的受管主机。主机通过 NFSv4（如本页所述）或通过 <a href=\"backup-proxy.html\">restate-proxy</a> 以 HTTPS 访问它，按目标选择。您只需设置一次它的存储，以及用于 NFS 的 NFS 服务器；SysManage 会检查该设置，并自行完成针对每台主机的所有工作。",
         "meta_description": "为 SysManage 主机群备份设置一次存储主机（ZFS 或 btrfs、NFSv4 和备份账户），之后由 SysManage 为每台主机提供自己的导出，只在作业运行时挂载，并锁定已完成的备份。",
         "other_p1": "存储主机必须是运行代理的受管主机，因为所有可能删除备份的操作都由它执行。无法运行代理的 NAS 设备目前还不支持作为目标。",
         "services_p1": "在 <code>/etc/rc.conf</code> 文件中：",
@@ -3212,7 +3247,7 @@
         "lx_p1": "将存储路径放在 ZFS 数据集或 btrfs 子卷上，这样每台主机的仓库都可以是独立的文件系统。在 ext4 或 XFS 上备份也能工作，但所有主机共享同一个文件系统，而且无法封存任何内容。创建备份账户，安装 NFS 服务器（Debian 和 Ubuntu 上为 <code>nfs-kernel-server</code>），并在 <code>/etc/nfs.conf</code> 中设置为只提供 NFSv4：",
         "lx_p2": "不要自己导出存储路径。“准备存储”会将每台主机的导出写入 <code>/etc/exports.d</code> 中各自的文件，并用 <code>exportfs -ra</code> 重新加载。",
         "mounts_p1": "没有任何作业会写入主机的<code>/etc/fstab</code>。存储主机告诉SysManage每个仓库导出的位置，而该主机的代理在<code>&lt;mount point&gt;/&lt;repository&gt;</code>挂载它 -- 使用NFSv4 over TCP，并带有<code>hard,nosuid,nodev</code> -- 只有当备份、估算、快照列表或恢复开始时才会挂载，在最后一个操作结束后卸载。作业之间，主机无法访问其备份。如果一个作业不能挂载，则会被拒绝，因此重述从不写入主机自己的磁盘。在备份写入任何内容之前，代理还会检查它可以打开仓库，锁定功能正常，并且至少有1 GB和1%的空间是可用的；如果没有，备份将被拒绝，并在最近的作业中说明原因。",
-        "mounts_p2": "每台主机都需要 NFS 客户端。<strong>配备备份</strong>会安装它：在 Debian 和 Ubuntu 上是 <code>nfs-common</code>，在 Fedora、RHEL 和 Alpine 上是 <code>nfs-utils</code>，在 openSUSE 上是 <code>nfs-client</code>。没有安装它的主机会显示<strong>安装 NFS 客户端</strong>，该主机上的备份会以此原因被拒绝，而不是挂载失败。如果您已经自行通过 fstab 或 autofs 挂载了该共享，代理会使用该挂载，并且不会改动它。",
+        "mounts_p2": "每台主机都需要 NFS 客户端。<strong>为备份做准备</strong>会安装它：在 Debian 和 Ubuntu 上是 <code>nfs-common</code>，在 Fedora、RHEL 和 Alpine 上是 <code>nfs-utils</code>，在 openSUSE 上是 <code>nfs-client</code>。没有安装它的主机会显示<strong>安装 NFS 客户端</strong>，该主机上的备份会以此原因被拒绝，而不是挂载失败。如果您已经自行通过 fstab 或 autofs 挂载了该共享，代理会使用该挂载，并且不会改动它。",
         "move_1": "在存储主机上，把仓库移到一边：<code>mv /srv/backups/restate/HOST /srv/backups/restate/HOST.old</code>",
         "move_2": "为该主机点击<strong>准备存储</strong>。",
         "move_3": "以 root 身份把备份复制回来，并保留所有者和权限模式：<code>cp -Rp /srv/backups/restate/HOST.old/ /srv/backups/restate/HOST/</code>",
@@ -3247,7 +3282,8 @@
           "step7": "再导入池：<code>sudo zpool import -f &lt;pool&gt;</code>。恢复后，旧主机的主机ID被恢复，而池携带了重新安装的ID，因此它不会在启动时导入，直到这一次；从那时开始，它会导入。然后<code>sudo exportfs -ra</code>，并启动SysManage代理，如果它没有运行。代理自己的状态也随着恢复回来，所以它会以相同的主机重新连接；其他主机的备份将在下一个时间窗口中继续。",
           "title": "9. 存储主机备份自身",
           "fig": "存储主机在备份页面上列在最后，标示为存储主机，它唯一的操作是“配置自身备份”。"
-        }
+        },
+        "proxy_note": "在使用 restate-proxy 的目标上，存储本身和备份账户的设置方式相同，但通过 restate-proxy 备份的主机不挂载任何内容，也不会获得导出：下面的 NFS 服务器设置只对仍使用 NFS 的主机是必需的。<a href=\"backup-proxy.html\">使用 restate-proxy 通过 HTTPS 备份</a>介绍了 restate-proxy 增加的内容：它的软件包、它的证书以及每台主机的授权。"
       },
       "fleet_backups": {
         "crumb_admin": "管理",
@@ -3267,15 +3303,15 @@
         "how_repo": "<strong>每台主机一个仓库。</strong>每台主机只写入自己的仓库，仓库以主机名和主机 ID 的开头部分命名，例如 <code>web01.example.lan-1f3a9c2e</code>。ID 可以区分同名的两台主机，也能保留重命名主机的历史。<strong>准备存储</strong>为每个仓库提供独立的文件系统和仅限该主机的导出。",
         "how_safe": "代理从不根据服务器发来的内容拼接 restate 命令行。它先对照固定列表检查服务器的设置，再把设置写成 <code>/etc/restate/jobs.d</code> 中由 root 拥有的作业文件，然后启动 restate 自带的作业单元。只要作业文件可被 root 以外的用户修改，restate 就会拒绝执行。",
         "how_storage": "<strong>其余工作由存储主机完成。</strong>每次成功备份之后，存储主机自己的代理会<strong>保护</strong>它（使其只读），用只读的文件系统快照（ZFS 或 btrfs）<strong>封存</strong>它，然后把旧快照<strong>清理</strong>到您要保留的数量，并按自己的计划<strong>检查</strong>仓库。封存总是在清理之前进行，封存失败时会暂缓清理。",
-        "how_target": "<strong>一个目标。</strong>备份目标是一台提供 NFSv4 的存储主机。每台被备份的主机都在同一个挂载点下访问自己的仓库，例如 <code>/mnt/backups</code>。",
+        "how_target": "<strong>一个目标。</strong>备份目标是一台存储主机。每个目标选择主机访问它的方式：通过 NFSv4，此时每台被备份主机都将其仓库挂载在同一个挂载点下，例如 <code>/mnt/backups</code>；或者通过存储主机上的 <a href=\"backup-proxy.html\">restate-proxy</a> 以 HTTPS 访问，不挂载任何内容。",
         "how_why": "为什么这样设计：控制了一台主机的勒索软件，也控制了这台主机能访问的一切。如果主机能删除自己的备份，攻击者也能删除。在这里，主机只能添加，而封存的快照位于主机无法登录的机器上。",
         "intro": "SysManage 使用 <strong>restate</strong> 备份您的主机。restate 是一种备份工具，它记录全新安装操作系统后不会恢复的内容：您的文件，以及在 Debian 和 Ubuntu 上的软件包。每台主机都写入同一台<strong>存储主机</strong>上自己的仓库，所有可能删除备份的操作都由存储主机执行，并且它会锁定每个已完成的备份。被入侵的主机无法删除自己的历史。",
         "intro_server": "本页介绍如何备份受管主机。要备份 SysManage 服务器本身，请参阅<a href=\"backup.html\">备份与恢复</a>。",
         "meta_description": "用 restate 将每台主机备份到同一台存储主机上自己的仓库：主机只能添加，存储主机负责锁定、封存、清理和检查，文件可在预览后恢复到暂存目录。",
         "need_coverage": "<strong>覆盖范围</strong>列显示每台主机的备份包含哪些内容：Debian 和 Ubuntu 上为<strong>完整（文件和软件包）</strong>，其他系统上为<strong>仅文件</strong>，Windows 和 macOS 上为<strong>不支持</strong>。",
-        "need_platforms": "被备份的主机运行带 systemd 的 <strong>Linux</strong>。存储主机可以运行 Linux 或 <strong>FreeBSD</strong>；FreeBSD 主机只能作为存储主机。",
+        "need_platforms": "被备份主机运行 <strong>Linux</strong>、<strong>FreeBSD</strong> 或 <strong>macOS</strong>，而 <strong>OpenBSD</strong> 或 <strong>NetBSD</strong> 只能通过 restate-proxy 备份，因为它们没有 NFSv4 客户端。存储主机可以运行 Linux 或 FreeBSD；Mac、OpenBSD 主机或 NetBSD 主机只能作为被备份主机。",
         "need_restate": "每台要备份的主机和存储主机上都需要 <strong>restate 2.0 或更高版本</strong>。在 Ubuntu 上：<code>sudo add-apt-repository ppa:bceverly/restate</code> 和 <code>sudo apt install restate</code>。在其他系统上，请按照其 README 的说明从源代码构建（FreeBSD 上为 <code>gmake build</code> 和 <code>sudo gmake install</code>）。",
-        "need_share": "<strong>存储主机</strong>：一个使用ZFS或btrfs并提供NFSv4服务的托管主机。 <a href=\"fleet-backup-storage.html\">设置存储主机</a>涵盖了您只需配置一次的内容；SysManage会为每个主机处理其余部分。每个需要备份的主机都需要NFS客户端； <strong>准备备份</strong>会安装它以及重新启动所需的其他内容。",
+        "need_share": "<strong>一台存储主机</strong>：使用 ZFS 或 btrfs 的受管主机。<a href=\"fleet-backup-storage.html\">设置备份存储主机</a>介绍了您只需设置一次的内容；其余针对每台主机的工作由 SysManage 完成。通过 NFS 时，每台被备份主机都需要 NFS 客户端，<strong>为备份做准备</strong>会将其与 restate 一起安装；通过 <a href=\"backup-proxy.html\">restate-proxy</a> 时，则改为需要 <code>curl</code>。",
         "policy_check": "<strong>仓库检查间隔（天）</strong> -- 存储主机检查仓库的频率。",
         "policy_check_meaning": "存储主机在没有密钥的情况下检查仓库，因此检查证明的是仓库的结构，而不是其中的每一个字节。结果显示为<strong>元数据检查通过</strong>，从不显示为“已验证”。",
         "policy_init": "restate 2.0.0.4 及更高版本会通过作业键 <code>create</code>，在主机第一次备份时创建其仓库。使用较旧的 restate 时，请在主机第一次备份之前，在该主机上创建一次，例如 <code>sudo restate init /mnt/backups/web01.example.lan-1f3a9c2e</code>。",
@@ -3335,19 +3371,19 @@
         "status_dashboard": "在主页仪表板上，<strong>需要关注的备份</strong>统计备份逾期、不完整或失败的主机数，并在目标的存储端出现问题时将目标计为一次：没有存储主机、封存、清理或检查未按时运行、驱动器故障，或存储空间即将用尽。备份失败或存储出现问题时显示为红色，备份仅逾期或不完整时显示为黄色。单击它可打开备份页面。",
         "first_fit": "在主机的首次计划备份之前，SysManage 会让主机运行 restate 的 <code>estimate</code>，它会遍历策略将要保存的文件但不读取任何文件，然后将结果与存储上的可用空间进行比较。如果可能放不下，首次备份会等待，主机的备份卡片会显示这一点：大约需要保存多少、剩余多少空间，以及最大的文件夹，可以从这些文件夹开始向<strong>排除</strong>中添加路径。该主机也会计入仪表板的备份卡片。restate 会压缩并去重，因此首次备份通常所需空间少于估计值；<strong>立即备份</strong>仍会运行它。估计失败绝不会阻止备份，一旦主机有了成功的备份，此检查即结束。",
         "restore_place": "要把文件直接放回原处，请选择<strong>恢复到原位置，替换主机上的文件</strong>，并指定具体路径，例如 <code>/etc/nginx</code>；不会将整台主机恢复到原位置，那属于重建。随后<strong>预览</strong>会将快照与主机当前的文件进行比较。<strong>恢复到原位置</strong>需要单独确认：<strong>替换这些路径中的文件</strong>。restate 在写入任何内容之前，会先对照快照检查整个选择，把每个文件写到其目标旁边，只有在与快照一致时才将其重命名以覆盖旧文件，并且在此过程中从不跟随符号链接。代理始终会排除自己的状态目录，因此恢复不会放回代理数据库的旧副本。每次恢复到原位置都会记入审计日志，包括请求者、快照和路径。",
-        "equip_p1": "当主机因为缺少 restate 或 NFS 客户端、或 restate 版本过旧而显示 <strong>未配备</strong> 时，在该主机上点击 <strong>配备备份</strong>，或选中多台主机后点击 <strong>为所选主机配备备份</strong>。主机的代理会自行从 restate 自己的软件包安装这两者：在 Ubuntu 22.04、24.04 和 26.04 上使用其 PPA，并安装 <code>nfs-common</code>；在 Fedora 上使用其 COPR，并安装 <code>nfs-utils</code>；在 RHEL、AlmaLinux、Rocky Linux、CentOS Stream 和 Oracle Linux 9 与 10（并安装 <code>nfs-utils</code>）、openSUSE Leap 16、SLE 16 和 openSUSE Tumbleweed（并安装 <code>nfs-client</code>）、Alpine 3.21 至 3.24（并安装 <code>nfs-utils</code>），以及自带 NFS 的 FreeBSD、OpenBSD 和 NetBSD 上，使用 restate 最新发布版中的软件包，且仅在其校验和与该发布版的列表一致时才安装。在 macOS 上使用 Homebrew，以 Homebrew 所有者的身份运行，绝不以 root 运行。服务器不会发送任何软件包名称、地址或命令。在代理答复之前，主机显示 <strong>正在配备</strong>。安装失败时，原因会显示在主机下方；将鼠标指向它即可查看工具的输出。",
+        "equip_p1": "当主机因缺少 restate 或 NFS 客户端、或 restate 版本过旧而显示<strong>未配备</strong>时，在该主机上点击<strong>为备份做准备</strong>，或选择多台主机后点击<strong>为所选主机配备备份</strong>。主机的代理会自行从 restate 自己的软件包安装这两者：在 Ubuntu 22.04、24.04 和 26.04 上来自其 PPA，并安装 <code>nfs-common</code>；在 Fedora 上来自其 COPR，并安装 <code>nfs-utils</code>；在以下系统上使用 restate 最新发布版本中的软件包，并且仅当其校验和与该发布版本的列表匹配时才安装：Debian 12 和 13（安装 <code>nfs-common</code>），RHEL、AlmaLinux、Rocky Linux、CentOS Stream 和 Oracle Linux 9 和 10（安装 <code>nfs-utils</code>），openSUSE Leap 16、SLE 16 和 openSUSE Tumbleweed（安装 <code>nfs-client</code>），Alpine 3.21 至 3.24（安装 <code>nfs-utils</code>），以及内置 NFS 的 FreeBSD、OpenBSD 和 NetBSD。在 macOS 上，它使用 Homebrew，以 Homebrew 的所有者身份运行，从不以 root 身份运行。服务器不发送任何软件包名称、地址或命令。在代理应答之前，主机会显示<strong>正在配备</strong>。安装失败时，原因会显示在主机下方；将指针悬停在其上可查看工具的输出。",
         "equip_p2": "在其他系统上，请按照主机所在行的提示手动安装 restate。早于此功能的代理会显示 <strong>请升级代理，以便从此处配备此主机</strong>。<strong>重新检查</strong> 会询问代理现在能否运行 restate，因此手动配备的主机会在几秒钟内正确显示，而不必等到其代理下次重启。",
         "h_equip": "为主机配备备份",
-        "equip_p3": "配备备份会安装软件，因此在设有维护时段的主机上，它会等到下一个维护时段，主机显示 <strong>正在等待此主机的维护时段以安装 restate</strong>。代理答复的一小时期限从请求发出时才开始计算。",
+        "equip_p3": "“为备份做准备”会安装软件，因此在设有维护时段的主机上，它会等到下一个维护时段，主机显示 <strong>正在等待此主机的维护时段以安装 restate</strong>。代理答复的一小时期限从请求发出时才开始计算。",
         "status_waiting_window": "<strong>等待维护时段</strong> 备份已排队，但主机的维护时段尚未开启；时段开启后备份开始。已经逾期或失败的主机保持该状态，并附注说明其下一次备份正在等待维护时段。",
         "editions_pro": "<strong>Professional+</strong> 增加了密钥保存在 OpenBAO 中的加密备份、自动密钥轮换、快照签名、封装的应急密钥导出、祖父-父-子保留方式、计划的完整读取验证、按标签的策略、软件包级恢复、漂移时间线、备份告警和报告：请参阅<a href=\"../professional-plus/fleet-backups-pro.html\">主机群备份 (Professional+)</a>。",
         "policy_pick": "对于常见服务器选择：为 Nextcloud 包括 snap 选择 <code>nextcloud</code>，该选项还会转储数据库；为邮件服务器或任何带有 MySQL 或 MariaDB 的主机选择 <code>mysql</code>，这将转储每个数据库并在文件复制期间停止服务；为 PostgreSQL 选择 <code>postgresql</code>；以及为 UniFi 控制器选择 <code>unifi</code>。邮件服务器的邮箱不需要暂停。",
         "policy_defaults": "一个新的策略开始时会设置为每天备份。如果没有Professional+版本，它将保留最近的30个快照；如果有Professional+版本，则保留最近7天中的最新一个，并且还包含过去14天中每一天的最新快照、8周内的最新快照、12个月内的最新快照以及3年内的最新快照。",
         "bulk_setup": "<strong>为选中的主机设置备份</strong>会将所有已勾选且可以运行备份并没有任何策略的主机设置默认值，从UTC时间06:00开始执行，并在窗口内均匀分布启动时间。 暂停服务的功能被保留未启用，因为只有当主机报告其服务时才能知道它具有哪些服务；请使用 <strong>配置</strong>为每个主机单独设置它们。 对于已经拥有策略或当前无法运行备份的已勾选主机将被跳过，并在页面上说明原因。 您无法勾选的主机在其复选框旁边会显示原因。",
-        "equip_runs": "目前备份通过 systemd 运行。因此，可以在上述任何系统上为主机配备备份，但只有在使用 systemd 的 Linux 上才会真正执行备份；FreeBSD 主机也可以作为存储主机。在 Alpine、各 BSD 和 macOS 上，restate 会被安装，但在代理于这些系统上拥有作业运行器之前不会执行备份，Alpine 主机会一直显示 <strong>请升级 restate</strong>，配备备份不会改变这一点。Debian 没有 restate 软件包，请在其上从源代码构建 restate；不支持 Windows。",
+        "equip_runs": "在带有 systemd 的 Linux 上，备份通过 restate 自己的作业单元运行；在 FreeBSD 上在 <code>daemon(8)</code> 下运行；在 Alpine、OpenBSD、NetBSD 和 macOS 上通过代理自己的作业运行器运行，它遵循相同的规则：一个由 root 拥有、经代理检查过的作业文件，以及独立启动的 restate。不支持 Windows。",
         "h_reach": "无法访问存储的主机",
-        "reach_p1": "SysManage 会询问每个主机是否可以连接到存储主机的 NFS 端口（2049）：在准备备份之前<strong>配置备份准备</strong>、保存策略时、每天一次，以及您点击 <strong>重新检查</strong>时。 无法连接的主机将显示 <strong>此主机无法访问备份存储</strong> 与存储主机之间的连接，包括其地址和端口，并且会禁用 <strong>配置备份准备</strong>、<strong>配置</strong>、<strong>立即备份</strong> 及其计划的备份任务；批量操作将跳过该主机并说明原因。 尚未检查过的主机永远不会被阻止。",
-        "reach_p2": "典型的情况是一个位于云端的SysManage服务器本身就是一个受管主机，而存储主机则在家庭或办公室网络上：它无法挂载该存储，所以不能备份到那里。将其备份到它可以访问的存储中，或者给它一个到达存储主机的网络路径，例如通过VPN。",
+        "reach_p1": "SysManage 会询问每个主机是否可以连接到存储主机的 NFS 端口（2049）：在准备备份之前<strong>为备份做准备</strong>、保存策略时、每天一次，以及您点击 <strong>重新检查</strong>时。 无法连接的主机将显示 <strong>此主机无法访问备份存储</strong> 与存储主机之间的连接，包括其地址和端口，并且会禁用 <strong>为备份做准备</strong>、<strong>配置</strong>、<strong>立即备份</strong> 及其计划的备份任务；批量操作将跳过该主机并说明原因。 尚未检查过的主机永远不会被阻止。",
+        "reach_p2": "一个典型情况是：云中的 SysManage 服务器本身也是受管主机，而存储主机位于家庭或办公室网络中，此时它无法通过 NFS 挂载该存储。请将该目标切换为使用 <a href=\"backup-proxy.html\">restate-proxy</a>，并按照<a href=\"backup-proxy.html#remote\">您网络之外的主机</a>中的说明让它经由您的防火墙进入，或者为它提供另一条通往存储主机的网络路径，例如 VPN。在使用 restate-proxy 的目标上，检查的是与 restate-proxy 的地址和端口建立 TLS 连接，而不是 NFS 端口。",
         "restore_paths": "路径会与快照记录的文件进行比对。经过快照中符号链接的路径（例如 <code>/var/snap/nextcloud/current/...</code>）会沿着快照自身的链接解析，还原会显示每条路径最终指向哪里。没有匹配到任何内容的路径会使预览和还原显示为<strong>不完整</strong>，并列出该路径，因此请在还原前更正它。restate 2.2.0.14 及更早版本不会跟随链接：使用这些版本时，请使用链接指向的路径（<code>readlink /var/snap/nextcloud/current</code>）。由软件包安装且从未修改过的文件按软件包版本记录，而不是复制，因此文件还原不会恢复它们；请改为重新安装该软件包。",
         "restore_dumps": "暂停的服务生成的数据库转储位于快照的 <code>/var/lib/restate/dumps/</code> 下，每个服务一个文件夹，例如 <code>mysql-mariadb/mysqldump.sql.gz</code> 或 <code>nextcloud-nextcloud/mysqldump.sql.gz</code>，并像其他文件一样还原。Nextcloud 的 <code>config.php</code> 是在 Nextcloud 处于维护模式时记录的。还原后，restate 会运行主机的 nextcloud 钩子，将 <code>config.php</code> 恢复为暂停前的状态，还原结果会显示每个钩子的运行情况。由 restate 2.2.0.14 或更早版本创建的快照不记录钩子：将其 <code>config.php</code> 放回原位后，请在 snap 安装上运行 <code>sudo nextcloud.occ maintenance:mode --off</code>。",
         "h_netmounts": "网络共享在主机上的挂载情况",
@@ -3358,7 +3394,8 @@
         "icloud_p": "<strong>云备份</strong>部分只在存储主机上将 iCloud 照片资料库下载到备份存储。请参阅<a href=\"cloud-photos-backup.html\">备份 iCloud 照片</a>。",
         "fig_restore_place": "恢复到原位置：指定具体路径，确认主机上这些路径中的文件将被替换，并先预览会有哪些变化。",
         "editions_lapse": "如果 Professional+ 许可证过期，加密备份会继续运行，并且仍然可以恢复。备份页面顶部的卡片提供<strong>应急密钥导出</strong>，用您自己的 OpenPGP 公钥封装，这样即使 SysManage 服务器停机，也可以取出密钥进行恢复。开启加密、轮换密钥以及其他 Professional+ 设置需要等到有许可证后才能使用。",
-        "fig_key_export": "Professional+ 许可证过期后，备份页面仍为备份已加密的主机提供应急密钥导出。"
+        "fig_key_export": "Professional+ 许可证过期后，备份页面仍为备份已加密的主机提供应急密钥导出。",
+        "equip_local": "在气隙站点上，配备会从主机自己的仓库按名称安装相同的软件包，SysManage 已将这些仓库指向站点的镜像及其工具仓库，并且配备从不访问互联网。参见<a href=\"airgap-deployment.html#backups\">气隙站点上的备份</a>。"
       },
       "cloud_photos": {
         "accounts_p1": "按 <strong>添加 iCloud 账户</strong>，输入 Apple ID、显示名称和密码。密码会直接传递到 OpenBAO 下您组织的路径下。它永远不会存储在数据库中，写入日志或再次显示。存储主机在一次任务中接收它，在下载器请求时传递它，而无需将其放入命令行、环境变量或文件中。每次传输都会记录在审计日志中。",
@@ -3394,6 +3431,74 @@
         "fig_enable": "在启用 iCloud 备份之前，云备份部分会指明它将在哪台存储主机上运行。",
         "fig_accounts": "已启用 iCloud 备份，显示 icloudpd 版本和照片的保存位置，以及处于各种状态的账户：已是最新、正在运行、等待两步验证码、需要登录和失败。",
         "fig_code": "输入代码：在 15 分钟内输入 Apple 发送到该账户设备的六位数验证码。"
+      },
+      "backup_proxy": {
+        "meta_description": "让主机通过 restate-proxy 以 HTTPS 备份到存储主机，而无需挂载 NFS：每台主机的仅追加授权、主机自行生成的令牌、来自 SysManage CA 的证书，以及经由防火墙从外部进入的路由。",
+        "crumb_docs": "文档",
+        "crumb_admin": "管理",
+        "crumb_backups": "主机群备份",
+        "crumb_page": "通过 HTTPS 备份",
+        "title": "使用 restate-proxy 通过 HTTPS 备份",
+        "intro": "备份目标可以让其主机通过以下两种方式之一访问存储主机：每台主机挂载自己的 NFS 导出（如<a href=\"fleet-backup-storage.html\">设置备份存储主机</a>所述），或者每台主机通过 HTTPS 与 <code>restate-proxy</code> 通信，这是一个运行在存储主机上的服务。本页介绍 restate-proxy：为什么选择它、SysManage 为它设置了什么，以及您网络之外的主机如何经由防火墙访问它。",
+        "h_why": "为什么使用 restate-proxy",
+        "why_nomount": "<strong>无需挂载。</strong>使用 restate-proxy 的主机不挂载任何内容，也不需要 NFS 客户端。主机上的 restate 通过运行 <code>curl</code>，在 <code>https://&lt;proxy&gt;/v1/&lt;host id&gt;</code> 访问其仓库。",
+        "why_append": "<strong>协议层面仅追加。</strong>restate-proxy 无法删除、重命名或覆盖任何内容。每次上传在写入之前都会对照 restate 的仓库格式进行检查，并且主机只能访问自己的仓库：地址中的主机 ID 必须与主机的令牌匹配。清理、检查、封存和保护仍然只在存储主机上运行。",
+        "why_tokens": "<strong>主机自行生成的令牌。</strong>每台主机生成自己的令牌，并将其保存在只有 root 可读的文件中。只有令牌的 SHA-256 哈希会发送到 SysManage 服务器和存储主机，因此令牌从不出现在命令、消息队列或数据库中。",
+        "why_anywhere": "<strong>随处可用。</strong>所有内容都在 TLS 内传输，主机通过其令牌而不是地址来识别，因此位于 NAT 之后或您网络之外的主机（例如云中的 SysManage 服务器）可以备份到与局域网相同的存储主机。",
+        "why_same": "<strong>其他一切不变。</strong>备份、恢复、浏览快照和比较快照都通过 restate-proxy 进行。无论采用哪种方式，存储主机上的仓库都是相同的目录，并且存储主机仍然负责保护、封存、清理和检查它们。使用 Professional+ 加密时，restate-proxy 和存储主机始终只能看到加密的数据包。",
+        "why_data": "备份数据直接从每台主机传到存储主机。它从不经过 SysManage 服务器，服务器只发送设置并收集结果。",
+        "h_choose": "为目标选择 NFS 或 restate-proxy",
+        "choose_p1": "在备份页面上，目标卡片会显示<strong>主机如何访问存储</strong>。点击<strong>更改主机访问存储的方式</strong>，然后选择<strong>访问存储的方式</strong>：",
+        "choose_nfs": "<strong>NFS（每台主机挂载自己的导出）</strong> -- 存储主机将每台主机的仓库导出给该主机，代理在作业运行期间挂载它。",
+        "choose_proxy": "<strong>restate-proxy（通过 HTTPS 连接存储主机）</strong> -- 然后填写<strong>主机访问的网络代理地址</strong>，即 restate-proxy 证书中的名称或地址（按主机解析它的形式），以及<strong>端口</strong>（默认为 8443）。",
+        "choose_pin": "<strong>固定的密钥（SHA-256，可选）</strong> -- restate-proxy 证书公钥的 SHA-256，为 64 个十六进制字符。此后主机只接受具有此公钥的 restate-proxy 证书。",
+        "choose_ca": "<strong>站点 CA 证书（PEM，可选）</strong> -- 仅用于由您自己的证书颁发机构签发的 restate-proxy 证书。主机只在备份时信任它。保存之后，将该字段留空会保留它；<strong>删除已保存的 CA 并信任系统证书存储</strong>会将其移除。",
+        "choose_p2": "更改此设置需要 Manage Backups 权限，并会被审计。随后 SysManage 会向目标的每台主机以及存储主机发送新的作业文件。您可以随时在两种方式之间来回切换：仓库保留在存储主机上的原位置，并保留其快照，因为只有访问方式发生变化。",
+        "choose_p3": "每台主机会在其 restate 允许的范围内转为使用 restate-proxy。使用 restate 3.1.0.0 或更高版本时，恢复、浏览、状态、比较和检查都通过 restate-proxy 进行；使用 3.2.0.0 或更高版本时，备份和快照列表也是如此，并且主机完全不挂载任何内容。在此之前，这些作业仍使用 NFS。通过 restate-proxy 备份的主机没有 NFS 导出，因此存储主机不会为它创建导出，存储检查也会为它省略导出检查。OpenBSD 和 NetBSD 主机，以及没有 NFS 客户端的 Linux 主机，只能通过 restate-proxy 备份。",
+        "h_equip": "配备在存储主机上安装的内容",
+        "equip_p1": "在使用 restate-proxy 的目标上，存储主机上的<strong>为备份做准备</strong>会在 restate 旁边安装 <code>restate-proxy</code>，并在之后升级它，即使 restate 已经存在也是如此：在 Ubuntu 上来自 restate 的 PPA，在 Fedora 上来自其 COPR，在 Debian 12 和 13 以及 FreeBSD 上来自 restate 的发布软件包，并且仅当其校验和与该发布版本的列表匹配时才安装。在其他系统上，配备只安装 restate 而不安装 restate-proxy，因此请为存储主机选择上述系统之一。服务器只发送“需要 restate-proxy”这一信息，从不发送软件包名称或命令。当存储主机上没有 restate-proxy 时，目标卡片会警告<strong>存储主机上未安装 restate-proxy，因此主机无法通过它访问其备份。</strong>，并提供<strong>安装 restate-proxy</strong>按钮。",
+        "equip_p2": "restate-proxy 软件包安装后，其服务处于关闭状态。随后，SysManage 的存储设置会以目标的备份账户（即拥有这些仓库的账户）运行它（在 Linux 上通过一个 systemd 附加配置片段，将 <code>User</code> 和 <code>Group</code> 设为该账户并设置 <code>UMask=0007</code>；在 FreeBSD 上通过 <code>sysrc restate_proxy_user=restate restate_proxy_umask=007</code>），并在它获得证书后启用并启动它。当目标切回 NFS 时，代理会停止并关闭它所启动的服务，除此之外不做任何操作。",
+        "h_cert": "restate-proxy 的证书",
+        "cert_p1": "存储主机生成 restate-proxy 的私钥（该私钥从不离开存储主机），并向 SysManage 服务器申请证书。服务器自己的证书颁发机构 SysManage CA 只为目标中的 restate-proxy 地址签发该证书，有效期 365 天。下一次存储设置会将密钥和证书一起安装到 <code>/etc/restate/proxy.key</code>（只有备份账户可读）和 <code>/etc/restate/proxy.crt</code>，并重启 restate-proxy。证书会在到期前 30 天续订，并在 restate-proxy 地址每次更改时再次续订。",
+        "cert_p2": "主机通过 SysManage CA 信任该证书，SysManage 会将该 CA 作为目标的 CA 提供给主机。目标卡片会显示<strong>由 SysManage CA 签发的证书，有效期至</strong>某个日期，或显示<strong>正在等待存储主机申请其证书</strong>。如果您提供了自己的站点 CA，则以它为准：服务器不签发任何证书，卡片也不显示证书行。此时，由该 CA 签发的证书及其密钥需要由您自己放到存储主机上相同的两个路径。",
+        "h_grants": "允许列表：每台主机一个授权",
+        "grants_p1": "restate-proxy 只允许它持有授权的客户端进入：每个客户端在 <code>/etc/restate/proxy.d</code> 中有一个文件。存储主机的代理为目标的每台主机写入一个文件 <code>/etc/restate/proxy.d/&lt;host id&gt;.conf</code>，其中指明该主机的仓库、该主机可以执行的操作（添加备份，以及读取自己的仓库以进行恢复）以及该主机令牌的 SHA-256 哈希。如果某台主机的仓库是在已有备份之后才使用 Professional+ 加密的，该主机还会获得对之前仓库的只读授权 <code>&lt;host id&gt;.previous.conf</code>。",
+        "grants_p2": "代理会为它写入的每个授权标记该目标的标签，并且只会更改或删除这些授权：您自己编写的授权不会被改动。当某台主机离开目标或被删除时，其授权会被删除，同一令牌在其下一次请求时会被拒绝。restate-proxy 会在该目录发生变化时自行重新读取，因此无需重启任何内容。",
+        "grants_rotate": "超过 90 天的令牌会被替换。主机生成下一个令牌，并只报告其哈希；存储主机将该哈希添加到授权中，与当前哈希并列，只有在服务器告知主机新哈希已获授权之后，主机才开始使用新令牌。之后旧哈希会被删除，因此在此期间不会有备份失败。",
+        "grants_repo": "通过 restate-proxy，主机无法自行创建仓库。请在每台主机首次备份之前，在其“备份”卡片上点击<strong>准备存储</strong>：随后存储主机会自行创建该仓库，如果仓库是加密的，则使用策略的公钥。在此之前，目标卡片会在<strong>存储主机上还没有存储库</strong>下列出该主机。",
+        "h_restore": "恢复，以及繁忙的仓库",
+        "restore_p1": "通过 restate-proxy 进行恢复需要 Restore Files 权限，并会被审计，与通过 NFS 完全相同。主机使用自己的令牌读取自己的仓库，restate-proxy 在恢复运行期间一直持有该仓库的读锁，因此存储主机上的清理无法删除恢复正在读取的任何内容。",
+        "restore_busy": "当存储主机上的备份和清理同时需要同一个仓库时，其中一方会发现它已被锁定，restate-proxy 会回应该仓库正忙。遇到这种情况的备份会显示<strong>忙碌，将重试</strong>，并在 30 分钟后再次到期执行；这不算失败。发现有备份或恢复正在运行的清理不会删除任何内容，并以同样的方式再次尝试。",
+        "h_audit": "存储检查关于 restate-proxy 的报告",
+        "audit_p1": "目标卡片上的存储检查也涵盖 restate-proxy，在每个存储作业之后以及每天一次进行：",
+        "audit_missing": "<strong>存储主机上未安装 restate-proxy</strong> -- 在警告上点击<strong>安装 restate-proxy</strong>。",
+        "audit_stopped": "<strong>存储主机上的 restate-proxy 未在运行</strong> -- 请在存储主机上启动其服务。",
+        "audit_cert": "<strong>证书</strong>在 <code>/etc/restate/proxy.crt</code> 中缺失、无法读取、已过期（此时主机会拒绝 restate-proxy），或将在 21 天内过期。",
+        "audit_grants": "<strong>restate-proxy 不接受授权</strong>（针对所列主机） -- 在存储主机上运行 <code>restate-proxy --check-grants</code> 查看原因。",
+        "audit_repo": "<strong>存储主机上还没有存储库</strong>（针对所列主机） -- 在每台主机的“备份”卡片上点击<strong>准备存储</strong>。",
+        "audit_reach": "每台主机还会被询问能否访问 restate-proxy，并使用它信任的证书（以及存在固定密钥时的该密钥）完成 TLS 连接，询问时机与 NFS 检查相同：<strong>为备份做准备</strong>之前、保存其策略时、每天一次，以及您点击<strong>重新检查</strong>时。无法做到的主机会显示<strong>此主机无法连接备份存储的 restate-proxy</strong>，并附带地址、端口和错误，其备份会被暂缓，直到它能够访问为止。它需要一条通往 restate-proxy 的网络路径，并且必须信任其证书。",
+        "h_remote": "您网络之外的主机，经由防火墙访问",
+        "remote_p1": "位于存储主机网络之外的主机，经由网络边缘的防火墙访问 restate-proxy。防火墙按原样透传 TLS 连接，因此 TLS 在存储主机上终止：防火墙从不持有 restate-proxy 的证书，也看不到令牌，并且没有任何内容以未加密形式穿过您的局域网。请在所有地方为 restate-proxy 使用同一个名称，并采用分离视图 DNS：",
+        "remote_outside": "<strong>外部</strong>，该名称解析为防火墙的公网地址。",
+        "remote_inside": "<strong>内部</strong>，DNS 主机覆盖将同一名称解析为存储主机本身，因此局域网主机直接访问 restate-proxy，其夜间备份不会绕经防火墙。",
+        "remote_same": "这样每台主机都使用相同的地址、端口和证书，因此目标无需为远程主机单独进行设置。",
+        "h_pfsense": "示例：使用 TCP 模式 HAProxy 的 pfSense",
+        "pf_p1": "pfSense 的 HAProxy 软件包在 TCP 模式下会读取客户端在 TLS 握手中请求的名称（SNI），并在不解密的情况下将连接发送到该名称对应的后端。以下设置会将 WAN 地址 8443 端口上的 <code>backup.example.com</code> 发送到位于 <code>192.168.1.10</code> 的存储主机的 8443 端口：",
+        "pf_backend": "<strong>后端</strong>（Services &gt; HAProxy &gt; Backend）：一台地址为 <code>192.168.1.10</code>、端口为 <code>8443</code> 的服务器，Encrypt(SSL) 和 SSL checks 关闭；服务器超时 <code>120000</code>；健康检查方法为 Basic，检查频率留空；Transparent ClientIP 关闭。",
+        "pf_frontend": "<strong>前端</strong>（Services &gt; HAProxy &gt; Frontend）：监听 WAN 地址的端口 <code>8443</code>，SSL Offloading 关闭；类型为 <code>ssl / https(TCP mode)</code>；一个访问控制列表，将 Server Name Indication TLS extension 与 <code>backup.example.com</code> 进行匹配，并为其设置动作 Use Backend；不设默认后端；客户端超时 <code>120000</code>。",
+        "pf_rule": "<strong>防火墙规则</strong>（Firewall &gt; Rules &gt; WAN）：放行发往 WAN 地址端口 <code>8443</code> 的 TCP。无需端口转发，因为 HAProxy 本身就在 WAN 地址上监听。如果远程主机的地址已知，可将规则的来源限制为这些地址，作为额外的一层防护。",
+        "pf_dns": "<strong>DNS</strong>：<code>backup.example.com</code> 在外部解析为 WAN 地址，而 pfSense 的 DNS Resolver 中的主机覆盖（Services &gt; DNS Resolver &gt; Host Overrides）在内部将其解析为 <code>192.168.1.10</code>。",
+        "pf_why": "请保持 TCP 模式并关闭 SSL Offloading：卸载会把 restate-proxy 的证书和密钥放到防火墙上，并在那里解密每一个备份。HAProxy 只有在握手到达之后才能匹配名称，因此前端需要 <code>tcp-request inspect-delay 5s</code> 和 <code>tcp-request content accept if { req_ssl_hello_type 1 }</code>；如果 pfSense 写入的配置（<code>/var/etc/haproxy/haproxy.cfg</code>）中两者都没有，请在前端的 Advanced pass thru 中添加它们。请将两个超时都保持为 120 秒，长于 restate-proxy 自身的 60 秒，因为 HAProxy 默认的 30 秒可能会在大型备份提交时将其切断。不要开启 <code>send-proxy</code>：restate-proxy 不接受 PROXY protocol。",
+        "pf_test": "然后将目标的<strong>主机访问的网络代理地址</strong>设为 <code>backup.example.com</code>，并将其<strong>端口</strong>设为 8443。restate-proxy 来自 SysManage CA 的证书就是为该名称签发的。通过访问检查的远程主机会像其他主机一样获得备份。",
+        "h_needs": "您需要准备的内容",
+        "need_restate": "存储主机上的 <code>restate-proxy</code>（由<strong>为备份做准备</strong>安装），以及每台主机上的 restate 3.2.0.0 或更高版本，以便通过 restate-proxy 备份。代理会询问 restate 它能做什么（<code>restate features</code>），因此使用较旧 restate 的主机，对于无法通过 restate-proxy 完成的操作，会继续使用 NFS。",
+        "need_curl": "每台主机上的 <code>curl</code>，restate 运行它来访问 restate-proxy。restate 的 Debian 和 RPM 软件包会推荐安装它；配备不会安装它。",
+        "need_port": "restate-proxy 的端口（默认为 8443），需对从主机到存储主机的连接开放。",
+        "h_editions": "版本要求",
+        "editions_p1": "作为传输方式的 restate-proxy 属于 Community 版：目标上的设置、配备、授权和令牌、作业文件、恢复、存储检查以及目标的<strong>同时进行的备份数</strong>。<code>restate-proxy</code> 本身是 restate 的一部分，可免费手动运行。按一天中的小时设置的带宽限制（在目标卡片上通过<strong>更改带宽限制</strong>设置，即<strong>通过 restate-proxy 的带宽</strong>）需要 Professional+，并且存储主机上需要 restate 3.2.1.4 或更高版本。没有许可证时，这些规则会被保留但不会生效，通过 restate-proxy 的备份将以全速运行。",
+        "fig_bandwidth": "Professional+：只有一条规则的<strong>通过 restate-proxy 的带宽</strong>对话框，按存储主机的时钟从 08:00 到 18:00 限速 2MiB/s，其余时间不限速。",
+        "fig_target": "使用代理的目标卡片：代理地址、由 SysManage CA 签发的证书及其到期时间，以及存储检查发出的 restate-proxy 尚未安装的警告和用于安装它的按钮。",
+        "fig_transport": "选择 restate-proxy 后的<strong>主机如何访问存储</strong>对话框：主机访问的代理地址 <code>backup.example.com</code> 和端口 8443。"
       }
     },
     "administration": {
@@ -5115,7 +5220,10 @@
             "cli_migrate": "<strong>SysManage-迁移：</strong>显示并应用未完成的数据库迁移",
             "cli_secure": "<strong>SysManage安全安装：</strong> 从源代码设置新安装",
             "cli_psql": "<strong>psql 和 pg_dump：</strong> 直接数据库访问和备份",
-            "compliance": "SysManage 没有获得 SOC 2、ISO 27001、PCI DSS、HIPAA、FedRAMP 或任何其他框架的认证或审计。它提供的是一种你可以在自己审计中使用作为证据的数据：审计日志、基于角色的访问控制，以及商业版中的 <a href=\"../professional-plus/compliance.html\">合规性检查</a>（来自 CIS 基准和 DISA STIGs）和 <a href=\"../professional-plus/vulnerability-scanning.html\">漏洞扫描</a>。"
+            "compliance": "SysManage 没有获得 SOC 2、ISO 27001、PCI DSS、HIPAA、FedRAMP 或任何其他框架的认证或审计。它提供的是一种你可以在自己审计中使用作为证据的数据：审计日志、基于角色的访问控制，以及商业版中的 <a href=\"../professional-plus/compliance.html\">合规性检查</a>（来自 CIS 基准和 DISA STIGs）和 <a href=\"../professional-plus/vulnerability-scanning.html\">漏洞扫描</a>。",
+            "proxy_title": "通过 HTTPS 备份",
+            "proxy_desc": "让主机通过 restate-proxy 访问存储主机，而无需挂载 NFS：每台主机一个仅追加授权、从不离开主机的令牌，以及经由防火墙从外部进入的路由。",
+            "proxy_link": "restate-proxy 指南 →"
           }
         },
         "livepatch": {
@@ -17046,7 +17154,7 @@
         "build": {
           "failure_note": "如果构建失败，则该行的状态芯片显示<code>failed</code>，并在标签顶部的“最近的构建失败”警报中总结第一个错误行。完整的每个构建日志位于服务器上的<code>/var/lib/sysmanage/airgap-bundles/&lt;bundle-uuid&gt;.log</code> -- 用于诊断PPA构建问题、缺少GitHub发布资产或Docker注册表故障。",
           "intro": "该包是在具有互联网访问权限的Pro+许可主机上从SysManage设置UI构建的。您<em>无需</em>在构建主机上安装目标空气间隙系统的操作系统----每个平台特定的获取都在其自己的Docker容器中运行。",
-          "step_click": "点击 <strong>构建服务器捆绑</strong>、<strong>构建代理捆绑</strong> 或 <strong>构建 Pro+ 捆绑</strong>。你可以队列所有三个 -- 它们将按顺序运行。服务器和代理捆绑通过 Docker 容器在平台上启动（缓慢）； Pro+ 捆绑只复制本地文件（快速 -- 几秒钟）",
+          "step_click": "点击 <strong>构建服务器包</strong>、<strong>构建代理包</strong> 或 <strong>构建 Pro+ 包</strong>。你可以队列所有三个 -- 它们将按顺序运行。服务器和代理捆绑通过 Docker 容器在平台上启动（缓慢）； Pro+ 捆绑只复制本地文件（快速 -- 几秒钟）",
           "step_docker": "确认Docker就绪横幅显示<em>\"Docker is ready\"</em>。如果没有，请按照横幅提供的确切修复命令 -- 通常为<code>sudo usermod -aG docker &lt;service-user&gt;</code>，然后重启服务。",
           "step_download": "点击下载图标。您的浏览器将通过认证的API下载<code>sysmanage-server-bundle-&lt;version&gt;.iso</code>（或<code>sysmanage-agent-bundle-&lt;version&gt;.iso</code>）。文件较大（约500 MB到1 GB）----请保持标签页打开直到下载完成。",
           "step_login": "使用管理员帐户在构建主机上的SysManage Web UI中登录。",
@@ -18984,8 +19092,8 @@
       "builtin_intro": "服务器本身也是 SysManage 管理的主机之一，它以同样的方式使用 restate 备份自身。在<strong>备份</strong>页面上，<strong>备份此 SysManage 服务器</strong>会为服务器自己的主机创建一个策略，并预设为包含服务器恢复所需的一切内容。<a href=\"fleet-backups.html\">主机备份</a>页面介绍了备份目标、计划和保留，它们在这里的工作方式相同。",
       "h_needs": "所需条件",
       "needs_agent": "<strong>服务器自己的代理</strong>，且已获批准。SysManage 按名称查找服务器的主机；如果无法判断哪台主机是服务器，它会请您进行选择。",
-      "needs_restate": "<strong>服务器主机上的 restate</strong>，与任何被备份的主机一样，通过<strong>配备备份</strong>安装。restate 3.0.0.0 或更高版本无需停止数据库即可复制它们（见下文）。",
-      "needs_target": "<strong>服务器可以访问的备份目标。</strong>目前服务器通过 NFS 挂载存储主机上的备份仓库，因此存储主机必须位于服务器可以访问的网络上。云中的服务器目前还无法挂载位于家中或办公室的存储主机；在能够这样做之前，请按下文所述手动备份。",
+      "needs_restate": "<strong>服务器主机上的 restate</strong>，与任何被备份的主机一样，通过<strong>为备份做准备</strong>安装。restate 3.0.0.0 或更高版本无需停止数据库即可复制它们（见下文）。",
+      "needs_target": "<strong>服务器能够访问的备份目标。</strong>通过 NFS 时，服务器会挂载存储主机的仓库，因此存储主机必须位于服务器能够挂载它的网络上。云中的服务器像任何远程主机一样，通过 <a href=\"backup-proxy.html\">restate-proxy</a>，经由您的防火墙以 HTTPS 备份到家庭或办公室中的存储主机。在气隙站点上，服务器备份到气隙网络上的存储主机。",
       "needs_escrow": "<strong>Professional+（用于加密）：</strong>一个应急托管密钥，保存在某台主机的<strong>加密</strong>面板中。服务器的备份使用该密钥加密。",
       "h_setup": "进行配置",
       "setup_1": "在<strong>备份</strong>页面上，选择<strong>备份此 SysManage 服务器</strong>。如果没有与服务器同名的主机，请选择其代理所在的那台主机。",
@@ -19060,7 +19168,11 @@
       "h_restore": "从手动备份重建",
       "reconnect_p2": "代理还会检查服务器的 TLS 证书：该证书必须对代理所使用的名称有效，并且其密钥必须与代理在注册时固定的内容一致，而固定的内容链接到服务器的 CA。请将 CA 与其他所有内容一起恢复。使用新 CA 重建的服务器会被每个代理拒绝，而且已签发的主机证书也不再链接到它。参见<a href=\"../security/mtls.html\">代理证书和 TLS</a>。",
       "h_partial": "丢失一部分（使用手动备份）",
-      "fig_server_dialog": "<strong>备份此 SysManage 服务器</strong>对话框：服务器备份包含的内容、排除的内容以及从不备份的内容。"
+      "fig_server_dialog": "<strong>备份此 SysManage 服务器</strong>对话框：服务器备份包含的内容、排除的内容以及从不备份的内容。",
+      "step1_airgap": "<strong>在气隙站点上</strong>，没有可供安装的软件包仓库。请从服务器介质安装服务器：从 SysManage 服务器软件包 ISO 运行 <code>sudo /mnt/install.sh</code>，该 ISO 包含软件包、PostgreSQL、nginx 和 OpenBAO。请从代理介质安装 restate 及 NFS 客户端：从代理软件包 ISO 运行 <code>sudo /mnt/install.sh</code>。这也会安装代理，之后恢复操作会把代理原有的身份还给它。然后按上文所述停止这些服务。介质中的 SysManage 可能比进行备份时的版本更新；这没有问题，因为第 6 步的 <code>sudo sysmanage-migrate</code> 会处理这种情况。",
+      "step3_timing": "在一次测试中，恢复操作在大约 3 分钟内还原了 28,530 个文件（14 GB）。",
+      "step7_airgap": "<strong>在使用 Professional+ 的气隙站点上</strong>，引擎无法重新下载：备份不包含它们（<code>/var/lib/sysmanage/modules</code>），而服务器也没有获取它们的途径。在启动 SysManage 之前或刚启动之后，请安装 Pro+ 叠加介质：从在联网侧构建的 Pro+ 软件包 ISO 运行 <code>sudo /mnt/install.sh</code>（<strong>构建 Pro+ 包</strong>，或 <code>buildAirGapBundle.sh proplus</code>）。没有它，备份引擎就不存在，因此服务器自身的备份无法加密，备份页面显示未加密。有了它，所有引擎都会加载，许可证在离线状态下也显示为有效。",
+      "newaddr_hosts": "在没有 DNS 的站点上，由 hosts 文件代替 DNS：在第 7 步之前，在每台代理主机和存储主机的 <code>/etc/hosts</code> 中将该名称指向新地址。在一次气隙网络上的测试中，代理随后以原有身份自行重新连接，没有任何主机等待批准；在一次调度器轮询内，存储主机将仓库导出到了新地址，<strong>立即备份</strong>也成功完成。"
     },
     "mtls3": {
       "meta_description": "SysManage 如何使用 TLS 保护代理到服务器的流量：代理固定服务器，提供自己的客户端证书并自行续订，以及如何在不影响主机群的情况下启用双向 TLS。",

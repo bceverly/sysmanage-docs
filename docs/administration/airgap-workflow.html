@@ -34,6 +34,7 @@
                         <li data-i18n="docs.admin.airgap_workflow.overview.step3" data-i18n-html><strong>Collect &amp; burn</strong> -- run a collection on the collector to produce a signed ISO; write it to optical/USB media.</li>
                         <li data-i18n="docs.admin.airgap_workflow.overview.step4" data-i18n-html><strong>Import</strong> -- carry the media to the repository, select the drive, and import.</li>
                         <li data-i18n="docs.admin.airgap_workflow.overview.step5" data-i18n-html><strong>Serve &amp; repoint</strong> -- the repository serves the mirror and agents are repointed automatically.</li>
+                        <li data-i18n="docs.admin.airgap_workflow.overview.step6" data-i18n-html><strong>Back up</strong> -- equip hosts for backup from the site's own tools repository, and back them up to a storage host inside.</li>
                     </ol>
                 </section>
 
@@ -62,8 +63,19 @@
                     <ul>
                         <li data-i18n="docs.admin.airgap_workflow.collect.run" data-i18n-html>Start a new collection run with an ISO label and the distros/repos to include. The run walks <code>QUEUED → MIRRORING → STAGING_COMPLETE → BUILDING_ISO → ISO_BUILT → COMPLETE</code>; the page polls and shows the live status.</li>
                         <li data-i18n="docs.admin.airgap_workflow.collect.media">Leave the burn device blank to build a single downloadable ISO of any size (for attaching to a VM or writing to USB yourself); set a device to add a burn stage. The size column reflects the real built ISO size.</li>
-                        <li data-i18n="docs.admin.airgap_workflow.collect.download" data-i18n-html>When the run reaches <code>ISO_BUILT</code>/<code>COMPLETE</code>, use the download icon. Downloads stream directly to disk via a short-lived token, so multi-gigabyte ISOs download without buffering in the browser.</li>
+                        <li data-i18n="docs.admin.airgap_workflow.collect.multidisc" data-i18n-html>With a burn device set, a run larger than <strong>Media Size (MB)</strong> (4700, a single-layer DVD, by default) is split into a set of discs, each holding whole mirrors. A mirror larger than one disc is refused, so pick larger media for it. Every run also carries the SysManage tools (the agent, restate and restate-proxy for the run's systems), on disc 1 of a set.</li>
+                        <li data-i18n="docs.admin.airgap_workflow.collect.download" data-i18n-html>When the run reaches <code>ISO_BUILT</code>/<code>COMPLETE</code>, use the download icon. Downloads stream directly to disk via a short-lived token, so multi-gigabyte ISOs download without buffering in the browser. For a run that made several discs, the download asks which disc to fetch; label each one with its number in the set.</li>
                     </ul>
+
+                    <figure class="docs-screenshot">
+                        <img src="/assets/images/airgap-collection-new-run.png" alt="New Collection Run dialog">
+                        <figcaption data-i18n="docs.admin.airgap_workflow.collect.fig_new_run" data-i18n-html>The <strong>New Collection Run</strong> dialog: the ISO label, <strong>Media Size (MB)</strong>, the CVE and compliance snapshots, the mirrors to collect and the burn device.</figcaption>
+                    </figure>
+
+                    <figure class="docs-screenshot">
+                        <img src="/assets/images/airgap-disc-picker.png" alt="Disc picker for a run split into three discs">
+                        <figcaption data-i18n="docs.admin.airgap_workflow.collect.fig_disc_picker">A run that did not fit on one disc: the download asks which of its three discs to fetch, with each disc's size.</figcaption>
+                    </figure>
                 </section>
 
                 <section class="docs-section">
@@ -74,18 +86,30 @@
                         <li data-i18n="docs.admin.airgap_workflow.transport.insert">Insert the media into that drive.</li>
                         <li data-i18n="docs.admin.airgap_workflow.transport.import" data-i18n-html>Go to the <strong>Air-Gap Repositories</strong> page. The <em>Import from Media</em> panel shows the drive's live status; the <strong>Import ISO</strong> button enables when the drive holds readable ISO media. Press it. (Use <strong>Rescan</strong> if you just inserted or fixed the disc.)</li>
                         <li data-i18n="docs.admin.airgap_workflow.transport.verify" data-i18n-html>Import mounts the media read-only, verifies the embedded signed <code>/manifest.json</code> against your trusted-collector keyring, and rsyncs the verified payload into <code>/var/lib/sysmanage/airgap-repo</code>. Watch the run status: <code>VERIFYING_SIG</code> (signature check), <code>COPYING</code> (rsync in flight), <code>COMPLETE</code>. A disc from an untrusted collector simply fails at verification.</li>
+                        <li data-i18n="docs.admin.airgap_workflow.transport.multidisc" data-i18n-html>For a set, import each disc the same way, one after another. Each disc adds its own mirrors and leaves the others' in place; disc 1 also builds the tools repository, which later discs leave as it is.</li>
                     </ol>
+
+                    <figure class="docs-screenshot">
+                        <img src="/assets/images/airgap-import-set.png" alt="Import from Media panel during a disc set import">
+                        <figcaption data-i18n="docs.admin.airgap_workflow.transport.fig_import" data-i18n-html>Importing a set disc by disc: disc 1 is imported, and disc 2 is in the drive, ready, with <strong>Import ISO</strong> enabled.</figcaption>
+                    </figure>
                 </section>
 
                 <section class="docs-section">
                     <h2 data-i18n="docs.admin.airgap_workflow.serve.title">Step 5 -- Serve the mirror</h2>
-                    <p data-i18n="docs.admin.airgap_workflow.serve.summary" data-i18n-html>On <code>COMPLETE</code>, the repository registers a per-distro local repository (visible on the Air-Gap Repositories page with package count, last-ingest time, freshness, and the signer fingerprint) and serves it over HTTP from the SysManage web port at <code>/airgap-repo/</code>. The registered repository URL points at the actual apt/dnf tree inside the media, so no manual web-server or symlink setup is needed.</p>
+                    <p data-i18n="docs.admin.airgap_workflow.serve.summary" data-i18n-html>On <code>COMPLETE</code>, the repository registers a per-distro local repository (visible on the Air-Gap Repositories page with package count, last-ingest time, freshness, and the signer fingerprint) and serves it over plain HTTP on port 80, through nginx, at <code>/airgap-repo/</code>, with the SysManage tools repository beside it at <code>/airgap-tools/</code>, signed with the site's own key. The registered repository URL points at the actual package tree inside the media, so no manual web-server or symlink setup is needed. See <a href="airgap-deployment.html#tools">The SysManage tools repository</a>.</p>
                 </section>
 
                 <section class="docs-section">
                     <h2 data-i18n="docs.admin.airgap_workflow.repoint.title">Step 6 -- Agents repoint automatically</h2>
                     <p data-i18n="docs.admin.airgap_workflow.repoint.summary" data-i18n-html>Any agent managed by a server whose role is <em>Air-Gap Repository</em> is automatically repointed at the local mirror: its package manager is configured to use the repository's mirror and its online sources are disabled. This happens on the agent's normal communication cycle, so it also catches agents that were already connected when you changed the role -- they update on their next check-in. The directive is self-throttling: it re-dispatches only when the mirror configuration actually changes (a role flip or a fresh ingest), so there's no repeated <code>apt-get update</code> churn.</p>
+                    <p data-i18n="docs.admin.airgap_workflow.repoint.tools" data-i18n-html>The repoint covers apt, dnf, zypper, Alpine's <code>apk</code> and FreeBSD's <code>pkg</code>. Each host gets the mirror for its own distribution and release, if there is one, and the tools repository beside it, with the site's key installed so its package manager checks the signatures.</p>
                     <p data-i18n="docs.admin.airgap_workflow.repoint.verify" data-i18n-html>On an air-gapped host you can confirm with <code>apt-cache policy &lt;pkg&gt;</code> (the candidate should come from the repository's <code>/airgap-repo/</code> URL) and <code>apt list --upgradable</code> (sourced entirely from the mirror).</p>
+                </section>
+
+                <section class="docs-section">
+                    <h2 data-i18n="docs.admin.airgap_workflow.backup.title">Step 7 -- Back up the air-gapped hosts</h2>
+                    <p data-i18n="docs.admin.airgap_workflow.backup.summary" data-i18n-html>Set up a backup target with a storage host on the air-gapped network, as <a href="fleet-backups.html">Fleet Backups</a> describes, and click <strong>Equip for backup</strong> on the hosts. On a repository server, Equip installs restate, the NFS client and, on the storage host of a target that uses <a href="backup-proxy.html">restate-proxy</a>, the proxy, all from the hosts' own repositories: the mirror and the tools repository. Nothing is fetched from the internet. Back up the collector separately, to a storage host on its own side of the gap. See <a href="airgap-deployment.html#backups">Backups on an air-gapped site</a>.</p>
                 </section>
 
                 <section class="docs-section">

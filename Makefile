@@ -135,6 +135,9 @@ help:
 	@echo "  screenshots-backups-seed   - Seed fleet backups + iCloud backup: target, policies, runs, snapshots, accounts + restore-preview helper (in-VM ORM, OSS)"
 	@echo "  screenshots-backups-capture- Re-capture only the Community fleet backup shots (OSS VM, after screenshots-backups-seed)"
 	@echo "  screenshots-backups-alt    - Seed the lapsed-license / iCloud-not-enabled state, capture its shots, seed the normal state back (OSS VM)"
+	@echo "  screenshots-backups-proxy      - Seed the backup target on restate-proxy, capture its shots, seed NFS back (OSS VM)"
+	@echo "  screenshots-backups-proxy-pro  - Same on the Pro VM: the Bandwidth through restate-proxy dialog, then the Pro+ backup seed back"
+	@echo "  screenshots-airgap-seed        - Seed an air-gap disc set: a 3-disc run, disc 1 imported, disc 2 in the import drive (in-VM, Enterprise)"
 	@echo "  screenshots-backups-pro-seed   - Seed the Professional+ backup features: encryption, escrow, signing, GFS, verification, drift, tag policies"
 	@echo "  screenshots-backups-pro-capture- Re-capture only the Professional+ backup shots (Pro VM, after screenshots-backups-pro-seed)"
 	@echo "  screenshots-ent-seed   - Seed Enterprise engine demo data (in-VM ORM)"
@@ -402,7 +405,7 @@ screenshot:
 # ---- Automated documentation screenshots (screenshots/ pipeline) ------------
 # Reproducible screenshots: provision a VM, seed demo data (REST + WS), drive the
 # UI with Playwright, write PNGs into assets/images/. See screenshots/README.md.
-.PHONY: screenshots screenshots-community screenshots-assettag-seed screenshots-timesync-seed screenshots-hardware-seed screenshots-enterprise screenshots-seed screenshots-capture screenshots-vm-up screenshots-vm-down screenshots-pro-build screenshots-pro-seed screenshots-pro-capture screenshots-ent-build screenshots-ent-seed screenshots-ent-capture screenshots-ent-roles screenshots-fleet-seed screenshots-cfg-seed screenshots-facts-seed screenshots-facts-capture screenshots-advisor-seed screenshots-advisor-capture screenshots-discovery-seed screenshots-discovery-capture screenshots-malware-seed screenshots-malware-capture screenshots-hardware-capture screenshots-backups-seed screenshots-backups-capture screenshots-backups-alt screenshots-backups-pro-seed screenshots-backups-pro-capture
+.PHONY: screenshots screenshots-community screenshots-assettag-seed screenshots-timesync-seed screenshots-hardware-seed screenshots-enterprise screenshots-seed screenshots-capture screenshots-vm-up screenshots-vm-down screenshots-pro-build screenshots-pro-seed screenshots-pro-capture screenshots-ent-build screenshots-ent-seed screenshots-ent-capture screenshots-ent-roles screenshots-fleet-seed screenshots-cfg-seed screenshots-facts-seed screenshots-facts-capture screenshots-advisor-seed screenshots-advisor-capture screenshots-discovery-seed screenshots-discovery-capture screenshots-malware-seed screenshots-malware-capture screenshots-hardware-capture screenshots-backups-seed screenshots-backups-capture screenshots-backups-alt screenshots-backups-pro-seed screenshots-backups-pro-capture screenshots-backups-proxy screenshots-backups-proxy-pro screenshots-airgap-seed
 
 SHOTS_DIR := screenshots
 # Load screenshots/config.env (targets, admin + demo creds) if present.
@@ -459,6 +462,7 @@ screenshots:
 	@$(MAKE) screenshots-backups-seed
 	@$(MAKE) screenshots-capture
 	@$(MAKE) screenshots-backups-alt
+	@$(MAKE) screenshots-backups-proxy
 	@echo "$(BLUE)--- [2/3] Professional ---$(RESET)"
 	@$(MAKE) screenshots-pro-build
 	@$(MAKE) screenshots-seed
@@ -470,6 +474,7 @@ screenshots:
 	@$(MAKE) screenshots-backups-pro-seed
 	@$(MAKE) screenshots-facts-seed
 	@$(MAKE) screenshots-pro-capture
+	@$(MAKE) screenshots-backups-proxy-pro
 	@echo "$(BLUE)--- [3/3] Enterprise ---$(RESET)"
 	@$(MAKE) screenshots-ent-build
 	@$(MAKE) screenshots-seed
@@ -486,6 +491,7 @@ screenshots:
 	@$(MAKE) screenshots-advisor-seed
 	@$(MAKE) screenshots-discovery-seed
 	@$(MAKE) screenshots-malware-seed
+	@$(MAKE) screenshots-airgap-seed
 	@$(MAKE) screenshots-ent-capture
 	@$(MAKE) screenshots-ent-roles
 	@echo "$(BLUE)All tiers captured -- destroying the VM...$(RESET)"
@@ -520,6 +526,7 @@ screenshots-enterprise:
 	@$(MAKE) screenshots-advisor-seed
 	@$(MAKE) screenshots-discovery-seed
 	@$(MAKE) screenshots-malware-seed
+	@$(MAKE) screenshots-airgap-seed
 	@$(MAKE) screenshots-ent-capture
 	@$(MAKE) screenshots-ent-roles
 	@echo "$(GREEN)✓ Enterprise screenshots refreshed in assets/images/$(RESET)"
@@ -543,6 +550,7 @@ screenshots-community:
 	@$(MAKE) screenshots-backups-seed
 	@$(MAKE) screenshots-capture
 	@$(MAKE) screenshots-backups-alt
+	@$(MAKE) screenshots-backups-proxy
 	@echo "$(GREEN)✓ Community Edition screenshots refreshed in assets/images/$(RESET)"
 	@if [ "$(FRESH)" = "1" ]; then \
 		echo "$(YELLOW)FRESH=1: tearing down the VM...$(RESET)"; \
@@ -764,12 +772,13 @@ screenshots-hardware-seed:
 # every pass.  Run after screenshots-seed.  SEED_BACKUPS_ALT=1 seeds the
 # alternate state instead (see screenshots-backups-alt).
 SEED_BACKUPS_ALT ?=
+SEED_BACKUPS_PROXY ?=
 screenshots-backups-seed:
 	@cd $(SHOTS_DIR) && VMIP=$$(vagrant ssh -c 'hostname -I' 2>/dev/null | awk '{print $$1}' | tr -d '\r'); \
 		[ -n "$$VMIP" ] || { echo "$(RED)Screenshot VM not running. Run 'make screenshots' first.$(RESET)"; exit 1; }; \
 		echo "$(BLUE)Seeding fleet backups + iCloud backup (in-VM ORM)$(if $(SEED_BACKUPS_ALT), -- ALTERNATE state,)...$(RESET)"; \
 		for seeder in seed_backups.py seed_cloud_backup.py; do \
-			cat $$seeder | vagrant ssh -c "cd /opt/sysmanage && sudo env PYTHONPATH=/opt/sysmanage SEED_BACKUPS_ALT=$(SEED_BACKUPS_ALT) /opt/sysmanage/.venv/bin/python - 2>&1" 2>/dev/null \
+			cat $$seeder | vagrant ssh -c "cd /opt/sysmanage && sudo env PYTHONPATH=/opt/sysmanage SEED_BACKUPS_ALT=$(SEED_BACKUPS_ALT) SEED_BACKUPS_PROXY=$(SEED_BACKUPS_PROXY) /opt/sysmanage/.venv/bin/python - 2>&1" 2>/dev/null \
 				| sed 's/^/  /' || echo "$(YELLOW)$$seeder failed (is the VM up and OSS-seeded?)$(RESET)"; \
 		done
 
@@ -783,6 +792,26 @@ screenshots-backups-alt:
 	@$(MAKE) screenshots-backups-seed SEED_BACKUPS_ALT=1
 	@$(MAKE) screenshots-capture SCREENSHOT_ALT=1
 	@$(MAKE) screenshots-backups-seed SEED_BACKUPS_ALT=
+
+# The backup target on restate-proxy instead of NFS: the How hosts reach the
+# storage dialog, and the target card with the proxy's address, its
+# certificate from the SysManage CA and the restate-proxy is not installed
+# warning.  Seeds that state (SEED_BACKUPS_PROXY=1), captures the shots marked
+# "alt": "proxy", and seeds the NFS state back.  OSS VM, after
+# screenshots-seed.
+screenshots-backups-proxy:
+	@$(MAKE) screenshots-backups-seed SEED_BACKUPS_PROXY=1
+	@$(MAKE) screenshots-capture SCREENSHOT_ALT=proxy
+	@$(MAKE) screenshots-backups-seed SEED_BACKUPS_PROXY=
+
+# The same on the Professional VM, with one bandwidth rule
+# (SEED_BACKUPS_PROXY=pro): the Bandwidth through restate-proxy dialog.  The
+# backups seed clears the Pro+ backup rows, so they are seeded back after.
+screenshots-backups-proxy-pro:
+	@$(MAKE) screenshots-backups-seed SEED_BACKUPS_PROXY=pro
+	@$(MAKE) screenshots-pro-capture SCREENSHOT_ALT=proxy
+	@$(MAKE) screenshots-backups-seed SEED_BACKUPS_PROXY=
+	@$(MAKE) screenshots-backups-pro-seed
 
 # The Professional+ backup features (24.6 / 24.7): encryption with a rotated
 # key, the break-glass escrow (a saved key, an export that is now stale),
@@ -802,6 +831,18 @@ screenshots-facts-seed:
 		echo "$(BLUE)Seeding query packs + watched files (in-VM ORM)...$(RESET)"; \
 		cat seed_facts.py | vagrant ssh -c "cd /opt/sysmanage && sudo env PYTHONPATH=/opt/sysmanage /opt/sysmanage/.venv/bin/python - 2>&1" 2>/dev/null \
 			| sed 's/^/  /' || echo "$(YELLOW)fact-substrate seed failed (is the Enterprise-licensed VM up and OSS-seeded?)$(RESET)"
+
+# An air-gap disc set (seed_airgap.py): a run split into three discs (the
+# Download disc picker reads their files, written sparse), disc 1 imported
+# and disc 2 in the import drive -- a real small ISO on a loop device, which
+# is what the drive probe calls ready.  Run after screenshots-ent-seed (its
+# mirrors); captured by screenshots-ent-roles.
+screenshots-airgap-seed:
+	@cd $(SHOTS_DIR) && VMIP=$$(vagrant ssh -c 'hostname -I' 2>/dev/null | awk '{print $$1}' | tr -d '\r'); \
+		[ -n "$$VMIP" ] || { echo "$(RED)Screenshot VM not running. Run 'make screenshots-ent-build' first.$(RESET)"; exit 1; }; \
+		echo "$(BLUE)Seeding the air-gap disc set (in-VM ORM)...$(RESET)"; \
+		cat seed_airgap.py | vagrant ssh -c "cd /opt/sysmanage && sudo env PYTHONPATH=/opt/sysmanage /opt/sysmanage/.venv/bin/python - 2>&1" 2>/dev/null \
+			| sed 's/^/  /' || echo "$(YELLOW)air-gap seed failed (is the Enterprise-licensed VM up and ent-seeded?)$(RESET)"
 
 # Advisor demo data (Phase 21.2 S8). Evaluates with the REAL advisor over
 # seeded evidence, so every outcome in the shots is one the product computed --
@@ -933,7 +974,9 @@ screenshots-ent-capture: install-browsers
 # render real content only when the server's federation_role/air_gap_role match
 # (route mounting happens at backend startup, so each role change needs a
 # restart). Two passes: (A) coordinator+collector -> Sites x3 + Air-Gap
-# Collections; (B) repository -> Air-Gap Repositories. Run after screenshots-ent-seed.
+# Collections, its New Collection Run dialog and disc picker; (B) repository
+# -> Air-Gap Repositories and its Import from Media panel. Run after
+# screenshots-ent-seed and screenshots-airgap-seed.
 screenshots-ent-roles: install-browsers
 	@cd $(SHOTS_DIR) && VMIP=$$(vagrant ssh -c 'hostname -I' 2>/dev/null | awk '{print $$1}' | tr -d '\r'); \
 		[ -n "$$VMIP" ] || { echo "$(RED)Screenshot VM not running.$(RESET)"; exit 1; }; \
@@ -943,14 +986,14 @@ screenshots-ent-roles: install-browsers
 		echo "$(BLUE)  restarting backend to re-mount role routes...$(RESET)"; \
 		vagrant ssh -c "cd /opt/sysmanage && sudo make stop >/dev/null 2>&1; sudo bash -c 'cd /opt/sysmanage && setsid make start >/var/log/sysmanage-start.log 2>&1 </dev/null &'" 2>/dev/null; \
 		sleep 45; \
-		SCREENSHOT_TIER=enterprise SCREENSHOT_ONLY=ent-sites,ent-sites-map,ent-sites-tiles,ent-airgap-collections,ent-federation-hosts \
+		SCREENSHOT_TIER=enterprise SCREENSHOT_ONLY=ent-sites,ent-sites-map,ent-sites-tiles,ent-airgap-collections,ent-airgap-new-run,ent-airgap-disc-picker,ent-federation-hosts \
 			SCREENSHOT_TARGET="$$WEB" SCREENSHOT_USER="$(SCREENSHOT_USER)" SCREENSHOT_PW="$(SCREENSHOT_PW)" $(NODE) capture.mjs || true; \
 		echo "$(BLUE)Pass B: air_gap_role=repository, federation_role=none$(RESET)"; \
 		cat set_roles.py | vagrant ssh -c "cd /opt/sysmanage && sudo env PYTHONPATH=/opt/sysmanage AIR_GAP_ROLE=repository FEDERATION_ROLE=none /opt/sysmanage/.venv/bin/python - 2>&1" 2>/dev/null | sed 's/^/  /'; \
 		echo "$(BLUE)  restarting backend...$(RESET)"; \
 		vagrant ssh -c "cd /opt/sysmanage && sudo make stop >/dev/null 2>&1; sudo bash -c 'cd /opt/sysmanage && setsid make start >/var/log/sysmanage-start.log 2>&1 </dev/null &'" 2>/dev/null; \
 		sleep 45; \
-		SCREENSHOT_TIER=enterprise SCREENSHOT_ONLY=ent-airgap-repositories \
+		SCREENSHOT_TIER=enterprise SCREENSHOT_ONLY=ent-airgap-repositories,ent-airgap-import \
 			SCREENSHOT_TARGET="$$WEB" SCREENSHOT_USER="$(SCREENSHOT_USER)" SCREENSHOT_PW="$(SCREENSHOT_PW)" $(NODE) capture.mjs || true; \
 		echo "$(GREEN)Role-gated re-capture done. (Box left as air_gap_role=repository / federation_role=none.)$(RESET)"
 
@@ -1190,7 +1233,7 @@ lint-file-length:
 # .js seeders (real-screenshot.js etc.) are covered by eslint below, not here.
 LINT_PY := add_test_user.py scripts/ screenshots/seed.py screenshots/seed_pro.py \
 	screenshots/seed_ent.py screenshots/seed_ent_config.py \
-	screenshots/seed_fleet.py screenshots/seed_assettags.py screenshots/seed_timesync.py screenshots/seed_hardware.py screenshots/seed_backups.py screenshots/seed_cloud_backup.py screenshots/seed_backups_pro.py screenshots/seed_advisor.py screenshots/seed_discovery.py screenshots/seed_malware.py screenshots/set_roles.py \
+	screenshots/seed_fleet.py screenshots/seed_assettags.py screenshots/seed_timesync.py screenshots/seed_hardware.py screenshots/seed_backups.py screenshots/seed_cloud_backup.py screenshots/seed_backups_pro.py screenshots/seed_advisor.py screenshots/seed_discovery.py screenshots/seed_malware.py screenshots/seed_airgap.py screenshots/set_roles.py \
 	screenshots/pro_keygen.py screenshots/fixture_agent.py screenshots/gen_seed_sql.py \
 	assets/locales/
 

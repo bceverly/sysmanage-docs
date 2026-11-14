@@ -52,10 +52,21 @@ const ONLY = (process.env.SCREENSHOT_ONLY || '').split(',').map(s => s.trim()).f
 // license (encrypted backups, no engine) and before iCloud backup is enabled --
 // so `make screenshots-backups-alt` re-seeds that state, captures them, and
 // seeds the normal state back.
-const ALT = /^(1|true|yes)$/i.test(process.env.SCREENSHOT_ALT || '');
+//
+// A named state works the same way: SCREENSHOT_ALT=proxy captures ONLY the
+// shots marked `"alt": "proxy"` (the backup target on restate-proxy, make
+// screenshots-backups-proxy), so `alt` is either true or a state's name.
+const ALT_RAW = (process.env.SCREENSHOT_ALT || '').trim().toLowerCase();
+const ALT = /^(1|true|yes)$/.test(ALT_RAW) ? true : ALT_RAW || false;
+const altOf = (s) => (s.alt === true ? true : (typeof s.alt === 'string' && s.alt.toLowerCase()) || false);
+// A shot with a `role` (the server's air-gap or federation role it needs)
+// renders real content only after make screenshots-ent-roles flips the role
+// and restarts the server, so it is captured only when SCREENSHOT_ONLY names
+// it.  A click on a button that only that role shows would otherwise FAIL
+// the plain tier pass (and stop the whole make chain).
 const inTier = (s) =>
-  (s.tier || 'oss').toLowerCase() === TIER && Boolean(s.alt) === ALT
-  && (ONLY.length === 0 || ONLY.includes(s.name));
+  (s.tier || 'oss').toLowerCase() === TIER && altOf(s) === ALT
+  && (ONLY.length === 0 ? !s.role : ONLY.includes(s.name));
 
 const shotlist = JSON.parse(readFileSync(join(__dir, 'shotlist.json'), 'utf8'));
 
@@ -530,8 +541,11 @@ async function captureRoute(page, shot, vp) {
 async function interact(page, shot) {
   let steps = '';
   // Type into fields of the dialog just opened, by their label.
+  // `inDialog: true` looks only inside the open dialog, for a label the page
+  // behind it also carries (the air-gap runs grid's "ISO Label" column).
   for (const field of shot.fill || []) {
-    await page.getByLabel(field.label, { exact: false }).first().fill(field.value, { timeout: 15000 });
+    const scope = field.inDialog ? page.getByRole('dialog') : page;
+    await scope.getByLabel(field.label, { exact: false }).first().fill(field.value, { timeout: 15000 });
     steps += ` » ${field.label}="${field.value}"`;
   }
   // Tick checkboxes by their label (an acknowledgment, say).

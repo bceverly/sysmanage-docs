@@ -44,6 +44,18 @@ debian-app-01 still encrypted, no engine -- which shows the break-glass key
 export card at the top of the page.  The normal seed never encrypts, so the
 card stays out of every other Community shot.
 
+THE PROXY STATE (SEED_BACKUPS_PROXY=1, make screenshots-backups-proxy): the
+same target switched to restate-proxy at backup.example.com:8443, its
+certificate issued by the VM's own SysManage CA through the real
+``issue_proxy_certificate`` (so the card's "valid until" date is the one
+the product computed), and the storage check reporting restate-proxy not
+installed -- the warning with the Install restate-proxy button.  The
+storage findings are the ones the agent reports for a proxy target: no
+export checks, the repository made.  SEED_BACKUPS_PROXY=pro also saves one
+bandwidth rule (08-18 2MiB/s) and has the storage host report it can apply
+it, for the Professional+ "Bandwidth through restate-proxy" dialog.  The
+normal seed never touches the transport, so every other shot stays on NFS.
+
 THE RESTORE PREVIEW: "Preview" asks the host's agent for a dry-run plan, and
 the demo hosts have no agent.  So this seeder leaves a small helper running
 in the VM for two hours that answers ubuntu-web-01's dry-run restores
@@ -97,6 +109,12 @@ ABILITIES = ["list", "status", "cache", "verify", "diff", "packages"]
 CLOUD_GROUP = "cloud_backup_enable"
 STORAGE = "freebsd-build-01"
 ALT = os.environ.get("SEED_BACKUPS_ALT", "").strip().lower() in ("1", "true", "yes")
+# "" (NFS, the normal seed), "1" (restate-proxy) or "pro" (and a bandwidth rule).
+PROXY = os.environ.get("SEED_BACKUPS_PROXY", "").strip().lower()
+PROXY = "" if PROXY in ("", "0", "false", "no") else ("pro" if PROXY == "pro" else "1")
+PROXY_HOST = "backup.example.com"
+PROXY_PORT = 8443
+PROXY_BANDWIDTH = ["08-18 2MiB/s"]
 BACKUP_COMMANDS = ("backup_configure", "backup_run", "backup_restore")
 EQUIPPED = ("ubuntu-web-01", "rhel-db-01", "debian-app-01", "freebsd-build-01")
 WRONG_PLATFORM = ("win11-ws-01", "macos-studio-01")
@@ -361,6 +379,51 @@ def _lapsed_encryption(session, hosts):
         policy.previous_repository_dir = _repo_dir(host)
 
 
+def _proxy_cert():
+    """restate-proxy's certificate as the server issues it: the SysManage CA
+    signs a key the storage host made (here, one made for the shot) for the
+    target's proxy address only.  None when the CA cannot sign: the card
+    then says it is waiting for the storage host's request."""
+    # pylint: disable=import-outside-toplevel
+    from cryptography.hazmat.primitives import serialization
+    from cryptography.hazmat.primitives.asymmetric import ec
+
+    from backend.security.certificate_manager import certificate_manager
+
+    try:
+        certificate_manager.get_ca_certificate()  # makes the CA if missing
+        key = ec.generate_private_key(ec.SECP256R1())
+        cert = certificate_manager.issue_proxy_certificate(key.public_key(), PROXY_HOST)
+    except Exception as err:  # pylint: disable=broad-exception-caught
+        print(f"  note: proxy certificate not issued ({err}); the card shows it waiting")
+        return None
+    return cert.public_bytes(serialization.Encoding.PEM).decode()
+
+
+def _proxy_audit():
+    """A storage check of one repository on a proxy target, as the agent
+    reports it: the baseline, the repository made (no export checks), its
+    own filesystem, append-only -- and restate-proxy not installed."""
+    found = [_finding(c) for c in ("nfs_server", "nfs_v4", "nfs_v4_only",
+                                   "nfs_local_locks", "nfs_v4_root")]  # fmt: skip
+    found += [_finding("service_account", account="restate"), _finding("repository_made"),
+              _finding("own_filesystem", type="zfs"), _finding("append_only_layout"),
+              _finding("proxy_running", "error", problem="not_installed")]  # fmt: skip
+    return found
+
+
+def _proxy_state(session, target):
+    """SEED_BACKUPS_PROXY: the target on restate-proxy (see the docstring)."""
+    target.transport = "proxy"
+    target.proxy_host = PROXY_HOST
+    target.proxy_port = PROXY_PORT
+    target.proxy_cert_pem = _proxy_cert()
+    target.proxy_bandwidth = json.dumps(PROXY_BANDWIDTH) if PROXY == "pro" else None
+    for policy in session.query(BackupPolicy).filter(BackupPolicy.target_id == target.id):
+        policy.storage_audit = json.dumps(_proxy_audit())
+        policy.storage_abilities = json.dumps(["proxy_bandwidth"]) if PROXY == "pro" else None
+
+
 # ---------------------------------------------------------------------------
 # the restore-preview answerer (a separate process: the capture takes a while)
 # ---------------------------------------------------------------------------
@@ -507,12 +570,17 @@ def main() -> None:
             _app(session, target, hosts["debian-app-01"], storage)
         if ALT:
             _lapsed_encryption(session, hosts)
+        if PROXY:
+            session.flush()
+            _proxy_state(session, target)
         session.commit()
         pid = _start_answerer()
         print(f"  + backup target on {storage.fqdn}, {session.query(BackupPolicy).count()} "
               f"policies, {session.query(BackupSnapshot).count()} snapshots; "
               f"restore-preview helper running (pid {pid}, two hours)"
-              f"{'; ALTERNATE state: lapsed license, rhel-db-01 + debian-app-01 encrypted' if ALT else ''}")
+              f"{'; ALTERNATE state: lapsed license, rhel-db-01 + debian-app-01 encrypted' if ALT else ''}"
+              f"{f'; PROXY state: restate-proxy at {PROXY_HOST}:{PROXY_PORT}' if PROXY else ''}"
+              f"{', one bandwidth rule' if PROXY == 'pro' else ''}")
     finally:
         session.close()
 

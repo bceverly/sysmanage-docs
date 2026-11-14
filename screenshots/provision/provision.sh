@@ -228,6 +228,18 @@ YAML
 
 echo "=== [5/7] install + migrate the server ==="
 cd "$SERVER"
+# The server needs Python 3.11+, and this box (Ubuntu 22.04) ships 3.10.  Build
+# the venv from the interpreter the real server package uses: the system python3
+# when it is new enough, else the pinned python-build-standalone build the
+# server's own helper installs under /opt/sysmanage/python.  setup-venv then
+# sees the venv exists and only leaves it alone.
+SERVER_PY="$(sh installer/python/install-python-linux.sh)" || {
+    echo "No Python 3.11+ for the server (installer/python/install-python-linux.sh failed)"; exit 1; }
+if [ ! -x .venv/bin/python ] || ! .venv/bin/python -c 'import sys; sys.exit(sys.version_info < (3, 11))'; then
+    rm -rf .venv
+    "$SERVER_PY" -m venv .venv
+    .venv/bin/python -m pip install --upgrade pip
+fi
 make setup-venv
 # setup-venv only creates the venv + pip; the project's Python dependencies
 # (alembic, fastapi, sqlalchemy, ...) must be installed before migrating/serving.

@@ -25,7 +25,7 @@
                     <ul>
                         <li data-i18n="docs.dr2.needs_agent" data-i18n-html><strong>The server's own agent</strong>, approved. SysManage finds the server's host by name; if it cannot tell which host is the server, it asks you to pick it.</li>
                         <li data-i18n="docs.dr2.needs_restate" data-i18n-html><strong>restate on the server's host</strong>, installed with <strong>Equip for backup</strong> like any backed-up host. restate 3.0.0.0 or later copies the databases without stopping them (see below).</li>
-                        <li data-i18n="docs.dr2.needs_target" data-i18n-html><strong>A backup target the server can reach.</strong> Today the server mounts the storage host's repository over NFS, so the storage host must be on a network the server can reach. A server in a cloud cannot mount a storage host at home or in an office yet; until it can, back it up by hand as described further down.</li>
+                        <li data-i18n="docs.dr2.needs_target" data-i18n-html><strong>A backup target the server can reach.</strong> Over NFS, the server mounts the storage host's repository, so the storage host must be on a network where the server can mount it. A server in a cloud backs up to a storage host at home or in an office through <a href="backup-proxy.html">restate-proxy</a>, over HTTPS through your firewall, like any remote host. On an air-gapped site, the server backs up to a storage host on the air-gapped network.</li>
                         <li data-i18n="docs.dr2.needs_escrow" data-i18n-html><strong>Professional+, for encryption:</strong> a break-glass escrow key, saved in a host's <strong>Encryption</strong> panel. The server's backup is encrypted to it.</li>
                     </ul>
 
@@ -83,7 +83,7 @@
                 </section>
 
                 <section class="docs-section">
-                    <h2 data-i18n="docs.dr2.h_recover">Recovering the server from its own backup</h2>
+                    <h2 id="recover" data-i18n="docs.dr2.h_recover">Recovering the server from its own backup</h2>
                     <p data-i18n="docs.dr2.recover_intro" data-i18n-html>Follow these steps with SysManage down and only restate and the backup. Nothing here needs SysManage to be running. The commands use the Ubuntu and Debian paths; <a href="#where">the table below</a> gives the other platforms'. In tests, a server rebuilt this way on a new machine was serving again about four minutes after the old one stopped, and its agents came back on their own with the same host identities.</p>
 
                     <h3 data-i18n="docs.dr2.h_recover_need">What you need before you start</h3>
@@ -98,6 +98,7 @@
                     <p data-i18n="docs.dr2.step1_p" data-i18n-html>Install the SysManage version the backup was taken with (<code>restate packages REPO</code> lists what the old server had installed). Then stop it before anything starts writing:</p>
                     <pre><code>sudo systemctl stop sysmanage nginx openbao postgresql
 sudo systemctl disable --now sysmanage-openbao-init</code></pre>
+                    <p data-i18n="docs.dr2.step1_airgap" data-i18n-html><strong>On an air-gapped site</strong> there is no package repository to install from. Install the server from the server media: run <code>sudo /mnt/install.sh</code> from the SysManage server bundle ISO, which carries the package, PostgreSQL, nginx and OpenBAO. Install restate, with the NFS client, from the agent media: <code>sudo /mnt/install.sh</code> from the agent bundle ISO. That also installs the agent, which the restore then gives back its identity. Then stop the services as above. The media may carry a newer SysManage than the backup was taken with; that is fine, because step 6's <code>sudo sysmanage-migrate</code> covers it.</p>
 
                     <h3 data-i18n="docs.dr2.h_step2">2. Reach the repository</h3>
                     <p data-i18n="docs.dr2.step2_p1" data-i18n-html>SysManage exports each repository only to its own host's address, so the new machine cannot mount it as it is. On the storage host, export it read-only to the new machine's address for the recovery, then mount it on the new machine:</p>
@@ -115,6 +116,7 @@ sudo restate snapshots --no-lock /mnt/restore</code></pre>
                     <p data-i18n="docs.dr2.step3_p1" data-i18n-html>The plan reads only the index, takes seconds and writes nothing. The restore then checks every file against the index before it writes anything, and refuses the whole image if any file is damaged:</p>
                     <pre><code>sudo restate restore --plan --no-lock KEY REPO::SNAPSHOT
 sudo restate restore --check-first --root / --no-lock KEY REPO::SNAPSHOT</code></pre>
+                    <p data-i18n="docs.dr2.step3_timing">In a test, the restore put back 28,530 files (14 GB) in about 3 minutes.</p>
                     <p data-i18n="docs.dr2.step3_p2" data-i18n-html>This brings back the certificate authority and the server identity, <code>/etc/sysmanage.yaml</code>, the TLS certificates, <code>/var/lib/sysmanage</code>, OpenBAO's data, the PostgreSQL dump (<code>pg_dumpall.sql</code> under <code>/var/lib/restate/dumps/postgresql-*/</code>) and the host's own identity files. A backup taken with an older restate also holds the cluster's own files, copied while PostgreSQL was stopped.</p>
                     <div class="warning-box">
                         <h3 data-i18n="docs.dr2.hostname_title">Set the old host name now, before anything starts</h3>
@@ -143,6 +145,7 @@ sudo sysmanage-migrate --status</code></pre>
 
                     <h3 data-i18n="docs.dr2.h_step7">7. Start SysManage and check it</h3>
                     <pre><code>sudo systemctl start sysmanage nginx</code></pre>
+                    <p data-i18n="docs.dr2.step7_airgap" data-i18n-html><strong>On an air-gapped site with Professional+</strong>, the engines cannot be downloaded again: the backup leaves them out (<code>/var/lib/sysmanage/modules</code>), and the server has no route to fetch them. Before starting SysManage, or right after, install the Pro+ overlay media: <code>sudo /mnt/install.sh</code> from the Pro+ bundle ISO built on the connected side (<strong>Build Pro+ Bundle</strong>, or <code>buildAirGapBundle.sh proplus</code>). Without it the backup engine is missing, so the server's own backup cannot be encrypted and the Backups page shows no encryption. With it, every engine loads and the license reads valid offline.</p>
                     <p data-i18n="docs.dr2.step7_p1" data-i18n-html>With a Professional+ license the first start takes about a minute, while the license is checked and the engines are downloaded again. Then check:</p>
                     <ul>
                         <li data-i18n="docs.dr2.step7_agents">The agents reconnect on their own within a few minutes, without enrolling again: the Hosts list shows them active and nothing waits for approval.</li>
@@ -153,6 +156,7 @@ sudo sysmanage-migrate --status</code></pre>
 
                     <h3 data-i18n="docs.dr2.h_newaddr">Moving to a machine with a new address</h3>
                     <p data-i18n="docs.dr2.newaddr_p" data-i18n-html>Keep the host name and point its DNS record at the new address before step 7. A Let's Encrypt certificate restored in step 3 keeps its key, so the agents' pins still match, and one issued again later is accepted through the server's signed identity statement (see <a href="../security/mtls.html">Agent Certificates and TLS</a>). If the name itself must change, every agent's <code>server</code> setting must change too: do that before the old server is gone.</p>
+                    <p data-i18n="docs.dr2.newaddr_hosts" data-i18n-html>On a site without DNS, the hosts files stand in for it: before step 7, point the name at the new address in <code>/etc/hosts</code> on every agent host and on the storage host. In a test on an air-gapped network, the agents then reconnected on their own with their old identities and nothing waited for approval; within one scheduler pass the storage host exported the repository to the new address, and <strong>Back up now</strong> succeeded.</p>
 
                     <h3 data-i18n="docs.dr2.h_onepiece">When only one piece is lost</h3>
                     <p data-i18n="docs.dr2.onepiece_openbao" data-i18n-html><strong>OpenBAO alone.</strong> PostgreSQL and SysManage keep running. Stop OpenBAO (<code>sudo systemctl stop openbao</code>), restore only its directory, put <code>init.json</code> back from escrow as in step 4, then start it and unseal it (<code>sudo systemctl start openbao &amp;&amp; sudo systemctl restart sysmanage-openbao-init</code>). In tests this took two seconds.</p>

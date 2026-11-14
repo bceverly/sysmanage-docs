@@ -978,11 +978,12 @@
     },
     "meta_description": "SysManage 管理沒有網際網路連線的隔離基礎設施：單租戶設備、本地密碼儲存、離線授權檢查以及透過物理媒體傳遞的內容，適用於國防、公用事業、醫療保健和關鍵基礎設施。",
     "repos": {
-      "body": "在安全域內，SysManage 作為本地存儲庫提供你攜帶進來的內容：Linux 和 pkg 存儲庫（dnf、yum 和 zypper）分別用於 Linux 和 FreeBSD，並將主機指向這些存儲庫。Windows、macOS、OpenBSD 和 NetBSD 主機會保留他們的清單、腳本和離線安全漏洞資料在同一個控制台上；他們仍能透過現有方式接收更新內容。",
+      "body": "在隔離區內，SysManage 會將您帶入的內容作為本地儲存庫提供：Linux 的 apt、RPM（dnf、yum 和 zypper）與 Alpine apk 儲存庫，以及 FreeBSD 的 pkg 儲存庫，並將主機重新指向這些儲存庫。Windows、macOS、OpenBSD 和 NetBSD 主機在同一個主控台上保有其清單、指令碼和離線弱點資料；它們的更新內容仍透過您現有的方式送達。",
       "li1": "一個離線管道，用於 Linux 和 FreeBSD 包內容。",
       "li2": "同一斷開連接控制台中的所有主機",
       "li3": "清單、從本地存儲庫補丁更新、合規性檢查和漏洞數據 -- 離線",
-      "title": "內置的封閉存儲庫"
+      "title": "內置的封閉存儲庫",
+      "li4": "留在內部的備份：主機從站點自己已簽署的儲存庫安裝備份工具，並備份到隔離網路上的儲存空間"
     },
     "title": "隔離網絡基礎設施管理 - SysManage",
     "who": {
@@ -1906,7 +1907,8 @@
           "step_validate": "<strong>驗證</strong> -- 每個選中的鏡像必須存在、啟用，並具有一個<code>known_version_id</code>，且與其他選項共享同一個<code>host_id</code>（在第一版中，集合計劃會派遣到一台代理機器上，因此不支援跨主機目標）。版本字符串受緊密的正則表達式約束，以防止將 shell 元字符走私到派遣模板中；<code>iso_label</code>也受到同樣的約束。",
           "summary": "由操作員（UI、API 或 cron）在公開端伺服器上觸發。套件包是由已設定的 mirror_repository 樹的快照建立，而不是每次執行都再進行一次上游擷取 -- 從上游下載一次（透過 repository_mirroring 引擎的一般同步）即可同時用於 LAN 鏡像和實體隔離套件包。引擎會產生一份在收集器本身上本機執行的部署計畫；它不會分派給受管理的代理。",
           "title": "採集週期（採集器端）",
-          "splay": "排程收集會在其 cron 時間之後最多 30 分鐘、在每個排程固定的時間點執行，如此共用預設排程的儲存庫不會在同一時刻全部從上游鏡像拉取。排程的下次執行會顯示實際時間。"
+          "splay": "排程收集會在其 cron 時間之後最多 30 分鐘、在每個排程固定的時間點執行，如此共用預設排程的儲存庫不會在同一時刻全部從上游鏡像拉取。排程的下次執行會顯示實際時間。",
+          "multidisc_when": "只有在執行設有燒錄裝置時，才會分割成多張光碟：若燒錄裝置留空，它會建置一個任意大小的 ISO，因為檔案沒有需要容納的光碟。一組光碟中的每一張都帶有已簽署的資訊清單，其中載明它是總共幾張中的第幾張，而其磁碟區標籤是執行的 ISO 標籤後接 <code>-d&lt;N&gt;</code>。SysManage 工具位於第 1 張光碟。"
         },
         "compliance": {
           "current": "目前 -- 主機上安裝的版本與鏡像中的最新版本匹配，且自上次轉移以來沒有公開側的CVE出現。",
@@ -1918,8 +1920,8 @@
         },
         "config": {
           "degraded_chip": "如果角色設定為收集器或存儲庫，但對應的 Pro+ 引擎未載入（通常是授權問題），則顯示紅色標記並提供缺失的說明。伺服器會保持運行以免影響其他 UI 功能，讓您可以修正授權問題而不失去存取權限",
-          "opt_collector": "<strong>空氣隔斷收集器（線上端）</strong> -- 連接網際網路的一半，會鏡像上游存儲庫並構建簽名ISO媒體。",
-          "opt_repository": "<strong>離線存儲庫（斷開側）</strong> -- 該隔離的一半負責接收媒體並向私網中的主機提供套件",
+          "opt_collector": "<strong>隔離收集器（連線端）</strong> -- 連接網際網路的一半，會鏡像上游存儲庫並構建簽名ISO媒體。",
+          "opt_repository": "<strong>隔離儲存庫（離線端）</strong> -- 該隔離的一半負責接收媒體並向私網中的主機提供套件",
           "opt_standard": "<strong>標準（無空氣隔）</strong> -- 預設值；透過網路直接管理主機。將所有一般伺服器放在這裡。",
           "persistence": "此選擇儲存在伺服器的資料庫中（<code>server_configuration</code> 單一資料列），而不是在 <code>sysmanage.yaml</code> 中。較早的版本在 YAML 中使用最上層的 <code>role:</code> 鍵；該鍵現在會被忽略，因此您可以將其移除。變更角色後，請重新啟動 SysManage 伺服器，使其完全生效。",
           "summary": "從網路介面設定角色 - 不需要修改配置檔案。前往 <strong>設定 → 伺服器角色</strong>，並選擇其中三個選項中的一個，每個選項都附有說明，說明其含義和使用方式：",
@@ -1931,19 +1933,19 @@
           "title": "空氣隔斷部署"
         },
         "ingestion_cycle": {
-          "step_copy": "複製 -- 驗證通過後，rsync -a --delete-after 將有效負載從掛載點複製到本地存儲庫根目錄 /var/lib/sysmanage/airgap-repo。",
-          "step_metadata": "生成原生存儲庫元數據 -- 根據發行版家族：apt-ftparchive packages | gzip > Packages.gz 用於 APT，createrepo_c --update 用於 DNF / zypper，pkg repo 用於 FreeBSD，apk index 用於 Alpine。",
+          "step_copy": "<strong>複製</strong> -- 驗證通過後，<code>rsync</code> 會將有效負載從掛載點複製到本地儲存庫根目錄：Linux 上為 <code>/var/lib/sysmanage/airgap-repo</code>，FreeBSD 和 OpenBSD 上為 <code>/var/db/sysmanage/airgap-repo</code>。屬於多光碟組的光碟不會變動它未攜帶的發行版樹狀目錄，因此一組中的光碟可以依序逐一匯入。",
+          "step_metadata": "<strong>建置工具儲存庫</strong> -- 鏡像按原樣提供，並附帶它們自己已簽署的索引。伺服器會根據光碟上的 SysManage 工具，為每個發行版及其版本建置一個獨立的儲存庫，並以站點自己的金鑰簽署。",
           "step_mount": "掛載 -- 引擎發出部署計劃，將ISO以只讀方式掛載到/mnt/sysmanage-airgap-ingest。",
-          "step_repoint": "重新指派代理程式 -- 引擎會為每個受管主機生成一個計劃，重寫每個代理程式的套件管理器配置：對於 Debian / Ubuntu 是 /etc/apt/sources.list.d/sysmanage-airgap.list，對於 RHEL 家族 / openSUSE 是 /etc/yum.repos.d/sysmanage-airgap.repo，對於 FreeBSD 是 /usr/local/etc/pkg/repos/sysmanage-airgap.conf。現有的代理程式在下次套件操作時會採用更改。",
+          "step_repoint": "<strong>重新指向主機</strong> -- SysManage 會將每台主機的套件管理器指向該主機自身發行版與版本的鏡像，在旁邊加入工具儲存庫，並關閉上游來源，同時保持簽章檢查開啟：Debian 和 Ubuntu 上為 <code>/etc/apt/sources.list.d/sysmanage-airgap.list</code>，RHEL 系列上為 <code>/etc/yum.repos.d/sysmanage-airgap.repo</code>，openSUSE 上為 <code>/etc/zypp/repos.d/sysmanage-airgap.repo</code>，Alpine 上為 <code>/etc/apk/repositories</code>，FreeBSD 上則為 <code>/usr/local/etc/pkg/repos/sysmanage-airgap.conf</code>。沒有對應其自身版本之鏡像的主機會維持原狀。每台主機會在下一次傳送報告時取得新的匯入內容，而主機會在連線時以及依其排程傳送報告。",
           "step_unmount": "卸載 -- ISO 卸載；操作員可以彈出光盤。",
-          "step_verify_hashes": "驗證文件哈希 -- 清單中的每一個文件都會通過 SHA-256 加密並與清單中預期的哈希進行比較。第一次不匹配會終止整個導入過程；部分副本將被撤銷。",
-          "step_verify_sig": "驗證簽名 -- 清單封裝被解碼；引擎拒絕接受格式版本比其軟件版本新的清單（前向兼容保護）。簽名根據存儲庫的 sysmanage.yaml 中配置的公鑰進行驗證。嚴格模式（默認）拒絕由收集器在沒有安裝加密學時生成的 HMAC-SHA-256 封裝。",
+          "step_verify_hashes": "<strong>簽章涵蓋的範圍</strong> -- 已簽署的資訊清單證明光碟來自您信任的收集器。鏡像的套件在匯入時不會再次計算雜湊：每台主機的套件管理器會依據鏡像自己已簽署的索引檢查它們，而這些索引會原封不動地帶過來。光碟上的 SysManage 工具則會依據已簽署資訊清單中的 SHA-256 雜湊逐檔檢查（請參閱<a href=\"#tools\">SysManage 工具儲存庫</a>）。",
+          "step_verify_sig": "<strong>驗證簽章</strong> -- 先解碼資訊清單封裝；若資訊清單的 <code>format_version</code> 比引擎自己的軟體版本新，引擎會拒絕匯入（向前相容的失效安全機制）。簽章會依據儲存庫之可信收集器金鑰環中的金鑰進行驗證，該金鑰環由「設定 → 伺服器角色」下的<em>受信任的收集器金鑰</em>卡片管理。嚴格模式（預設）會拒絕 HMAC-SHA-256 後備封裝，收集器只有在未安裝 cryptography 時才會產生這種封裝。",
           "summary": "運營員將光學介質插入離線伺服器中，然後通過UI或API觸發數據抓取。存儲庫引擎拒絕在簽名和文件哈希驗證之前提供任何字節。",
           "title": "匯入週期（儲存庫端）"
         },
         "install_channels": {
-          "apt": "Ubuntu / Debian -- Launchpad PPA (ppa:bceverly/sysmanage-agent)。Repository 的 build_agent_repoint_plan 重寫 /etc/apt/sources.list.d/ 指向本地鏡像，然後在安裝運行之前進行。",
-          "bsd": "FreeBSD / OpenBSD / NetBSD -- 目前是直接下載。代理引擎可以重寫 pkg.conf 指向本地鏡像，因此代理通過不同的路徑啟動而不需要互聯網連接。正式的上游端口提交將在後續跟進。",
+          "apt": "<strong>Ubuntu / Debian</strong> -- Launchpad PPA（<code>ppa:bceverly/sysmanage-agent</code>）。在實體隔離的一側，代理程式套件改由<a href=\"#tools\">工具儲存庫</a>提供，重新指向會將該儲存庫加入在本地鏡像旁。",
+          "bsd": "<strong>FreeBSD / OpenBSD / NetBSD</strong> -- 直接下載。在實體隔離的一側，FreeBSD 的代理程式套件位於<a href=\"#tools\">工具儲存庫</a>中，重新指向會將該儲存庫加入在本地 <code>pkg</code> 鏡像旁。OpenBSD 和 NetBSD 沒有鏡像或工具儲存庫，因此其代理程式需手動安裝。",
           "dnf": "Fedora / RHEL / Rocky / Alma / Oracle Linux / CentOS Stream -- Fedora Copr (bceverly\\/sysmanage-agent). 可通過 /etc/yum.repos.d/sysmanage-airgap.repo 替換。",
           "summary": "對於在實體隔離網路上建立的新子主機，sysmanage-agent 本身需要從可替代的通道安裝 -- 直接從 GitHub Release 下載的方式無法以私有鏡像替代。各發行版的 <code>agent_install_commands</code> 改為使用已發布的上游通道：",
           "title": "按發行版的安裝通道",
@@ -1961,14 +1963,35 @@
             "title": "多小時收集週期在運行中被終止"
           },
           "role_chip_red": {
-            "body": "該 {{c1}} 在 {{c2}} 設定為 {{c3}} 或 {{c4}}, 但相應的 Pro+ 引擎未載入。最常見的原因：企業授權無效（過期、缺失或不包含空氣隔絕引擎）。請檢查設定中的授權頁面；如果授權正常，請查看 {{c5}} 查找模組載入錯誤。",
+            "body": "伺服器角色設為 <code>collector</code> 或 <code>repository</code>，但對應的 Pro+ 引擎未載入。最常見的原因：Enterprise 授權無效（已過期、遺失，或不包含實體隔離引擎）。請檢查「設定」中的授權頁面；如果授權沒有問題，請檢查 <code>/var/log/sysmanage/server.log</code> 中的模組載入器錯誤。",
             "title": "角色芯片在標題欄中為紅色"
           },
           "signature": {
-            "body": "儲存庫配置的公開金鑰與簽署此光碟的私鑰不匹配。這意味著光碟在傳輸過程中可能被篡改，或者操作員在收集器上重新生成了密鑰對但未將新的公開金鑰分發到儲存庫中。從收集器重新導出公開金鑰並替換儲存庫 {{c1}} 中的值。",
+            "body": "儲存庫的可信收集器金鑰環中，沒有任何金鑰與簽署此光碟的私密金鑰相符。原因可能是光碟在傳輸途中遭到竄改，或是操作員在收集器上重新產生了金鑰組，卻沒有將新的公開金鑰分發到儲存庫。請從收集器複製公開金鑰，並在儲存庫的<em>受信任的收集器金鑰</em>卡片中匯入。",
             "title": "導入失敗：\"signature 不匹配 manifest payload\""
           },
           "title": "疑難排解"
+        },
+        "tools": {
+          "title": "SysManage 工具儲存庫",
+          "summary": "鏡像攜帶的是作業系統自己的套件。SysManage 代理程式、restate 和 restate-proxy 來自其他地方，因此每次收集執行也會將它們一併帶過來，而儲存庫伺服器會將它們作為一個獨立的儲存庫提供。",
+          "collect": "<strong>每次執行都會收集。</strong>對於執行中的每個發行版及其版本，收集器會依發佈者所列，指明確切的 <code>sysmanage-agent</code>、<code>restate</code> 和 <code>restate-proxy</code> 套件及其 SHA-256，並將它們擷取到鏡像旁，逐一依雜湊檢查。它們的名稱和雜湊會寫入光碟已簽署的資訊清單中。無法擷取的套件絕不會使執行失敗。",
+          "systems": "<strong>涵蓋的系統：</strong>Ubuntu、Debian 12 和 13、Fedora、RHEL 及其重建版本、openSUSE、Alpine 和 FreeBSD。OpenBSD、NetBSD、macOS 和 Windows 沒有工具儲存庫。",
+          "build": "<strong>在內部建置。</strong>每次匯入後，儲存庫伺服器會依據已簽署的資訊清單檢查每個工具檔案，只保留相符的檔案，並在 <code>/airgap-tools/</code> 下為每個發行版及其版本建置儲存庫：帶有已簽署 <code>InRelease</code> 的 apt 儲存庫、帶有已簽署 <code>repomd.xml</code> 的 RPM 儲存庫、Alpine 索引，以及 FreeBSD <code>pkg</code> 目錄。鏡像則完全維持原樣。",
+          "keys": "<strong>以站點自己的金鑰簽署。</strong>儲存庫伺服器會在第一次需要時產生這些金鑰，且金鑰絕不會離開該伺服器：一把用於 apt 和 RPM 的 OpenPGP 金鑰（RSA 3072），以及一把用於 Alpine 和 FreeBSD 的 RSA 4096 金鑰。它們的公開部分會以 <code>sysmanage-tools.asc</code> 和 <code>sysmanage-tools.rsa.pub</code> 發佈在儲存庫旁。",
+          "trust": "<strong>受主機信任。</strong>重新指向會在每台主機上安裝站點的金鑰，並在鏡像旁加入工具儲存庫，同時開啟簽章檢查：apt 透過 <code>signed-by</code>，dnf 和 zypper 透過 <code>repo_gpgcheck=1</code>，Alpine 將金鑰放在 <code>/etc/apk/keys</code> 中，FreeBSD 則透過 <code>signature_type: \"pubkey\"</code>。沒有該金鑰時，主機會拒絕工具儲存庫。",
+          "serve": "<strong>透過純 HTTP 提供。</strong>nginx 在連接埠 80 上提供 <code>/airgap-repo/</code> 和 <code>/airgap-tools/</code>，主機的套件管理器從那裡擷取它們，而該連接埠上的其他所有請求都會重新導向至 HTTPS。兩個樹狀目錄都經過簽署，而且每台主機都會檢查簽章。",
+          "packages": "為了建置並簽署這些儲存庫，儲存庫伺服器需要 <code>gnupg</code>、<code>apt-utils</code>、<code>createrepo-c</code> 和 <code>zstd</code>；伺服器的 Ubuntu 套件會建議安裝它們。"
+        },
+        "backups": {
+          "title": "實體隔離站點上的備份",
+          "summary": "備份絕不會跨越隔離。實體隔離網路上的主機以及儲存庫伺服器本身，都會備份到該網路上的儲存主機。位於連網一側的收集器，則備份到它自己另一台獨立的儲存主機。每一側都依照<a href=\"fleet-backups.html\">主機群備份</a>中的說明設定。",
+          "equip": "<strong>從站點自己的儲存庫準備。</strong>在角色為<em>隔離儲存庫</em>的伺服器上，<strong>為備份做準備</strong>會指示每台主機的代理程式從該主機已在使用的儲存庫安裝，而重新指向已讓這些儲存庫指向鏡像和工具儲存庫。代理程式使用系統自己的套件工具依名稱安裝 restate 和 NFS 用戶端，絕不會新增 PPA 或 COPR、從 GitHub 下載，或使用 Homebrew。伺服器仍然不會傳送任何套件名稱或命令。",
+          "proxy": "<strong>restate-proxy 也一樣。</strong>在使用 <a href=\"backup-proxy.html\">restate-proxy</a> 之目標的儲存主機上，同一個「準備備份」也會使用 apt、dnf 或 FreeBSD 的 <code>pkg</code> 安裝 <code>restate-proxy</code>。請為此類目標選擇 Ubuntu、Debian、Fedora、RHEL 系列或 FreeBSD 儲存主機。",
+          "order": "<strong>先重新指向。</strong>「準備備份」會從主機現有的儲存庫安裝，因此只有在主機已重新指向其版本對應的鏡像和工具儲存庫之後，才找得到 restate；這會在匯入之後、主機下一次傳送報告時發生。",
+          "nopackage": "<strong>沒有套件時。</strong>工具儲存庫未涵蓋的系統（例如 macOS）會回應<strong>此隔離站點自己的儲存庫中沒有適用於此系統的 restate 套件</strong>。請手動在該系統上安裝 restate。",
+          "icloud": "<strong>不提供 iCloud 照片備份。</strong>它需要網際網路，因此實體隔離的伺服器不提供此功能。",
+          "recover": "<strong>從媒體復原伺服器。</strong>伺服器復原操作手冊同樣適用於實體隔離站點，此時以伺服器、代理與 Pro+ 組件包媒體取代套件儲存庫。請參閱<a href=\"backup.html#recover\">從伺服器自己的備份復原伺服器</a>。"
         }
       },
       "airgap_runbook": {
@@ -1995,7 +2018,7 @@
           "title": "氣隙操作運行手冊"
         },
         "keyprov": {
-          "embed": "公鑰隨著安裝包一起傳遞。當Pro+離線包在收集器上構建（scripts/buildAirGapBundle.sh server）時，它會將收集器的.pub嵌入到包中。存儲庫的覆蓋安裝程序自動將其放入/var/lib/sysmanage/airgap/trusted-collectors/ -- 因此從該包配置的存儲庫信任收集器而無需單獨密鑰交換。只有公鑰傳遞；簽名私鑰永遠不會離開收集器。",
+          "embed": "<strong>公開金鑰隨安裝套件包一起傳送。</strong>在收集器上建置 Pro+ 實體隔離套件包時（「設定 → 空氣隔離套件」下的<strong>建立 Pro+ 套件</strong>，或 <code>scripts/buildAirGapBundle.sh proplus</code>），會將收集器的 <code>.pub</code> 嵌入套件包中。儲存庫的覆蓋安裝程式會自動將它放入 <code>/var/lib/sysmanage/airgap/trusted-collectors/</code> -- 因此從該套件包佈建的儲存庫無需另外交換金鑰即可信任收集器。只有公開金鑰會傳送；私密簽署金鑰絕不會離開收集器。",
           "ingest": "導入是自動驅動的，不是手動操作。向存儲庫的導入端點發送 POST ISO 路徑會插入 QUEUED AirgapIngestionRun；背景協調器然後以只讀方式循環掛載 ISO，驗證嵌入的 /manifest.json 簽名是否與密鑰環匹配，將已驗證的有效負荷 rsync 到 /var/lib/sysmanage/airgap-repo，並為每個發行版註冊一個本地存儲庫。監控卡頓運行的狀態：VERIFYING_SIG 表示簽名步驟正在執行或失敗（檢查密鑰環），COPYING 表示驗證通過且 rsync 正在傳輸。",
           "keygen": "選擇角色時生成密鑰。在「設定 → 伺服器角色」中將伺服器角色設定為收集器時，會在標準路徑下生成 ed25519 密鑰對。角色存儲在數據庫中（不是 sysmanage.yaml），因此新服務器啟動時是標準模式，選擇收集器角色的那一刻密鑰就會被創建。",
           "strict": "預設採用嚴格驗證。除非在 sysmanage.yaml 中將 airgap.verify_strict 設定為 false，否則存儲庫會拒絕未簽名和 HMAC 回退的清單。在生產環境中請保持嚴格；僅在收集器上未安裝 cryptography 的開發循環中才放寬它。",
@@ -2017,10 +2040,11 @@
           "security": "數據庫安全參考",
           "settings": "設定參考",
           "title": "相關文件",
-          "workflow": "隔離端到端工作流程"
+          "workflow": "隔離端到端工作流程",
+          "recover": "<a href=\"backup.html#recover\">從伺服器自己的備份復原伺服器</a> -- 利用備份與實體隔離媒體重建 SysManage 伺服器"
         },
         "signature_failure": {
-          "step_check_disc": "如果密鑰匹配，檢查光盤。篡改通常也會破壞每個文件的 SHA-256 驗證，因此只有簽名失敗而哈希通過的情況可疑。檢查光盤表面是否有物理損傷；以只讀方式掛載 ISO 並手動驗證文件校驗和與清單對比。",
+          "step_check_disc": "<strong>如果金鑰相符，請檢查光碟。</strong>檢查光碟表面是否有實體損傷；以唯讀方式掛載 ISO，並手動依據資訊清單驗證檔案總和檢查碼。儲存庫在匯入時只會逐檔檢查 SysManage 工具；鏡像的套件則由每台主機的套件管理器依據鏡像自己已簽署的索引檢查，因此手動檢查才是找出光碟上哪些內容遭到變更的方法。",
           "step_check_keys": "驗證收集器的公鑰是否已存在於存儲庫密鑰環中。最常見（無害）的原因是密鑰輪換未完全傳播。從收集器 (/var/lib/sysmanage/airgap/collector-ed25519.pub) 重新導出公鑰，與存儲庫的 /var/lib/sysmanage/airgap/trusted-collectors/ 密鑰環中的 .pub 文件進行比較，如果缺少則添加缺失的密鑰，然後重試導入。",
           "step_escalate": "如果無法以密鑰漂移或物理損傷解釋光碟的問題，請向上呈報。隔離該光碟，向安全團隊通報事件，並作為預防措施更換收集器的密鑰對。如果原始收集器本身可疑，下一輪收集應在重新安裝映像的收集器上進行。",
           "step_isolate": "不要重試導入。重複的簽名驗證失敗不會使數據更加可信。將光碟另外放入標記為 \"待調查\" 的信封中。",
@@ -2040,11 +2064,14 @@
       "airgap_workflow": {
         "breadcrumb": "隔離端到端工作流程",
         "collect": {
-          "download": "當運行達到<code>ISO_BUILT</code>/<code>COMPLETE</code>時，使用下載圖標。下載通過短暫的令牌直接流到磁盤上，因此多GB的ISO文件可以無緩存地下載。",
+          "download": "當執行到達 <code>ISO_BUILT</code>/<code>COMPLETE</code> 時，請使用下載圖示。下載會透過短期令牌直接串流至磁碟，因此數 GB 的 ISO 下載時不會在瀏覽器中緩衝。對於產生了多張光碟的執行，下載時會詢問要擷取哪一張光碟；請為每張光碟標上它在該組中的編號。",
           "media": "留空白以建立任何大小的可下載 ISO（用於附加到虛擬機或自行寫入 USB）；設置設備以添加刻錄階段。大小欄位反映實際構建的 ISO 大小。",
           "run": "開始一個新的收集運行，使用ISO標籤和要包含的發行版/倉庫。運行會走過<code>QUEUED → MIRRORING → STAGING_COMPLETE → BUILDING_ISO → ISO_BUILT → COMPLETE</code>;頁面會輪詢並顯示實時狀態。",
-          "summary": "在收集器上，<strong>離線收集</strong>頁面驅動一次收集運行，鏡像所選的倉庫，建立簽名 ISO，並且（可選）將其刻錄到光碟中。",
-          "title": "步驟 3 -- 收集並刻錄到收集器上"
+          "summary": "在收集器上，<strong>隔離收集</strong>頁面驅動一次收集運行，鏡像所選的倉庫，建立簽名 ISO，並且（可選）將其刻錄到光碟中。",
+          "title": "步驟 3 -- 收集並刻錄到收集器上",
+          "multidisc": "設有燒錄裝置時，大於<strong>媒體大小（MB）</strong>（預設為 4700，即單層 DVD）的執行會被分割成一組光碟，每張光碟都容納完整的鏡像。大於一張光碟的鏡像會被拒絕，因此請為其挑選較大的媒體。每次執行也都會攜帶 SysManage 工具（適用於該執行之系統的代理程式、restate 和 restate-proxy），位於一組光碟中的第 1 張光碟。",
+          "fig_disc_picker": "一張光碟放不下的執行：下載時會詢問要取得三張光碟中的哪一張，並顯示每張光碟的大小。",
+          "fig_new_run": "<strong>新增收集執行</strong>對話方塊：ISO 標籤、<strong>媒體大小（MB）</strong>、CVE 與合規快照、要收集的鏡像以及燒錄裝置。"
         },
         "header": {
           "description": "使用SysManage將包移動到空隙之間的完整操作員工作流程，從選擇伺服器角色到空隙主機從本地鏡像安裝更新。<a href=\"airgap-deployment.html\">部署指南</a>涵蓋了架構，而<a href=\"airgap-runbook.html\">運行手冊</a>涵蓋了日常操作；此頁面是將它們連接起來的線性“先做這件事，然後再做那件事”的路徑，並指向確切的UI控件。",
@@ -2052,13 +2079,14 @@
         },
         "meta_description": "SysManage 空氣隔絕步驟：設定角色，複製收集器公開金鑰，建立簽名後的收集 ISO，在存儲庫上信任金鑰，從光碟或 USB 驅動器導入媒體，提供鏡像服務，並自動重新指向代理。",
         "overview": {
-          "step1": "<strong>設置角色：</strong> 將一個伺服器設為 <em>Air-Gap Collector</em>，另一個設為 <em>Air-Gap Repository</em> （設定 → 伺服器角色）。",
+          "step1": "<strong>設置角色：</strong> 將一個伺服器設為 <em>隔離收集器</em>，另一個設為 <em>隔離儲存庫</em> （設定 → 伺服器角色）。",
           "step2": "<strong>建立信任：</strong> 複製收集器的公鑰並在存儲庫上導入它。",
           "step3": "<strong>收集與燒錄</strong> -- 在收集器上執行一次收集以產生已簽署的 ISO；將其寫入光碟/USB 媒體。",
           "step4": "<strong>導入：</strong> 將媒體帶到存儲庫，選擇磁盤，然後導入。",
           "step5": "<strong>提供與重新指向</strong> -- 儲存庫提供映像，代理程式會自動重新指向。",
           "summary": "隔離部署是一對 SysManage 伺服器。 <strong>收集器</strong> 坐落在連接互聯網的一側，鏡像上游包，並生成一個加密簽名的 ISO。 您將這個 ISO 物理帶到另一端。 <strong>倉庫</strong> 坐落在隔離的一側，驗證和導入 ISO，通過 HTTP 提供包，並將每個管理代理自動指向本地鏡像，因此這些代理永遠不會連接到互聯網。",
-          "title": "概覽"
+          "title": "概覽",
+          "step6": "<strong>備份</strong> -- 從站點自己的工具儲存庫為主機準備備份，並將它們備份到內部的儲存主機。"
         },
         "page_title": "SysManage 隔離端到端工作流程",
         "related": {
@@ -2072,34 +2100,41 @@
           "title": "持續更新"
         },
         "repoint": {
-          "summary": "任何由角色為 <em>隔離倉庫</em> 的伺服器管理的代理都會自動指向本地鏡像：其包管理器被配置為使用倉庫的鏡像，並禁用其在線源。 這發生在代理的正常通信週期中，因此它還會捕獲您更改角色時已經連接的代理 -- 它們在下次檢查時更新。 指令是自我節流：只有當鏡像配置實際更改（角色切換或新導入）時才重新派發，因此不會重複 <code>apt-get update</code> 週期。",
+          "summary": "任何由角色為 <em>隔離儲存庫</em> 的伺服器管理的代理都會自動指向本地鏡像：其包管理器被配置為使用倉庫的鏡像，並禁用其在線源。 這發生在代理的正常通信週期中，因此它還會捕獲您更改角色時已經連接的代理 -- 它們在下次檢查時更新。 指令是自我節流：只有當鏡像配置實際更改（角色切換或新導入）時才重新派發，因此不會重複 <code>apt-get update</code> 週期。",
           "title": "步驟 6 -- 儀錶板自動重新指向代理",
-          "verify": "在隔離主機上，您可以使用 <code>apt-cache policy &lt;pkg&gt;</code> 確認（候選包應來自存儲庫的 <code>/airgap-repo/</code> URL），以及 <code>apt list --upgradable</code> （完全從鏡像源）。"
+          "verify": "在隔離主機上，您可以使用 <code>apt-cache policy &lt;pkg&gt;</code> 確認（候選包應來自存儲庫的 <code>/airgap-repo/</code> URL），以及 <code>apt list --upgradable</code> （完全從鏡像源）。",
+          "tools": "重新指向涵蓋 apt、dnf、zypper、Alpine 的 <code>apk</code> 和 FreeBSD 的 <code>pkg</code>。每台主機都會取得其自身發行版與版本的鏡像（如果有的話），以及旁邊的工具儲存庫，並安裝站點的金鑰，讓其套件管理器檢查簽章。"
         },
         "roles": {
-          "collector": "在連接互聯網的盒子上，選擇<em>離線收集器</em>。選擇此角色會自動在 <code>/var/lib/sysmanage/airgap/collector-ed25519.pem</code> 生成 ed25519 清單簽名金鑰對（私有，模式 0600）及其<code>.pub</code>伴侶 -- 不需要手動生成。",
-          "repository": "在隔離的盒子上，選擇<em>離線倉庫</em>。",
+          "collector": "在連接互聯網的盒子上，選擇<em>隔離收集器</em>。選擇此角色會自動在 <code>/var/lib/sysmanage/airgap/collector-ed25519.pem</code> 生成 ed25519 清單簽名金鑰對（私有，模式 0600）及其<code>.pub</code>伴侶 -- 不需要手動生成。",
+          "repository": "在隔離的盒子上，選擇<em>隔離儲存庫</em>。",
           "summary": "在每個伺服器上，前往<strong>設定 → 伺服器角色</strong>並選擇角色。角色會儲存在資料庫中，在下次伺服器重新啟動後生效（特定角色的 Pro+ 引擎在啟動時加載）。",
           "title": "步驟 1 -- 分配伺服器角色"
         },
         "serve": {
-          "summary": "在 <code>COMPLETE</code> 時，存儲庫會註冊一個特定於發行版的本地存儲庫（可在空氣隔離存儲庫頁面中查看，顯示包計數、最後導入時間、新鮮度和簽名者指紋），並通過 HTTP 從 SysManage 網站端口 <code>/airgap-repo/</code> 提供。註冊的存儲庫 URL 指向媒體中的實際 apt/dnf 树，因此不需要手動設置 Web 服務器或符號鏈接。",
+          "summary": "在 <code>COMPLETE</code> 時，儲存庫會註冊一個依發行版區分的本地儲存庫（可在「隔離倉庫」頁面上看到，並顯示套件數量、上次匯入時間、新鮮度及簽署者指紋），並透過 nginx 在連接埠 80 上以純 HTTP 於 <code>/airgap-repo/</code> 提供，SysManage 工具儲存庫則位於旁邊的 <code>/airgap-tools/</code>，以站點自己的金鑰簽署。註冊的儲存庫 URL 指向媒體內實際的套件樹狀目錄，因此不需要手動設定 Web 伺服器或符號連結。請參閱<a href=\"airgap-deployment.html#tools\">SysManage 工具儲存庫</a>。",
           "title": "步驟 5 -- 提供鏡像服務"
         },
         "transport": {
-          "device": "在<strong>倉庫</strong>上，在設定 → 伺服器角色，<em>導入磁碟機</em>卡列出合資格的區塊裝置（作業系統磁碟永遠不會提供）。選擇光學/USB 磁碟機 -- 最低編號的光學磁碟機是預設值。插入媒體後使用 <strong>重新掃描</strong>。",
-          "import": "前往 <strong>隔離倉庫</strong> 頁面。 <em>從媒體導入</em> 面板顯示驅動器的實時狀態；當驅動器持有可讀 ISO 媒體時，<strong>導入 ISO</strong> 按鈕啟用。 點擊它。（使用 <strong>重新掃描</strong> 如果您剛插入或修復了光盤。）",
+          "device": "在<strong>倉庫</strong>上，在設定 → 伺服器角色，<em>匯入磁碟機</em>卡列出合資格的區塊裝置（作業系統磁碟永遠不會提供）。選擇光學/USB 磁碟機 -- 最低編號的光學磁碟機是預設值。插入媒體後使用 <strong>重新掃描</strong>。",
+          "import": "前往 <strong>隔離儲存庫</strong> 頁面。 <em>從媒體匯入</em> 面板顯示驅動器的實時狀態；當驅動器持有可讀 ISO 媒體時，<strong>匯入 ISO</strong> 按鈕啟用。 點擊它。（使用 <strong>重新掃描</strong> 如果您剛插入或修復了光盤。）",
           "insert": "將媒體插入該驅動器。",
           "summary": "將光盤或 USB 媒體帶到倉庫。 仓库直接从驱动器导入 -- 不需要先将 ISO 复制到服务器磁盘上。",
           "title": "步驟 4 -- 運輸並導入到倉庫中",
-          "verify": "匯入會以唯讀方式掛載媒體，根據您受信任的收集器金鑰環驗證內嵌的已簽署 <code>/manifest.json</code>，並將經過驗證的內容 rsync 至 <code>/var/lib/sysmanage/airgap-repo</code>。觀察執行狀態：<code>VERIFYING_SIG</code>（簽章檢查）、<code>COPYING</code>（rsync 進行中）、<code>COMPLETE</code>。來自不受信任收集器的光碟只會在驗證時失敗。"
+          "verify": "匯入會以唯讀方式掛載媒體，根據您受信任的收集器金鑰環驗證內嵌的已簽署 <code>/manifest.json</code>，並將經過驗證的內容 rsync 至 <code>/var/lib/sysmanage/airgap-repo</code>。觀察執行狀態：<code>VERIFYING_SIG</code>（簽章檢查）、<code>COPYING</code>（rsync 進行中）、<code>COMPLETE</code>。來自不受信任收集器的光碟只會在驗證時失敗。",
+          "multidisc": "對於一組光碟，請以相同方式依序逐一匯入每張光碟。每張光碟會加入自己的鏡像，並保留其他光碟的鏡像；第 1 張光碟還會建置工具儲存庫，之後的光碟則讓它維持原樣。",
+          "fig_import": "逐張匯入一套光碟：光碟 1 已匯入，光碟 2 已放入磁碟機並就緒，<strong>匯入 ISO</strong> 已啟用。"
         },
         "trust": {
-          "copy": "在<strong>收集器</strong>上，在設定 → 伺服器角色，<em>收集器公鑰</em>卡顯示公鑰及其指紋。點擊<strong>複製公鑰</strong>將 PEM 放到剪貼板中（並記下指紋 -- 它與每個清单中的 <code>signer_fingerprint</code> 相匹配）。",
-          "import": "在<strong>倉庫</strong>上，在設定 → 伺服器角色，使用<em>可信收集器金鑰</em>卡：給收集器命名，貼上 PEM，然後點擊<strong>導入金鑰</strong>。導入的金鑰會寫入 <code>/var/lib/sysmanage/airgap/trusted-collectors/&lt;name&gt;.pub</code>，並在卡片中列出其指紋。金鑰環可以持有多個金鑰，因此您可以信任多個收集器並輪換金鑰而不會造成停機時間。",
+          "copy": "在<strong>收集器</strong>上，在設定 → 伺服器角色，<em>收集器公開金鑰</em>卡顯示公鑰及其指紋。點擊<strong>複製公開金鑰</strong>將 PEM 放到剪貼板中（並記下指紋 -- 它與每個清单中的 <code>signer_fingerprint</code> 相匹配）。",
+          "import": "在<strong>倉庫</strong>上，在設定 → 伺服器角色，使用<em>受信任的收集器金鑰</em>卡：給收集器命名，貼上 PEM，然後點擊<strong>匯入金鑰</strong>。導入的金鑰會寫入 <code>/var/lib/sysmanage/airgap/trusted-collectors/&lt;name&gt;.pub</code>，並在卡片中列出其指紋。金鑰環可以持有多個金鑰，因此您可以信任多個收集器並輪換金鑰而不會造成停機時間。",
           "summary": "倉庫只會接收由其信任的收集器簽名的媒體。信任是通過將收集器的<em>公開</em>金鑰複製到倉庫中建立的 -- 私有簽名金鑰永遠不會離開收集器。",
           "title": "步驟 2 -- 建立信任（複製和導入公開金鑰）",
           "transfer": "通過任何您信任的渠道將密鑰文本移動到存儲庫（這是公開密鑰 -- 可以使用網線、簽名電子郵件或現有的可信導入）。"
+        },
+        "backup": {
+          "title": "步驟 7 -- 備份實體隔離的主機",
+          "summary": "依照<a href=\"fleet-backups.html\">主機群備份</a>中的說明，以實體隔離網路上的儲存主機設定備份目標，然後在主機上按一下<strong>為備份做準備</strong>。在儲存庫伺服器上，「準備備份」會安裝 restate、NFS 用戶端，以及在使用 <a href=\"backup-proxy.html\">restate-proxy</a> 之目標的儲存主機上安裝 Proxy，全部都來自主機自己的儲存庫：鏡像和工具儲存庫。不會從網際網路擷取任何內容。請另外備份收集器，備份到位於隔離中它自己那一側的儲存主機。請參閱<a href=\"airgap-deployment.html#backups\">實體隔離站點上的備份</a>。"
         }
       },
       "antivirus": {
@@ -3172,12 +3207,12 @@
         "crumb_backups": "主機群備份",
         "crumb_docs": "文件",
         "crumb_page": "儲存主機",
-        "freebsd_p1": "FreeBSD 沒有 systemd，因此在 FreeBSD 儲存主機上，代理程式會在 <code>daemon(8)</code> 下自行啟動 restate 的儲存作業，這樣即使代理程式重新啟動，這些作業也會繼續執行。restate 位於 <code>/usr/local/sbin</code> 中。FreeBSD 主機只能作為儲存主機；將它選為受備份主機會遭到拒絕。",
+        "freebsd_p1": "FreeBSD 沒有 systemd，因此在 FreeBSD 儲存主機上，代理程式會自行在 <code>daemon(8)</code> 下啟動 restate 的儲存作業，讓它們在代理程式重新啟動時仍持續執行。restate 位於 <code>/usr/local/sbin</code>。",
         "freebsd_p2": "當代理程式不以 root 身分執行時，它的 sudoers 檔案只允許以下操作：對本主機在 <code>/etc/restate/jobs.d</code> 中的作業檔案執行 <code>restate run</code>（儲存作業 prune、check、copy、du、repack、protect、sign 和 signatures；當儲存主機備份自身時，還包括它的 capture、estimate、snapshots、restore、list、status 和 diff 作業）；「準備儲存」執行的 <code>zfs create</code>、<code>zfs set sharenfs</code> 和 <code>setfacl</code> 命令；iCloud 備份資料集的 <code>zfs create</code>；以及封存的 <code>zfs snapshot</code> 和對其過期快照的 <code>zfs destroy</code>。除快照規則外，每條規則都是正規表示式而非萬用字元，因此無法加入其他選項。需要 sudo 1.9.10 或更新版本。",
         "h_freebsd": "FreeBSD 儲存主機",
         "h_other": "其他儲存空間",
         "h_target": "3. SysManage 中的目標",
-        "intro": "儲存主機透過 NFSv4 提供每部受備份主機的儲存庫，並執行鎖定、封存、清理和檢查備份的作業。它必須是安裝了 SysManage 代理程式和 restate 2.1.0.3 或更新版本的受管理主機。您只需依照本頁說明設定一次它的儲存空間和 NFS 伺服器；SysManage 會檢查這些設定，並自行完成每部主機的所有工作。",
+        "intro": "儲存主機保存每台受備份主機的儲存庫，並執行鎖定、封存、清理和檢查備份的作業。它必須是安裝了 SysManage 代理程式及 restate 2.1.0.3 或更新版本的受管理主機。主機透過 NFSv4（如本頁所述）或透過 <a href=\"backup-proxy.html\">restate-proxy</a> 以 HTTPS 連線到它，依目標選擇。您只需設定一次它的儲存空間，以及使用 NFS 時的 NFS 伺服器；SysManage 會檢查該設定，並自行完成每台主機的所有工作。",
         "meta_description": "為 SysManage 主機群備份設定一次儲存主機（ZFS 或 btrfs、NFSv4 和備份帳戶），之後由 SysManage 為每部主機提供自己的匯出，只在作業執行時掛載，並鎖定已完成的備份。",
         "other_p1": "儲存主機必須是執行代理程式的受管理主機，因為所有可能移除備份的操作都由它執行。無法執行代理程式的 NAS 裝置目前還不支援作為目標。",
         "services_p1": "在 <code>/etc/rc.conf</code> 檔案中：",
@@ -3212,7 +3247,7 @@
         "lx_p1": "將儲存路徑放在 ZFS 資料集或 btrfs 子磁碟區上，讓每部主機的儲存庫都能是獨立的檔案系統。在 ext4 或 XFS 上備份也能運作，但所有主機共用同一個檔案系統，而且無法封存任何內容。建立備份帳戶，安裝 NFS 伺服器（Debian 和 Ubuntu 上為 <code>nfs-kernel-server</code>），並在 <code>/etc/nfs.conf</code> 中設定為只提供 NFSv4：",
         "lx_p2": "不要自行匯出儲存路徑。「準備儲存」會將每部主機的匯出寫入 <code>/etc/exports.d</code> 中各自的檔案，並以 <code>exportfs -ra</code> 重新載入。",
         "mounts_p1": "沒有東西會放入主機的<code>/etc/fstab</code>。存儲主機告訴SysManage每個repository在哪裡導出，而該主機的代理在<code>&lt;mount point&gt;/&lt;repository&gt;</code>掛載它 -- 使用NFSv4 over TCP，並設置為<code>hard,nosuid,nodev</code> -- 只有當備份、估算、快照列表或恢復開始時才挂載，並且在最後一個結束後卸載。在作業之間，主機完全無法訪問其備份。如果某個作業無法掛載，則會被拒絕並提供原因，因此重新表述從不會寫入主機自己的磁盤。在備份寫入任何東西之前，代理還會檢查是否可以打開repository、鎖定功能是否正常工作以及至少有1 GB和1%的空間是空閒的；如果不符合這些條件，則會拒絕該備份並在最近的作業中說明原因。",
-        "mounts_p2": "每個主機都需要NFS客戶端。 <strong>備份裝置</strong>在 Debian 和 Ubuntu 上安裝： <code>nfs-common</code>，在 Fedora、RHEL 和 Alpine 上安裝： <code>nfs-utils</code>，在 openSUSE 上安裝： <code>nfs-client</code>。 沒有它的主機顯示 <strong>安裝NFS客戶端</strong>，而在此主機上的備份會因為這個原因被拒絕而不是掛載失敗。 如果您已經自己掛載了共享，使用 fstab 或 autofs，代理會使用那個掛載並保持不變。",
+        "mounts_p2": "每個主機都需要NFS客戶端。 <strong>為備份做準備</strong>在 Debian 和 Ubuntu 上安裝： <code>nfs-common</code>，在 Fedora、RHEL 和 Alpine 上安裝： <code>nfs-utils</code>，在 openSUSE 上安裝： <code>nfs-client</code>。 沒有它的主機顯示 <strong>安裝NFS客戶端</strong>，而在此主機上的備份會因為這個原因被拒絕而不是掛載失敗。 如果您已經自己掛載了共享，使用 fstab 或 autofs，代理會使用那個掛載並保持不變。",
         "move_1": "在儲存主機上，把儲存庫移到一旁：<code>mv /srv/backups/restate/HOST /srv/backups/restate/HOST.old</code>",
         "move_2": "為該主機按一下<strong>準備儲存</strong>。",
         "move_3": "以 root 身分把備份複製回來，並保留擁有者和權限模式：<code>cp -Rp /srv/backups/restate/HOST.old/ /srv/backups/restate/HOST/</code>",
@@ -3247,7 +3282,8 @@
           "step7": "再匯入池一次：<code>sudo zpool import -f &lt;pool&gt;</code>。恢復後，舊主機的機組ID會重新出現，而池則保留重裝的資訊，因此它不會在開機時匯入，直到這個時間點；從那時開始，它就會定期匯入。然後<code>sudo exportfs -ra</code>，並啟動SysManage代理，如果它沒有運行。代理自己的狀態會隨著恢復而回歸，所以它會重新連接為同一主機；其他主機的備份會在下一個時間窗口中繼續進行。",
           "title": "9. 儲存主機備份自身",
           "fig": "儲存主機在備份頁面上列在最後，標示為儲存主機，它唯一的操作是「設定自身備份」。"
-        }
+        },
+        "proxy_note": "在使用 restate-proxy 的目標上，儲存空間本身和備份帳戶的設定方式相同，但透過 Proxy 備份的主機不掛載任何東西，也不會取得匯出：下方的 NFS 伺服器設定只有仍使用 NFS 的主機才需要。<a href=\"backup-proxy.html\">使用 restate-proxy 透過 HTTPS 備份</a>說明了 Proxy 增加的內容：它的套件、它的憑證，以及每台主機的存取授權。"
       },
       "fleet_backups": {
         "crumb_admin": "管理",
@@ -3267,15 +3303,15 @@
         "how_repo": "<strong>每部主機一個儲存庫。</strong>每部主機只寫入自己的儲存庫，儲存庫以主機名稱和主機 ID 的開頭部分命名，例如 <code>web01.example.lan-1f3a9c2e</code>。ID 可以區分同名的兩部主機，也能保留重新命名主機的歷程。<strong>準備儲存</strong>為每個儲存庫提供獨立的檔案系統和僅限該主機的匯出。",
         "how_safe": "代理程式從不根據伺服器傳來的內容組出 restate 命令列。它會先對照固定清單檢查伺服器的設定，再把設定寫成 <code>/etc/restate/jobs.d</code> 中由 root 擁有的作業檔案，然後啟動 restate 本身的作業單元。只要作業檔案可由 root 以外的使用者修改，restate 就會拒絕執行。",
         "how_storage": "<strong>其餘工作由儲存主機完成。</strong>每次成功備份之後，儲存主機自己的代理程式會<strong>保護</strong>它（使它唯讀），以唯讀的檔案系統快照（ZFS 或 btrfs）<strong>封存</strong>它，然後把舊快照<strong>清理</strong>到您要保留的數量，並依自己的排程<strong>檢查</strong>儲存庫。封存一律在清理之前進行，封存失敗時會暫緩清理。",
-        "how_target": "<strong>一個目標。</strong>備份目標是一部提供 NFSv4 的儲存主機。每部受備份的主機都在同一個掛載點下存取自己的儲存庫，例如 <code>/mnt/backups</code>。",
+        "how_target": "<strong>一個目標。</strong>備份目標是一台儲存主機。每個目標選擇主機連線到它的方式：透過 NFSv4，每台受備份主機將其儲存庫掛載在相同的掛載點下，例如 <code>/mnt/backups</code>；或透過儲存主機上的 <a href=\"backup-proxy.html\">restate-proxy</a> 以 HTTPS 連線，不掛載任何東西。",
         "how_why": "為什麼這樣設計：掌控一部主機的勒索軟體，也會掌控這部主機能存取的一切。如果主機能刪除自己的備份，攻擊者也能刪除。在這裡，主機只能新增，而封存的快照位於主機無法登入的機器上。",
         "intro": "SysManage 使用 <strong>restate</strong> 備份您的主機。restate 是一種備份工具，它會記錄全新安裝作業系統後不會復原的內容：您的檔案，以及在 Debian 和 Ubuntu 上的套件。每部主機都寫入同一部<strong>儲存主機</strong>上自己的儲存庫，所有可能移除備份的操作都由儲存主機執行，而且它會鎖定每個已完成的備份。遭入侵的主機無法刪除自己的歷程。",
         "intro_server": "本頁說明如何備份受管理的主機。若要備份 SysManage 伺服器本身，請參閱<a href=\"backup.html\">備份與恢復</a>。",
         "meta_description": "以 restate 將每部主機備份到同一部儲存主機上自己的儲存庫：主機只能新增，儲存主機負責鎖定、封存、清理和檢查，檔案可在預覽後還原到暫存目錄。",
         "need_coverage": "<strong>涵蓋範圍</strong>欄會顯示每部主機的備份包含哪些內容：Debian 和 Ubuntu 上為<strong>完整（檔案和套件）</strong>，其他系統上為<strong>僅檔案</strong>，Windows 和 macOS 上為<strong>不支援</strong>。",
-        "need_platforms": "受備份的主機執行搭配 systemd 的 <strong>Linux</strong>。儲存主機可以執行 Linux 或 <strong>FreeBSD</strong>；FreeBSD 主機只能作為儲存主機。",
+        "need_platforms": "受備份的主機執行 <strong>Linux</strong>、<strong>FreeBSD</strong> 或 <strong>macOS</strong>，而 <strong>OpenBSD</strong> 或 <strong>NetBSD</strong> 只能透過 restate-proxy，因為它們沒有 NFSv4 用戶端。儲存主機可以執行 Linux 或 FreeBSD；Mac、OpenBSD 主機或 NetBSD 主機只能作為受備份的主機。",
         "need_restate": "每部要備份的主機和儲存主機上都需要 <strong>restate 2.0 或更新版本</strong>。在 Ubuntu 上：<code>sudo add-apt-repository ppa:bceverly/restate</code> 和 <code>sudo apt install restate</code>。在其他系統上，請依照其 README 的說明從原始碼建置（FreeBSD 上為 <code>gmake build</code> 和 <code>sudo gmake install</code>）。",
-        "need_share": "<strong>儲存主機</strong>：具有 ZFS 或 btrfs 且提供 NFSv4 的管理主機。<a href=\"fleet-backup-storage.html\">設定儲存主機</a>涵蓋您只需設置一次的內容；SysManage 將為每個主機完成其餘工作。每台備份主機都需要 NFS 客戶端；<strong>準備備份</strong>會與重新啟動一起安裝它。",
+        "need_share": "<strong>一台儲存主機</strong>：使用 ZFS 或 btrfs 的受管理主機。<a href=\"fleet-backup-storage.html\">設定儲存主機</a>說明了您只需設定一次的項目；其餘每台主機的工作由 SysManage 完成。透過 NFS 時，每台受備份主機都需要 NFS 用戶端，<strong>為備份做準備</strong>會將其與 restate 一起安裝；透過 <a href=\"backup-proxy.html\">restate-proxy</a> 時，則改為需要 <code>curl</code>。",
         "policy_check": "<strong>儲存庫檢查間隔（天）</strong> -- 儲存主機檢查儲存庫的頻率。",
         "policy_check_meaning": "儲存主機在沒有金鑰的情況下檢查儲存庫，因此檢查證明的是儲存庫的結構，而不是其中的每一個位元組。結果顯示為<strong>中繼資料檢查通過</strong>，從不顯示為「已驗證」。",
         "policy_init": "restate 2.0.0.4 及更新版本會透過作業鍵 <code>create</code>，在主機第一次備份時建立其儲存庫。使用較舊的 restate 時，請在主機第一次備份之前，在該主機上建立一次，例如 <code>sudo restate init /mnt/backups/web01.example.lan-1f3a9c2e</code>。",
@@ -3335,19 +3371,19 @@
         "status_dashboard": "在首頁儀表板上，<strong>需要注意的備份</strong>會計算備份逾期、不完整或失敗的主機數，並在目標的儲存端出現問題時將目標計為一次：沒有儲存主機、封存、清理或檢查未按時執行、磁碟機故障，或儲存空間即將用盡。備份失敗或儲存出現問題時顯示為紅色，備份僅逾期或不完整時顯示為黃色。按一下即可開啟備份頁面。",
         "first_fit": "在主機的首次排程備份之前，SysManage 會讓主機執行 restate 的 <code>estimate</code>，它會走訪原則將要保存的檔案但不讀取任何檔案，然後將結果與儲存空間的可用空間進行比較。如果可能放不下，首次備份會等待，主機的備份卡片會顯示這一點：大約需要保存多少、剩餘多少空間，以及最大的資料夾，可以從這些資料夾開始向<strong>排除</strong>中新增路徑。該主機也會計入儀表板的備份卡片。restate 會壓縮並去重，因此首次備份通常所需空間少於估計值；<strong>立即備份</strong>仍會執行它。估計失敗絕不會阻止備份，一旦主機有了成功的備份，此檢查即結束。",
         "restore_place": "要把檔案直接放回原處，請選擇<strong>還原到原位置，取代主機上的檔案</strong>，並指定具體路徑，例如 <code>/etc/nginx</code>；不會將整台主機還原到原位置，那屬於重建。接著<strong>預覽</strong>會將快照與主機目前的檔案進行比較。<strong>還原到原位置</strong>需要單獨確認：<strong>取代這些路徑中的檔案</strong>。restate 在寫入任何內容之前，會先對照快照檢查整個選取範圍，把每個檔案寫到其目的地旁邊，只有在與快照一致時才將其重新命名以覆蓋舊檔案，並且在此過程中絕不跟隨符號連結。代理程式一律會排除自己的狀態目錄，因此還原不會放回代理程式資料庫的舊副本。每次還原到原位置都會記入審計日誌，包括請求者、快照和路徑。",
-        "equip_p1": "當主機因為缺少 restate 或 NFS 用戶端、或 restate 版本過舊而顯示 <strong>未就緒</strong> 時，在該主機上按一下 <strong>準備備份</strong>，或選取多台主機後按一下 <strong>為所選主機準備備份</strong>。主機的代理程式會自行從 restate 自己的套件安裝這兩者：在 Ubuntu 22.04、24.04 和 26.04 上使用其 PPA，並安裝 <code>nfs-common</code>；在 Fedora 上使用其 COPR，並安裝 <code>nfs-utils</code>；在 RHEL、AlmaLinux、Rocky Linux、CentOS Stream 和 Oracle Linux 9 與 10（並安裝 <code>nfs-utils</code>）、openSUSE Leap 16、SLE 16 和 openSUSE Tumbleweed（並安裝 <code>nfs-client</code>）、Alpine 3.21 至 3.24（並安裝 <code>nfs-utils</code>），以及內建 NFS 的 FreeBSD、OpenBSD 和 NetBSD 上，使用 restate 最新發行版中的套件，且只有在其總和檢查碼與該發行版的清單相符時才安裝。在 macOS 上使用 Homebrew，以 Homebrew 擁有者的身分執行，絕不以 root 執行。伺服器不會傳送任何套件名稱、位址或命令。在代理程式回應之前，主機會顯示 <strong>準備中</strong>。安裝失敗時，原因會顯示在主機下方；將游標指向它即可查看工具的輸出。",
+        "equip_p1": "當主機因缺少 restate 或 NFS 用戶端，或 restate 版本過舊而顯示<strong>未就緒</strong>時，請在該主機上按一下<strong>為備份做準備</strong>，或選取多台主機後按一下<strong>為所選主機準備備份</strong>。主機的代理程式會自行從 restate 自己的套件安裝這兩者：在 Ubuntu 22.04、24.04 和 26.04 上使用其 PPA，搭配 <code>nfs-common</code>；在 Fedora 上使用其 COPR，搭配 <code>nfs-utils</code>；以及使用 restate 最新發行版本中的套件（僅在其總和檢查碼與該發行版本的清單相符時才安裝），適用於 Debian 12 和 13（搭配 <code>nfs-common</code>）、RHEL、AlmaLinux、Rocky Linux、CentOS Stream 和 Oracle Linux 9 與 10（搭配 <code>nfs-utils</code>）、openSUSE Leap 16、SLE 16 和 openSUSE Tumbleweed（搭配 <code>nfs-client</code>）、Alpine 3.21 至 3.24（搭配 <code>nfs-utils</code>），以及內建 NFS 的 FreeBSD、OpenBSD 和 NetBSD。在 macOS 上則使用 Homebrew，以 Homebrew 的擁有者身分執行，絕不以 root 執行。伺服器不會傳送任何套件名稱、位址或命令。在代理程式回應之前，主機會顯示<strong>準備中</strong>。安裝失敗時，原因會顯示在主機下方；將游標指向它即可查看工具的輸出。",
         "equip_p2": "在其他系統上，請依主機所在列的提示手動安裝 restate。早於此功能的代理程式會顯示 <strong>請升級代理程式，才能從這裡讓此主機準備好備份</strong>。<strong>重新檢查</strong> 會詢問代理程式現在能否執行 restate，因此手動準備好的主機會在幾秒內正確顯示，而不必等到其代理程式下次重新啟動。",
         "h_equip": "讓主機準備好備份",
-        "equip_p3": "準備備份會安裝軟體，因此在設有維護時段的主機上，它會等到下一個維護時段，主機會顯示 <strong>正在等待此主機的維護時段以安裝 restate</strong>。代理程式回應的一小時期限從請求送出時才開始計算。",
+        "equip_p3": "「為備份做準備」會安裝軟體，因此在設有維護時段的主機上，它會等到下一個維護時段，主機會顯示 <strong>正在等待此主機的維護時段以安裝 restate</strong>。代理程式回應的一小時期限從請求送出時才開始計算。",
         "status_waiting_window": "<strong>等待維護時段</strong> 備份已排入佇列，但主機的維護時段尚未開啟；時段開啟後備份就會開始。已經逾期或失敗的主機會保持該狀態，並附註說明其下一次備份正在等待維護時段。",
         "editions_pro": "<strong>Professional+</strong> 增加了金鑰保存在 OpenBAO 中的加密備份、自動金鑰輪替、快照簽章、封裝的緊急金鑰匯出、祖父-父-子保留方式、排程的完整讀取驗證、依標籤的原則、套件層級還原、漂移時間軸、備份警示和報告：請參閱<a href=\"../professional-plus/fleet-backups-pro.html\">主機群備份 (Professional+)</a>。",
         "policy_pick": "對於常見伺服器選擇哪個：Nextcloud 包括 snap 的 <code>nextcloud</code>，也轉儲其數據庫；郵件伺服器或任何具有 MySQL 或 MariaDB 的主機的 <code>mysql</code>，會轉儲每個數據庫並僅在文件複製期間暫停服務器；PostgreSQL 的 <code>postgresql</code>；以及 UniFi 控制器的 <code>unifi</code>。郵件伺服器的郵箱不需要任何暫停。",
         "policy_defaults": "新的策略從每日備份開始。在沒有Professional+的情況下，它保留最新的30個快照；有了Professional+，則保留最新的7個快照加上過去14天中每一天的最新一個快照、8週中的最新一個快照、12個月中的最新一個快照和最近三年中的最新一個快照。",
         "bulk_setup": "<strong>為所選主機設定備份</strong> 會為每台已勾選、可執行備份且沒有原則的主機套用這些預設值，從 UTC 06:00 開始，開始時間分散在整個時段內。暫停服務預設為關閉，因為主機有哪些服務要等它回報後才知道；請用 <strong>設定</strong> 為每台主機個別設定。已有原則或尚無法執行備份的已勾選主機會被略過，頁面會說明原因。無法勾選的主機，在您將游標指向其核取方塊時會說明原因。",
-        "equip_runs": "目前備份透過 systemd 執行。因此，可以在上述任何系統上為主機準備備份，但只有在使用 systemd 的 Linux 上才會真正執行備份；FreeBSD 主機也可以作為儲存主機。在 Alpine、各 BSD 和 macOS 上，restate 會被安裝，但在代理程式於這些系統上擁有作業執行器之前不會執行備份，Alpine 主機會一直顯示 <strong>請升級 restate</strong>，準備備份不會改變這一點。Debian 沒有 restate 套件，請在其上從原始碼建置 restate；不支援 Windows。",
+        "equip_runs": "在使用 systemd 的 Linux 上，備份透過 restate 自己的作業單元執行；在 FreeBSD 上於 <code>daemon(8)</code> 下執行；在 Alpine、OpenBSD、NetBSD 和 macOS 上則透過代理程式自己的作業執行器執行，並遵循相同的規則：由 root 擁有且經代理程式檢查過的作業檔案，以及單獨啟動的 restate。不支援 Windows。",
         "h_reach": "無法訪問存儲的主機",
-        "reach_p1": "SysManage 會詢問每個主機是否可以連接到存儲主機的 NFS 端口（2049）：在 <strong>備份準備</strong> 前，當其策略被保存時，每天一次，以及您點擊 <strong>重新檢查</strong> 時。無法連接的主機會顯示 <strong>此主機無法與備份存儲建立連接</strong>，包括存儲主機的地址和端口，以及 <strong>備份準備</strong>、<strong>配置</strong>、<strong>立即備份</strong> 和其計劃的備份將被暫停；批量操作會跳過它並說明原因。尚未檢查的主機從不會被暫停。",
-        "reach_p2": "一個典型的案例是雲端中的SysManage伺服器本身是一個受管理主機，而存儲主機在家庭或辦公室網絡上：它無法掛載該存儲，因此不能將其作為備份目標。將其備份到它可以訪問的存儲中，或者給它一個可以訪問存儲主機的網絡路徑，例如VPN。",
+        "reach_p1": "SysManage 會詢問每個主機是否可以連接到存儲主機的 NFS 端口（2049）：在 <strong>為備份做準備</strong> 前，當其策略被保存時，每天一次，以及您點擊 <strong>重新檢查</strong> 時。無法連接的主機會顯示 <strong>此主機無法與備份存儲建立連接</strong>，包括存儲主機的地址和端口，以及 <strong>為備份做準備</strong>、<strong>配置</strong>、<strong>立即備份</strong> 和其計劃的備份將被暫停；批量操作會跳過它並說明原因。尚未檢查的主機從不會被暫停。",
+        "reach_p2": "典型情況是雲端中的 SysManage 伺服器本身也是受管理主機，而儲存主機位於家中或辦公室網路上：它無法透過 NFS 掛載該儲存空間。請將目標改用 <a href=\"backup-proxy.html\">restate-proxy</a>，並依照<a href=\"backup-proxy.html#remote\">網路外部的主機</a>中的說明讓它穿過您的防火牆進入，或為它提供另一條通往儲存主機的網路路徑，例如 VPN。在使用 Proxy 的目標上，檢查的是對 Proxy 位址和連接埠的 TLS 連線，而不是 NFS 連接埠。",
         "restore_paths": "路徑會與快照記錄的檔案進行比對。經過快照中符號連結的路徑（例如 <code>/var/snap/nextcloud/current/...</code>）會沿著快照本身的連結解析，還原會顯示每條路徑最後指向何處。沒有比對到任何內容的路徑會使預覽和還原顯示為<strong>不完整</strong>，並列出該路徑，因此請在還原前更正它。restate 2.2.0.14 及更早版本不會跟隨連結：使用這些版本時，請使用連結指向的路徑（<code>readlink /var/snap/nextcloud/current</code>）。由套件安裝且從未修改過的檔案會依套件版本記錄，而不是複製，因此檔案還原不會將它們帶回；請改為重新安裝該套件。",
         "restore_dumps": "暫停的服務產生的資料庫傾印位於快照的 <code>/var/lib/restate/dumps/</code> 下，每個服務一個資料夾，例如 <code>mysql-mariadb/mysqldump.sql.gz</code> 或 <code>nextcloud-nextcloud/mysqldump.sql.gz</code>，並像其他檔案一樣還原。Nextcloud 的 <code>config.php</code> 是在 Nextcloud 處於維護模式時記錄的。還原後，restate 會執行主機的 nextcloud 掛鉤，將 <code>config.php</code> 恢復為暫停前的狀態，還原結果會顯示每個掛鉤的執行情況。由 restate 2.2.0.14 或更早版本建立的快照不記錄掛鉤：將其 <code>config.php</code> 放回原位後，請在 snap 安裝上執行 <code>sudo nextcloud.occ maintenance:mode --off</code>。",
         "h_netmounts": "網絡共享挂載到主機上",
@@ -3358,7 +3394,8 @@
         "icloud_p": "<strong>雲端備份</strong>區段只在儲存主機上將 iCloud 照片圖庫下載到備份儲存空間。請參閱<a href=\"cloud-photos-backup.html\">備份 iCloud 照片</a>。",
         "fig_restore_place": "還原到原位置：指定具體路徑，確認主機上這些路徑中的檔案將被取代，並先預覽會有哪些變更。",
         "editions_lapse": "如果 Professional+ 授權過期，加密備份會繼續執行，而且仍然可以還原。備份頁面頂端的卡片提供<strong>緊急金鑰匯出</strong>，以您自己的 OpenPGP 公開金鑰封裝，這樣即使 SysManage 伺服器停機，也能取出金鑰進行還原。開啟加密、輪替金鑰以及其他 Professional+ 設定須待取得授權後才能使用。",
-        "fig_key_export": "Professional+ 授權過期後，備份頁面仍會為備份已加密的主機提供緊急金鑰匯出。"
+        "fig_key_export": "Professional+ 授權過期後，備份頁面仍會為備份已加密的主機提供緊急金鑰匯出。",
+        "equip_local": "在實體隔離站點上，「準備備份」會依名稱從主機自己的儲存庫安裝相同的套件，SysManage 已將這些儲存庫指向站點的鏡像及其工具儲存庫，因此絕不會連上網際網路。請參閱<a href=\"airgap-deployment.html#backups\">實體隔離站點上的備份</a>。"
       },
       "cloud_photos": {
         "accounts_p1": "按 <strong>添加 iCloud 帳戶</strong>，並輸入 Apple ID、顯示名稱和密碼。密碼會直接傳送到 OpenBAO 位於您組織的路徑下。它永遠不會儲存於資料庫、寫入日誌或再次顯示。儲存主機在一個工作時接收它，在下載器請求時立即傳遞給它，而無需將其放入命令列、環境變數或檔案中。每次傳遞均記錄在審計日誌中。",
@@ -3394,6 +3431,74 @@
         "fig_enable": "在啟用 iCloud 備份之前，雲端備份區段會指出它將在哪部儲存主機上執行。",
         "fig_accounts": "已啟用 iCloud 備份，顯示 icloudpd 版本與照片的保存位置，以及處於各種狀態的帳號：已是最新、執行中、正在等待雙重認證碼、需要登入和失敗。",
         "fig_code": "輸入驗證碼：在 15 分鐘內輸入 Apple 傳送到該帳號裝置的六位數驗證碼。"
+      },
+      "backup_proxy": {
+        "meta_description": "讓主機透過 restate-proxy 以 HTTPS 備份到儲存主機，而不需掛載 NFS：每台主機僅能附加的存取授權、由主機自行產生的令牌、來自 SysManage CA 的憑證，以及從外部穿過防火牆進入的路徑。",
+        "crumb_docs": "文件",
+        "crumb_admin": "管理",
+        "crumb_backups": "主機群備份",
+        "crumb_page": "透過 HTTPS 備份",
+        "title": "使用 restate-proxy 透過 HTTPS 備份",
+        "intro": "備份目標可讓其主機以兩種方式之一連線到儲存主機：每台主機掛載自己的 NFS 匯出（如<a href=\"fleet-backup-storage.html\">設定儲存主機</a>所述），或每台主機以 HTTPS 與 <code>restate-proxy</code> 通訊，這是在儲存主機上執行的服務。本頁說明此 Proxy：為何選擇它、SysManage 為它設定了哪些項目，以及網路外部的主機如何透過防火牆連線到它。",
+        "h_why": "為何使用 Proxy",
+        "why_nomount": "<strong>無需掛載。</strong>使用 Proxy 的主機不掛載任何東西，也不需要 NFS 用戶端。主機上的 restate 透過執行 <code>curl</code>，在 <code>https://&lt;proxy&gt;/v1/&lt;host id&gt;</code> 存取其儲存庫。",
+        "why_append": "<strong>由協定保證僅能附加。</strong>Proxy 無法刪除、重新命名或覆寫任何內容。每次上傳在寫入之前都會依據 restate 的儲存庫格式進行檢查，而且主機只能存取自己的儲存庫：位址中的主機 ID 必須與主機的令牌相符。清理、檢查、封存和保護仍然只在儲存主機上執行。",
+        "why_tokens": "<strong>由主機自行產生的令牌。</strong>每台主機會產生自己的令牌，並將其保存在只有 root 能讀取的檔案中。只有令牌的 SHA-256 雜湊會傳送到 SysManage 伺服器和儲存主機，因此令牌絕不會出現在命令、訊息佇列或資料庫中。",
+        "why_anywhere": "<strong>可從任何地方運作。</strong>所有內容都在 TLS 內傳輸，而主機是以其令牌識別，絕不是以其位址識別，因此位於 NAT 後方或您網路外部的主機（例如雲端中的 SysManage 伺服器）可以備份到與 LAN 相同的儲存主機。",
+        "why_same": "<strong>其他一切不變。</strong>備份、還原、瀏覽快照和比較快照都經由 Proxy 進行。無論採用哪種方式，儲存主機上的儲存庫都是相同的目錄，而且儲存主機仍會保護、封存、清理和檢查它們。使用 Professional+ 加密時，Proxy 和儲存主機永遠只會看到加密過的資料包。",
+        "why_data": "備份資料直接從每台主機傳送到儲存主機。它絕不會經過 SysManage 伺服器，伺服器只負責傳送設定並收集結果。",
+        "h_choose": "為目標選擇 NFS 或 Proxy",
+        "choose_p1": "在「備份」頁面上，目標卡片會顯示<strong>主機存取儲存空間的方式</strong>。按一下<strong>變更主機存取儲存的方式</strong>，然後選擇<strong>存取儲存空間的方式</strong>：",
+        "choose_nfs": "<strong>NFS（每台主機掛載自己的匯出）</strong> -- 儲存主機將每台主機的儲存庫匯出給該主機，而代理程式會在作業執行期間掛載它。",
+        "choose_proxy": "<strong>restate-proxy（以 HTTPS 連到儲存主機）</strong> -- 接著提供<strong>主機連線使用的 Proxy 位址</strong>，也就是主機解析時 Proxy 憑證中的名稱或位址，以及<strong>連接埠</strong>（預設為 8443）。",
+        "choose_pin": "<strong>釘選的金鑰（SHA-256，選用）</strong> -- Proxy 憑證公開金鑰的 SHA-256，為 64 個十六進位字元。設定後，主機只接受具有此公開金鑰的 Proxy 憑證。",
+        "choose_ca": "<strong>自有 CA 憑證（PEM，選用）</strong> -- 僅適用於由您自己的憑證授權機構簽署的 Proxy 憑證。主機只會為其備份信任它。儲存之後，將此欄位留空會保留它；<strong>移除已儲存的 CA 並信任系統存放區</strong>則會將它移除。",
+        "choose_p2": "變更此設定需要 Manage Backups 權限，並會記錄在稽核日誌中。SysManage 接著會將新的作業檔案傳送給目標的每台主機以及儲存主機。您可以隨時切換到任一方式：儲存庫會留在儲存主機上原本的位置並保留其快照，因為改變的只有進入的方式。",
+        "choose_p3": "每台主機會在其 restate 允許的範圍內改用此 Proxy。使用 restate 3.1.0.0 或更新版本時，還原、瀏覽、狀態、比較和檢查都會經由此 Proxy；使用 3.2.0.0 或更新版本時，備份和快照清單也會如此，而且主機完全不掛載任何東西。在此之前，這些作業會繼續使用 NFS。透過此 Proxy 備份的主機沒有 NFS 匯出，因此儲存主機不會為它建立匯出，儲存檢查也會略過它的匯出檢查。OpenBSD 和 NetBSD 主機，以及沒有 NFS 用戶端的 Linux 主機，只能透過此 Proxy 備份。",
+        "h_equip": "「準備備份」在儲存主機上安裝的內容",
+        "equip_p1": "在使用此 Proxy 的目標上，於儲存主機上執行<strong>為備份做準備</strong>會在 restate 旁安裝 <code>restate-proxy</code>，並在之後升級它，即使 restate 已經存在也一樣：Ubuntu 上來自 restate 的 PPA，Fedora 上來自其 COPR，Debian 12 和 13 以及 FreeBSD 上則來自 restate 的發行版本套件，且只有在其總和檢查碼與該發行版本的清單相符時才會安裝。在其他系統上，「準備備份」只安裝 restate 而不安裝此 Proxy，因此請為儲存主機選擇上述系統之一。伺服器只會傳送「需要此 Proxy」這項資訊，絕不傳送套件名稱或命令。當儲存主機沒有此 Proxy 時，目標卡片會警告<strong>儲存主機上未安裝 restate-proxy，因此主機無法透過它存取其備份。</strong>，並提供<strong>安裝 restate-proxy</strong>按鈕。",
+        "equip_p2": "Proxy 套件安裝的服務預設為關閉。接著，SysManage 的儲存設定會以目標的備份帳戶（擁有這些儲存庫的帳戶）執行它（在 Linux 上透過 systemd drop-in 將 <code>User</code> 和 <code>Group</code> 設為該帳戶並設定 <code>UMask=0007</code>；在 FreeBSD 上透過 <code>sysrc restate_proxy_user=restate restate_proxy_umask=007</code>），並在它取得憑證後將其開啟並啟動。當目標改回 NFS 時，代理程式會停止並關閉它所啟動的服務，不會做其他任何事。",
+        "h_cert": "Proxy 的憑證",
+        "cert_p1": "儲存主機會產生此 Proxy 的私密金鑰（金鑰絕不會離開儲存主機），並向 SysManage 伺服器申請憑證。伺服器自己的憑證授權機構 SysManage CA 會簽署該憑證，僅適用於目標中的 Proxy 位址，效期 365 天。下一次儲存設定會一併安裝金鑰和憑證，位置為 <code>/etc/restate/proxy.key</code>（僅備份帳戶可讀取）和 <code>/etc/restate/proxy.crt</code>，並重新啟動此 Proxy。憑證會在到期前 30 天續約，且每當 Proxy 位址變更時也會再次續約。",
+        "cert_p2": "主機透過 SysManage CA 信任此憑證，SysManage 會將此 CA 作為目標的 CA 提供給主機。目標卡片會顯示<strong>由 SysManage CA 簽發的憑證，有效期至</strong>某個日期，或顯示<strong>正在等待儲存主機申請其憑證</strong>。當您提供自己的站點 CA 時，以它為準：伺服器不會簽發任何憑證，卡片也不會顯示憑證那一行。此時，由該 CA 簽署的憑證及其金鑰需由您自行放到儲存主機上相同的兩個路徑。",
+        "h_grants": "允許清單：每台主機一個存取授權",
+        "grants_p1": "此 Proxy 只允許它擁有存取授權的用戶端進入：在 <code>/etc/restate/proxy.d</code> 中每個用戶端一個檔案。儲存主機的代理程式會為目標的每台主機寫入一個檔案 <code>/etc/restate/proxy.d/&lt;host id&gt;.conf</code>，其中指明該主機的儲存庫、主機可以執行的操作（新增備份，以及讀取自己的儲存庫以進行還原），以及主機令牌的 SHA-256 雜湊。若主機的儲存庫是在已有備份之後才以 Professional+ 加密，該主機還會取得一個針對先前儲存庫的唯讀存取授權 <code>&lt;host id&gt;.previous.conf</code>。",
+        "grants_p2": "代理程式會為它寫入的每個存取授權加上該目標的標籤，而且只會變更或移除這些授權：您自己寫入的存取授權不會被變動。當主機離開目標或被刪除時，其存取授權會被移除，而同一個令牌在下一次請求時就會被拒絕。此 Proxy 會在目錄變更時自行重新讀取，因此無需重新啟動任何東西。",
+        "grants_rotate": "超過 90 天的令牌會被更換。主機會產生下一個令牌，並只回報其雜湊；儲存主機會將該雜湊加入存取授權，與目前的雜湊並存，而主機只有在伺服器告知新雜湊已獲授權後，才會開始使用新令牌。之後舊雜湊才會被移除，因此在這段期間不會有任何備份失敗。",
+        "grants_repo": "透過此 Proxy，主機無法建立自己的儲存庫。請在每台主機首次備份之前，於其「備份」卡片上按一下<strong>準備儲存</strong>：接著儲存主機會自行建立儲存庫，若儲存庫有加密，則使用策略的公開金鑰。在完成之前，目標卡片會將該主機列在<strong>儲存主機上還沒有儲存庫</strong>之下。",
+        "h_restore": "還原，以及忙碌中的儲存庫",
+        "restore_p1": "透過 Proxy 還原需要 Restore Files 權限，並會記錄在稽核日誌中，與透過 NFS 時完全相同。主機以自己的令牌讀取自己的儲存庫，而 Proxy 會在還原執行期間一直持有儲存庫的讀取鎖定，因此儲存主機上的清理無法移除還原正在讀取的任何內容。",
+        "restore_busy": "當儲存主機上的備份和清理同時需要同一個儲存庫時，其中一方會發現它已被鎖定，而 Proxy 會回應儲存庫忙碌中。發生這種情況的備份會顯示<strong>忙碌，將重試</strong>，並在 30 分鐘後再次排定執行；這不算失敗。發現有備份或還原正在執行的清理不會移除任何內容，並會以相同方式再次嘗試。",
+        "h_audit": "儲存檢查對 Proxy 的回報內容",
+        "audit_p1": "目標卡片上的儲存檢查也涵蓋此 Proxy，會在每次儲存作業之後以及每天一次執行：",
+        "audit_missing": "<strong>儲存主機上未安裝 restate-proxy</strong> -- 按一下警告中的<strong>安裝 restate-proxy</strong>。",
+        "audit_stopped": "<strong>儲存主機上的 restate-proxy 未在執行</strong> -- 請在儲存主機上啟動其服務。",
+        "audit_cert": "<strong>憑證</strong>在 <code>/etc/restate/proxy.crt</code> 中遺失、無法讀取、已過期（此時主機會拒絕此 Proxy），或將在 21 天內到期。",
+        "audit_grants": "<strong>restate-proxy 不接受所列主機的存取授權</strong> -- 請在儲存主機上執行 <code>restate-proxy --check-grants</code> 以查看原因。",
+        "audit_repo": "所列主機的<strong>儲存主機上還沒有儲存庫</strong> -- 請在每台主機的「備份」卡片上按一下<strong>準備儲存</strong>。",
+        "audit_reach": "每台主機也會被詢問是否能連線到此 Proxy，並以它信任的憑證（以及有釘選金鑰時，該釘選金鑰）完成 TLS 連線，詢問時機與 NFS 檢查相同：在<strong>為備份做準備</strong>之前、儲存其策略時、每天一次，以及您按一下<strong>重新檢查</strong>時。無法做到的主機會顯示<strong>此主機無法連線到備份儲存的 restate-proxy</strong>，並附上位址、連接埠和錯誤，且其備份會暫停，直到它能連線為止。它需要一條通往此 Proxy 的網路路徑，而且必須信任其憑證。",
+        "h_remote": "透過防火牆連線的網路外部主機",
+        "remote_p1": "位於儲存主機網路外部的主機，會透過網路邊緣的防火牆連線到 Proxy。防火牆會原樣傳遞 TLS 連線，因此 TLS 在儲存主機上終止：防火牆從不持有 Proxy 的憑證，也看不到任何令牌，且沒有任何內容以未加密方式穿越您的 LAN。請透過分割視界 DNS，在各處對 Proxy 使用同一個名稱：",
+        "remote_outside": "<strong>在外部</strong>，該名稱會解析為防火牆的公用位址。",
+        "remote_inside": "<strong>在內部</strong>，DNS 主機覆寫會將同一個名稱解析為儲存主機本身，因此 LAN 主機會直接連線到 Proxy，其每晚的備份不會繞經防火牆。",
+        "remote_same": "如此一來，每台主機都使用相同的位址、連接埠和憑證，因此目標不需要為遠端主機另行設定。",
+        "h_pfsense": "範例：以 TCP 模式使用 HAProxy 的 pfSense",
+        "pf_p1": "pfSense 的 HAProxy 套件在 TCP 模式下，會讀取用戶端在 TLS 交握中要求的名稱（SNI），並在不解密的情況下將連線傳送到該名稱對應的後端。以下設定會將 WAN 位址連接埠 8443 上的 <code>backup.example.com</code> 傳送到位於 <code>192.168.1.10</code> 之儲存主機的連接埠 8443：",
+        "pf_backend": "<strong>後端</strong>（Services &gt; HAProxy &gt; Backend）：一台位址為 <code>192.168.1.10</code>、連接埠為 <code>8443</code> 的伺服器，Encrypt(SSL) 和 SSL checks 關閉；伺服器逾時 <code>120000</code>；健康檢查方法為 Basic，檢查頻率留空；Transparent ClientIP 關閉。",
+        "pf_frontend": "<strong>前端</strong>（Services &gt; HAProxy &gt; Frontend）：在 WAN 位址的連接埠 <code>8443</code> 上監聽，SSL Offloading 關閉；類型為 <code>ssl / https(TCP mode)</code>；一份存取控制清單，以 Server Name Indication TLS extension 比對 <code>backup.example.com</code>，並對其設定 Use Backend 動作；不設預設後端；用戶端逾時 <code>120000</code>。",
+        "pf_rule": "<strong>防火牆規則</strong>（Firewall &gt; Rules &gt; WAN）：允許傳往 WAN 位址連接埠 <code>8443</code> 的 TCP 通過。不需要連接埠轉送，因為 HAProxy 本身就在 WAN 位址上監聽。若已知遠端主機的位址，可將規則的來源限制為這些位址，作為額外的一層防護。",
+        "pf_dns": "<strong>DNS</strong>：<code>backup.example.com</code> 在外部解析為 WAN 位址，而 pfSense DNS Resolver 中的主機覆寫（Services &gt; DNS Resolver &gt; Host Overrides）在內部將它解析為 <code>192.168.1.10</code>。",
+        "pf_why": "請保持 TCP 模式並關閉 SSL Offloading：卸載會將 Proxy 的憑證和金鑰放在防火牆上，並在那裡解密每個備份。HAProxy 只有在交握到達後才能比對名稱，因此前端需要 <code>tcp-request inspect-delay 5s</code> 和 <code>tcp-request content accept if { req_ssl_hello_type 1 }</code>；如果 pfSense 寫入的設定（<code>/var/etc/haproxy/haproxy.cfg</code>）兩者皆無，請在前端的 Advanced pass thru 中加入它們。請將兩個逾時都保持在 120 秒，比 Proxy 自己的 60 秒更長，因為 HAProxy 的預設值 30 秒可能會在大型備份提交時將其中斷。請勿開啟 <code>send-proxy</code>：restate-proxy 不接受 PROXY protocol。",
+        "pf_test": "接著將目標的<strong>主機連線使用的 Proxy 位址</strong>設為 <code>backup.example.com</code>，並將其<strong>連接埠</strong>設為 8443。Proxy 來自 SysManage CA 的憑證就是為該名稱簽發的。通過連線檢查的遠端主機，會和其他主機一樣可以使用備份。",
+        "h_needs": "事前準備",
+        "need_restate": "儲存主機上的 <code>restate-proxy</code>（由<strong>為備份做準備</strong>安裝），以及每台主機上透過 Proxy 備份所需的 restate 3.2.0.0 或更新版本。代理程式會詢問 restate 能做什麼（<code>restate features</code>），因此使用較舊 restate 的主機，對於無法透過 Proxy 完成的操作會繼續使用 NFS。",
+        "need_curl": "每台主機上的 <code>curl</code>，restate 會執行它來連線到 Proxy。restate 的 Debian 和 RPM 套件會建議安裝它；「準備備份」不會安裝它。",
+        "need_port": "Proxy 的連接埠（預設為 8443）需從主機到儲存主機保持開放。",
+        "h_editions": "版本需求",
+        "editions_p1": "作為傳輸方式的 Proxy 屬於 Community 版本：目標上的設定、「準備備份」、存取授權和令牌、作業檔案、還原、儲存檢查，以及目標的<strong>同時進行的備份數</strong>。<code>restate-proxy</code> 本身是 restate 的一部分，可以免費手動執行。依一天中的時段設定的頻寬限制（在目標卡片上以<strong>變更頻寬限制</strong>設定，即<strong>透過 restate-proxy 的頻寬</strong>）需要 Professional+，且儲存主機上需要 restate 3.2.1.4 或更新版本。沒有授權時，規則會保留但不會套用，透過此 Proxy 的備份會以全速執行。",
+        "fig_bandwidth": "Professional+：只有一條規則的<strong>透過 restate-proxy 的頻寬</strong>對話方塊，依儲存主機的時鐘從 08:00 到 18:00 限速 2MiB/s，其餘時間不限速。",
+        "fig_target": "使用代理的目標卡片：代理位址、由 SysManage CA 簽發的憑證及其到期時間，以及儲存檢查發出的 restate-proxy 尚未安裝的警告與用來安裝它的按鈕。",
+        "fig_transport": "選擇 restate-proxy 後的<strong>主機存取儲存空間的方式</strong>對話方塊：主機連線的代理位址 <code>backup.example.com</code> 與連接埠 8443。"
       }
     },
     "administration": {
@@ -5115,7 +5220,10 @@
             "cli_migrate": "<strong>SysManage-遷移：</strong> 顯示並應用未完成的數據庫遷移",
             "cli_secure": "<strong>SysManage安全安裝：</strong> 從源碼設置新安裝",
             "cli_psql": "<strong>psql 和 pg_dump：</strong> 直接資料庫存取和備份",
-            "compliance": "SysManage 並未取得 SOC 2、ISO 27001、PCI DSS、HIPAA、FedRAMP 或任何其他框架的認證或審計。它提供的是一種你可以在自己進行審計時使用的證據：審計日誌、基於角色的存取控制，以及商業版中的 <a href=\"../professional-plus/compliance.html\">合規性檢查</a>（來自 CIS 基準和 DISA STIGs）和 <a href=\"../professional-plus/vulnerability-scanning.html\">漏洞掃描</a>。"
+            "compliance": "SysManage 並未取得 SOC 2、ISO 27001、PCI DSS、HIPAA、FedRAMP 或任何其他框架的認證或審計。它提供的是一種你可以在自己進行審計時使用的證據：審計日誌、基於角色的存取控制，以及商業版中的 <a href=\"../professional-plus/compliance.html\">合規性檢查</a>（來自 CIS 基準和 DISA STIGs）和 <a href=\"../professional-plus/vulnerability-scanning.html\">漏洞掃描</a>。",
+            "proxy_title": "透過 HTTPS 備份",
+            "proxy_desc": "讓主機透過 restate-proxy 連線到儲存主機，而不需掛載 NFS：每台主機一個僅能附加的存取授權、絕不離開主機的令牌，以及從外部穿過防火牆進入的路徑。",
+            "proxy_link": "restate-proxy 指南 →"
           }
         },
         "livepatch": {
@@ -17046,7 +17154,7 @@
         "build": {
           "failure_note": "如果构建失败，则该行的状态芯片显示<code>failed</code>，并在标签顶部的“最近构建失败”警报中总结第一个错误行。完整的每个构建日志存储在服务器上的<code>/var/lib/sysmanage/airgap-bundles/&lt;bundle-uuid&gt;.log</code> -- 用于诊断PPA构建问题、缺少GitHub Releases资产或Docker注册表故障。",
           "intro": "該包是在具有互聯網接入的Pro+許可證主機上的SysManage設置UI中構建的。您<em>不需要</em>在構建主機上安裝空隙目標的操作系統 -- 每個平台特定的抓取都在其自己的Docker容器內運行。",
-          "step_click": "點擊 <strong>建立伺服器套件</strong>， <strong>建立代理套件</strong>，或 <strong>建立 Pro+ 套件</strong>。你可以排隊所有三個 -- 它們會依序執行。伺服器與代理套件會根據平台啟動 Docker 容器（慢速）；Pro+ 套件只會複製本地檔案（快速 -- 數秒內）。",
+          "step_click": "點擊 <strong>建立伺服器套件</strong>， <strong>建立代理程式套件</strong>，或 <strong>建立 Pro+ 套件</strong>。你可以排隊所有三個 -- 它們會依序執行。伺服器與代理套件會根據平台啟動 Docker 容器（慢速）；Pro+ 套件只會複製本地檔案（快速 -- 數秒內）。",
           "step_docker": "確認 Docker 准備標誌顯示 <em>\"Docker is ready\"</em>。如果沒有，標誌會提供具體的修復命令 -- 通常為 <code>sudo usermod -aG docker &lt;service-user&gt;</code>，然後重新啟動服務。",
           "step_download": "點擊下載圖標。您的瀏覽器將通過驗證API下載<code>sysmanage-server-bundle-&lt;version&gt;.iso</code>（或<code>sysmanage-agent-bundle-&lt;version&gt;.iso</code>）。文件很大（約500 MB到1 GB）----請保持分頁打開直到下載完成。",
           "step_login": "在構建主機上使用管理員帳戶登錄SysManage web UI。",
@@ -17072,7 +17180,7 @@
           "title": "隔離部署"
         },
         "install": {
-          "config_text": "伺服器安裝完成後，請使用線上的 <a href=\"../../config-builder.html\">SysManage 設定產生器</a>設定 <code>/etc/sysmanage.yaml</code>。對於氣隙安裝，有一項設定特別重要：設定 <code>api.host: 0.0.0.0</code>（讓另一部機器上的 Web 介面能夠連線到 API -- 只繫結至 <code>localhost</code> 僅適用於單一主機安裝）。接著執行資料庫移轉並啟動服務：<code>cd /opt/sysmanage &amp;&amp; sudo -u sysmanage .venv/bin/python -m alembic upgrade head &amp;&amp; sudo systemctl enable --now sysmanage</code>。啟動後，在<strong>設定 → 伺服器角色</strong>中設定氣隙角色（中斷連線的一端請選擇<em>氣隙儲存庫</em>）並重新啟動 -- 角色現在儲存在資料庫中，而不是 YAML 鍵中。",
+          "config_text": "伺服器安裝完成後，請使用線上的 <a href=\"../../config-builder.html\">SysManage 設定產生器</a>設定 <code>/etc/sysmanage.yaml</code>。對於氣隙安裝，有一項設定特別重要：設定 <code>api.host: 0.0.0.0</code>（讓另一部機器上的 Web 介面能夠連線到 API -- 只繫結至 <code>localhost</code> 僅適用於單一主機安裝）。接著執行資料庫移轉並啟動服務：<code>cd /opt/sysmanage &amp;&amp; sudo -u sysmanage .venv/bin/python -m alembic upgrade head &amp;&amp; sudo systemctl enable --now sysmanage</code>。啟動後，在<strong>設定 → 伺服器角色</strong>中設定氣隙角色（中斷連線的一端請選擇<em>隔離儲存庫</em>）並重新啟動 -- 角色現在儲存在資料庫中，而不是 YAML 鍵中。",
           "config_title": "配置 /etc/sysmanage.yaml",
           "detection": "分派器會印出一行 <code>[install] Detected: id=&lt;os&gt; version=&lt;ver&gt;</code>，然後執行對應的平台安裝程式（例如在 Ubuntu 26.04 上為 <code>linux-ubuntu-resolute/install.sh</code>）。平台安裝程式接著依目標呼叫 <code>dpkg -i</code>、<code>dnf install</code>、<code>zypper install</code>、<code>apk add</code>、<code>pkg add</code>、<code>pkg_add</code> 或 <code>installer -pkg</code> -- 一律只使用隨附的構件，絕不連線到網路。",
           "from_file_title": "從 ISO 檔案（最常見）",
@@ -18984,8 +19092,8 @@
       "builtin_intro": "伺服器本身也是 SysManage 管理的主機之一，並以相同的方式、使用 restate 備份自己。在<strong>備份</strong>頁面上，<strong>備份此 SysManage 伺服器</strong>會為伺服器自己的主機建立一個策略，並預先設定為包含伺服器恢復所需的一切。<a href=\"fleet-backups.html\">主機備份</a>頁面說明了備份目標、排程和保留期限，它們在這裡的運作方式相同。",
       "h_needs": "所需條件",
       "needs_agent": "<strong>伺服器自己的代理</strong>，且已核准。SysManage 依名稱找出伺服器的主機；如果無法判斷哪台主機是伺服器，它會請您選擇。",
-      "needs_restate": "<strong>伺服器主機上的 restate</strong>，與任何受備份的主機一樣，透過<strong>準備備份</strong>安裝。restate 3.0.0.0 或更新版本會在不停止資料庫的情況下複製資料庫（見下文）。",
-      "needs_target": "<strong>一個伺服器可連到的備份目標。</strong>目前伺服器是透過 NFS 掛載儲存主機上的備份儲存庫，因此儲存主機必須位於伺服器可連到的網路上。位於雲端的伺服器目前還無法掛載位於家中或辦公室的儲存主機；在能夠做到之前，請依照下文所述以手動方式備份它。",
+      "needs_restate": "<strong>伺服器主機上的 restate</strong>，與任何受備份的主機一樣，透過<strong>為備份做準備</strong>安裝。restate 3.0.0.0 或更新版本會在不停止資料庫的情況下複製資料庫（見下文）。",
+      "needs_target": "<strong>伺服器可連線的備份目標。</strong>透過 NFS 時，伺服器會掛載儲存主機的儲存庫，因此儲存主機必須位於伺服器可以掛載它的網路上。雲端中的伺服器會像任何遠端主機一樣，透過 <a href=\"backup-proxy.html\">restate-proxy</a>、經由您的防火牆以 HTTPS 備份到位於家中或辦公室的儲存主機。在實體隔離站點上，伺服器會備份到實體隔離網路上的儲存主機。",
       "needs_escrow": "<strong>Professional+，用於加密：</strong>一把緊急存取託管金鑰，儲存在某台主機的<strong>加密</strong>面板中。伺服器的備份會以這把金鑰加密。",
       "h_setup": "設定方式",
       "setup_1": "在<strong>備份</strong>頁面上，選擇<strong>備份此 SysManage 伺服器</strong>。如果沒有任何主機的名稱與伺服器相同，請選擇其代理所在的那台主機。",
@@ -19060,7 +19168,11 @@
       "h_restore": "從手動建立的備份重建",
       "reconnect_p2": "代理也會檢查伺服器的 TLS 憑證：該憑證必須對代理所使用的名稱有效，且其金鑰必須符合代理在註冊時所釘選的內容，並鏈結到伺服器的 CA。請將 CA 與其他所有內容一起還原。以新 CA 重建的伺服器會被每個代理拒絕，而且已簽發的主機憑證也不再鏈結到它。請參閱<a href=\"../security/mtls.html\">代理憑證與 TLS</a>。",
       "h_partial": "遺失其中一部分，且備份是以手動方式建立",
-      "fig_server_dialog": "<strong>備份此 SysManage 伺服器</strong>對話方塊：伺服器備份包含的內容、排除的內容，以及從不備份的內容。"
+      "fig_server_dialog": "<strong>備份此 SysManage 伺服器</strong>對話方塊：伺服器備份包含的內容、排除的內容，以及從不備份的內容。",
+      "step1_airgap": "<strong>在實體隔離站點上</strong>，沒有可供安裝的套件儲存庫。請從伺服器媒體安裝伺服器：從 SysManage 伺服器組件包 ISO 執行 <code>sudo /mnt/install.sh</code>，該 ISO 包含套件、PostgreSQL、nginx 與 OpenBAO。請從代理媒體安裝 restate 及 NFS 用戶端：從代理組件包 ISO 執行 <code>sudo /mnt/install.sh</code>。這也會安裝代理，之後還原作業會將代理原本的身分交還給它。接著依上文所述停止這些服務。媒體中的 SysManage 可能比建立備份時的版本更新；這沒有問題，因為步驟 6 的 <code>sudo sysmanage-migrate</code> 會處理這種情況。",
+      "step3_timing": "在一次測試中，還原作業在約 3 分鐘內放回了 28,530 個檔案（14 GB）。",
+      "step7_airgap": "<strong>在使用 Professional+ 的實體隔離站點上</strong>，引擎無法重新下載：備份不包含它們（<code>/var/lib/sysmanage/modules</code>），而伺服器也沒有取得它們的途徑。在啟動 SysManage 之前或剛啟動之後，請安裝 Pro+ 疊加媒體：從在連網側建置的 Pro+ 組件包 ISO 執行 <code>sudo /mnt/install.sh</code>（<strong>建立 Pro+ 套件</strong>，或 <code>buildAirGapBundle.sh proplus</code>）。沒有它，備份引擎就不存在，因此伺服器自身的備份無法加密，備份頁面會顯示未加密。有了它，所有引擎都會載入，授權在離線狀態下也會顯示為有效。",
+      "newaddr_hosts": "在沒有 DNS 的站點上，由 hosts 檔案代替 DNS：在步驟 7 之前，於每台代理主機與儲存主機的 <code>/etc/hosts</code> 中將該名稱指向新位址。在一次實體隔離網路上的測試中，代理隨後以原本的身分自行重新連線，沒有任何項目等待核准；在一次排程器輪詢內，儲存主機將儲存庫匯出到新位址，<strong>立即備份</strong>也成功完成。"
     },
     "mtls3": {
       "meta_description": "SysManage 如何以 TLS 保護代理與伺服器之間的流量：代理會釘選伺服器、出示自己的用戶端憑證並自行續約，以及如何在不中斷主機群的情況下啟用雙向 TLS。",
