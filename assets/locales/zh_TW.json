@@ -1908,7 +1908,8 @@
           "summary": "由操作員（UI、API 或 cron）在公開端伺服器上觸發。套件包是由已設定的 mirror_repository 樹的快照建立，而不是每次執行都再進行一次上游擷取 -- 從上游下載一次（透過 repository_mirroring 引擎的一般同步）即可同時用於 LAN 鏡像和實體隔離套件包。引擎會產生一份在收集器本身上本機執行的部署計畫；它不會分派給受管理的代理。",
           "title": "採集週期（採集器端）",
           "splay": "排程收集會在其 cron 時間之後最多 30 分鐘、在每個排程固定的時間點執行，如此共用預設排程的儲存庫不會在同一時刻全部從上游鏡像拉取。排程的下次執行會顯示實際時間。",
-          "multidisc_when": "只有在執行設有燒錄裝置時，才會分割成多張光碟：若燒錄裝置留空，它會建置一個任意大小的 ISO，因為檔案沒有需要容納的光碟。一組光碟中的每一張都帶有已簽署的資訊清單，其中載明它是總共幾張中的第幾張，而其磁碟區標籤是執行的 ISO 標籤後接 <code>-d&lt;N&gt;</code>。SysManage 工具位於第 1 張光碟。"
+          "multidisc_when": "只有在執行設有燒錄裝置時，才會分割成多張光碟：若燒錄裝置留空，它會建置一個任意大小的 ISO，因為檔案沒有需要容納的光碟。一組光碟中的每一張都帶有已簽署的資訊清單，其中載明它是總共幾張中的第幾張，而其磁碟區標籤是執行的 ISO 標籤後接 <code>-d&lt;N&gt;</code>。SysManage 工具位於第 1 張光碟。",
+          "burn_set": "<strong>燒錄集合。</strong>一個 <code>build_burn_plan</code> 燒錄一張光碟並將其退出，因此集合會逐張燒錄：依序燒錄每個 <code>&lt;run_id&gt;-disc-&lt;N&gt;.iso</code>，而單張光碟燒錄 <code>&lt;run_id&gt;.iso</code>。除最後一張外，每張光碟燒錄後運行都會從 <code>BURNING</code> 進入 <code>AWAITING_MEDIA</code>，協調器從不在該狀態下分派任何工作。<code>POST /api/v1/airgap/collector/runs/{run_id}/next-disc</code>（介面中的<strong>已放入下一張光碟</strong>操作）會將運行恢復為 <code>ISO_BUILT</code>，然後燒錄下一張光碟；如果運行未在等待媒體，該呼叫會回傳 409。運行的 <code>disc_count</code> 和 <code>burned_disc_count</code> 顯示進度。燒錄失敗會將運行設為 <code>FAILED</code>，並在錯誤訊息中註明光碟編號。"
         },
         "compliance": {
           "current": "目前 -- 主機上安裝的版本與鏡像中的最新版本匹配，且自上次轉移以來沒有公開側的CVE出現。",
@@ -2071,7 +2072,8 @@
           "title": "步驟 3 -- 收集並刻錄到收集器上",
           "multidisc": "設有燒錄裝置時，大於<strong>媒體大小（MB）</strong>（預設為 4700，即單層 DVD）的執行會被分割成一組光碟，每張光碟都容納完整的鏡像。大於一張光碟的鏡像會被拒絕，因此請為其挑選較大的媒體。每次執行也都會攜帶 SysManage 工具（適用於該執行之系統的代理程式、restate 和 restate-proxy），位於一組光碟中的第 1 張光碟。",
           "fig_disc_picker": "一張光碟放不下的執行：下載時會詢問要取得三張光碟中的哪一張，並顯示每張光碟的大小。",
-          "fig_new_run": "<strong>新增收集執行</strong>對話方塊：ISO 標籤、<strong>媒體大小（MB）</strong>、CVE 與合規快照、要收集的鏡像以及燒錄裝置。"
+          "fig_new_run": "<strong>新增收集執行</strong>對話方塊：ISO 標籤、<strong>媒體大小（MB）</strong>、CVE 與合規快照、要收集的鏡像以及燒錄裝置。",
+          "burn_set": "光碟機一次燒錄集合中的一張光碟。除最後一張外，每燒錄完一張，光碟機都會退出光碟，運行在 <code>AWAITING_MEDIA</code> 狀態等待，狀態顯示為<em>第 1 張光碟（共 3 張）已燒錄。請放入空白光碟。</em>在已燒錄的光碟上標示編號，在光碟機中放入一張空白光碟，點擊該運行的<strong>已放入下一張光碟</strong>操作，然後用<strong>燒錄第 2 張光碟</strong>確認。最後一張光碟燒錄後，運行變為 <code>COMPLETE</code>。如果某張光碟燒錄失敗，運行變為 <code>FAILED</code>，其錯誤訊息會指明是哪張光碟。"
         },
         "header": {
           "description": "使用SysManage將包移動到空隙之間的完整操作員工作流程，從選擇伺服器角色到空隙主機從本地鏡像安裝更新。<a href=\"airgap-deployment.html\">部署指南</a>涵蓋了架構，而<a href=\"airgap-runbook.html\">運行手冊</a>涵蓋了日常操作；此頁面是將它們連接起來的線性“先做這件事，然後再做那件事”的路徑，並指向確切的UI控件。",
@@ -2079,11 +2081,11 @@
         },
         "meta_description": "SysManage 空氣隔絕步驟：設定角色，複製收集器公開金鑰，建立簽名後的收集 ISO，在存儲庫上信任金鑰，從光碟或 USB 驅動器導入媒體，提供鏡像服務，並自動重新指向代理。",
         "overview": {
-          "step1": "<strong>設置角色：</strong> 將一個伺服器設為 <em>隔離收集器</em>，另一個設為 <em>隔離儲存庫</em> （設定 → 伺服器角色）。",
-          "step2": "<strong>建立信任：</strong> 複製收集器的公鑰並在存儲庫上導入它。",
-          "step3": "<strong>收集與燒錄</strong> -- 在收集器上執行一次收集以產生已簽署的 ISO；將其寫入光碟/USB 媒體。",
-          "step4": "<strong>導入：</strong> 將媒體帶到存儲庫，選擇磁盤，然後導入。",
-          "step5": "<strong>提供與重新指向</strong> -- 儲存庫提供映像，代理程式會自動重新指向。",
+          "step1": "<strong>設定角色</strong> -- 將一台伺服器設為<em>隔離收集器</em>，另一台設為<em>隔離儲存庫</em>（設定 → 伺服器角色）。",
+          "step2": "<strong>建立信任</strong> -- 複製收集器的公開金鑰，並在儲存庫上匯入。",
+          "step3": "<strong>收集並燒錄</strong> -- 在收集器上執行一次收集以產生已簽署的 ISO；將其寫入光碟/USB 媒體。",
+          "step4": "<strong>匯入</strong> -- 將媒體帶到儲存庫，選擇磁碟機，然後匯入。",
+          "step5": "<strong>提供服務並重新指向</strong> -- 儲存庫提供鏡像服務，代理程式會自動重新指向它。",
           "summary": "隔離部署是一對 SysManage 伺服器。 <strong>收集器</strong> 坐落在連接互聯網的一側，鏡像上游包，並生成一個加密簽名的 ISO。 您將這個 ISO 物理帶到另一端。 <strong>倉庫</strong> 坐落在隔離的一側，驗證和導入 ISO，通過 HTTP 提供包，並將每個管理代理自動指向本地鏡像，因此這些代理永遠不會連接到互聯網。",
           "title": "概覽",
           "step6": "<strong>備份</strong> -- 從站點自己的工具儲存庫為主機準備備份，並將它們備份到內部的儲存主機。"
@@ -13821,7 +13823,7 @@
           "024": "建議 ↔ CVE 映射",
           "025": "每個建議連結到它解決的 CVE，所以你可以切換至以 CVE 為中心的安全漏洞掃描視圖或以建議為中心的視圖。安裝建議一次性解決受影響套件的所有相關 CVE。",
           "026": "版本需求",
-          "027": "建議管理是專業版+ 功能，由 advisory_engine 模組提供。在社區版中，建議 API 返回 HTTP 402 / 403，且建議頁面和主機標籤被隱藏。升級到專業版或更高版本以啟用它。"
+          "027": "建議管理是專業版+ 功能，由 advisory_engine 模組提供。在社區版中，建議 API 返回 HTTP 402，且建議頁面和主機標籤被隱藏。升級到專業版或更高版本以啟用它。"
         },
         "air-gap-deployment": {
           "001": "隔離集合列出鏡像存儲庫並構建帶有簽名 ISO 媒體以跨隔離環境傳輸的收集器運行。",
@@ -14029,7 +14031,7 @@
           "033": "偵測是開源軟體；啟用是企業版",
           "034": "報告您的主機群FIPS狀態是免費代理的一部分，因此您總是知道自己的位置。更改FIPS模式（啟用/禁用操作、主機群FIPS頁面和每主機控制）是一個企業功能，由合規引擎模組提供，它執行了作業系統到機制推斷和預飛驗證。",
           "035": "版本需求",
-          "036": "FIPS 檢測在每個版本中都可用 -- 姿態被收集和存儲，所有主機都可以反映現實情況。FIPS 模式管理（啟用/禁用、FIPS 合規頁面以及主機標籤的控制）是企業功能，受 FIPS_MODE 功能保護。在較低版本中，FIPS 管理 API 返回 HTTP 402 / 403，且 FIPS 合規頁面被隱藏。升級到企業版以啟用它。"
+          "036": "FIPS 檢測在每個版本中都可用 -- 姿態被收集和存儲，所有主機都可以反映現實情況。FIPS 模式管理（啟用/禁用、FIPS 合規頁面以及主機標籤的控制）是企業功能，受 FIPS_MODE 功能保護。在較低版本中，FIPS 管理 API 返回 HTTP 402，且 FIPS 合規頁面被隱藏。升級到企業版以啟用它。"
         },
         "firewall-orchestration-engine": {
           "001": "UFW -- Ubuntu, Debian （預設 Linux 回退選項）",
@@ -14156,7 +14158,7 @@
           "024": "與修補的關係",
           "025": "升級移動主機到一個全新的 OS 版本；日常的修補則由建議管理和漏洞掃描覆蓋。使用生命周期儀表板來捕捉那些視圖無法幫助的主機----其操作系統本身已過期的支持主機。",
           "026": "版本需求",
-          "027": "作業系統生命周期管理是由 lifecycle_engine 模組提供的 Professional+ 功能。在 Community Edition 中，lifecycle API 返回 HTTP 402 / 403 狀態碼，並且 OS 生命周期頁面和主機標籤被隱藏。升級到 Professional 或更高層級以啟用它。"
+          "027": "作業系統生命周期管理是由 lifecycle_engine 模組提供的 Professional+ 功能。在 Community Edition 中，lifecycle API 返回 HTTP 402 狀態碼，並且 OS 生命周期頁面和主機標籤被隱藏。升級到 Professional 或更高層級以啟用它。"
         },
         "provisioning-engine": {
           "001": "<code>GET/POST/DELETE /api/v1/provisioning/compute-resources</code> -- 管理供應商端點（企業版）",
@@ -17153,19 +17155,19 @@
         "breadcrumb": "隔離部署",
         "build": {
           "failure_note": "如果构建失败，则该行的状态芯片显示<code>failed</code>，并在标签顶部的“最近构建失败”警报中总结第一个错误行。完整的每个构建日志存储在服务器上的<code>/var/lib/sysmanage/airgap-bundles/&lt;bundle-uuid&gt;.log</code> -- 用于诊断PPA构建问题、缺少GitHub Releases资产或Docker注册表故障。",
-          "intro": "該包是在具有互聯網接入的Pro+許可證主機上的SysManage設置UI中構建的。您<em>不需要</em>在構建主機上安裝空隙目標的操作系統 -- 每個平台特定的抓取都在其自己的Docker容器內運行。",
+          "intro": "套件組合是在一台可存取網際網路、具 Enterprise 授權的主機上，透過 SysManage 設定介面建置。您<em>不需要</em>在建置主機上安裝隔離目標的作業系統 -- 每個平台的擷取作業都在各自的 Docker 容器中執行。",
           "step_click": "點擊 <strong>建立伺服器套件</strong>， <strong>建立代理程式套件</strong>，或 <strong>建立 Pro+ 套件</strong>。你可以排隊所有三個 -- 它們會依序執行。伺服器與代理套件會根據平台啟動 Docker 容器（慢速）；Pro+ 套件只會複製本地檔案（快速 -- 數秒內）。",
           "step_docker": "確認 Docker 准備標誌顯示 <em>\"Docker is ready\"</em>。如果沒有，標誌會提供具體的修復命令 -- 通常為 <code>sudo usermod -aG docker &lt;service-user&gt;</code>，然後重新啟動服務。",
           "step_download": "點擊下載圖標。您的瀏覽器將通過驗證API下載<code>sysmanage-server-bundle-&lt;version&gt;.iso</code>（或<code>sysmanage-agent-bundle-&lt;version&gt;.iso</code>）。文件很大（約500 MB到1 GB）----請保持分頁打開直到下載完成。",
           "step_login": "在構建主機上使用管理員帳戶登錄SysManage web UI。",
-          "step_nav": "前往 <strong>設定 &rarr; 空氣隔離安裝套件</strong>。此選項卡僅在伺服器具有有效的 Pro+ 許可證時才會顯示。",
+          "step_nav": "前往 <strong>設定 &rarr; 空氣隔離安裝套件</strong>。此分頁僅在伺服器擁有有效的 Enterprise 授權時才會顯示。",
           "step_ready": "當狀態變為 <code>ready</code> 時，行的 Actions 列將顯示下載圖標。記錄的 <strong>Version</strong> 列反映了此捆綁包內嵌入的上游 SysManage 發行版。",
           "step_wait": "新的捆綁行會以狀態 <code>queued</code> 出現，然後變為 <code>building</code>。構建通常需要 15-30 分鐘，具體取決於啟用的平台數量和構建主機網絡的速度。UI 自動輪詢 -- 不需要手動刷新。",
           "title": "步驟 1 -- 在可連接互聯網的主機上建立套件"
         },
         "bundles": {
           "agent": "<strong>代理程式封包</strong>（約 500 MB）-- SysManage 代理程式套件適用於每個支援的平台，包括其轉移的原生套件和 wheel 封閉。在隔離區內需要管理的所有主機上安裝此封包。",
-          "intro": "設定中的Air-Gap安裝套件選項卡可以產生三個不同的ISO套件。選擇符合您在隔離環境中運行需求的套件；這三種套件均由同一Pro+授權主機上的同一UI選項卡生成。",
+          "intro": "設定中的 Air-Gap Install Bundles 分頁可以產生三種不同的套件組合 ISO。請依您打算在隔離區內執行的內容選擇；三者都在同一台具 Enterprise 授權的建置主機上，從同一個 UI 分頁產生。",
           "order": "如果您希望在空氣隔離伺服器上使用 Pro+ 功能，安裝順序如下：<strong>(1) 伺服器套件在伺服器主機上，(2) 同一伺服器主機上的 Pro+ 套件，(3) 每個管理主機上的代理套件</strong>。Pro+ 套件的安裝程式假設 SysManage 伺服器已經存在 -- 它將引擎模組複製到 <code>/var/lib/sysmanage/modules/</code>，將許可證公鑰放入 <code>/var/lib/sysmanage/license/</code>，並將許可證 JWT 寫入 <code>/etc/sysmanage.yaml</code>，然後重新啟動服務。",
           "proplus": "<strong>Pro+ overlay bundle</strong> (~50 MB) -- 建立主機的 Cython 引擎 <code>.so</code> 檔案、JavaScript 插件適配層、授權 JWT 和緩存的公開金鑰。在伺服器捆綁包安裝<strong>之後</strong>，應用於隔離環境中的<em>伺服器</em>主機；它允許在沒有與 <code>license.sysmanage.org</code> 通訊的情況下本地啟用 Pro+ 引擎。如果您只需要在隔離環境的伺服器上使用 Community 級別功能，則不需要此捆綁包。",
           "server": "<strong>伺服器封包</strong>（約 1 GB）-- SysManage 伺服器 <code>.deb</code>/<code>.rpm</code>/<code>.apk</code>/<code>.pkg</code>/<code>.msi</code> 封裝適用於每個支援的平台，加上其完整的轉移原生套件依賴關閉（PostgreSQL, nginx, Python 建置依賴項）和 <code>requirements.txt</code> 中的所有 Python wheel。首先在隔離區伺服器主機上安裝此封包。",
@@ -17190,10 +17192,10 @@
           "windows_text": "Windows 安裝僅限於圖形界面。掛載 ISO（在 Windows 10/11 中右鍵點擊 &rarr; 挂载），打開 <code>windows\\</code> 文件夾，然後雙擊 <code>sysmanage-x64.msi</code> 或 <code>sysmanage-arm64.msi</code> -- 以匹配目標處理器架構的文件。",
           "windows_title": "Windows 目標"
         },
-        "meta_description": "使用 Pro+ 空氣隔離安裝套件建立器將 SysManage 伺服器和代理部署到沒有互聯網連接的網路中。",
+        "meta_description": "使用 Air-Gap Install Bundle Builder（Enterprise 功能）將 SysManage 伺服器與代理程式部署到無法連線網際網路的網路中。",
         "overview": {
-          "deployment_model": "工作流始終涉及兩台不同的機器：一台<strong>構建主機</strong>，該主機可以訪問互聯網並運行帶有Pro+許可證的SysManage伺服器，以及一個或多個位於空氣隔離區域內的<strong>目標主機</strong>。Pro+僅需在構建主機上安裝；生成的ISO將安裝未修改的SysManage伺服器或代理包，這些包可以在任何層級（社區、專業或Pro+）運行。",
-          "intro": "許多受管制環境 -- 防禦網絡、分類實驗室、操作技術段落、隔離租戶區域 -- 在安裝時無法從公共互聯網拉取包。Pro+ 空氣隔離安裝捆綁包生成器通過從互聯網連接的SysManage主機生成自包含的多OS ISO來解決此問題。您將ISO刻錄或複製到可移動介質上，帶入空氣隔離網絡中，在目標機器上掛載它並運行一個安裝腳本。安裝程序檢測主機操作系統並僅消耗捆綁的包 -- 它從不連接到遠程鏡像。",
+          "deployment_model": "此工作流程一律涉及兩類不同的機器：一台可存取網際網路、執行具 Enterprise 授權之 SysManage 伺服器的<strong>建置主機</strong>，以及位於隔離區內的一台或多台<strong>目標主機</strong>。只有建置主機需要 Enterprise 授權；產生的 ISO 會安裝未經修改的 SysManage 伺服器或代理程式套件，兩者都能在目標主機上以任何層級（Community、Professional 或 Enterprise）執行。",
+          "intro": "許多受監管的環境 -- 國防網路、機密實驗室、營運技術 (OT) 網段、隔離的租戶區域 -- 在安裝時無法從公用網際網路取得套件。Air-Gap Install Bundle Builder 屬於 Enterprise 層級，它在連線網際網路的 SysManage 主機上產生一個自給自足的多作業系統 ISO，藉此解決這個問題。您將 ISO 燒錄或複製到卸除式媒體上，帶入隔離網路，在目標機器上掛載，然後執行一個安裝指令碼。安裝程式會偵測主機的作業系統，只使用套件組合中的套件 -- 從不連線遠端鏡像。",
           "title": "概覽"
         },
         "platforms": {
@@ -17215,7 +17217,7 @@
           "build_docker": "<strong>Docker</strong> 必須已安裝，且 SysManage 服務用戶（通常是 <code>sysmanage</code> 或運行 <code>make start</code> 時的開發者用戶）必須是 <code>docker</code> 群組的成員。每個平台構建器都會生成一個一次性分發容器。",
           "build_host_title": "在構建主機（連接互聯網）上",
           "build_network": "出站訪問 <code>ppa.launchpadcontent.net</code>, <code>api.github.com</code>, <code>github.com</code>, <code>deb.debian.org</code>, <code>dl.fedoraproject.org</code>, 您選擇的發行版鏡像，以及 PyPI (<code>pypi.org</code>, <code>files.pythonhosted.org</code>)。 建立過程通過 Docker 容器自身的 apt/dnf 快取拉取上游包和輪子。",
-          "build_pro_plus": "運行有效的 Pro+ 許可證的 SysManage 伺服器。在 Community 和 Pro 層級中，bundle builder UI 窗格和 API 端點均返回 <code>403</code>。",
+          "build_pro_plus": "執行有效 Enterprise 授權的 SysManage 伺服器。在 Community 和 Professional 層級中，套件建置器的 UI 分頁會隱藏，其 API 端點會傳回 <code>402</code>。",
           "build_tools": "構建主機包： <code>xorriso</code> （ISO製作）， <code>jq</code> （GitHub Releases解析）， <code>curl</code> 。在Debian/Ubuntu上：<code>sudo apt install -y docker.io xorriso jq curl</code>。",
           "target_host_title": "在目標主機（隔絕）上",
           "target_no_internet": "無需互聯網連接。安裝程序設置 <code>PIP_NO_INDEX=1</code> 和 <code>PIP_FIND_LINKS</code>，因此包的後安裝腳本僅使用捆綁的 wheel 文件。",
@@ -22179,7 +22181,7 @@
         "title": "連接健康與本地自主性"
       },
       "licensing": {
-        "body": "聯邦功能屬於 SysManage Enterprise 層級。Enterprise 授權允許部署在任何伺服器上載入聯邦控制器引擎<strong>或</strong>聯邦站台引擎 -- 角色在 Web 介面的<strong>設定 &rarr; 伺服器角色</strong>中選擇。在 Community / Professional 安裝中，聯邦 API 端點會傳回 <code>403 pro_plus_required</code>，而介面會在每個聯邦頁面上顯示 Enterprise 升級提示。",
+        "body": "聯邦功能屬於 SysManage Enterprise 層級。Enterprise 授權允許部署在任何伺服器上載入聯邦控制器引擎<strong>或</strong>聯邦站台引擎 -- 角色在 Web 介面的<strong>設定 &rarr; 伺服器角色</strong>中選擇。在 Community / Professional 安裝中，聯邦 API 端點會傳回 <code>402 pro_plus_required</code>，而介面會在每個聯邦頁面上顯示 Enterprise 升級提示。",
         "title": "許可證"
       },
       "meta_description": "地理上分散的企業部署的階層式多伺服器架構----協調伺服器聚合多個下屬站點伺服器上的主機存貨、合規性和命令分派。",

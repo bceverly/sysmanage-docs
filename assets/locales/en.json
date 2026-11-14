@@ -2018,7 +2018,8 @@
           "step_download": "<strong>Download</strong> -- <code>GET /api/v1/airgap/collector/runs/{id}/iso</code> streams the ISO file. For multi-disc runs, <code>GET /runs/{id}/discs</code> lists the disc files and <code>/iso?disc=N</code> picks a specific one. The Air-Gap Collections UI auto-detects multi-disc runs and pops a picker dialog when the operator clicks Download.",
           "lifecycle": "<strong>Lifecycle states the <code>airgap_run_tick</code> orchestrator drives:</strong> <code>QUEUED</code> (waiting on per-target snapshots) → <code>MIRRORING</code> (rsync from snapshot trees into staging) → <code>STAGING_COMPLETE</code> (single-disc only; multi-disc skips this) → <code>BUILDING_ISO</code> (xorriso) → <code>ISO_BUILT</code> → <code>BURNING</code> (only when <code>burn_device</code> set) → <code>COMPLETE</code>. Any failure transitions the run to <code>FAILED</code> with the surfaced error message visible in the UI status column.",
           "splay": "A scheduled collection runs up to 30 minutes after its cron time, at a fixed point for each schedule, so repositories that share the default schedule do not all pull from the upstream mirrors at the same moment. The schedule's next run shows the actual time.",
-          "multidisc_when": "A run is split into discs only when it has a burn device: with the burn device left blank it builds one ISO of any size, since a file has no disc to fit. Every disc of a set carries the signed manifest, which says which disc of how many it is, and its volume label is the run's ISO label followed by <code>-d&lt;N&gt;</code>. The SysManage tools ride on disc 1."
+          "multidisc_when": "A run is split into discs only when it has a burn device: with the burn device left blank it builds one ISO of any size, since a file has no disc to fit. Every disc of a set carries the signed manifest, which says which disc of how many it is, and its volume label is the run's ISO label followed by <code>-d&lt;N&gt;</code>. The SysManage tools ride on disc 1.",
+          "burn_set": "<strong>Burning a set.</strong> One <code>build_burn_plan</code> burns one disc and ejects it, so a set is burned disc by disc: each <code>&lt;run_id&gt;-disc-&lt;N&gt;.iso</code> in turn, while a single disc burns <code>&lt;run_id&gt;.iso</code>. After each disc but the last, the run moves from <code>BURNING</code> to <code>AWAITING_MEDIA</code>, which the orchestrator never dispatches from. <code>POST /api/v1/airgap/collector/runs/{run_id}/next-disc</code> (the <strong>Next disc loaded</strong> action in the UI) puts the run back at <code>ISO_BUILT</code> and the next disc burns; it answers 409 when the run is not waiting for media. The run's <code>disc_count</code> and <code>burned_disc_count</code> show the progress. A failed burn sets <code>FAILED</code> with the disc number in the error message."
         },
         "ingestion_cycle": {
           "title": "Ingestion cycle (Repository side)",
@@ -2165,7 +2166,8 @@
           "title": "Step 3 -- Collect and burn on the collector",
           "multidisc": "With a burn device set, a run larger than <strong>Media Size (MB)</strong> (4700, a single-layer DVD, by default) is split into a set of discs, each holding whole mirrors. A mirror larger than one disc is refused, so pick larger media for it. Every run also carries the SysManage tools (the agent, restate and restate-proxy for the run's systems), on disc 1 of a set.",
           "fig_disc_picker": "A run that did not fit on one disc: the download asks which of its three discs to fetch, with each disc's size.",
-          "fig_new_run": "The <strong>New Collection Run</strong> dialog: the ISO label, <strong>Media Size (MB)</strong>, the CVE and compliance snapshots, the mirrors to collect and the burn device."
+          "fig_new_run": "The <strong>New Collection Run</strong> dialog: the ISO label, <strong>Media Size (MB)</strong>, the CVE and compliance snapshots, the mirrors to collect and the burn device.",
+          "burn_set": "The drive burns a set one disc at a time. After each disc but the last it ejects the disc and the run waits at <code>AWAITING_MEDIA</code>, its status reading <em>Disc 1 of 3 burned. Load a blank disc.</em> Label the burned disc with its number, put a blank disc in the drive, press the <strong>Next disc loaded</strong> action on the run and confirm with <strong>Burn disc 2</strong>. After the last disc the run is <code>COMPLETE</code>. If a disc fails to burn, the run is <code>FAILED</code> and its error says which disc."
         },
         "header": {
           "description": "The complete operator workflow for moving packages across an air gap with SysManage -- from choosing server roles to air-gapped hosts installing updates from the local mirror. The <a href=\"airgap-deployment.html\">Deployment guide</a> covers the architecture and the <a href=\"airgap-runbook.html\">Runbook</a> covers day-to-day operations; this page is the linear \"do this, then this\" path that ties them together and points at the exact UI controls involved.",
@@ -4449,7 +4451,7 @@
       },
       "airgap": {
         "title": "Air-Gap Deployment - Professional+ - SysManage",
-        "meta_description": "Deploy SysManage server and agent into networks with no internet connectivity using the Pro+ Air-Gap Install Bundle Builder.",
+        "meta_description": "Deploy SysManage server and agent into networks with no internet connectivity using the Air-Gap Install Bundle Builder, an Enterprise feature.",
         "breadcrumb": "Air-Gap Deployment",
         "header": {
           "title": "Air-Gap Deployment",
@@ -4457,8 +4459,8 @@
         },
         "overview": {
           "title": "Overview",
-          "intro": "Many regulated environments -- defense networks, classified labs, operational-technology segments, isolated tenancy zones -- cannot pull packages from the public internet at install time. The Pro+ Air-Gap Install Bundle Builder solves this by producing a self-contained multi-OS ISO from an internet-connected SysManage host. You burn or copy the ISO onto removable media, walk it into the air-gapped network, mount it on the target machine, and run one installer script. The installer detects the host operating system and consumes only the bundled packages -- it never reaches out to a remote mirror.",
-          "deployment_model": "The workflow always involves two distinct machines: a <strong>build host</strong> that has internet access and a SysManage server running with a Pro+ license, and one or more <strong>target hosts</strong> sitting inside the air-gapped enclave. Pro+ is required only on the build host; the resulting ISO installs unmodified SysManage server or agent packages, both of which run under any tier (Community, Pro, or Pro+) on the target."
+          "intro": "Many regulated environments -- defense networks, classified labs, operational-technology segments, isolated tenancy zones -- cannot pull packages from the public internet at install time. The Air-Gap Install Bundle Builder, part of the Enterprise tier, solves this by producing a self-contained multi-OS ISO from an internet-connected SysManage host. You burn or copy the ISO onto removable media, walk it into the air-gapped network, mount it on the target machine, and run one installer script. The installer detects the host operating system and consumes only the bundled packages -- it never reaches out to a remote mirror.",
+          "deployment_model": "The workflow always involves two distinct machines: a <strong>build host</strong> that has internet access and a SysManage server running with an Enterprise license, and one or more <strong>target hosts</strong> sitting inside the air-gapped enclave. The Enterprise license is required only on the build host; the resulting ISO installs unmodified SysManage server or agent packages, both of which run under any tier (Community, Professional, or Enterprise) on the target."
         },
         "platforms": {
           "title": "Supported Target Platforms",
@@ -4477,7 +4479,7 @@
         "prereqs": {
           "title": "Prerequisites",
           "build_host_title": "On the build host (internet-connected)",
-          "build_pro_plus": "SysManage server running with a valid Pro+ license. The bundle builder UI tab and API endpoints both return <code>403</code> on Community and Pro tiers.",
+          "build_pro_plus": "SysManage server running with a valid Enterprise license. On Community and Professional tiers the bundle builder UI tab is hidden and its API endpoints return <code>402</code>.",
           "build_docker": "<strong>Docker</strong> must be installed and the SysManage service user (typically <code>sysmanage</code>, or your dev user when running <code>make start</code>) must be a member of the <code>docker</code> group. Each per-platform builder spawns a throwaway distro container.",
           "build_tools": "Build host packages: <code>xorriso</code> (ISO mastering), <code>jq</code> (GitHub Releases parsing), <code>curl</code>. On Debian/Ubuntu: <code>sudo apt install -y docker.io xorriso jq curl</code>.",
           "build_disk": "At least <strong>4 GB free</strong> under <code>/var/lib/sysmanage/airgap-bundles/</code> (per bundle). The server bundle currently lands around 1 GB; the agent bundle around 500 MB.",
@@ -4489,9 +4491,9 @@
         },
         "build": {
           "title": "Step 1 -- Build the Bundle on the Internet-Connected Host",
-          "intro": "The bundle is built from the SysManage Settings UI on a Pro+-licensed host that has internet access. You do <em>not</em> need to install the air-gap target's OS on the build host -- every per-platform fetch runs inside its own Docker container.",
+          "intro": "The bundle is built from the SysManage Settings UI on an Enterprise-licensed host that has internet access. You do <em>not</em> need to install the air-gap target's OS on the build host -- every per-platform fetch runs inside its own Docker container.",
           "step_login": "Log into the SysManage web UI on the build host with an admin account.",
-          "step_nav": "Navigate to <strong>Settings &rarr; Air-Gap Install Bundles</strong>. This tab is only visible when the server has an active Pro+ license.",
+          "step_nav": "Navigate to <strong>Settings &rarr; Air-Gap Install Bundles</strong>. This tab is only visible when the server has an active Enterprise license.",
           "step_docker": "Confirm the Docker readiness banner reads <em>\"Docker is ready\"</em>. If it doesn't, the banner gives the exact remediation command -- usually <code>sudo usermod -aG docker &lt;service-user&gt;</code> followed by a service restart.",
           "step_click": "Click <strong>Build Server Bundle</strong>, <strong>Build Agent Bundle</strong>, or <strong>Build Pro+ Bundle</strong>. You can queue all three -- they will run sequentially. The Server and Agent bundles spin up Docker containers per platform (slow); the Pro+ bundle just copies local files (fast -- seconds).",
           "step_wait": "The new bundle row appears with status <code>queued</code>, then <code>building</code>. Builds typically take 15-30 minutes depending on how many platforms are enabled and the speed of the build host's network. The UI auto-polls -- no manual refresh needed.",
@@ -4554,7 +4556,7 @@
         },
         "bundles": {
           "title": "The Three Bundle Types",
-          "intro": "The Air-Gap Install Bundles tab in Settings can produce three distinct bundle ISOs. Choose the ones that match what you intend to run inside the enclave; all three are produced from the same UI tab on the same Pro+-licensed build host.",
+          "intro": "The Air-Gap Install Bundles tab in Settings can produce three distinct bundle ISOs. Choose the ones that match what you intend to run inside the enclave; all three are produced from the same UI tab on the same Enterprise-licensed build host.",
           "server": "<strong>Server bundle</strong> (~1 GB) -- the SysManage server <code>.deb</code>/<code>.rpm</code>/<code>.apk</code>/<code>.pkg</code>/<code>.msi</code> for every supported platform, plus its full transitive native-package dependency closure (PostgreSQL, nginx, Python build deps) and every Python wheel from <code>requirements.txt</code>. Install this first on the air-gapped server host.",
           "agent": "<strong>Agent bundle</strong> (~500 MB) -- the SysManage agent package for every supported platform, with its transitive native-package and wheel closures. Install this on every host inside the enclave that should be managed.",
           "proplus": "<strong>Pro+ overlay bundle</strong> (~50 MB) -- the build host's Cython engine <code>.so</code> files, JavaScript plugin shims, license JWT, and cached license public key. Apply this on the air-gapped <em>server</em> host <strong>after</strong> the server bundle has been installed; it unlocks Pro+ engines locally without any phone-home to <code>license.sysmanage.org</code>. Not needed if you only need Community-tier features on the air-gapped server.",
@@ -14711,7 +14713,7 @@
           "024": "Advisory ↔ CVE mapping",
           "025": "Each advisory links to the CVEs it addresses, so you can pivot between the CVE-centric Vulnerability Scanning view and the advisory-centric view. Installing an advisory remediates all of its CVEs for the affected packages at once.",
           "026": "Edition Requirements",
-          "027": "Advisory Management is a Professional+ capability provided by the advisory_engine module. In the Community Edition the advisory API returns HTTP 402 / 403 and the Advisories page and host tab are hidden. Upgrade to a Professional or higher tier to enable it."
+          "027": "Advisory Management is a Professional+ capability provided by the advisory_engine module. In the Community Edition the advisory API returns HTTP 402 and the Advisories page and host tab are hidden. Upgrade to a Professional or higher tier to enable it."
         },
         "fips-compliance": {
           "001": "Documentation",
@@ -14749,7 +14751,7 @@
           "033": "Detection is OSS; enabling is Enterprise",
           "034": "Reporting the FIPS posture of your fleet is part of the free agent, so you always know where you stand. Changing FIPS mode -- the enable/disable actions, the fleet FIPS page, and the per-host controls -- is an Enterprise capability provided by the compliance_engine module, which performs the OS-to-mechanism inference and pre-flight validation.",
           "035": "Edition Requirements",
-          "036": "FIPS detection is available in every edition -- the posture is collected and stored for all hosts. FIPS mode management (enable/disable, the FIPS Compliance page, and the host tab's controls) is an Enterprise capability gated behind the FIPS_MODE feature. In lower editions the FIPS management API returns HTTP 402 / 403 and the FIPS Compliance page is hidden. Upgrade to the Enterprise tier to enable it."
+          "036": "FIPS detection is available in every edition -- the posture is collected and stored for all hosts. FIPS mode management (enable/disable, the FIPS Compliance page, and the host tab's controls) is an Enterprise capability gated behind the FIPS_MODE feature. In lower editions the FIPS management API returns HTTP 402 and the FIPS Compliance page is hidden. Upgrade to the Enterprise tier to enable it."
         },
         "os-lifecycle": {
           "001": "Documentation",
@@ -14778,7 +14780,7 @@
           "024": "Relationship to patching",
           "025": "Release-upgrades move a host to a whole new OS release; day-to-day patching of the current release is covered by Advisory Management and Vulnerability Scanning . Use the lifecycle dashboard to catch the hosts those views can't help -- the ones whose OS itself has gone out of support.",
           "026": "Edition Requirements",
-          "027": "OS Lifecycle Management is a Professional+ capability provided by the lifecycle_engine module. In the Community Edition the lifecycle API returns HTTP 402 / 403 and the OS Lifecycle page and host tab are hidden. Upgrade to a Professional or higher tier to enable it."
+          "027": "OS Lifecycle Management is a Professional+ capability provided by the lifecycle_engine module. In the Community Edition the lifecycle API returns HTTP 402 and the OS Lifecycle page and host tab are hidden. Upgrade to a Professional or higher tier to enable it."
         },
         "content-lifecycle": {
           "001": "The Content Lifecycle page shows the ordered environment path and the content views -- each with its filters, published versions, and (for composite views) its components."
@@ -21721,7 +21723,7 @@
       },
       "licensing": {
         "title": "Licensing",
-        "body": "Federation is part of the SysManage Enterprise tier. The Enterprise license entitles a deployment to load <strong>either</strong> the federation controller engine or the federation site engine on any server -- the role is chosen in the web UI under <strong>Settings &rarr; Server Role</strong>. On Community / Professional installs, the federation API endpoints return <code>403 pro_plus_required</code> and the UI renders an Enterprise upsell on every federation page."
+        "body": "Federation is part of the SysManage Enterprise tier. The Enterprise license entitles a deployment to load <strong>either</strong> the federation controller engine or the federation site engine on any server -- the role is chosen in the web UI under <strong>Settings &rarr; Server Role</strong>. On Community / Professional installs, the federation API endpoints return <code>402 pro_plus_required</code> and the UI renders an Enterprise upsell on every federation page."
       },
       "health": {
         "title": "Connection Health & Local Autonomy",

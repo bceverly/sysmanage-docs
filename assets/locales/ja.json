@@ -1908,7 +1908,8 @@
           "summary": "公開側のサーバー上で、オペレーター (UI、API、または cron) によってトリガーされます。バンドルは、実行ごとにアップストリームから 2 回目の取得を行うのではなく、設定済みの mirror_repository ツリーのスナップショットから構築されます -- アップストリームからの 1 回のダウンロード (repository_mirroring エンジンの通常の同期による) が、LAN ミラーとエアギャップバンドルの両方に再利用されます。エンジンはコレクター自体でローカルに実行されるデプロイメントプランを出力し、管理対象のエージェントには配信しません。",
           "title": "収集サイクル (コレクター側)",
           "splay": "スケジュールされた収集は、cron の時刻から最大 30 分後の、スケジュールごとに固定された時点に実行されます。これにより、既定のスケジュールを共有するリポジトリが同じ瞬間にアップストリームのミラーから一斉に取得することはありません。スケジュールの次回実行には実際の時刻が表示されます。",
-          "multidisc_when": "実行が複数のディスクに分割されるのは、書き込みデバイスが設定されている場合だけです。書き込みデバイスを空白のままにすると、ファイルには収めるべきディスクがないため、サイズに関係なく 1 つの ISO が作成されます。セット内のすべてのディスクには署名付きマニフェストが含まれ、そのディスクが全何枚中の何枚目かが記載されます。また、ボリュームラベルは実行の ISO ラベルの後に <code>-d&lt;N&gt;</code> を付けたものになります。SysManage ツールはディスク 1 に収録されます。"
+          "multidisc_when": "実行が複数のディスクに分割されるのは、書き込みデバイスが設定されている場合だけです。書き込みデバイスを空白のままにすると、ファイルには収めるべきディスクがないため、サイズに関係なく 1 つの ISO が作成されます。セット内のすべてのディスクには署名付きマニフェストが含まれ、そのディスクが全何枚中の何枚目かが記載されます。また、ボリュームラベルは実行の ISO ラベルの後に <code>-d&lt;N&gt;</code> を付けたものになります。SysManage ツールはディスク 1 に収録されます。",
+          "burn_set": "<strong>セットの書き込み。</strong>1 つの <code>build_burn_plan</code> は 1 枚のディスクを書き込んで取り出すため、セットは 1 枚ずつ書き込まれます。<code>&lt;run_id&gt;-disc-&lt;N&gt;.iso</code> を順番に書き込み、単一ディスクの場合は <code>&lt;run_id&gt;.iso</code> を書き込みます。最後のディスク以外は、書き込みのたびに実行が <code>BURNING</code> から <code>AWAITING_MEDIA</code> に移ります。この状態からオーケストレーターが何かをディスパッチすることはありません。<code>POST /api/v1/airgap/collector/runs/{run_id}/next-disc</code> (UI の<strong>次のディスクをセットしました</strong>アクション) は実行を <code>ISO_BUILT</code> に戻し、次のディスクが書き込まれます。実行がメディアを待っていない場合は 409 を返します。実行の <code>disc_count</code> と <code>burned_disc_count</code> で進捗がわかります。書き込みに失敗すると <code>FAILED</code> になり、エラーメッセージにディスク番号が含まれます。"
         },
         "compliance": {
           "current": "current -- ホストにインストールされているバージョンがミラーの最新版と一致し、最後の転送後には公開側でCVEが発見されていない。",
@@ -2071,7 +2072,8 @@
           "title": "ステップ3 -- コレクタで収集と焼却",
           "multidisc": "書き込みデバイスが設定されている場合、<strong>メディアサイズ (MB)</strong> (既定は 4700、片面一層 DVD) より大きい実行は、それぞれがミラー全体を収めた複数のディスクのセットに分割されます。1 枚のディスクより大きいミラーは拒否されるため、そのミラーにはより大きなメディアを選んでください。すべての実行には SysManage ツール (実行対象のシステム用のエージェント、restate、restate-proxy) も含まれ、セットの場合はディスク 1 に収録されます。",
           "fig_disc_picker": "1 枚のディスクに収まらなかった実行: ダウンロード時に 3 枚のディスクのうちどれを取得するかを、各ディスクのサイズとともに尋ねます。",
-          "fig_new_run": "<strong>新しい収集の実行</strong> ダイアログ: ISO ラベル、<strong>メディアサイズ (MB)</strong>、CVE とコンプライアンスのスナップショット、収集するミラー、書き込みデバイス。"
+          "fig_new_run": "<strong>新しい収集の実行</strong> ダイアログ: ISO ラベル、<strong>メディアサイズ (MB)</strong>、CVE とコンプライアンスのスナップショット、収集するミラー、書き込みデバイス。",
+          "burn_set": "ドライブはセットを 1 枚ずつ書き込みます。最後のディスク以外は、書き込みのたびにディスクが取り出され、実行は <code>AWAITING_MEDIA</code> で待機し、状態には<em>ディスク 1 / 3 の書き込みが完了しました。空のディスクをセットしてください。</em>と表示されます。書き込んだディスクに番号を記入し、ドライブに空のディスクをセットして、実行の<strong>次のディスクをセットしました</strong>アクションを押し、<strong>ディスク 2 を書き込む</strong>で確定します。最後のディスクの後、実行は <code>COMPLETE</code> になります。ディスクの書き込みに失敗すると、実行は <code>FAILED</code> になり、エラーにどのディスクかが示されます。"
         },
         "header": {
           "description": "パッケージをエアギャップを跨いで移動するためのSysManageの完全なオペレーターワークフロー -- サーバー役割の選択からエアギャップホストがローカルミラーから更新をインストールするまで。　<a href=\"airgap-deployment.html\">Deployment guide</a>はアーキテクチャについて説明し、<a href=\"airgap-runbook.html\">Runbook</a>は日常の運用について説明します；このページはそれらをつなぐ「まずこれ、次にこれ」という手順で構成されています。",
@@ -2079,11 +2081,11 @@
         },
         "meta_description": "SysManageエアギャップのステップバイステップエンドツーエンドワークフロー: ロール設定、コレクターパブリックキーのコピー、署名付きコレクションISOの構築、リポジトリへのキーの信頼、光学/USBドライブからのメディアのインポート、ミラーサービスの開始、およびエージェントの自動再配置",
         "overview": {
-          "step1": "<strong>Set roles</strong> -- 1つは <em>エアギャップコレクター</em>、もう1つは <em>エアギャップリポジトリ</em> （Settings → Server Role）",
-          "step2": "<strong>Establish trust</strong> -- コレクタの公開鍵をコピーし、リポジトリ上でインポートします。",
-          "step3": "<strong>Collect &amp; burn</strong> -- コレクタ上で収集を行い、署名付き ISO を生成します；光学メディアまたは USB メディアに書き込みます。",
-          "step4": "<strong>Import</strong> -- メディアを持参してリポジトリに持ち込み、ドライブを選択し、インポートします。",
-          "step5": "<strong>Serve &amp; repoint</strong> -- リポジトリがミラーを提供し、エージェントは自動的にリポジトリに再設定されます。",
+          "step1": "<strong>ロールを設定</strong> -- 1 台のサーバーを <em>エアギャップコレクター</em>、もう 1 台を <em>エアギャップリポジトリ</em> に設定します (設定 → サーバーロール)。",
+          "step2": "<strong>信頼を確立</strong> -- コレクターの公開鍵をコピーし、リポジトリでインポートします。",
+          "step3": "<strong>収集して書き込み</strong> -- コレクターで収集を実行して署名付き ISO を作成し、光学メディアまたは USB メディアに書き込みます。",
+          "step4": "<strong>インポート</strong> -- メディアをリポジトリへ運び、ドライブを選択してインポートします。",
+          "step5": "<strong>配信と参照先の切り替え</strong> -- リポジトリがミラーを配信し、エージェントの参照先は自動的に切り替わります。",
           "summary": "エアギャップ展開は、SysManageサーバーのペアです。<strong>Collector</strong>はインターネットに接続された側に配置され、アップストリームパッケージをミラーリングし、暗号署名付きISOを作成します。そのISOを物理的にギャップを跨いで運びます。<strong>Repository</strong>は隔離された側に配置され、ISOを検証してインジェクトし、HTTP経由でパッケージを提供し、すべての管理エージェントがローカルミラーにリポイントされるように自動的に設定します。",
           "title": "概要",
           "step6": "<strong>バックアップ</strong> -- サイト独自のツールリポジトリからホストをバックアップ対応にし、内部のストレージホストにバックアップします。"
@@ -13821,7 +13823,7 @@
           "024": "アドバイザリー ↔ CVE マッピング",
           "025": "各アドバイザリには対応するCVEへのリンクがあり、CVE中心の脆弱性スキャンビューとアドバイザリ中心のビュー間で移動できます。アドバイザリをインストールすると、影響を受けたパッケージすべてのCVEが一括して修正されます。",
           "026": "エディション要件",
-          "027": "アドバイザリーエンジン モジュールが提供する Professional+ カパビリティである Advisory Management は、Community Edition では HTTP 402 / 403 を返し、アドバイザリーページとホストタブを隠します。Professional またはそれ以上の階層にアップグレードして有効化してください。"
+          "027": "アドバイザリーエンジン モジュールが提供する Professional+ カパビリティである Advisory Management は、Community Edition では HTTP 402 を返し、アドバイザリーページとホストタブを隠します。Professional またはそれ以上の階層にアップグレードして有効化してください。"
         },
         "air-gap-deployment": {
           "001": "オフラインコレクション：リポジトリのミラーと署名付きISOメディアのビルドを表示します。",
@@ -14029,7 +14031,7 @@
           "033": "検出はOSS；有効化はエンタープライズ機能",
           "034": "FIPS ポストゥアのレポートは無料エージェントに含まれているため、いつでも状況が把握できます。 FIPS モードの変更 -- 有効化/無効化アクション、FIPS ページ、およびホストごとの制御 -- はコンプライアンスエンジンモジュールによって提供されるエンタープライズ機能であり、OSからメカニズムへの推論と事前検証を行います。",
           "035": "エディション要件",
-          "036": "FIPS 検出はすべてのエディションで利用可能です -- ポストゥールがすべてのホストに対して収集および保存されます。FIPS モード管理（有効/無効、FIPS コンプライアンスページ、およびホストタブのコントロール）は、FIPS_MODE 能力に制限され、エンタープライズエディションで利用可能です。下位エディションでは、FIPS 管理 API が HTTP 402 / 403 を返し、FIPS コンプライアンスページは非表示になります。エンタープライズ ティアにアップグレードして有効にします。"
+          "036": "FIPS 検出はすべてのエディションで利用可能です -- ポストゥールがすべてのホストに対して収集および保存されます。FIPS モード管理（有効/無効、FIPS コンプライアンスページ、およびホストタブのコントロール）は、FIPS_MODE 能力に制限され、エンタープライズエディションで利用可能です。下位エディションでは、FIPS 管理 API が HTTP 402 を返し、FIPS コンプライアンスページは非表示になります。エンタープライズ ティアにアップグレードして有効にします。"
         },
         "firewall-orchestration-engine": {
           "001": "UFW -- Ubuntu, Debian（デフォルトのLinuxバックアップ）",
@@ -14156,7 +14158,7 @@
           "024": "パッチングとの関係",
           "025": "リリースアップグレードはホストを新しいOSリリースに移行します；現在のリリースに対する日ごとのパッチングはアドバイザリーマネジメントと脆弱性スキャンでカバーされます。ライフサイクルダッシュボードを使用して、ビューが助けられないホスト -- OS自体がサポート切れになったホスト -- をキャッチします。",
           "026": "エディション要件",
-          "027": "OSライフサイクル管理は、lifecycle_engineモジュールによってProfessional+機能として提供されます。コミュニティ版では、ライフサイクルAPIがHTTP 402 / 403を返し、OSライフサイクルページとホストタブが非表示になります。Professional以上のプランにアップグレードして有効化してください。"
+          "027": "OSライフサイクル管理は、lifecycle_engineモジュールによってProfessional+機能として提供されます。コミュニティ版では、ライフサイクルAPIがHTTP 402を返し、OSライフサイクルページとホストタブが非表示になります。Professional以上のプランにアップグレードして有効化してください。"
         },
         "provisioning-engine": {
           "001": "<code>GET/POST/DELETE /api/v1/provisioning/compute-resources</code> -- プロバイダー エンドポイントを管理（Enterprise）",
@@ -17153,19 +17155,19 @@
         "breadcrumb": "オフラインデプロイメント",
         "build": {
           "failure_note": "ビルドに失敗した場合、ステータスチップには<code>failed</code>と表示され、タブの上部にある「最近のビルド失敗」アラートが最初のエラー行を要約します。完全なビルドログはサーバー上の<code>/var/lib/sysmanage/airgap-bundles/&lt;bundle-uuid&gt;.log</code>に存在し、PPAビルド問題やGitHubリリース資産の欠如、またはDockerレジストリの障害を診断するのに役立ちます。",
-          "intro": "バンドルは、インターネットに接続されたPro+ライセンスホストのSysManage Settings UIから構築されます。ビルドホストでエアギャップターゲットのOSをインストールする必要はありません -- 各プラットフォームごとのフェッチは独自のDockerコンテナ内で実行されます。<em>不要</em>です。",
+          "intro": "バンドルは、インターネットにアクセスできる Enterprise ライセンスのホスト上で、SysManage の設定 UI から作成します。エアギャップターゲットの OS をビルドホストにインストールする必要は<em>ありません</em> -- プラットフォームごとの取得処理は、それぞれ専用の Docker コンテナ内で実行されます。",
           "step_click": "<strong>サーバーバンドルを作成</strong>をクリックし、<strong>エージェントバンドルを作成</strong>または<strong>Pro+ バンドルを作成</strong>を作成します。これらの３つすべてをキューに入れることができます -- それらは順番に実行されます。サーバーとエージェントのバンドルはプラットフォームごとにDockerコンテナを起動します（遅い）；Pro+ バンドルはローカルファイルをコピーするだけです（高速 -- 数秒で完了）。",
           "step_docker": "Dockerの準備完了バナーに<em>\"Docker is ready\"</em>と表示されていることを確認します。表示されていない場合は、バナーが正確な修正コマンドを提供します -- 通常は<code>sudo usermod -aG docker &lt;service-user&gt;</code>に続いてサービスの再起動が必要です。",
           "step_download": "ダウンロードアイコンをクリックします。ブラウザは<code>sysmanage-server-bundle-&lt;version&gt;.iso</code>（または<code>sysmanage-agent-bundle-&lt;version&gt;.iso</code>）を通じて認証されたAPI経由でファイルをダウンロードします。ファイルサイズは大きいです（約500MBから1GB程度）-- ダウンロードが完了するまでタブを開いたままにしてください。",
           "step_login": "SysManage Web UIにビルドホストで管理者アカウントを使用してログイン。",
-          "step_nav": "<strong>設定 &rarr; オフラインインストールバンドル</strong> に移動します。このタブは、サーバーが有効な Pro+ ライセンスを持っている場合のみ表示されます。",
+          "step_nav": "<strong>設定 &rarr; オフラインインストールバンドル</strong> に移動します。このタブは、サーバーに有効な Enterprise ライセンスがある場合にのみ表示されます。",
           "step_ready": "ステータスが<code>ready</code>に切り替わると、アクション列にはダウンロードアイコンが表示されます。記録された<strong>バージョン</strong>列は、このバンドルに組み込まれたアップストリームのSysManageリリースを反映します。",
           "step_wait": "新しいバンドル行はステータス <code>queued</code> で表示され、その後 <code>building</code> に変化します。構築には通常15〜30分かかります（有効なプラットフォームの数とビルドホストのネットワーク速度による）。UIは自動的にポーリングを行います -- マニュアルリフレッシュは必要ありません。",
           "title": "手順 1 -- Internet 接続ホストでバンドルを作成する"
         },
         "bundles": {
           "agent": "<strong>エージェントバンドル</strong>（約500 MB） -- サポートされているすべてのプラットフォーム用の SysManage エージェントパッケージとその依存関係。enclave 内で管理されるべきホストにインストールします。",
-          "intro": "設定の「Air-Gap Install Bundles」タブでは、エンクレーブ内で実行するものを選択して3つの異なるバンドルISOを作成できます。同じプロライセンスホスト上のUIタブから生成されます。",
+          "intro": "設定の Air-Gap Install Bundles タブでは、3 種類のバンドル ISO を作成できます。エンクレーブ内で実行する内容に合ったものを選択してください。3 つとも、Enterprise ライセンスを持つ同じビルドホスト上の同じ UI タブから作成されます。",
           "order": "エアギャップサーバー上で Pro+ 機能を使用するには、インストール順序は以下の通りです：<strong>(1) サーバーバンドルをサーバーホスト上にインストール、(2) 同じサーバーホスト上に Pro+ オーバレイをインストール、(3) 各管理ホスト上でエージェントバンドルをインストール</strong>。Pro+ オーバレイのインストーラーは、SysManage サーバーが既に存在することを前提としています -- これはエンジンモジュールを <code>/var/lib/sysmanage/modules/</code> にコピーし、ライセンス公開鍵を <code>/var/lib/sysmanage/license/</code> に配置し、ライセンス JWT を <code>/etc/sysmanage.yaml</code> に書き込み、サービスの再起動を行います。",
           "proplus": "<strong>Pro+ オーバレイバンドル</strong> (~50 MB) -- ビルドホストの Cython エンジン <code>.so</code> ファイル、JavaScript プラグインシム、ライセンス JWT、およびキャッシュされたライセンス公開キー。 このバンドルをサーバーにインストールした後に空域の <em>サーバー</em> ホスト <strong>で</strong> 使用する場合に適用します；これにより、電話なしでローカルで Pro+ エンジンを使用できるようになります <code>license.sysmanage.org</code>。 コミュニティ版の機能のみが必要な場合は不要です。",
           "server": "<strong>サーバーバンドル</strong>（約1 GB） -- サポートされているすべてのプラットフォーム用の SysManage サーバー <code>.deb</code>/<code>.rpm</code>/<code>.apk</code>/<code>.pkg</code>/<code>.msi</code> とその完全な依存関係（PostgreSQL, nginx, Python ビルド依存関係）および <code>requirements.txt</code> からすべての Python ウィール。エアギャップサーバーホストに最初にインストールします。",
@@ -17180,7 +17182,7 @@
           "title": "オフラインデプロイメント"
         },
         "install": {
-          "config_text": "サーバーのインストールが完了したら、オンラインの <a href=\"../../config-builder.html\">SysManage 設定ビルダー</a> を使用して <code>/etc/sysmanage.yaml</code> を設定します。エアギャップインストールで特に重要な設定が 1 つあります。<code>api.host: 0.0.0.0</code> を設定してください (別のマシン上の Web UI から API に到達できるようにするためです -- <code>localhost</code> へのバインドは単一ホスト構成でのみ機能します)。次に、データベースマイグレーションを実行してサービスを起動します: <code>cd /opt/sysmanage &amp;&amp; sudo -u sysmanage .venv/bin/python -m alembic upgrade head &amp;&amp; sudo systemctl enable --now sysmanage</code>。起動後、<strong>Settings → Server Role</strong> からエアギャップロールを設定し (切断された側では <em>エアギャップリポジトリ</em> を選択)、再起動します -- ロールは YAML キーではなく、データベースに保存されるようになりました。",
+          "config_text": "サーバーのインストールが完了したら、オンラインの <a href=\"../../config-builder.html\">SysManage 設定ビルダー</a> を使用して <code>/etc/sysmanage.yaml</code> を設定します。エアギャップインストールで特に重要な設定が 1 つあります。<code>api.host: 0.0.0.0</code> を設定してください (別のマシン上の Web UI から API に到達できるようにするためです -- <code>localhost</code> へのバインドは単一ホスト構成でのみ機能します)。次に、データベースマイグレーションを実行してサービスを起動します: <code>cd /opt/sysmanage &amp;&amp; sudo -u sysmanage .venv/bin/python -m alembic upgrade head &amp;&amp; sudo systemctl enable --now sysmanage</code>。起動後、<strong>設定 → サーバーロール</strong> からエアギャップロールを設定し (切断された側では <em>エアギャップリポジトリ</em> を選択)、再起動します -- ロールは YAML キーではなく、データベースに保存されるようになりました。",
           "config_title": "/etc/sysmanage.yaml の設定",
           "detection": "ディスパッチャは単一の<code>[install] Detected: id=&lt;os&gt; version=&lt;ver&gt;</code>行を出力し、その後プラットフォームインストーラー（たとえばUbuntu 26.04の場合<code>linux-ubuntu-resolute/install.sh</code>）を実行します。プラットフォームインストーラーは<code>dpkg -i</code>, <code>dnf install</code>, <code>zypper install</code>, <code>apk add</code>, <code>pkg add</code>, <code>pkg_add</code>, または<code>installer -pkg</code>をターゲットに応じて呼び出し、常にバンドルされたアーティファクトのみを使用します。",
           "from_file_title": "ISOファイルから（最も一般的）",
@@ -17190,10 +17192,10 @@
           "windows_text": "Windows のインストールは GUI でのみ可能です。ISO をマウントしてください（Windows 10/11 で右クリック &rarr; マウント）、<code>windows\\</code> フォルダを開き、<code>sysmanage-x64.msi</code> もしくは <code>sysmanage-arm64.msi</code> をダブルクリックしてください -- 対象のプロセッサアーキテクチャに一致するものを選択してください。",
           "windows_title": "Windows 対象"
         },
-        "meta_description": "インターネット接続がないネットワークにSysManageサーバーとエージェントを展開するために、Pro+ Air-Gap Install Bundle Builderを使用します。",
+        "meta_description": "Enterprise 機能の Air-Gap Install Bundle Builder を使って、インターネットに接続できないネットワークに SysManage サーバーとエージェントを展開します。",
         "overview": {
-          "deployment_model": "ワークフローには常に2つの異なるマシンが関与します：インターネットに接続している<strong>ビルドホスト</strong>（プロフェッショナル+ライセンスで動作するSysManageサーバー）と、エアギャップ内にある1つ以上の<strong>ターゲットホスト</strong>。プロフェッショナル+はビルドホストでのみ必要です。結果として生成されたISOには変更されていないSysManageサーバーパッケージまたはエージェントパッケージが含まれ、これらはターゲット上でどのティア（コミュニティ版、プロフェッショナル版、プロフェッショナル+）でも動作します。",
-          "intro": "多くの規制環境 -- 防衛ネットワーク、分類ラボ、オペレーションテクノロジーセグメント、隔離されたテナンシーゾーン -- はインストール時にパブリックインターネットからパッケージを取得できません。Pro+ Air-Gap Install Bundle Builderは、インターネット接続のあるSysManageホストから独立したマルチOS ISOを作成することでこの問題を解決します。ISOを可搬メディアに焼くかコピーし、隔離されたネットワーク内に持ち込みます。ターゲットマシンでISOをマウントしてインストーラスクリプトを実行します。インストーラはホストOSを検出し、バンドルパッケージのみを使用します -- リモートミラーにはアクセスしません。",
+          "deployment_model": "このワークフローには常に 2 種類のマシンが関わります。インターネットにアクセスでき、Enterprise ライセンスで SysManage サーバーを実行している<strong>ビルドホスト</strong>と、エアギャップされたエンクレーブ内にある 1 台以上の<strong>ターゲットホスト</strong>です。Enterprise ライセンスが必要なのはビルドホストだけです。生成された ISO は変更のない SysManage のサーバーまたはエージェントのパッケージをインストールし、どちらもターゲット上で任意のティア (Community、Professional、Enterprise) で動作します。",
+          "intro": "多くの規制環境 -- 防衛ネットワーク、機密扱いのラボ、OT (制御系) セグメント、隔離されたテナンシーゾーン -- では、インストール時にパブリックインターネットからパッケージを取得できません。Enterprise ティアに含まれる Air-Gap Install Bundle Builder は、インターネットに接続された SysManage ホスト上で自己完結型のマルチ OS ISO を作成することで、この問題を解決します。ISO をリムーバブルメディアに書き込むかコピーし、エアギャップネットワークに持ち込み、ターゲットマシンにマウントして、インストーラースクリプトを 1 つ実行します。インストーラーはホストの OS を検出し、同梱されたパッケージだけを使用します -- リモートミラーには一切接続しません。",
           "title": "概要"
         },
         "platforms": {
@@ -17215,7 +17217,7 @@
           "build_docker": "<strong>Docker</strong> をインストールし、SysManage サービスユーザー（通常 <code>sysmanage</code> または <code>make start</code> を実行する開発者ユーザー）が <code>docker</code> グループのメンバーであることを確認します。各プラットフォームごとのビルダーは一時的なディストロコンテナを生成します。",
           "build_host_title": "ビルドホスト（インターネット接続あり）",
           "build_network": "外部へのアクセス: <code>ppa.launchpadcontent.net</code>、<code>api.github.com</code>、<code>github.com</code>、<code>deb.debian.org</code>、<code>dl.fedoraproject.org</code>、お好みのディストリビューションミラー、および PyPI (<code>pypi.org</code>、<code>files.pythonhosted.org</code>)。このビルドは Docker コンテナ内の apt/dnf キャッシュを通じてアップストリームパッケージとホイールを取得します。",
-          "build_pro_plus": "有効なPro+ライセンスで動作中のSysManageサーバー。コミュニティおよびプロ階層では、バンドルビルダUIタブとAPIエンドポイントが<code>403</code>を返します。",
+          "build_pro_plus": "有効な Enterprise ライセンスで動作している SysManage サーバー。Community および Professional ティアでは、バンドルビルダーの UI タブは表示されず、その API エンドポイントは <code>402</code> を返します。",
           "build_tools": "ホストパッケージの構築: <code>xorriso</code>（ISOマスタリング）、<code>jq</code>（GitHubリリースパーサー）、<code>curl</code>。Debian/Ubuntuの場合：<code>sudo apt install -y docker.io xorriso jq curl</code>。",
           "target_host_title": "ターゲットホスト（キャッチアップ可能）",
           "target_no_internet": "インターネット接続不要です。インストーラーが<code>PIP_NO_INDEX=1</code>と<code>PIP_FIND_LINKS</code>を設定し、パッケージのポストインストールスクリプトがバンドルされたホイールのみを使用します。",
@@ -22179,7 +22181,7 @@
         "title": "接続の健康状態とローカル自律性"
       },
       "licensing": {
-        "body": "フェデレーションは SysManage Enterprise ティアの一部です。Enterprise ライセンスにより、任意のサーバーでフェデレーションコントローラーエンジンまたはフェデレーションサイトエンジンの<strong>いずれか</strong>を読み込むことができます -- ロールは Web UI の <strong>Settings &rarr; Server Role</strong> で選択します。Community / Professional のインストールでは、フェデレーション API エンドポイントは <code>403 pro_plus_required</code> を返し、UI はすべてのフェデレーションページに Enterprise へのアップグレード案内を表示します。",
+        "body": "フェデレーションは SysManage Enterprise ティアの一部です。Enterprise ライセンスにより、任意のサーバーでフェデレーションコントローラーエンジンまたはフェデレーションサイトエンジンの<strong>いずれか</strong>を読み込むことができます -- ロールは Web UI の <strong>Settings &rarr; Server Role</strong> で選択します。Community / Professional のインストールでは、フェデレーション API エンドポイントは <code>402 pro_plus_required</code> を返し、UI はすべてのフェデレーションページに Enterprise へのアップグレード案内を表示します。",
         "title": "ライセンス"
       },
       "meta_description": "地理的に分散した企業展開向けの階層型マルチサーバーアーキテクチャ -- 協調サーバーが多数の下位サイトサーバー間でホストインベントリ、準拠性、およびコマンド配信を一元化します。",

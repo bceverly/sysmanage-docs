@@ -1908,7 +1908,8 @@
           "summary": "由操作员（通过 UI、API 或 cron）在公网侧服务器上触发。捆绑包基于已配置的 mirror_repository 树的快照构建，而不是每次运行都再从上游获取一次 -- 从上游的一次下载（通过 repository_mirroring 引擎的常规同步）同时供局域网镜像和气隙捆绑包复用。引擎生成一个在收集器本机上本地运行的部署计划；它不会分派给受管代理。",
           "title": "采集周期（采集器端）",
           "splay": "计划收集会在其 cron 时间之后最多 30 分钟、在每个计划固定的时间点运行，这样共享默认计划的存储库不会在同一时刻全部从上游镜像拉取。计划的下次运行显示实际时间。",
-          "multidisc_when": "只有当运行设置了刻录设备时，才会拆分为多张光盘：刻录设备留空时，它会构建一个任意大小的 ISO，因为文件没有需要容纳进去的光盘。一套光盘中的每张光盘都带有签名清单，清单注明这是总共几张中的第几张，光盘的卷标为该运行的 ISO 标签后接 <code>-d&lt;N&gt;</code>。SysManage 工具随第 1 张光盘携带。"
+          "multidisc_when": "只有当运行设置了刻录设备时，才会拆分为多张光盘：刻录设备留空时，它会构建一个任意大小的 ISO，因为文件没有需要容纳进去的光盘。一套光盘中的每张光盘都带有签名清单，清单注明这是总共几张中的第几张，光盘的卷标为该运行的 ISO 标签后接 <code>-d&lt;N&gt;</code>。SysManage 工具随第 1 张光盘携带。",
+          "burn_set": "<strong>刻录集合。</strong>一个 <code>build_burn_plan</code> 刻录一张光盘并将其弹出，因此集合会逐张刻录：依次刻录每个 <code>&lt;run_id&gt;-disc-&lt;N&gt;.iso</code>，而单张光盘刻录 <code>&lt;run_id&gt;.iso</code>。除最后一张外，每张光盘刻录后运行都会从 <code>BURNING</code> 进入 <code>AWAITING_MEDIA</code>，编排器从不在该状态下分派任何任务。<code>POST /api/v1/airgap/collector/runs/{run_id}/next-disc</code>（界面中的<strong>已放入下一张光盘</strong>操作）会将运行恢复为 <code>ISO_BUILT</code>，然后刻录下一张光盘；如果运行未在等待介质，该调用返回 409。运行的 <code>disc_count</code> 和 <code>burned_disc_count</code> 显示进度。刻录失败会将运行设为 <code>FAILED</code>，并在错误消息中注明光盘编号。"
         },
         "compliance": {
           "current": "current -- 主机上安装的版本与镜像中的最新版本匹配，且自上次传输以来没有公开侧的CVE出现。",
@@ -2071,7 +2072,8 @@
           "title": "步骤3 -- 收集并在收集器上烧录",
           "multidisc": "设置了刻录设备时，大于<strong>介质大小（MB）</strong>（默认为 4700，即一张单层 DVD）的运行会被拆分为一套光盘，每张光盘都包含完整的镜像。大于一张光盘的镜像会被拒绝，因此请为其选择更大的介质。每次运行还会携带 SysManage 工具（适用于该运行所含系统的代理、restate 和 restate-proxy），位于套装的第 1 张光盘上。",
           "fig_disc_picker": "一张光盘放不下的运行：下载时会询问要获取三张光盘中的哪一张，并显示每张光盘的大小。",
-          "fig_new_run": "<strong>新建收集运行</strong>对话框：ISO 标签、<strong>介质大小（MB）</strong>、CVE 和合规快照、要收集的镜像以及刻录设备。"
+          "fig_new_run": "<strong>新建收集运行</strong>对话框：ISO 标签、<strong>介质大小（MB）</strong>、CVE 和合规快照、要收集的镜像以及刻录设备。",
+          "burn_set": "驱动器一次刻录集合中的一张光盘。除最后一张外，每刻录完一张，驱动器都会弹出光盘，运行在 <code>AWAITING_MEDIA</code> 状态等待，状态显示为<em>第 1 张光盘（共 3 张）已刻录。请放入空白光盘。</em>在已刻录的光盘上标注编号，在驱动器中放入一张空白光盘，点击该运行的<strong>已放入下一张光盘</strong>操作，然后用<strong>刻录第 2 张光盘</strong>确认。最后一张光盘刻录后，运行变为 <code>COMPLETE</code>。如果某张光盘刻录失败，运行变为 <code>FAILED</code>，其错误信息会指明是哪张光盘。"
         },
         "header": {
           "description": "使用SysManage跨空气间隙移动软件包的完整操作员工作流程，从选择服务器角色到空气间隙主机从本地镜像安装更新。部署指南<a href=\"airgap-deployment.html\">覆盖架构</a>和运行手册<a href=\"airgap-runbook.html\">涵盖日常运营</a>; 本页是将它们串联起来的具体UI控制路径。",
@@ -2079,11 +2081,11 @@
         },
         "meta_description": "SysManage 空气隔绝设置步骤端到端流程：设置角色，复制收集器公钥，构建签名后的集合 ISO，在存储库上信任密钥，从光盘/USB 驱动器导入媒体，提供镜像并自动重新指向代理。",
         "overview": {
-          "step1": "<strong>设置角色：</strong> 将一个服务器设为 <em>气隙收集器</em>，另一个设为 <em>气隙仓库</em>（设置 → 服务器角色）。",
-          "step2": "<strong>建立信任：</strong> 复制采集器的公钥，并在仓库中导入。",
-          "step3": "<strong>收集 &amp; 烧录</strong> -- 在采集器上运行一次收集以生成签名 ISO；将其写入光盘/USB 媒体。",
-          "step4": "<strong>导入：</strong> 将媒体带到仓库中，选择驱动器并导入。",
-          "step5": "<strong>服务 &amp; 指向</strong> -- 存储库提供镜像，代理自动重新指向。",
+          "step1": "<strong>设置角色</strong> -- 将一台服务器设为<em>气隙收集器</em>，另一台设为<em>气隙仓库</em>（设置 → 服务器角色）。",
+          "step2": "<strong>建立信任</strong> -- 复制收集器的公钥，并在仓库上导入。",
+          "step3": "<strong>收集并刻录</strong> -- 在收集器上运行一次收集以生成签名的 ISO；将其写入光盘/USB 介质。",
+          "step4": "<strong>导入</strong> -- 将介质带到仓库，选择驱动器，然后导入。",
+          "step5": "<strong>提供服务并重新指向</strong> -- 仓库提供镜像服务，代理会自动重新指向它。",
           "summary": "离线部署是一对 SysManage 服务器。<strong>收集器</strong>位于互联网连接的一侧，镜像上游包，并生成一个加密签名的 ISO。您将这个 ISO 物理携带到隔离区。<strong>仓库</strong>位于隔离区一侧，验证并导入 ISO，在 HTTP 上提供这些包，并自动重新指向每个托管代理以使用本地镜像，使代理永远不会连接互联网。",
           "title": "概述",
           "step6": "<strong>备份</strong> -- 从站点自己的工具仓库为主机配备备份，并将它们备份到内部的存储主机。"
@@ -13821,7 +13823,7 @@
           "024": "建议 ↔ CVE 映射",
           "025": "每个建议链接到它解决的CVE，因此您可以从CVE为中心的安全扫描视图切换到建议为中心的视图。安装一个建议会一次性修复受影响包的所有CVE。",
           "026": "版本要求",
-          "027": "建议管理是专业+ 功能，由 advisory_engine 模块提供。在社区版中，建议 API 返回 HTTP 402 / 403，并且建议页面和主机标签被隐藏。升级到专业或更高版本以启用它。"
+          "027": "建议管理是专业+ 功能，由 advisory_engine 模块提供。在社区版中，建议 API 返回 HTTP 402，并且建议页面和主机标签被隐藏。升级到专业或更高版本以启用它。"
         },
         "air-gap-deployment": {
           "001": "空气隔断集合列出镜像仓库的收集器运行，并为跨空气隔断传输构建签名 ISO 媒体。",
@@ -14029,7 +14031,7 @@
           "033": "检测是开源软件；启用是企业版功能",
           "034": "报告机队 FIPS 状态是免费代理的一部分，因此您总是了解自己的情况。更改 FIPS 模式 -- 启用/禁用操作、机队 FIPS 页面和每个主机的控制 -- 是企业功能，由合规性引擎模块提供，该模块执行操作系统到机制的推断和预飞行验证。",
           "035": "版本要求",
-          "036": "FIPS 检测在所有版本中提供 -- 所有主机的状态都会被收集和存储。FIPS 模式管理（启用/禁用、FIPS 合规页面以及主机标签页的控件）是企业级功能，受 FIPS_MODE 功能控制。较低版本会返回 HTTP 402 / 403 并隐藏 FIPS 合规页面。升级到企业版以启用它。"
+          "036": "FIPS 检测在所有版本中提供 -- 所有主机的状态都会被收集和存储。FIPS 模式管理（启用/禁用、FIPS 合规页面以及主机标签页的控件）是企业级功能，受 FIPS_MODE 功能控制。较低版本会返回 HTTP 402 并隐藏 FIPS 合规页面。升级到企业版以启用它。"
         },
         "firewall-orchestration-engine": {
           "001": "UFW -- Ubuntu, Debian（默认 Linux 回退）",
@@ -14156,7 +14158,7 @@
           "024": "与修补的关系",
           "025": "发行升级将主机迁移到全新的操作系统版本；当前版本的日常补丁更新由咨询管理和漏洞扫描功能覆盖。使用生命周期仪表板来捕获那些视图无法帮助到的主机----即其操作系统本身已超出支持期限的主机。",
           "026": "版本要求",
-          "027": "OS 生命周期管理是一个 Professional+ 功能，由 lifecycle_engine 模块提供。在社区版中，lifecycle API 返回 HTTP 402 / 403，并且 OS 生命周期页面和主机标签被隐藏。升级到专业版或更高版本以启用此功能。"
+          "027": "OS 生命周期管理是一个 Professional+ 功能，由 lifecycle_engine 模块提供。在社区版中，lifecycle API 返回 HTTP 402，并且 OS 生命周期页面和主机标签被隐藏。升级到专业版或更高版本以启用此功能。"
         },
         "provisioning-engine": {
           "001": "<code>GET/POST/DELETE /api/v1/provisioning/compute-resources</code> -- 管理提供者端点（企业版）",
@@ -17153,19 +17155,19 @@
         "breadcrumb": "空气间隙部署",
         "build": {
           "failure_note": "如果构建失败，则该行的状态芯片显示<code>failed</code>，并在标签顶部的“最近的构建失败”警报中总结第一个错误行。完整的每个构建日志位于服务器上的<code>/var/lib/sysmanage/airgap-bundles/&lt;bundle-uuid&gt;.log</code> -- 用于诊断PPA构建问题、缺少GitHub发布资产或Docker注册表故障。",
-          "intro": "该包是在具有互联网访问权限的Pro+许可主机上从SysManage设置UI构建的。您<em>无需</em>在构建主机上安装目标空气间隙系统的操作系统----每个平台特定的获取都在其自己的Docker容器中运行。",
+          "intro": "捆绑包在一台可访问互联网、拥有 Enterprise 许可证的主机上，通过 SysManage 设置界面构建。您<em>无需</em>在构建主机上安装隔离目标的操作系统 -- 每个平台的获取过程都在各自的 Docker 容器中运行。",
           "step_click": "点击 <strong>构建服务器包</strong>、<strong>构建代理包</strong> 或 <strong>构建 Pro+ 包</strong>。你可以队列所有三个 -- 它们将按顺序运行。服务器和代理捆绑通过 Docker 容器在平台上启动（缓慢）； Pro+ 捆绑只复制本地文件（快速 -- 几秒钟）",
           "step_docker": "确认Docker就绪横幅显示<em>\"Docker is ready\"</em>。如果没有，请按照横幅提供的确切修复命令 -- 通常为<code>sudo usermod -aG docker &lt;service-user&gt;</code>，然后重启服务。",
           "step_download": "点击下载图标。您的浏览器将通过认证的API下载<code>sysmanage-server-bundle-&lt;version&gt;.iso</code>（或<code>sysmanage-agent-bundle-&lt;version&gt;.iso</code>）。文件较大（约500 MB到1 GB）----请保持标签页打开直到下载完成。",
           "step_login": "使用管理员帐户在构建主机上的SysManage Web UI中登录。",
-          "step_nav": "导航到<strong>设置 &rarr; 离线安装包</strong>。此选项卡仅在服务器具有有效的Pro+许可证时可见。",
+          "step_nav": "导航到<strong>设置 &rarr; 离线安装包</strong>。此选项卡仅在服务器拥有有效的 Enterprise 许可证时可见。",
           "step_ready": "当状态变为 <code>ready</code> 时，行的操作列会显示一个下载图标。记录的 <strong>版本</strong> 列反映了此捆绑包中内置的上游 SysManage 发布版。",
           "step_wait": "新的捆绑行将以<code>queued</code>状态出现，然后变为<code>building</code>。构建时间通常为15-30分钟，具体取决于启用的平台数量及构建主机网络的速度。UI会自动轮询 -- 无需手动刷新。",
           "title": "步骤 1 -- 在互联网连接主机上构建包"
         },
         "bundles": {
           "agent": "<strong>代理包</strong>（约 500 MB）-- SysManage 代理软件包，适用于每个支持平台及其依赖项和 Python 轮子文件。安装此包在隔离网络中的每台主机上，以进行管理。",
-          "intro": "设置中的Air-Gap安装捆绑包选项卡可以生成三种不同的ISO捆绑包。选择与您打算在隔离区内部署相匹配的那些；这三种捆绑包都是在同一Pro+许可主机上的同一UI选项卡中生成的。",
+          "intro": "设置中的 Air-Gap Install Bundles 选项卡可以生成三种不同的捆绑包 ISO。请根据您打算在隔离区内运行的内容进行选择；三者都在同一台拥有 Enterprise 许可证的构建主机上，从同一个 UI 选项卡生成。",
           "order": "如果要在隔离网络中的服务器上启用 Pro+ 功能，则安装顺序为：<strong>(1) 在服务器主机上安装服务器包，(2) 在同一服务器主机上安装 Pro+ 覆盖层，(3) 在每个托管主机上安装代理包</strong>。Pro+ 覆盖层的安装程序期望 SysManage 服务器已经存在 -- 它会将引擎模块复制到 <code>/var/lib/sysmanage/modules/</code>，将许可证公钥放入 <code>/var/lib/sysmanage/license/</code>，并将许可证 JWT 写入 <code>/etc/sysmanage.yaml</code>，然后重启服务。",
           "proplus": "<strong>Pro+ 高级功能包</strong> (~50 MB) -- 包含构建主机的 Cython 引擎 <code>.so</code> 文件、JavaScript 插件适配器、许可 JWT 和缓存的许可公钥。在服务器端安装基础包后，将其应用于离线环境中的 <em>server</em> 主机 <strong>之后</strong>；这将允许本地解锁 Pro+ 引擎而无需连接到 <code>license.sysmanage.org</code>。如果您只需要社区版功能，则不需要此包。",
           "server": "<strong>服务器包</strong> (~1 GB) -- SysManage 服务器 <code>.deb</code>/<code>.rpm</code>/<code>.apk</code>/<code>.pkg</code>/<code>.msi</code>，加上其完整的转递本地包依赖项（PostgreSQL, nginx, Python 构建依赖）和来自 <code>requirements.txt</code> 的每个 Python 轮子。首先在脱机服务器主机上安装此包。",
@@ -17190,10 +17192,10 @@
           "windows_text": "Windows 安装仅支持图形界面。挂载 ISO（在 Windows 10/11 中右键单击 &rarr; 挂载），打开 <code>windows\\</code> 文件夹，并双击 <code>sysmanage-x64.msi</code> 或 <code>sysmanage-arm64.msi</code> ----选择与目标处理器架构匹配的文件。",
           "windows_title": "Windows 目标"
         },
-        "meta_description": "使用Pro+离线安装包生成器将SysManage服务器和代理部署到没有互联网连接的网络中。",
+        "meta_description": "使用 Air-Gap Install Bundle Builder（Enterprise 功能）将 SysManage 服务器和代理部署到无法连接互联网的网络中。",
         "overview": {
-          "deployment_model": "该工作流始终涉及两台不同的机器：一台具有互联网访问权限的<strong>构建主机</strong>，以及运行带有Pro+许可证的SysManage服务器，还有一台或多台位于空气隔绝区域内的<strong>目标主机</strong>。Pro+仅在构建主机上需要；生成的ISO安装未修改的SysManage服务器或代理包，这些包都可以在任何层级（社区版、Pro、或Pro+）的目标主机上运行。",
-          "intro": "许多受监管的环境 -- 防御网络、机密实验室、运营技术部分、隔离租户区域 -- 在安装时无法从公共互联网获取软件包。Pro+ 空气间隙安装捆绑包生成器通过在连接到互联网的SysManage主机上生成一个自包含的多操作系统ISO来解决此问题。您将该ISO刻录或复制到可移动介质中，将其带入空气间隙网络，在目标机器上挂载它，并运行一个安装脚本。安装程序会检测主机的操作系统并仅消耗捆绑包中的软件包 -- 它永远不会连接到远程镜像源。",
+          "deployment_model": "该工作流始终涉及两类不同的机器：一台可以访问互联网、运行带有 Enterprise 许可证的 SysManage 服务器的<strong>构建主机</strong>，以及位于隔离区内的一台或多台<strong>目标主机</strong>。只有构建主机需要 Enterprise 许可证；生成的 ISO 安装未经修改的 SysManage 服务器或代理软件包，二者都可以在目标主机上以任意层级（Community、Professional 或 Enterprise）运行。",
+          "intro": "许多受监管的环境 -- 国防网络、涉密实验室、运营技术 (OT) 网段、隔离的租户区域 -- 在安装时无法从公共互联网获取软件包。Air-Gap Install Bundle Builder 属于 Enterprise 层级，它在连接互联网的 SysManage 主机上生成一个自包含的多操作系统 ISO，从而解决这一问题。您将 ISO 刻录或复制到可移动介质上，带入隔离网络，在目标机器上挂载，然后运行一个安装脚本。安装程序会检测主机的操作系统，只使用捆绑包中的软件包 -- 从不连接远程镜像。",
           "title": "概览"
         },
         "platforms": {
@@ -17215,7 +17217,7 @@
           "build_docker": "<strong>Docker</strong> 必须安装，并且 SysManage 服务用户（通常是 <code>sysmanage</code>，或运行 <code>make start</code> 的开发用户）必须是 <code>docker</code> 组的成员。每个平台构建器都会生成一个一次性发行版容器。",
           "build_host_title": "在构建主机（联网）上",
           "build_network": "对 <code>ppa.launchpadcontent.net</code>, <code>api.github.com</code>, <code>github.com</code>, <code>deb.debian.org</code>, <code>dl.fedoraproject.org</code>, 您选择的发行版镜像，以及 PyPI (<code>pypi.org</code>, <code>files.pythonhosted.org</code>) 的出站访问。构建通过 Docker 容器自身的 apt/dnf 缓存拉取上游包和轮子。",
-          "build_pro_plus": "运行有效 Pro+ 许可证的 SysManage 服务器。捆绑构建器 UI 标签和 API 端点在社区版和专业版中均返回 <code>403</code>。",
+          "build_pro_plus": "运行有效 Enterprise 许可证的 SysManage 服务器。在 Community 和 Professional 层级中，捆绑包构建器的 UI 选项卡处于隐藏状态，其 API 端点返回 <code>402</code>。",
           "build_tools": "构建主机包： <code>xorriso</code>（ISO制作），<code>jq</code>（GitHub Releases解析），<code>curl</code>。在Debian/Ubuntu上：<code>sudo apt install -y docker.io xorriso jq curl</code>。",
           "target_host_title": "在目标主机（空气隔绝）上",
           "target_no_internet": "无需互联网连接。安装程序设置<code>PIP_NO_INDEX=1</code>和<code>PIP_FIND_LINKS</code>，因此包的后安装脚本仅使用捆绑的wheel文件。",
@@ -22179,7 +22181,7 @@
         "title": "连接健康与本地自治"
       },
       "licensing": {
-        "body": "联邦功能属于 SysManage Enterprise 层级。Enterprise 许可证允许部署在任意服务器上加载联邦控制器引擎<strong>或</strong>联邦站点引擎 -- 角色在 Web 界面的<strong>设置 &rarr; 服务器角色</strong>中选择。在 Community / Professional 安装中，联邦 API 端点返回 <code>403 pro_plus_required</code>，界面会在每个联邦页面上显示 Enterprise 升级提示。",
+        "body": "联邦功能属于 SysManage Enterprise 层级。Enterprise 许可证允许部署在任意服务器上加载联邦控制器引擎<strong>或</strong>联邦站点引擎 -- 角色在 Web 界面的<strong>设置 &rarr; 服务器角色</strong>中选择。在 Community / Professional 安装中，联邦 API 端点返回 <code>402 pro_plus_required</code>，界面会在每个联邦页面上显示 Enterprise 升级提示。",
         "title": "许可"
       },
       "meta_description": "地理分布的企业部署的分层多服务器架构----协调服务器聚合多个从属站点服务器上的主机清单、合规性和命令调度。",

@@ -107,7 +107,10 @@ def _collection_set(session):
     run = AirgapCollectionRun(
         id=uuid.uuid4(), iso_label=LABEL, media_size_bytes=MEDIA,
         include_cve=True, include_compliance=True, status="COMPLETE",
-        burn_device=BURN_DEVICE,
+        # A burned set is COMPLETE once its burn device has written every
+        # disc, one at a time with a blank disc loaded between them.
+        burn_device=BURN_DEVICE, disc_count=len(DISCS),
+        burned_disc_count=len(DISCS),
         started_at=NOW - timedelta(hours=2, minutes=10),
         completed_at=NOW - timedelta(minutes=55),
         created_at=NOW - timedelta(hours=2, minutes=10),
