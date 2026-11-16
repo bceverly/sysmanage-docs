@@ -611,7 +611,13 @@ async function captureDetail(page, shot, vp) {
     await page.waitForTimeout(settleFor(shot));
   }
   if (shot.selectOption) {
-    await selectMuiOption(page, shot.selectOption.label, shot.selectOption.option);
+    await selectMuiOption(
+      page,
+      shot.selectOption.label,
+      shot.selectOption.option,
+      Boolean(shot.selectOption.inDialog),
+      Boolean(shot.selectOption.exact),
+    );
     await page.waitForTimeout(settleFor(shot));
   }
   // A dialog opened on a detail tab (Restore files on the Backup tab) may need
@@ -632,7 +638,7 @@ async function captureDetail(page, shot, vp) {
 // that opens a portal-mounted listbox, so neither selectOption() nor a plain
 // click on the visible text works -- the combobox has to be opened first and the
 // option matched inside the portal.
-async function selectMuiOption(page, label, option) {
+async function selectMuiOption(page, label, option, inDialog = false, exact = false) {
   // Both steps go through clickWithRetry rather than a plain click.  A MUI
   // Select re-mounts its node when the field's options arrive (and again if it
   // flips between native and non-native), so a plain click can resolve the
@@ -641,9 +647,28 @@ async function selectMuiOption(page, label, option) {
   // run while passing on either side of it.  clickWithRetry re-resolves the
   // locator each attempt and only clicks once the same node survives a settle
   // window -- the same treatment clickRowAction already gets.
+  // `inDialog` looks only inside the open dialog: a page behind it can carry
+  // the same label (the alert rules grid's "Condition column menu" button
+  // matched "Condition" first, so the dialog's select was never opened).
+  const scope = inDialog ? page.getByRole('dialog') : page;
   await clickWithRetry(
     page,
-    () => page.getByLabel(label, { exact: false }).first(),
+    // `exact`: the select whose own field label is exactly `label`, found
+    // through its form control -- "Condition" must not match "Condition
+    // Parameters (JSON)", and a Select whose InputLabel is not linked to it
+    // (no labelId) has no accessible name for getByLabel to find.
+    () =>
+      exact
+        ? scope
+            .locator('.MuiFormControl-root')
+            .filter({
+              has: page.locator('label', {
+                hasText: new RegExp(`^${label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`),
+              }),
+            })
+            .getByRole('combobox')
+            .first()
+        : scope.getByLabel(label, { exact: false }).first(),
     `selectMuiOption label "${label}"`,
   );
   // The listbox is portal-mounted, so it arrives a frame later and can be
@@ -747,7 +772,13 @@ async function captureClick(page, shot, vp) {
   if (shot.selectOption) {
     // The control lives inside the dialog the row action just opened, so it
     // cannot be targeted before that click has landed.
-    await selectMuiOption(page, shot.selectOption.label, shot.selectOption.option);
+    await selectMuiOption(
+      page,
+      shot.selectOption.label,
+      shot.selectOption.option,
+      Boolean(shot.selectOption.inDialog),
+      Boolean(shot.selectOption.exact),
+    );
     detail += ` » ${shot.selectOption.label}="${shot.selectOption.option}"`;
     await page.waitForTimeout(500);
   }

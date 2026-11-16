@@ -405,7 +405,7 @@ screenshot:
 # ---- Automated documentation screenshots (screenshots/ pipeline) ------------
 # Reproducible screenshots: provision a VM, seed demo data (REST + WS), drive the
 # UI with Playwright, write PNGs into assets/images/. See screenshots/README.md.
-.PHONY: screenshots screenshots-community screenshots-assettag-seed screenshots-timesync-seed screenshots-hardware-seed screenshots-enterprise screenshots-seed screenshots-capture screenshots-vm-up screenshots-vm-down screenshots-pro-build screenshots-pro-seed screenshots-pro-capture screenshots-ent-build screenshots-ent-seed screenshots-ent-capture screenshots-ent-roles screenshots-fleet-seed screenshots-cfg-seed screenshots-facts-seed screenshots-facts-capture screenshots-advisor-seed screenshots-advisor-capture screenshots-discovery-seed screenshots-discovery-capture screenshots-malware-seed screenshots-malware-capture screenshots-hardware-capture screenshots-backups-seed screenshots-backups-capture screenshots-backups-alt screenshots-backups-pro-seed screenshots-backups-pro-capture screenshots-backups-proxy screenshots-backups-proxy-pro screenshots-airgap-seed
+.PHONY: screenshots screenshots-community screenshots-assettag-seed screenshots-timesync-seed screenshots-hardware-seed screenshots-enterprise screenshots-seed screenshots-capture screenshots-vm-up screenshots-vm-down screenshots-pro-build screenshots-pro-seed screenshots-pro-capture screenshots-ent-build screenshots-ent-seed screenshots-ent-capture screenshots-ent-roles screenshots-fleet-seed screenshots-cfg-seed screenshots-facts-seed screenshots-facts-capture screenshots-advisor-seed screenshots-advisor-capture screenshots-discovery-seed screenshots-discovery-capture screenshots-autoupdates-seed screenshots-autoupdates-capture screenshots-malware-seed screenshots-malware-capture screenshots-hardware-capture screenshots-backups-seed screenshots-backups-capture screenshots-backups-alt screenshots-backups-pro-seed screenshots-backups-pro-capture screenshots-backups-proxy screenshots-backups-proxy-pro screenshots-airgap-seed
 
 SHOTS_DIR := screenshots
 # Load screenshots/config.env (targets, admin + demo creds) if present.
@@ -490,6 +490,7 @@ screenshots:
 	@$(MAKE) screenshots-fleet-seed
 	@$(MAKE) screenshots-advisor-seed
 	@$(MAKE) screenshots-discovery-seed
+	@$(MAKE) screenshots-autoupdates-seed
 	@$(MAKE) screenshots-malware-seed
 	@$(MAKE) screenshots-airgap-seed
 	@$(MAKE) screenshots-ent-capture
@@ -525,6 +526,7 @@ screenshots-enterprise:
 	@$(MAKE) screenshots-fleet-seed
 	@$(MAKE) screenshots-advisor-seed
 	@$(MAKE) screenshots-discovery-seed
+	@$(MAKE) screenshots-autoupdates-seed
 	@$(MAKE) screenshots-malware-seed
 	@$(MAKE) screenshots-airgap-seed
 	@$(MAKE) screenshots-ent-capture
@@ -857,6 +859,17 @@ screenshots-advisor-seed:
 
 # Network Discovery (21.6): neighbor reports from three demo hosts through the
 # real service + asset_discovery_engine, a real sweep, and two exclusions.
+# Automatic Updates (26.1): policies fired by the licensed automation_engine's
+# planner and answered through the real update-result handler -- a run that
+# rebooted and came back, one that partly failed, an opted-out host, a policy
+# on hold -- plus a "New device on the network" alert rule.
+screenshots-autoupdates-seed:
+	@cd $(SHOTS_DIR) && VMIP=$$(vagrant ssh -c 'hostname -I' 2>/dev/null | awk '{print $$1}' | tr -d '\r'); \
+		[ -n "$$VMIP" ] || { echo "$(RED)Screenshot VM not running. Run 'make screenshots-ent-build' first.$(RESET)"; exit 1; }; \
+		echo "$(BLUE)Seeding automatic updates (in-VM ORM)...$(RESET)"; \
+		cat seed_autoupdates.py | vagrant ssh -c "cd /opt/sysmanage && sudo env PYTHONPATH=/opt/sysmanage /opt/sysmanage/.venv/bin/python - 2>&1" 2>/dev/null \
+			| sed 's/^/  /' || echo "$(YELLOW)automatic updates seed failed (is the Enterprise-licensed VM up and seeded?)$(RESET)"
+
 screenshots-discovery-seed:
 	@cd $(SHOTS_DIR) && VMIP=$$(vagrant ssh -c 'hostname -I' 2>/dev/null | awk '{print $$1}' | tr -d '\r'); \
 		[ -n "$$VMIP" ] || { echo "$(RED)Screenshot VM not running. Run 'make screenshots-ent-build' first.$(RESET)"; exit 1; }; \
@@ -927,6 +940,12 @@ screenshots-advisor-capture:
 screenshots-discovery-capture:
 	@$(MAKE) screenshots-ent-capture \
 		SCREENSHOT_ONLY=ent-asset-discovery,ent-asset-discovery-known,ent-asset-discovery-static,ent-asset-discovery-sweeps
+
+# Re-capture ONLY the Automatic Updates and new-device rule shots (26.1, 26.9),
+# against an Enterprise VM that is up and seeded (screenshots-autoupdates-seed).
+screenshots-autoupdates-capture:
+	@$(MAKE) screenshots-ent-capture \
+		SCREENSHOT_ONLY=ent-auto-updates,ent-auto-updates-host,ent-new-device-rule
 
 # Re-capture ONLY the Hardware Health shots (23.1), against an OSS VM that is
 # up and seeded (screenshots-vm-up, screenshots-seed, screenshots-hardware-seed).
