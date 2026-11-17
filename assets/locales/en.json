@@ -13691,7 +13691,7 @@
           "145": "The package creates the <code>sysmanage</code> service account, the service, <code>/etc/sysmanage.yaml</code> with secrets generated for this host, an nginx site and an unsealed OpenBAO. It leaves the service stopped until the database is ready.",
           "146": "3. Database Setup",
           "147": "RHEL and compatible distributions",
-          "148": "Every server worker keeps its own connection pool, so PostgreSQL's <code>max_connections</code> must hold all of them. The <a href=\"../server/scaling.html\">Scaling Guide</a> gives the formula.",
+          "148": "Every server worker keeps its own connection pool, so PostgreSQL's <code>max_connections</code> must hold all of them. The installer prints the number this machine needs (\"Set PostgreSQL's max_connections to at least ...\"): set it in <code>postgresql.conf</code> and restart PostgreSQL before starting the server. The <a href=\"../server/scaling.html\">Scaling Guide</a> gives the formula.",
           "149": "4. Configuration and TLS Certificate",
           "150": "Set the database password and your own email address as <code>admin_userid</code> in <code>/etc/sysmanage.yaml</code>, then run the migrations:",
           "151": "nginx refuses to start without a certificate, on purpose. By default it reads <code>/etc/sysmanage/tls/server.crt</code> and <code>/etc/sysmanage/tls/server.key</code>. To use Let's Encrypt, follow <a href=\"../server/installation.html#after-installing\">Step 4 of the installation guide</a>: it covers the HTTP and DNS challenges and the renewal hooks, so renewals reload nginx without your help.",
@@ -26634,8 +26634,8 @@
     },
     "db": {
       "title": "Database Connections",
-      "formula": "Every worker keeps its own connection pools. PostgreSQL's <code>max_connections</code> must hold them all, plus 10 kept free for everything else:",
-      "formula_note": "Without multi-tenancy only the first term applies. With the defaults on a 12-thread machine (9 workers, a pool of 32 plus 32 overflow, 20 tenants at 2 plus 6), that is about 2,000 connections: set <code>max_connections</code> to 2,500 and restart PostgreSQL.",
+      "formula": "Every worker keeps its own connection pools. PostgreSQL's <code>max_connections</code> must hold them all, plus 10 kept free for tools such as <code>psql</code> and migrations, PostgreSQL's own reserved slots (3 by default) and, with multi-tenancy, OpenBAO's 4 connections per tenant database:",
+      "formula_note": "Without multi-tenancy only the first term and the reserved slots apply. With the defaults on a 12-thread machine (9 workers, a pool of 32 plus 32 overflow, 20 tenants at 2 plus 6), that is about 2,100 connections: set <code>max_connections</code> to 2,500 and restart PostgreSQL. You do not have to work it out: the installer prints the number for its machine, and <code>python -m backend.persistence.pool_sizing --print --tenants N</code> gives it for N tenant databases. With only a few tenant databases, the main pool's limit of half of each worker's share sets the number instead; the tool accounts for it.",
       "fit": "If the connections do not fit, the server does not refuse to start: it shrinks the pools to fit and logs a warning that names the numbers. With multi-tenancy the main pool then keeps at most half of each worker's share and the tenant databases share the rest, at least one connection each. A server squeezed that way works, slowly: one run with one connection per tenant database per worker took 26 minutes to enroll 10,000 agents. Raise <code>max_connections</code> rather than live with the warning.",
       "pooler": "A tenant database can live on another PostgreSQL server (its placement), which takes its connections off the main one. A transaction-mode connection pooler such as PgBouncer is not supported: the server holds session-level advisory locks to coordinate its workers."
     },

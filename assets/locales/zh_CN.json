@@ -12941,7 +12941,7 @@
           "145": "该包创建了 <code>sysmanage</code> 服务账户、服务 <code>/etc/sysmanage.yaml</code>（为该主机生成密钥），Nginx 站点和未封装 OpenBAO。它将服务停止，直到数据库准备就绪。",
           "146": "3. 设置数据库",
           "147": "与RHEL兼容的发行版",
-          "148": "每个服务器工作进程都保持自己的连接池，因此 PostgreSQL 的<code>max_connections</code>必须包含它们全部。<a href=\"../server/scaling.html\">扩展指南</a>提供了公式。",
+          "148": "每个服务器工作进程都维护自己的连接池，因此 PostgreSQL 的 <code>max_connections</code> 必须能容纳所有这些连接池。安装程序会打印本机所需的数值（\"Set PostgreSQL's max_connections to at least ...\"）：请在 <code>postgresql.conf</code> 中设置该值，并在启动服务器之前重新启动 PostgreSQL。<a href=\"../server/scaling.html\">扩展指南</a>给出了计算公式。",
           "149": "4. 配置和 TLS 证书",
           "150": "设置数据库密码并用<code>admin_userid</code>替换<code>/etc/sysmanage.yaml</code>中的你的电子邮件地址，然后运行迁移：",
           "151": "Nginx出于目的拒绝在没有证书的情况下启动。它默认读取<code>/etc/sysmanage/tls/server.crt</code>和<code>/etc/sysmanage/tls/server.key</code>。要使用Let's Encrypt，请遵循<a href=\"../server/installation.html#after-installing\">安装指南中的第4步</a>：它涵盖了HTTP和DNS挑战以及续订钩子，因此续订时Nginx会自动重新加载，无需您的帮助。",
@@ -26638,8 +26638,8 @@
     },
     "db": {
       "title": "数据库连接",
-      "formula": "每个工作进程都维护自己的连接池。PostgreSQL 的 <code>max_connections</code> 必须能容纳所有这些连接池，另加为其他用途预留的 10 个连接：",
-      "formula_note": "未启用多租户时只适用第一项。在 12 线程机器上使用默认值（9 个工作进程，连接池 32 加 32 个溢出连接，20 个租户各 2 加 6），约为 2,000 个连接：请将 <code>max_connections</code> 设为 2,500 并重新启动 PostgreSQL。",
+      "formula": "每个工作进程都维护自己的连接池。PostgreSQL 的 <code>max_connections</code> 必须能容纳所有这些连接池，另加为 <code>psql</code> 和迁移等工具预留的 10 个空闲连接、PostgreSQL 自身的保留连接槽（默认 3 个），以及在启用多租户时每个租户数据库 OpenBAO 使用的 4 个连接：",
+      "formula_note": "未启用多租户时只适用第一项和保留连接槽。在 12 线程机器上使用默认值（9 个工作进程，连接池 32 加 32 个溢出连接，20 个租户各 2 加 6），约为 2,100 个连接：请将 <code>max_connections</code> 设为 2,500 并重新启动 PostgreSQL。您无需自行计算：安装程序会打印其所在机器所需的数值，<code>python -m backend.persistence.pool_sizing --print --tenants N</code> 则给出 N 个租户数据库所需的数值。如果只有少数几个租户数据库，则改由主连接池不超过每个工作进程配额一半的限制来决定该数值；该工具会将此考虑在内。",
       "fit": "如果连接数超出上限，服务器不会拒绝启动：它会缩小连接池以适应上限，并记录一条列出具体数字的警告。启用多租户时，主连接池最多保留每个工作进程份额的一半，其余由各租户数据库分摊，每个至少一个连接。以这种方式压缩的服务器可以工作，但速度很慢：在一次每个工作进程为每个租户数据库仅分配一个连接的运行中，注册 10,000 个代理用了 26 分钟。请提高 <code>max_connections</code>，而不要对警告置之不理。",
       "pooler": "租户数据库可以位于另一台 PostgreSQL 服务器上（即其放置位置），从而将其连接从主服务器上移走。不支持 PgBouncer 等事务模式的连接池：服务器会持有会话级咨询锁来协调各工作进程。"
     },

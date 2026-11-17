@@ -97,11 +97,12 @@
                 </section>
                 <section class="docs-section">
                     <h2 data-i18n="server_scaling.db.title" data-i18n-html>Database Connections</h2>
-                    <p data-i18n="server_scaling.db.formula" data-i18n-html>Every worker keeps its own connection pools. PostgreSQL's <code>max_connections</code> must hold them all, plus 10 kept free for everything else:</p>
+                    <p data-i18n="server_scaling.db.formula" data-i18n-html>Every worker keeps its own connection pools. PostgreSQL's <code>max_connections</code> must hold them all, plus 10 kept free for tools such as <code>psql</code> and migrations, PostgreSQL's own reserved slots (3 by default) and, with multi-tenancy, OpenBAO's 4 connections per tenant database:</p>
                     <pre><code>max_connections >= workers x (size + max_overflow)
                 + workers x tenants x (tenant_size + tenant_max_overflow)
-                + 10</code></pre>
-                    <p data-i18n="server_scaling.db.formula_note" data-i18n-html>Without multi-tenancy only the first term applies. With the defaults on a 12-thread machine (9 workers, a pool of 32 plus 32 overflow, 20 tenants at 2 plus 6), that is about 2,000 connections: set <code>max_connections</code> to 2,500 and restart PostgreSQL.</p>
+                + 10 + superuser_reserved_connections
+                + 4 x tenants</code></pre>
+                    <p data-i18n="server_scaling.db.formula_note" data-i18n-html>Without multi-tenancy only the first term and the reserved slots apply. With the defaults on a 12-thread machine (9 workers, a pool of 32 plus 32 overflow, 20 tenants at 2 plus 6), that is about 2,100 connections: set <code>max_connections</code> to 2,500 and restart PostgreSQL. You do not have to work it out: the installer prints the number for its machine, and <code>python -m backend.persistence.pool_sizing --print --tenants N</code> gives it for N tenant databases. With only a few tenant databases, the main pool's limit of half of each worker's share sets the number instead; the tool accounts for it.</p>
                     <p data-i18n="server_scaling.db.fit" data-i18n-html>If the connections do not fit, the server does not refuse to start: it shrinks the pools to fit and logs a warning that names the numbers. With multi-tenancy the main pool then keeps at most half of each worker's share and the tenant databases share the rest, at least one connection each. A server squeezed that way works, slowly: one run with one connection per tenant database per worker took 26 minutes to enroll 10,000 agents. Raise <code>max_connections</code> rather than live with the warning.</p>
                     <p data-i18n="server_scaling.db.pooler" data-i18n-html>A tenant database can live on another PostgreSQL server (its placement), which takes its connections off the main one. A transaction-mode connection pooler such as PgBouncer is not supported: the server holds session-level advisory locks to coordinate its workers.</p>
                 </section>

@@ -12941,7 +12941,7 @@
           "145": "此套件會建立 <code>sysmanage</code> 服務帳戶、服務、含有為此主機產生之密鑰的 <code>/etc/sysmanage.yaml</code>、一個 nginx 站點以及已解封的 OpenBAO。在資料庫就緒之前，服務會保持停止。",
           "146": "3. 資料庫設定",
           "147": "與RHEL相容的發行版",
-          "148": "每個伺服器工作節點都保持自己的連接池，因此PostgreSQL的<code>max_connections</code>必須包含所有這些連接。<a href=\"../server/scaling.html\">擴展指南</a>提供了公式。",
+          "148": "每個伺服器工作程序都維護自己的連線池，因此 PostgreSQL 的 <code>max_connections</code> 必須能容納所有這些連線池。安裝程式會列印本機所需的數值（\"Set PostgreSQL's max_connections to at least ...\"）：請在 <code>postgresql.conf</code> 中設定該值，並在啟動伺服器之前重新啟動 PostgreSQL。<a href=\"../server/scaling.html\">擴展指南</a>提供了計算公式。",
           "149": "4. 配置和 TLS 證書",
           "150": "設定資料庫密碼並用自己的電子郵件地址作為 <code>admin_userid</code> 寫入 <code>/etc/sysmanage.yaml</code> 檔案，然後執行遷移：",
           "151": "nginx 故意拒絕在沒有證書的情況下啟動。它會預設讀取 <code>/etc/sysmanage/tls/server.crt</code> 和 <code>/etc/sysmanage/tls/server.key</code>。要使用 Let's Encrypt，請遵循安裝指南中的 <a href=\"../server/installation.html#after-installing\">第 4 步</a>：它涵蓋了 HTTP 和 DNS 挑戰以及更新鉤子，因此更新時 nginx 會自動重新加載，無需您協助。",
@@ -26638,8 +26638,8 @@
     },
     "db": {
       "title": "資料庫連線",
-      "formula": "每個工作程序都維護自己的連線池。PostgreSQL 的 <code>max_connections</code> 必須能容納所有這些連線池，另加為其他用途保留的 10 個連線：",
-      "formula_note": "未啟用多租戶時只適用第一項。在 12 執行緒機器上使用預設值（9 個工作程序，連線池 32 加 32 個溢位連線，20 個租戶各 2 加 6），約為 2,000 個連線：請將 <code>max_connections</code> 設為 2,500 並重新啟動 PostgreSQL。",
+      "formula": "每個工作程序都維護自己的連線池。PostgreSQL 的 <code>max_connections</code> 必須能容納所有這些連線池，另加為 <code>psql</code> 和遷移等工具保留的 10 個空閒連線、PostgreSQL 本身的保留連線槽（預設 3 個），以及在啟用多租戶時每個租戶資料庫 OpenBAO 使用的 4 個連線：",
+      "formula_note": "未啟用多租戶時只適用第一項和保留連線槽。在 12 執行緒機器上使用預設值（9 個工作程序，連線池 32 加 32 個溢位連線，20 個租戶各 2 加 6），約為 2,100 個連線：請將 <code>max_connections</code> 設為 2,500 並重新啟動 PostgreSQL。您無需自行計算：安裝程式會列印其所在機器所需的數值，<code>python -m backend.persistence.pool_sizing --print --tenants N</code> 則提供 N 個租戶資料庫所需的數值。如果只有少數幾個租戶資料庫，則改由主連線池不超過每個工作程序配額一半的限制來決定該數值；該工具會將此納入考量。",
       "fit": "如果連線數超出上限，伺服器不會拒絕啟動：它會縮小連線池以符合上限，並記錄一則列出具體數字的警告。啟用多租戶時，主連線池最多保留每個工作程序份額的一半，其餘由各租戶資料庫分攤，每個至少一個連線。以這種方式壓縮的伺服器可以運作，但速度很慢：在一次每個工作程序為每個租戶資料庫僅配置一個連線的執行中，註冊 10,000 個代理程式花了 26 分鐘。請提高 <code>max_connections</code>，而不要對警告置之不理。",
       "pooler": "租戶資料庫可以位於另一台 PostgreSQL 伺服器上（即其放置位置），從而將其連線從主伺服器上移走。不支援 PgBouncer 等交易模式的連線池：伺服器會持有工作階段層級的諮詢鎖定來協調各工作程序。"
     },
