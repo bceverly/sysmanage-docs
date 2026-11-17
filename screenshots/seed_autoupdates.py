@@ -25,6 +25,12 @@ WHAT IT HAS TO SHOW
     partly failed with apt's own error, one skipped because the host is opted
     out, a held package left out.
   * Also a "New device on the network" alert rule, for the Alerting page.
+  * Maintenance windows and waiting periods: screenshots-seed gives every
+    host the "Nightly Patching" window (02:00-04:00 UTC) and a weekend
+    blackout, and automatic runs start only inside a window, so the policies
+    fire at 02:05 UTC on the most recent weekday.  Afterwards the nightly
+    policy waits 7 days for regular patches and 0 for critical ones, so the
+    web host's card lists when each remaining update becomes eligible.
 
 Run AFTER screenshots-seed (demo hosts and their pending updates).
 Idempotent: removes its own rows first.
@@ -54,6 +60,16 @@ NEW_DEVICE_RULE = "New device on the network"
 
 def _now():
     return datetime.now(timezone.utc).replace(tzinfo=None)
+
+
+def _inside_window():
+    """02:05 UTC on the most recent weekday: inside the demo "Nightly
+    Patching" window and outside the weekend blackout (seed.py)."""
+    now = _now()
+    at = now.replace(hour=2, minute=5, second=0, microsecond=0)
+    while at >= now or at.weekday() >= 5:
+        at -= timedelta(days=1)
+    return at
 
 
 async def _boot_engine():
@@ -220,7 +236,7 @@ def main():
         _alert_rule(session)
         session.commit()
 
-        now = _now()
+        now = _inside_window()
         print("  nightly:", auto_update_runner.fire_profile(session, eng, nightly, now))
         print("  staging:", auto_update_runner.fire_profile(session, eng, staging, now))
         session.commit()
@@ -245,6 +261,12 @@ def main():
         web.boot_time = _now() + timedelta(minutes=2)
         session.commit()
         auto_update_results.follow_reboots(session, eng, _now() + timedelta(minutes=3))
+        session.commit()
+
+        # Waiting periods (26.3): what is still pending on the web host now
+        # waits its 7 days, and its card says until when.
+        nightly = session.get(models.UpgradeProfile, nightly.id)
+        nightly.wait_days_regular, nightly.wait_days_critical = 7, 0
         session.commit()
 
         for run in session.query(models.AutoUpdateRun).order_by(models.AutoUpdateRun.queued_at):
