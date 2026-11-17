@@ -408,6 +408,10 @@ screenshot:
 .PHONY: screenshots screenshots-community screenshots-assettag-seed screenshots-timesync-seed screenshots-hardware-seed screenshots-enterprise screenshots-seed screenshots-capture screenshots-vm-up screenshots-vm-down screenshots-pro-build screenshots-pro-seed screenshots-pro-capture screenshots-ent-build screenshots-ent-seed screenshots-ent-capture screenshots-ent-roles screenshots-fleet-seed screenshots-cfg-seed screenshots-facts-seed screenshots-facts-capture screenshots-advisor-seed screenshots-advisor-capture screenshots-discovery-seed screenshots-discovery-capture screenshots-autoupdates-seed screenshots-autoupdates-capture screenshots-malware-seed screenshots-malware-capture screenshots-hardware-capture screenshots-backups-seed screenshots-backups-capture screenshots-backups-alt screenshots-backups-pro-seed screenshots-backups-pro-capture screenshots-backups-proxy screenshots-backups-proxy-pro screenshots-airgap-seed
 
 SHOTS_DIR := screenshots
+# Run a seed inside the screenshot VM and STOP the run if it fails (see
+# screenshots/vm_seed.sh: the old `| sed || echo` never noticed a crash).
+VM_PY := cd /opt/sysmanage && sudo env PYTHONPATH=/opt/sysmanage /opt/sysmanage/.venv/bin/python - 2>&1
+VM_SEED := RED='$(RED)' YELLOW='$(YELLOW)' RESET='$(RESET)' sh vm_seed.sh
 # Load screenshots/config.env (targets, admin + demo creds) if present.
 -include $(SHOTS_DIR)/config.env
 # Targets default to EMPTY: the seed/capture recipes then auto-resolve the VM's
@@ -688,8 +692,7 @@ screenshots-seed:
 		$(PYTHON) gen_seed_sql.py; \
 		if [ -z "$(SCREENSHOT_TARGET_API)" ]; then \
 			echo "$(BLUE)Applying inventory + map coordinates directly (seed_inventory.sql, seed_geo.sql)...$(RESET)"; \
-			cat seed_inventory.sql seed_geo.sql | vagrant ssh -c "sudo -u postgres psql -d sysmanage -v ON_ERROR_STOP=1 -q" 2>/dev/null \
-				| sed 's/^/  /' || echo "$(YELLOW)direct seed skipped (could not reach VM psql)$(RESET)"; \
+			$(VM_SEED) --soft "direct inventory seed (seed_inventory.sql, seed_geo.sql)" $@ "sudo -u postgres psql -d sysmanage -v ON_ERROR_STOP=1 -q" seed_inventory.sql seed_geo.sql; \
 		else \
 			echo "$(YELLOW)External target set -- skipping direct SQL seed (VM-only).$(RESET)"; \
 		fi
@@ -703,8 +706,7 @@ screenshots-pro-seed:
 	@cd $(SHOTS_DIR) && VMIP=$$(vagrant ssh -c 'hostname -I' 2>/dev/null | awk '{print $$1}' | tr -d '\r'); \
 		[ -n "$$VMIP" ] || { echo "$(RED)Screenshot VM not running. Run 'make screenshots-pro-build' first.$(RESET)"; exit 1; }; \
 		echo "$(BLUE)Seeding Professional engine demo data (in-VM ORM)...$(RESET)"; \
-		cat seed_pro.py | vagrant ssh -c "cd /opt/sysmanage && sudo env PYTHONPATH=/opt/sysmanage /opt/sysmanage/.venv/bin/python - 2>&1" 2>/dev/null \
-			| sed 's/^/  /' || echo "$(YELLOW)pro seed failed (is the Pro-licensed VM up and OSS-seeded?)$(RESET)"
+		$(VM_SEED) "pro seed" $@ "$(VM_PY)" seed_pro.py
 
 # Seed Enterprise-tier engine demo data (antivirus, firewall, fleet, automation,
 # mirroring, access-groups, virtualization, observability, IdP, federation,
@@ -716,8 +718,7 @@ screenshots-ent-seed:
 	@cd $(SHOTS_DIR) && VMIP=$$(vagrant ssh -c 'hostname -I' 2>/dev/null | awk '{print $$1}' | tr -d '\r'); \
 		[ -n "$$VMIP" ] || { echo "$(RED)Screenshot VM not running. Run 'make screenshots-ent-build' first.$(RESET)"; exit 1; }; \
 		echo "$(BLUE)Seeding Enterprise engine demo data (in-VM ORM)...$(RESET)"; \
-		cat seed_ent.py | vagrant ssh -c "cd /opt/sysmanage && sudo env PYTHONPATH=/opt/sysmanage /opt/sysmanage/.venv/bin/python - 2>&1" 2>/dev/null \
-			| sed 's/^/  /' || echo "$(YELLOW)ent seed failed (is the Enterprise-licensed VM up and OSS-seeded?)$(RESET)"
+		$(VM_SEED) "ent seed" $@ "$(VM_PY)" seed_ent.py
 
 # Configuration profiles + drift findings (Phase 20.1/20.2). Separate from
 # screenshots-ent-seed because seed_ent.py is at the 1000-line ceiling and the
@@ -727,8 +728,7 @@ screenshots-cfg-seed:
 	@cd $(SHOTS_DIR) && VMIP=$$(vagrant ssh -c 'hostname -I' 2>/dev/null | awk '{print $$1}' | tr -d '\r'); \
 		[ -n "$$VMIP" ] || { echo "$(RED)Screenshot VM not running. Run 'make screenshots-ent-build' first.$(RESET)"; exit 1; }; \
 		echo "$(BLUE)Seeding configuration-management + drift demo data (in-VM ORM)...$(RESET)"; \
-		cat seed_ent_config.py | vagrant ssh -c "cd /opt/sysmanage && sudo env PYTHONPATH=/opt/sysmanage /opt/sysmanage/.venv/bin/python - 2>&1" 2>/dev/null \
-			| sed 's/^/  /' || echo "$(YELLOW)config-management seed failed (is the Enterprise-licensed VM up and OSS-seeded?)$(RESET)"
+		$(VM_SEED) "config-management seed" $@ "$(VM_PY)" seed_ent_config.py
 
 # Asset tags (Phase 23.2): machine identities through the real linking code, a
 # naming scheme, and tags applied through the real CSV import -- including a
@@ -738,8 +738,7 @@ screenshots-assettag-seed:
 	@cd $(SHOTS_DIR) && VMIP=$$(vagrant ssh -c 'hostname -I' 2>/dev/null | awk '{print $$1}' | tr -d '\r'); \
 		[ -n "$$VMIP" ] || { echo "$(RED)Screenshot VM not running. Run 'make screenshots' first.$(RESET)"; exit 1; }; \
 		echo "$(BLUE)Seeding machines + asset tags (in-VM ORM)...$(RESET)"; \
-		cat seed_assettags.py | vagrant ssh -c "cd /opt/sysmanage && sudo env PYTHONPATH=/opt/sysmanage /opt/sysmanage/.venv/bin/python - 2>&1" 2>/dev/null \
-			| sed 's/^/  /' || echo "$(YELLOW)asset tag seed failed (is the VM up and OSS-seeded?)$(RESET)"
+		$(VM_SEED) "asset tag seed" $@ "$(VM_PY)" seed_assettags.py
 
 # Time sync (Phase 23.3): clocks, time services, a week of offset history,
 # tag bounds, resyncs, a fleet NTP policy and clock alerts.  OSS data (the
@@ -749,8 +748,7 @@ screenshots-timesync-seed:
 	@cd $(SHOTS_DIR) && VMIP=$$(vagrant ssh -c 'hostname -I' 2>/dev/null | awk '{print $$1}' | tr -d '\r'); \
 		[ -n "$$VMIP" ] || { echo "$(RED)Screenshot VM not running. Run 'make screenshots' first.$(RESET)"; exit 1; }; \
 		echo "$(BLUE)Seeding clocks + time sync (in-VM ORM)...$(RESET)"; \
-		cat seed_timesync.py | vagrant ssh -c "cd /opt/sysmanage && sudo env PYTHONPATH=/opt/sysmanage /opt/sysmanage/.venv/bin/python - 2>&1" 2>/dev/null \
-			| sed 's/^/  /' || echo "$(YELLOW)time sync seed failed (is the VM up and OSS-seeded?)$(RESET)"
+		$(VM_SEED) "time sync seed" $@ "$(VM_PY)" seed_timesync.py
 
 # Hardware health (Phase 23.1): agent-shaped reports through the REAL
 # ingestion code -- a failed drive and a degraded md array with the kernel's
@@ -762,8 +760,7 @@ screenshots-hardware-seed:
 	@cd $(SHOTS_DIR) && VMIP=$$(vagrant ssh -c 'hostname -I' 2>/dev/null | awk '{print $$1}' | tr -d '\r'); \
 		[ -n "$$VMIP" ] || { echo "$(RED)Screenshot VM not running. Run 'make screenshots' first.$(RESET)"; exit 1; }; \
 		echo "$(BLUE)Seeding hardware health (in-VM ORM)...$(RESET)"; \
-		cat seed_hardware.py | vagrant ssh -c "cd /opt/sysmanage && sudo env PYTHONPATH=/opt/sysmanage /opt/sysmanage/.venv/bin/python - 2>&1" 2>/dev/null \
-			| sed 's/^/  /' || echo "$(YELLOW)hardware health seed failed (is the VM up and OSS-seeded?)$(RESET)"
+		$(VM_SEED) "hardware health seed" $@ "$(VM_PY)" seed_hardware.py
 
 # Fleet backups (Phase 24): one target served by a FreeBSD storage host on
 # UFS (the "cannot seal" caution), a backed-up host with path rules, one
@@ -780,8 +777,7 @@ screenshots-backups-seed:
 		[ -n "$$VMIP" ] || { echo "$(RED)Screenshot VM not running. Run 'make screenshots' first.$(RESET)"; exit 1; }; \
 		echo "$(BLUE)Seeding fleet backups + iCloud backup (in-VM ORM)$(if $(SEED_BACKUPS_ALT), -- ALTERNATE state,)...$(RESET)"; \
 		for seeder in seed_backups.py seed_cloud_backup.py; do \
-			cat $$seeder | vagrant ssh -c "cd /opt/sysmanage && sudo env PYTHONPATH=/opt/sysmanage SEED_BACKUPS_ALT=$(SEED_BACKUPS_ALT) SEED_BACKUPS_PROXY=$(SEED_BACKUPS_PROXY) /opt/sysmanage/.venv/bin/python - 2>&1" 2>/dev/null \
-				| sed 's/^/  /' || echo "$(YELLOW)$$seeder failed (is the VM up and OSS-seeded?)$(RESET)"; \
+			$(VM_SEED) "$$seeder" $@ "cd /opt/sysmanage && sudo env PYTHONPATH=/opt/sysmanage SEED_BACKUPS_ALT=$(SEED_BACKUPS_ALT) SEED_BACKUPS_PROXY=$(SEED_BACKUPS_PROXY) /opt/sysmanage/.venv/bin/python - 2>&1" $$seeder || exit $$?; \
 		done
 
 # The Community Backups page in a state the main seed cannot show alongside
@@ -824,15 +820,13 @@ screenshots-backups-pro-seed:
 	@cd $(SHOTS_DIR) && VMIP=$$(vagrant ssh -c 'hostname -I' 2>/dev/null | awk '{print $$1}' | tr -d '\r'); \
 		[ -n "$$VMIP" ] || { echo "$(RED)Screenshot VM not running. Run 'make screenshots-pro-build' first.$(RESET)"; exit 1; }; \
 		echo "$(BLUE)Seeding Professional+ backups (in-VM ORM)...$(RESET)"; \
-		cat seed_backups_pro.py | vagrant ssh -c "cd /opt/sysmanage && sudo env PYTHONPATH=/opt/sysmanage /opt/sysmanage/.venv/bin/python - 2>&1" 2>/dev/null \
-			| sed 's/^/  /' || echo "$(YELLOW)Pro+ backups seed failed (is the Pro VM up and backups-seeded?)$(RESET)"
+		$(VM_SEED) "Pro+ backups seed" $@ "$(VM_PY)" seed_backups_pro.py
 
 screenshots-facts-seed:
 	@cd $(SHOTS_DIR) && VMIP=$$(vagrant ssh -c 'hostname -I' 2>/dev/null | awk '{print $$1}' | tr -d '\r'); \
 		[ -n "$$VMIP" ] || { echo "$(RED)Screenshot VM not running. Run 'make screenshots-ent-build' first.$(RESET)"; exit 1; }; \
 		echo "$(BLUE)Seeding query packs + watched files (in-VM ORM)...$(RESET)"; \
-		cat seed_facts.py | vagrant ssh -c "cd /opt/sysmanage && sudo env PYTHONPATH=/opt/sysmanage /opt/sysmanage/.venv/bin/python - 2>&1" 2>/dev/null \
-			| sed 's/^/  /' || echo "$(YELLOW)fact-substrate seed failed (is the Enterprise-licensed VM up and OSS-seeded?)$(RESET)"
+		$(VM_SEED) "fact-substrate seed" $@ "$(VM_PY)" seed_facts.py
 
 # An air-gap disc set (seed_airgap.py): a run split into three discs (the
 # Download disc picker reads their files, written sparse), disc 1 imported
@@ -843,8 +837,7 @@ screenshots-airgap-seed:
 	@cd $(SHOTS_DIR) && VMIP=$$(vagrant ssh -c 'hostname -I' 2>/dev/null | awk '{print $$1}' | tr -d '\r'); \
 		[ -n "$$VMIP" ] || { echo "$(RED)Screenshot VM not running. Run 'make screenshots-ent-build' first.$(RESET)"; exit 1; }; \
 		echo "$(BLUE)Seeding the air-gap disc set (in-VM ORM)...$(RESET)"; \
-		cat seed_airgap.py | vagrant ssh -c "cd /opt/sysmanage && sudo env PYTHONPATH=/opt/sysmanage /opt/sysmanage/.venv/bin/python - 2>&1" 2>/dev/null \
-			| sed 's/^/  /' || echo "$(YELLOW)air-gap seed failed (is the Enterprise-licensed VM up and ent-seeded?)$(RESET)"
+		$(VM_SEED) "air-gap seed" $@ "$(VM_PY)" seed_airgap.py
 
 # Advisor demo data (Phase 21.2 S8). Evaluates with the REAL advisor over
 # seeded evidence, so every outcome in the shots is one the product computed --
@@ -854,8 +847,7 @@ screenshots-advisor-seed:
 	@cd $(SHOTS_DIR) && VMIP=$$(vagrant ssh -c 'hostname -I' 2>/dev/null | awk '{print $$1}' | tr -d '\r'); \
 		[ -n "$$VMIP" ] || { echo "$(RED)Screenshot VM not running. Run 'make screenshots-ent-build' first.$(RESET)"; exit 1; }; \
 		echo "$(BLUE)Seeding advisor evidence + evaluating (in-VM ORM)...$(RESET)"; \
-		cat seed_advisor.py | vagrant ssh -c "cd /opt/sysmanage && sudo env PYTHONPATH=/opt/sysmanage /opt/sysmanage/.venv/bin/python - 2>&1" 2>/dev/null \
-			| sed 's/^/  /' || echo "$(YELLOW)advisor seed failed (is the Enterprise-licensed VM up and seeded?)$(RESET)"
+		$(VM_SEED) "advisor seed" $@ "$(VM_PY)" seed_advisor.py
 
 # Network Discovery (21.6): neighbor reports from three demo hosts through the
 # real service + asset_discovery_engine, a real sweep, and two exclusions.
@@ -867,15 +859,13 @@ screenshots-autoupdates-seed:
 	@cd $(SHOTS_DIR) && VMIP=$$(vagrant ssh -c 'hostname -I' 2>/dev/null | awk '{print $$1}' | tr -d '\r'); \
 		[ -n "$$VMIP" ] || { echo "$(RED)Screenshot VM not running. Run 'make screenshots-ent-build' first.$(RESET)"; exit 1; }; \
 		echo "$(BLUE)Seeding automatic updates (in-VM ORM)...$(RESET)"; \
-		cat seed_autoupdates.py | vagrant ssh -c "cd /opt/sysmanage && sudo env PYTHONPATH=/opt/sysmanage /opt/sysmanage/.venv/bin/python - 2>&1" 2>/dev/null \
-			| sed 's/^/  /' || echo "$(YELLOW)automatic updates seed failed (is the Enterprise-licensed VM up and seeded?)$(RESET)"
+		$(VM_SEED) "automatic updates seed" $@ "$(VM_PY)" seed_autoupdates.py
 
 screenshots-discovery-seed:
 	@cd $(SHOTS_DIR) && VMIP=$$(vagrant ssh -c 'hostname -I' 2>/dev/null | awk '{print $$1}' | tr -d '\r'); \
 		[ -n "$$VMIP" ] || { echo "$(RED)Screenshot VM not running. Run 'make screenshots-ent-build' first.$(RESET)"; exit 1; }; \
 		echo "$(BLUE)Seeding network discovery reports (in-VM ORM)...$(RESET)"; \
-		cat seed_discovery.py | vagrant ssh -c "cd /opt/sysmanage && sudo env PYTHONPATH=/opt/sysmanage /opt/sysmanage/.venv/bin/python - 2>&1" 2>/dev/null \
-			| sed 's/^/  /' || echo "$(YELLOW)discovery seed failed (is the Enterprise-licensed VM up and seeded?)$(RESET)"
+		$(VM_SEED) "discovery seed" $@ "$(VM_PY)" seed_discovery.py
 
 # Malware Detection (21.3): real scan jobs through the real job + result path
 # and the licensed malware_engine, a quarantine and a false-positive decision.
@@ -883,8 +873,7 @@ screenshots-malware-seed:
 	@cd $(SHOTS_DIR) && VMIP=$$(vagrant ssh -c 'hostname -I' 2>/dev/null | awk '{print $$1}' | tr -d '\r'); \
 		[ -n "$$VMIP" ] || { echo "$(RED)Screenshot VM not running. Run 'make screenshots-ent-build' first.$(RESET)"; exit 1; }; \
 		echo "$(BLUE)Seeding malware scan jobs + findings (in-VM ORM)...$(RESET)"; \
-		cat seed_malware.py | vagrant ssh -c "cd /opt/sysmanage && sudo env PYTHONPATH=/opt/sysmanage /opt/sysmanage/.venv/bin/python - 2>&1" 2>/dev/null \
-			| sed 's/^/  /' || echo "$(YELLOW)malware seed failed (is the Enterprise-licensed VM up and seeded?)$(RESET)"
+		$(VM_SEED) "malware seed" $@ "$(VM_PY)" seed_malware.py
 
 # Capture into assets/images/. Targets SCREENSHOT_TARGET_WEB if set, else the
 # running VM's private IP (resolved via vagrant ssh).
@@ -945,7 +934,7 @@ screenshots-discovery-capture:
 # against an Enterprise VM that is up and seeded (screenshots-autoupdates-seed).
 screenshots-autoupdates-capture:
 	@$(MAKE) screenshots-ent-capture \
-		SCREENSHOT_ONLY=ent-auto-updates,ent-auto-updates-host,ent-new-device-rule
+		SCREENSHOT_ONLY=ent-auto-updates,ent-auto-updates-host,ent-auto-updates-fleets,ent-auto-updates-rollouts,ent-new-device-rule
 
 # Re-capture ONLY the Hardware Health shots (23.1), against an OSS VM that is
 # up and seeded (screenshots-vm-up, screenshots-seed, screenshots-hardware-seed).

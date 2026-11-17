@@ -38,6 +38,7 @@ Idempotent: removes its own rows first.
 
 import asyncio
 import json
+import os
 from datetime import datetime, timedelta, timezone
 from types import SimpleNamespace
 
@@ -56,6 +57,8 @@ NIGHTLY = "Nightly security - production"
 WEEKLY_DB = "Database hosts - weekly"
 STAGING = "Staging - everything"
 NEW_DEVICE_RULE = "New device on the network"
+ROLLOUT = "Builds, desktops, then the rest - fleet by fleet"
+BUILD_HOST = "freebsd-build-01.corp.northstar.io"
 
 
 def _now():
@@ -91,10 +94,15 @@ def _tag(session, name):
 
 
 def _clear(session):
-    names = (NIGHTLY, WEEKLY_DB, STAGING)
+    names = (NIGHTLY, WEEKLY_DB, STAGING, ROLLOUT)
     ids = [p.id for p in session.query(models.UpgradeProfile).filter(
         models.UpgradeProfile.name.in_(names))]  # fmt: skip
     session.query(models.AutoUpdateRun).delete()
+    session.query(models.AutoUpdateRollout).delete()
+    if ids:
+        session.query(models.UpgradeProfileRolloutStage).filter(
+            models.UpgradeProfileRolloutStage.profile_id.in_(ids)
+        ).delete()
     session.query(models.UpdateExecutionLog).filter(
         models.UpdateExecutionLog.execution_method == "automatic"
     ).delete()
@@ -109,6 +117,37 @@ def _clear(session):
     session.query(models.AlertRule).filter(models.AlertRule.name == NEW_DEVICE_RULE).delete()
     for host in session.query(models.Host):
         host.auto_update_opt_out, host.auto_update_opt_out_reason = False, None
+
+
+# Applying updates deletes them (the real result handler does), so a second
+# run would find nothing to plan.  The first run keeps the demo hosts' updates
+# as they came from seed.py; every run starts from that copy.
+BASELINE = "/var/tmp/seed_autoupdates_baseline.json"
+
+
+def _restore_updates(session, hosts):
+    """Put the demo hosts' package updates back as seed.py left them."""
+    columns = [c.name for c in models.PackageUpdate.__table__.columns]
+    host_ids = [h.id for h in hosts]
+    query = session.query(models.PackageUpdate).filter(
+        models.PackageUpdate.host_id.in_(host_ids)
+    )
+    if not os.path.exists(BASELINE):
+        rows = [{c: getattr(r, c) for c in columns} for r in query]
+        with open(BASELINE, "w", encoding="utf-8") as handle:
+            json.dump(rows, handle, default=str)
+        return
+    with open(BASELINE, encoding="utf-8") as handle:
+        rows = json.load(handle)
+    query.delete(synchronize_session=False)
+    session.flush()
+    for row in rows:
+        values = {c: row.get(c) for c in columns}
+        for key in ("discovered_at", "created_at", "updated_at"):
+            if values.get(key):
+                values[key] = datetime.fromisoformat(values[key])
+        session.add(models.PackageUpdate(**values))
+    session.flush()
 
 
 def _policies(session, hosts):
@@ -158,6 +197,18 @@ def _advertise(host):
     host.agent_capabilities = json.dumps(report)
 
 
+def _backdate_updates(session, hosts, before):
+    """The runs are planned at ``before`` (inside last night's window), but
+    seed.py discovered the updates just now -- and an update is not eligible
+    until after it was discovered.  Say they were found days earlier."""
+    found = before - timedelta(days=3)
+    for host in hosts:
+        for row in session.query(models.PackageUpdate).filter(
+            models.PackageUpdate.host_id == host.id
+        ):
+            row.discovered_at = found
+
+
 def _hold_one_package(session, host):
     """What the agent reports for a package pinned with apt-mark hold."""
     row = (
@@ -199,6 +250,58 @@ def _planned(session, host):
     return [(p["package_name"], p["package_manager"]) for p in run.packages]
 
 
+def _rollout_policy(session):
+    """Fleet by fleet (26.4): the build host is the canary, then the desktops,
+    then everything else.  Every host, so nothing is left out of a fleet."""
+    policy = models.UpgradeProfile(
+        name=ROLLOUT, description="One fleet at a time; the build host first",
+        cron="0 4 * * 2", enabled=True, auto_apply=True, security_only=False,
+        reboot_mode="never", rollout_enabled=True, rollout_max_failure_pct=0,
+        next_run=_now() + timedelta(days=4),
+    )  # fmt: skip
+    session.add(policy)
+    session.flush()
+    for position, (name, tag, soak) in enumerate(
+        (("Canary fleet", "build", 24 * 60), ("Desktops", "desktop", 4 * 60))
+    ):
+        session.add(models.UpgradeProfileRolloutStage(
+            profile_id=policy.id, position=position, name=name,
+            tag_id=_tag(session, tag).id, soak_minutes=soak,
+        ))  # fmt: skip
+    session.flush()
+    return policy
+
+
+def _run_rollout(session, eng, policy, hosts, now):
+    """Start the rollout as a person's Trigger Now would; when the canary got
+    updates, its run fails and the health gate halts the rollout -- the
+    Rollouts card then shows the halt, its reason and the host, with Resume
+    and Cancel.  With nothing to apply the canary soaks instead."""
+    from backend.services import (  # noqa: PLC0415
+        auto_update_rollout,
+        auto_update_runner,
+    )
+
+    print("  rollout:", auto_update_runner.fire_profile(
+        session, eng, policy, now, triggered_by="admin@northstar.io"))  # fmt: skip
+    session.commit()
+    build = hosts[BUILD_HOST]
+    queued = session.query(models.AutoUpdateRun).filter(
+        models.AutoUpdateRun.host_id == build.id,
+        models.AutoUpdateRun.status == "queued",
+    ).first()
+    if queued is not None:
+        failed = [(p["package_name"], p["package_manager"],
+                   "pkg: Cannot get an advisory lock on a database, it is locked by another process")
+                  for p in queued.packages]  # fmt: skip
+        asyncio.run(_answer(session, build, [], failed, False))
+        session.commit()
+    auto_update_rollout.advance_rollouts(session, eng, now + timedelta(minutes=2))
+    session.commit()
+    for rollout in session.query(models.AutoUpdateRollout):
+        print(f"  rollout {rollout.profile_name}: {rollout.status} {rollout.halt_reason or ''}")
+
+
 def _alert_rule(session):
     session.add(
         models.AlertRule(
@@ -223,20 +326,23 @@ def main():
 
     try:
         hosts = {h.fqdn: h for h in session.query(models.Host)}
-        missing = [f for f in (WEB, DB_HOST, APP, KIOSK) if f not in hosts]
+        missing = [f for f in (WEB, DB_HOST, APP, KIOSK, BUILD_HOST) if f not in hosts]
         if missing:
             raise SystemExit(f"demo hosts missing ({missing}) -- run screenshots-seed first")
         _clear(session)
-        for fqdn in (WEB, DB_HOST, APP, KIOSK):
+        for fqdn in (WEB, DB_HOST, APP, KIOSK, BUILD_HOST):
             _advertise(hosts[fqdn])
         session.commit()
+        now = _inside_window()
+        demo = [hosts[f] for f in (WEB, DB_HOST, APP, KIOSK, BUILD_HOST)]
+        _restore_updates(session, demo)
+        _backdate_updates(session, demo, now)
         nightly, staging = _policies(session, hosts)
         _hold_one_package(session, hosts[WEB])
         auto_update_runner.settings_row(session)
         _alert_rule(session)
         session.commit()
 
-        now = _inside_window()
         print("  nightly:", auto_update_runner.fire_profile(session, eng, nightly, now))
         print("  staging:", auto_update_runner.fire_profile(session, eng, staging, now))
         session.commit()
@@ -268,6 +374,11 @@ def main():
         nightly = session.get(models.UpgradeProfile, nightly.id)
         nightly.wait_days_regular, nightly.wait_days_critical = 7, 0
         session.commit()
+
+        # Fleet by fleet (26.4): the Rollouts card and the fleets editor.
+        rollout = _rollout_policy(session)
+        session.commit()
+        _run_rollout(session, eng, rollout, hosts, _inside_window())
 
         for run in session.query(models.AutoUpdateRun).order_by(models.AutoUpdateRun.queued_at):
             host = session.get(models.Host, run.host_id)
