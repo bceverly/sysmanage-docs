@@ -122,7 +122,10 @@ def _clear(session):
 # Applying updates deletes them (the real result handler does), so a second
 # run would find nothing to plan.  The first run keeps the demo hosts' updates
 # as they came from seed.py; every run starts from that copy.
-BASELINE = "/var/tmp/seed_autoupdates_baseline.json"
+# Root-owned, unlike /var/tmp: the seed runs as root, and a fixed name in a
+# world-writable directory could be a symlink planted to make it overwrite
+# something else (CWE-61).  /var/lib/sysmanage exists on every server VM.
+BASELINE = "/var/lib/sysmanage/seed_autoupdates_baseline.json"
 
 
 def _restore_updates(session, hosts):
