@@ -85,8 +85,11 @@ from sqlalchemy.orm import sessionmaker
 
 from backend.persistence import db
 from backend.persistence.models import (
+    BackupLegalHold,
+    BackupMove,
     BackupPolicy,
     BackupPolicyKey,
+    BackupReplica,
     BackupRun,
     BackupSnapshot,
     BackupSnapshotDiff,
@@ -153,6 +156,11 @@ def _snap(at):
 def _clear(session):
     # The Pro+ seed's rows (keys, diffs, tag policies) first: they hang off
     # the policies and tags this clears or keeps.
+    # The Enterprise seed's moves and off-site copies (seed_backups_ent.py)
+    # name policies and targets too.
+    for model in (BackupLegalHold, BackupMove, BackupReplica):
+        session.query(model).delete()
+    session.query(BackupTarget).update({BackupTarget.replica_target_id: None})
     for model in (BackupPolicyKey, BackupSnapshotDiff, BackupTagPolicy, BackupRun,
                   BackupSnapshot, BackupPolicy, BackupTarget):  # fmt: skip
         session.query(model).delete()

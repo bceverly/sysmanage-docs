@@ -419,7 +419,12 @@ const APP_BAR_PX = 140;
 
 async function scrollIntoView(page, shot) {
   if (!shot.scrollTo) return true;
-  const target = page.getByText(shot.scrollTo, { exact: false }).first();
+  // `scrollToHeading`: the heading with exactly that name -- a card's title
+  // ("Legal holds") whose words also occur, lower-case, in other text on the
+  // page, which a plain text match (case-insensitive) would find first.
+  const target = shot.scrollToHeading
+    ? page.getByRole('heading', { name: shot.scrollTo, exact: true }).first()
+    : page.getByText(shot.scrollTo, { exact: false }).first();
   try {
     await target.scrollIntoViewIfNeeded({ timeout: 8000 });
     if (shot.scrollAlign === 'start') {
@@ -721,6 +726,20 @@ async function captureClick(page, shot, vp) {
       `clickButton "${shot.clickButton}"`,
     );
     detail += ` » "${shot.clickButton}"`;
+  }
+  // A button inside one element, for a label several buttons on the page
+  // share -- the Backups page has a "Change" for the transport and another
+  // for each target's off-site copy.  `within` is a CSS selector; the first
+  // element it matches is the one used.
+  if (shot.clickButtonWithin) {
+    const { within, button } = shot.clickButtonWithin;
+    await clickWithRetry(
+      page,
+      () =>
+        page.locator(within).first().getByRole('button', { name: button, exact: true }).first(),
+      `clickButtonWithin "${button}" in ${within}`,
+    );
+    detail += ` » "${button}" in ${within}`;
   }
   // Feed a fixture file to a (hidden) <input type="file"> by its data-testid --
   // the asset-tag CSV import shows its dry run only once a file is chosen.

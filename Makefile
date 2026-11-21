@@ -139,6 +139,7 @@ help:
 	@echo "  screenshots-backups-proxy-pro  - Same on the Pro VM: the Bandwidth through restate-proxy dialog, then the Pro+ backup seed back"
 	@echo "  screenshots-airgap-seed        - Seed an air-gap disc set: a 3-disc run, disc 1 imported, disc 2 in the import drive (in-VM, Enterprise)"
 	@echo "  screenshots-backups-pro-seed   - Seed the Professional+ backup features: encryption, escrow, signing, GFS, verification, drift, tag policies"
+	@echo "  screenshots-backups-ent-seed   - Seed the Enterprise backup operations: targets, an off-site copy, moves"
 	@echo "  screenshots-backups-pro-capture- Re-capture only the Professional+ backup shots (Pro VM, after screenshots-backups-pro-seed)"
 	@echo "  screenshots-ent-seed   - Seed Enterprise engine demo data (in-VM ORM)"
 	@echo "  screenshots-fleet-seed - Seed fleet-engine demo data (Pro+ REST)"
@@ -405,7 +406,7 @@ screenshot:
 # ---- Automated documentation screenshots (screenshots/ pipeline) ------------
 # Reproducible screenshots: provision a VM, seed demo data (REST + WS), drive the
 # UI with Playwright, write PNGs into assets/images/. See screenshots/README.md.
-.PHONY: screenshots screenshots-community screenshots-assettag-seed screenshots-timesync-seed screenshots-hardware-seed screenshots-enterprise screenshots-seed screenshots-capture screenshots-vm-up screenshots-vm-down screenshots-pro-build screenshots-pro-seed screenshots-pro-capture screenshots-ent-build screenshots-ent-seed screenshots-ent-capture screenshots-ent-roles screenshots-fleet-seed screenshots-cfg-seed screenshots-facts-seed screenshots-facts-capture screenshots-advisor-seed screenshots-advisor-capture screenshots-discovery-seed screenshots-discovery-capture screenshots-autoupdates-seed screenshots-autoupdates-capture screenshots-malware-seed screenshots-malware-capture screenshots-hardware-capture screenshots-backups-seed screenshots-backups-capture screenshots-backups-alt screenshots-backups-pro-seed screenshots-backups-pro-capture screenshots-backups-proxy screenshots-backups-proxy-pro screenshots-airgap-seed
+.PHONY: screenshots screenshots-community screenshots-assettag-seed screenshots-timesync-seed screenshots-hardware-seed screenshots-enterprise screenshots-seed screenshots-capture screenshots-vm-up screenshots-vm-down screenshots-pro-build screenshots-pro-seed screenshots-pro-capture screenshots-ent-build screenshots-ent-seed screenshots-ent-capture screenshots-ent-roles screenshots-fleet-seed screenshots-cfg-seed screenshots-facts-seed screenshots-facts-capture screenshots-advisor-seed screenshots-advisor-capture screenshots-discovery-seed screenshots-discovery-capture screenshots-autoupdates-seed screenshots-autoupdates-capture screenshots-malware-seed screenshots-malware-capture screenshots-hardware-capture screenshots-backups-seed screenshots-backups-capture screenshots-backups-alt screenshots-backups-pro-seed screenshots-backups-ent-seed screenshots-backups-pro-capture screenshots-backups-proxy screenshots-backups-proxy-pro screenshots-airgap-seed
 
 SHOTS_DIR := screenshots
 # Run a seed inside the screenshot VM and STOP the run if it fails (see
@@ -489,6 +490,7 @@ screenshots:
 	@$(MAKE) screenshots-pro-seed
 	@$(MAKE) screenshots-backups-pro-seed
 	@$(MAKE) screenshots-ent-seed
+	@$(MAKE) screenshots-backups-ent-seed
 	@$(MAKE) screenshots-cfg-seed
 	@$(MAKE) screenshots-facts-seed
 	@$(MAKE) screenshots-fleet-seed
@@ -526,6 +528,7 @@ screenshots-enterprise:
 	@$(MAKE) screenshots-pro-seed
 	@$(MAKE) screenshots-backups-pro-seed
 	@$(MAKE) screenshots-ent-seed
+	@$(MAKE) screenshots-backups-ent-seed
 	@$(MAKE) screenshots-cfg-seed
 	@$(MAKE) screenshots-fleet-seed
 	@$(MAKE) screenshots-advisor-seed
@@ -821,6 +824,16 @@ screenshots-backups-pro-seed:
 		[ -n "$$VMIP" ] || { echo "$(RED)Screenshot VM not running. Run 'make screenshots-pro-build' first.$(RESET)"; exit 1; }; \
 		echo "$(BLUE)Seeding Professional+ backups (in-VM ORM)...$(RESET)"; \
 		$(VM_SEED) "Pro+ backups seed" $@ "$(VM_PY)" seed_backups_pro.py
+
+# The Enterprise backup operations (27.3): three targets, nas copying
+# off-site to Offsite, ubuntu-web-01's readable off-site copy, rhel-db-01
+# moving to nas-2 and debian-app-01 moved with its old repository kept.
+# Enterprise pass, after screenshots-backups-pro-seed.
+screenshots-backups-ent-seed:
+	@cd $(SHOTS_DIR) && VMIP=$$(vagrant ssh -c 'hostname -I' 2>/dev/null | awk '{print $$1}' | tr -d '\r'); \
+		[ -n "$$VMIP" ] || { echo "$(RED)Screenshot VM not running. Run 'make screenshots-ent-build' first.$(RESET)"; exit 1; }; \
+		echo "$(BLUE)Seeding Enterprise backup operations (in-VM ORM)...$(RESET)"; \
+		$(VM_SEED) "Enterprise backups seed" $@ "$(VM_PY)" seed_backups_ent.py
 
 screenshots-facts-seed:
 	@cd $(SHOTS_DIR) && VMIP=$$(vagrant ssh -c 'hostname -I' 2>/dev/null | awk '{print $$1}' | tr -d '\r'); \
@@ -1241,7 +1254,7 @@ lint-file-length:
 # .js seeders (real-screenshot.js etc.) are covered by eslint below, not here.
 LINT_PY := add_test_user.py scripts/ screenshots/seed.py screenshots/seed_pro.py \
 	screenshots/seed_ent.py screenshots/seed_ent_config.py \
-	screenshots/seed_fleet.py screenshots/seed_assettags.py screenshots/seed_timesync.py screenshots/seed_hardware.py screenshots/seed_backups.py screenshots/seed_cloud_backup.py screenshots/seed_backups_pro.py screenshots/seed_advisor.py screenshots/seed_discovery.py screenshots/seed_malware.py screenshots/seed_airgap.py screenshots/set_roles.py \
+	screenshots/seed_fleet.py screenshots/seed_assettags.py screenshots/seed_timesync.py screenshots/seed_hardware.py screenshots/seed_backups.py screenshots/seed_cloud_backup.py screenshots/seed_backups_pro.py screenshots/seed_backups_ent.py screenshots/seed_advisor.py screenshots/seed_discovery.py screenshots/seed_malware.py screenshots/seed_airgap.py screenshots/set_roles.py \
 	screenshots/pro_keygen.py screenshots/fixture_agent.py screenshots/gen_seed_sql.py \
 	assets/locales/
 
