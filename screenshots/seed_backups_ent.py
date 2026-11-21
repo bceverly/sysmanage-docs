@@ -17,7 +17,10 @@ WHAT IT HAS TO SHOW, AND WHY
 ----------------------------
   * Three targets.  "nas" (location HQ, the default) copies off-site to
     "Offsite" (location DC2, restate-proxy on ubuntu-ws-07, another storage
-    host), whose card says it holds nas's off-site copies.  "nas-2" (HQ,
+    host, btrfs seals kept 30 days), whose card says it holds nas's off-site
+    copies -- and nas's card that its off-site copy is immutable.  The
+    off-site storage host is given the backup capability (its demo report
+    has none), as seed_backups.py does for its storage host.  "nas-2" (HQ,
     restate-proxy) is a second target on nas's own storage host.
   * ubuntu-web-01's off-site copy on Offsite: every snapshot but the newest
     copied (one to copy), its newest copied snapshot a day old, and readable
@@ -86,6 +89,7 @@ ADDED = (OFFSITE, NAS2)
 # What restate 2.2 and this agent report beyond the 2.0 contract, plus the
 # off-site read (27.3).
 READ_ABILITY = "offsite_read"
+BACKUP_COMMANDS = ("backup_configure", "backup_run", "backup_restore")
 GRACE_DAYS = 14
 MOVED_DAYS = 3
 FOUR_EYES = "backup_four_eyes"
@@ -134,11 +138,30 @@ def _clear(session):
     session.flush()
 
 
+def _advertise(host):
+    """Add the backup group to the host's EXISTING capability report, as
+    seed_backups.py does (the off-site storage host runs storage jobs)."""
+    report = json.loads(host.agent_capabilities) if host.agent_capabilities else None
+    if not isinstance(report, dict):
+        print(f"  note: {host.fqdn} has no capability report; left as it is")
+        return
+    report.setdefault("capabilities", [])
+    report.setdefault("commands", [])
+    if "backup" not in report["capabilities"]:
+        report["capabilities"].append("backup")
+    for command in BACKUP_COMMANDS:
+        if command not in report["commands"]:
+            report["commands"].append(command)
+    (report.get("unavailable") or {}).pop("backup", None)
+    (report.get("not_applicable") or {}).pop("backup", None)
+    host.agent_capabilities = json.dumps(report)
+
+
 def _target(session, name, storage, path, **extra):
     target = BackupTarget(
         id=uuid.uuid4(), name=name, host_mount_point=f"/mnt/{name.lower()}",
         storage_host_id=storage.id, storage_path=path, max_concurrent=2,
-        seal_mode="none", service_account="restate", is_default=False,
+        service_account="restate", is_default=False,
         created_at=NOW - timedelta(days=12), created_by=AUTHOR,
         updated_at=NOW - timedelta(days=12), **extra,
     )  # fmt: skip
@@ -306,10 +329,16 @@ def main() -> None:
                   "make screenshots-seed and screenshots-backups-seed first")
             return
         nas.is_default, nas.location = True, "HQ"
+        _advertise(hosts[OFFSITE_STORAGE])
         offsite = _target(session, OFFSITE, hosts[OFFSITE_STORAGE], "/srv/offsite/restate",
-                          location="DC2", **_proxy(OFFSITE_STORAGE))  # fmt: skip
+                          location="DC2", seal_mode="btrfs_snapshot",
+                          btrfs_snapshot_dir="/srv/offsite/seals", seal_keep_days=30,
+                          storage_fs_type="btrfs", storage_fs_mount="/srv/offsite",
+                          storage_fs_checked_at=NOW - timedelta(hours=2),
+                          storage_is_btrfs_subvolume=True,
+                          **_proxy(OFFSITE_STORAGE))  # fmt: skip
         nas2 = _target(session, NAS2, hosts[STORAGE], "/srv/backups2/restate",
-                       location="HQ", **_proxy(STORAGE))  # fmt: skip
+                       location="HQ", seal_mode="none", **_proxy(STORAGE))  # fmt: skip
         nas.replica_target_id = offsite.id
         copied = _offsite_copy(session, hosts["ubuntu-web-01"], offsite)
         total = _moving(session, hosts["rhel-db-01"], nas, nas2)
