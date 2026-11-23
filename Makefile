@@ -1356,8 +1356,15 @@ lint-css-fix: ensure-css-lint-tools
 	@./node_modules/.bin/stylelint "assets/css/**/*.css" --fix
 	@echo "[OK] CSS auto-fix completed"
 
-lint: lint-file-length lint-license-headers lint-python lint-security lint-js lint-css matrix-check check-install-docs i18n-validate i18n-strict i18n-verify i18n-markup i18n-code i18n-html-sync translate-check no-phases
+lint: lint-file-length lint-license-headers lint-python lint-security lint-js lint-css matrix-check check-install-docs i18n-validate i18n-strict i18n-verify i18n-markup i18n-code i18n-html-sync translate-check no-phases docs-version
 	@echo "[OK] docs lint (python + security + js + i18n) passed"
+
+# The docs home names the release it describes; it said 3.12 long after 3.15
+# shipped (2026-11-23).  Fails unless it (and every locale's copy) is the
+# release release-notes.html marks "(current)".
+docs-version:
+	@python3 scripts/check_docs_version.py
+.PHONY: docs-version
 
 # Structure gate. i18n-validate asks "is the key there?", translate-check asks
 # "is it non-[TODO]?", i18n-strict asks "is it English or stale?" -- none of them
