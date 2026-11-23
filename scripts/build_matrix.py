@@ -59,8 +59,8 @@ def status_cell(row: dict) -> str:
         return f'{span("matrix.status.since", "Since", "st st-ok")} {esc(row["since"])}'
     if status == "preview":
         return f'{span("matrix.status.preview", "Preview", "st st-preview")} {esc(row["since"])}'
-    return (f'{span("matrix.status.planned", "Planned", "st st-planned")} '
-            f'{span("matrix.status.phase", "Phase")} {esc(row["phase"])}, v{esc(row["target"])}')
+    # The release only: ROADMAP phase numbers are internal, never published.
+    return f'{span("matrix.status.planned", "Planned", "st st-planned")} v{esc(row["target"])}'
 
 
 def editions_table(data: dict) -> str:
@@ -188,8 +188,8 @@ def validate(data: dict) -> list[str]:
                 errors.append(f"{rid}: unknown edition {row['edition']}")
             if row["status"] in ("available", "preview") and not row.get("since"):
                 errors.append(f"{rid}: {row['status']} needs since")
-            if row["status"] == "planned" and not (row.get("phase") and row.get("target")):
-                errors.append(f"{rid}: planned needs phase and target")
+            if row["status"] == "planned" and not row.get("target"):
+                errors.append(f"{rid}: planned needs a target release")
             if row.get("os"):
                 if set(row["os"]) != plat_ids:
                     errors.append(f"{rid}: os must list exactly {sorted(plat_ids)}")
