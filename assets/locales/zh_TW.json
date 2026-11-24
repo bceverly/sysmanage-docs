@@ -1897,7 +1897,7 @@
           "lifecycle": "<strong>生命週期狀態由 <code>airgap_run_tick</code> 協調器驅動：</strong> <code>QUEUED</code>（等待每個目標快照）→ <code>MIRRORING</code>（從快照樹 rsync 到臨時）→ <code>STAGING_COMPLETE</code>（單張光碟僅；多張光碟跳過此步）→ <code>BUILDING_ISO</code>（xorriso）→ <code>ISO_BUILT</code> → <code>BURNING</code>（只有當 <code>burn_device</code> 設定時）→ <code>COMPLETE</code>。任何失敗將運行轉換為 <code>FAILED</code>，並在 UI 狀態列中顯示錯誤消息。",
           "multidisc_note": "<strong>跨多張光碟。</strong>當 <code>sum(target.source_snapshot.size_bytes) &gt; run.media_size_bytes</code> 時，協調器會改用 <code>build_snapshot_multidisc_collection_plan</code>，以首次適配遞減（first-fit-decreasing）裝箱法將整個目標樹分配到各張光碟上。每張光碟在同一個內嵌計畫中各有自己的暫存目錄 + rsync + xorriso + sha256；輸出為 <code>&lt;run_id&gt;-disc-&lt;N&gt;.iso</code>。若任何單一目標的樹超過光碟容量，協調器會顯示明確的錯誤 -- 檔案層級的分割（將一個鏡像樹拆分到多張光碟上）已延後實作；操作員可改選容量較大的媒體（BD-25 → BD-50），或拆分為多次執行。",
           "step_burn": "<strong>燒錄（可選）</strong> -- 如果運行行中設置了 <code>burn_device</code>，則調度器通過在該設備路徑上分派 <code>build_burn_plan</code> 來將 ISO_BUILT → BURNING 狀態轉換（通常為 <code>/dev/sr0</code>）。燒錄步驟的超時上限為 4 小時，以防止緩慢的硬盤在寫入過程中觸發看門狗。當 <code>burn_device</code> 為 NULL 時，運行直接轉換為 ISO_BUILT → COMPLETE -- 不接觸光學介質的“構建可下載 ISO 並停止”流程。",
-          "step_cve": "CVE / 合規快照 -- 如果請求，NVD 和供應商通告 feed 將在同一瞬間被捕獲，因此生成的媒體集具有連貫的時間點公共漏洞數據視圖。",
+          "step_cve": "<strong>CVE / 合規快照</strong> -- 如果需要，收集器會將其持有的所有安全目錄（包括每個CVE及其套件映射，以及每個供應商安全公告及其套件）匯出至一個檔案，檔案名稱以簽名清單中的SHA-256為基礎，因此媒體集合會攜帶一個一致的瞬間視角，顯示公共漏洞數據。",
           "step_download": "<strong>下載</strong> -- <code>GET /api/v1/airgap/collector/runs/{id}/iso</code> 流式傳輸 ISO 文件。對於多張光碟運行，<code>GET /runs/{id}/discs</code> 列出光碟文件，而 <code>/iso?disc=N</code> 選擇特定的一個。Air-Gap 收集器 UI 自動檢測多張光碟運行並在操作員點擊下載時彈出選擇對話框。",
           "step_iso": "<strong>ISO 建構</strong> -- <code>xorriso -as mkisofs</code> 將佈署樹捆綁成一個 ISO，存儲在 <code>/var/lib/sysmanage/airgap-iso/&lt;run_id&gt;.iso</code> 中，並將manifest 嵌入到 <code>/manifest.json</code>。建構後步驟計算 ISO 的 SHA-256 以供轉移日誌使用。",
           "step_mirror": "<strong>鏡像（來源為快照）</strong> -- 所有快照就緒後，協調器會建立 <code>build_snapshot_collection_run_plan</code>，並附上 <code>source_snapshots</code> 對應表，將 <code>\"&lt;distro&gt;:&lt;version&gt;\"</code> → 快照目錄路徑。此計畫會將每個快照樹 rsync 到各目標的暫存目錄。收集時不會執行任何上游 apt-mirror / reposync / pkg 擷取 -- 可證明套件包與快照逐位元組完全相同。每個 rsync 有 4 小時的逾時上限；代理的進行中日誌可讓長達數小時的執行跨越 WebSocket 重新連線而持續。",
@@ -1993,6 +1993,12 @@
           "nopackage": "<strong>沒有套件時。</strong>工具儲存庫未涵蓋的系統（例如 macOS）會回應<strong>此隔離站點自己的儲存庫中沒有適用於此系統的 restate 套件</strong>。請手動在該系統上安裝 restate。",
           "icloud": "<strong>不提供 iCloud 照片備份。</strong>它需要網際網路，因此實體隔離的伺服器不提供此功能。",
           "recover": "<strong>從媒體復原伺服器。</strong>伺服器復原操作手冊同樣適用於實體隔離站點，此時以伺服器、代理與 Pro+ 組件包媒體取代套件儲存庫。請參閱<a href=\"backup.html#recover\">從伺服器自己的備份復原伺服器</a>。"
+        },
+        "catalog": {
+          "title": "隔離區域內的安全目錄",
+          "carry": "一個隔離的存儲伺服器無法訪問 CVE 或安全公告流，因此收集器攜帶自己的目錄：<code>security-catalog/security-catalog.jsonl.gz</code>在媒體中包含每個 CVE 及其套件映射，以及 Ubuntu、Debian、RHEL 家族、Fedora、SUSE、Alpine、FreeBSD 和 OpenBSD 每一個供應商的安全公告 -- 包括其套件和 CVE。",
+          "load": "當一次進食完成後，存儲伺服器僅在檔案的 SHA-256 值與簽名清單中指定的名稱匹配時才加載檔案；不匹配的檔案會被拒絕並記錄日誌。CVE 透過 CVE ID 進行匹配，因此主機發現會指向相同的行，然後所有經過批准的主機的適用安全公告會在之後重新計算。完整的目錄（約 150,000 個 CVE 和 47,000 個安全公告）在不到一分鐘內加載完成。",
+          "offline": "一個存儲伺服器永遠不會在線更新 CVE 或安全公告：媒體是唯一來源，目錄也會隨著最後一次媒體傳輸保持最新狀態。安全公告和漏洞頁面會顯示上次到來時間。"
         }
       },
       "airgap_runbook": {

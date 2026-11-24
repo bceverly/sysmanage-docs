@@ -1897,7 +1897,7 @@
           "lifecycle": "<strong>라이프사이클 상태: <code>airgap_run_tick</code> 오케스트레이터가 관리하는 상태:</strong> <code>QUEUED</code> (대상 스냅샷 대기) → <code>MIRRORING</code> (스냅샷 트리에서 rsync로 스테이징) → <code>STAGING_COMPLETE</code> (싱글 디스크만 해당; 멀티 디스크는 건너뛰어집니다) → <code>BUILDING_ISO</code> (xorriso) → <code>ISO_BUILT</code> → <code>BURNING</code> (<code>burn_device</code> 설정 시에만 실행됨) → <code>COMPLETE</code>. 실패시 런은 <code>FAILED</code> 상태로 전환되며, 표면 오류 메시지가 UI 상태 열에서 표시됩니다.",
           "multidisc_note": "<strong>다중 디스크 분할.</strong> <code>sum(target.source_snapshot.size_bytes) &gt; run.media_size_bytes</code>이면 오케스트레이터는 <code>build_snapshot_multidisc_collection_plan</code>으로 라우팅하며, 이 계획은 먼저 FFD(first-fit-decreasing) 방식으로 대상 트리 전체를 디스크에 빈 패킹합니다. 각 디스크는 하나의 인라인 계획 안에서 자체 스테이징 디렉터리 + rsync + xorriso + sha256을 갖습니다. 출력은 <code>&lt;run_id&gt;-disc-&lt;N&gt;.iso</code>입니다. 단일 대상의 트리가 디스크 크기를 초과하면 오케스트레이터는 명확한 오류를 표시합니다 -- 파일 수준 분할(하나의 미러 트리를 여러 디스크에 나누는 것)은 보류되었으며, 운영자는 더 큰 매체(BD-25 → BD-50)를 선택하거나 별도의 실행으로 나눕니다.",
           "step_burn": "<strong>Burn (선택 사항) </strong> -- 만약 <code>burn_device</code>이 실행 행에 설정되어 있다면, 오케스트레이터는 해당 장치 경로 (일반적으로 <code>/dev/sr0</code>)에서 <code>build_burn_plan</code>을 디스패치하여 ISO_BUILT → BURNING으로 진행합니다. Burn 단계의 타임아웃 상한은 4시간이므로 느린 드라이브가 중간에 쓰기 작업 중에 감지되지 않도록 합니다. <code>burn_device</code>이 NULL인 경우 실행은 ISO_BUILT → COMPLETE로 바로 진행됩니다 -- '다운로드 가능한 ISO를 생성한 후 종료' 플로우이며 광학 매체를 건드리지 않습니다.",
-          "step_cve": "CVE / 규정 준수 스냅샷 -- 요청 시 NVD 및 공급업체 경고 피드가 동시에 캡처되어 결과 미디어 세트는 공개 취약성 데이터의 일관된 시간 창을 제공합니다.",
+          "step_cve": "<strong>CVE / 준수 스냅샷</strong> -- 요청 시 수집기는 전체 보안 카탈로그를 한 파일로 내보냅니다. -- 모든 CVE와 패키지 매핑을 포함하고, 모든 공급업체 보안 공지와 해당 패키지를 포함합니다. 파일의 이름은 서명된 매니페스트에서 SHA-256으로 지정되어 미디어 세트에 공개 취약점 데이터의 일관된 시점 관점을 제공합니다.",
           "step_download": "<strong>다운로드</strong> -- <code>GET /api/v1/airgap/collector/runs/{id}/iso</code> ISO 파일을 스트림으로 다운로드합니다. 멀티 디스크 런의 경우, <code>GET /runs/{id}/discs</code> 디스크 파일 목록을 반환하고 <code>/iso?disc=N</code> 특정 디스크를 선택할 수 있습니다. 공기 격리 수집자 UI는 멀티 디스크 런을 자동으로 감지하여 다운로드 시 피커 대화 상자를 표시합니다.",
           "step_iso": "<strong>ISO 생성</strong> -- <code>xorriso -as mkisofs</code>를 사용하여 스테이징 트리가 <code>/var/lib/sysmanage/airgap-iso/&lt;run_id&gt;.iso</code>로 하나의 ISO 파일로 패키지화되며, 맨IFEST.json은 <code>/manifest.json</code>에 내장됩니다. 빌드 후 단계에서는 ISO의 SHA-256 해시가 전송 로그에 계산됩니다.",
           "step_mirror": "<strong>미러(스냅샷 기반)</strong> -- 모든 스냅샷이 준비되면 오케스트레이터는 <code>\"&lt;distro&gt;:&lt;version&gt;\"</code> → 스냅샷 디렉터리 경로로 이루어진 <code>source_snapshots</code> 맵을 사용하여 <code>build_snapshot_collection_run_plan</code>을 빌드합니다. 이 계획은 각 스냅샷 트리를 대상별 스테이징 디렉터리로 rsync합니다. 수집 시점에는 업스트림 apt-mirror / reposync / pkg fetch가 실행되지 않습니다 -- 번들은 스냅샷과 바이트 단위로 동일함이 증명됩니다. 각 rsync에는 4시간의 시간 제한 상한이 있으며, 에이전트의 진행 중(in-flight) 저널이 WebSocket 재연결에 걸쳐 수 시간 동안의 실행을 처리합니다.",
@@ -1993,6 +1993,12 @@
           "nopackage": "<strong>패키지가 없는 경우.</strong> macOS처럼 도구 저장소가 지원하지 않는 시스템은 <strong>이 에어갭 사이트의 자체 저장소에 이 시스템용 restate 패키지가 없습니다</strong>라고 응답합니다. 이 경우 restate를 직접 설치하십시오.",
           "icloud": "<strong>iCloud 사진 백업 없음.</strong> 인터넷이 필요하므로 에어갭 서버에서는 제공하지 않습니다.",
           "recover": "<strong>미디어에서 서버 복구하기.</strong> 서버 복구 런북은 에어갭 사이트에서도 작동하며, 패키지 저장소 대신 서버, 에이전트, Pro+ 번들 미디어를 사용합니다. <a href=\"backup.html#recover\">서버 자체 백업에서 서버 복구하기</a>를 참조하십시오."
+        },
+        "catalog": {
+          "title": "에어갭을 통한 보안 카탈로그",
+          "carry": "에어갭(air-gapped) 리포지토리 서버는 CVE나 보안 고지 피드에 접근할 수 없으므로 수집기가 자체 카탈로그를 운반합니다. 미디어의 <code>security-catalog/security-catalog.jsonl.gz</code>에는 모든 CVE와 패키지 매핑, 그리고 Ubuntu, Debian, RHEL 가족, Fedora, SUSE, Alpine, FreeBSD 및 OpenBSD의 패키지와 CVE가 포함됩니다.",
+          "load": "인제스트(ingestion)가 완료되면 리포지토리 서버는 서명된 매니페스트에서 지정한 SHA-256과 일치하는 파일만 로드합니다. 일치하지 않는 파일은 거부되고 로그에 기록됩니다. CVE는 CVE ID로 매칭되므로 호스트의 취약점 결과는 동일한 행을 가리키고, 승인된 각 호스트의 적용 가능한 보안 고지는 이후 재계산됩니다. 약 15만 개의 CVE와 4만 7천 개의 보안 고지를 포함하는 전체 카탈로그는 1분 이내에 로드됩니다.",
+          "offline": "리포지토리 서버는 온라인으로 CVE나 보안 고지를 업데이트하지 않습니다. 미디어가 유일한 소스이며 카탈로그는 마지막 미디어 전송 시점까지 최신 상태를 유지합니다. '경고'와 '취약점' 페이지에는 마지막으로 데이터가 도착한 시점이 표시됩니다."
         }
       },
       "airgap_runbook": {

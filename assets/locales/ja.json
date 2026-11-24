@@ -1897,7 +1897,7 @@
           "lifecycle": "<strong>ライフサイクル状態</strong> <code>airgap_run_tick</code> オーケストレータが駆動する: <code>QUEUED</code> (ターゲットスナップショットを待機) → <code>MIRRORING</code> (スナップショットツリーからステージングへrsync) → <code>STAGING_COMPLETE</code> (シングルディスクのみ；マルチディスクはスキップ) → <code>BUILDING_ISO</code> (xorriso) → <code>ISO_BUILT</code> → <code>BURNING</code> (<code>burn_device</code> が設定されている場合のみ) → <code>COMPLETE</code>. エラーが発生した場合はランは<code>FAILED</code>に移行し、エラーメッセージがUIステータス列で表示されます。",
           "multidisc_note": "<strong>複数ディスクへの分割。</strong> <code>sum(target.source_snapshot.size_bytes) &gt; run.media_size_bytes</code> の場合、オーケストレーターは <code>build_snapshot_multidisc_collection_plan</code> に処理を振り分けます。これは降順ファーストフィット方式のビンパッキングで、ターゲットのツリーをまるごとディスクに詰め込みます。各ディスクは、1 つのインラインプランの中で専用のステージングディレクトリ + rsync + xorriso + sha256 を持ちます。出力は <code>&lt;run_id&gt;-disc-&lt;N&gt;.iso</code> です。単一のターゲットのツリーがディスク容量を超える場合、オーケストレーターは明確なエラーを表示します -- ファイル単位の分割 (1 つのミラーツリーを複数のディスクにまたがって分割すること) は先送りされており、オペレーターはより大きなメディア (BD-25 → BD-50) を選ぶか、別々の実行に分割します。",
           "step_burn": "<strong>焼却（オプション）</strong> -- <code>burn_device</code> が走行行に設定されている場合、オーケストレーターは ISO_BUILT → BURNING のステータスへ進展させます。この際、指定されたデバイスパス（通常は <code>/dev/sr0</code>）で <code>build_burn_plan</code> を実行します。焼却手順のタイムアウト上限は 4 時間であり、遅いドライブが書き込み中にウォッチドッグをトリガーするのを防ぎます。<code>burn_device</code> が NULL の場合、走行は ISO_BUILT → COMPLETE に直接進展します -- ダウンロード可能な ISO を作成して終了するフローで、光学メディアには触れません。",
-          "step_cve": "CVE/コンプライアンス スナップショット -- リクエストがある場合、NVDおよびベンダー アドバイザリーフィードが同じ瞬間にキャプチャされるため、結果のメディアセットには公開脆弱性データの一定時点での一貫したビューがあります。",
+          "step_cve": "<strong>CVE / 準拠スナップショット</strong> -- 必要に応じて、収集機は、そのパッケージマッピングとともに、保持しているすべてのCVEと、各ベンダーアドバイザリとそのパッケージを、署名されたマニフェストにSHA-256ハッシュが含まれたファイルにエクスポートします。そのため、メディアセットは、公開脆弱性データの一貫した時点ビューを運びます。",
           "step_download": "<strong>ダウンロード</strong> -- <code>GET /api/v1/airgap/collector/runs/{id}/iso</code> ISOファイルをストリーミングします。マルチディスクランの場合、<code>GET /runs/{id}/discs</code> でディスクファイルの一覧を取得し、<code>/iso?disc=N</code> で特定のディスクを選択できます。Air-Gap Collections UIは自動的にマルチディスクランを検出し、ダウンロードボタンをクリックすると選択ダイアログが表示されます。",
           "step_iso": "<strong>ISO build</strong> -- <code>xorriso -as mkisofs</code> がステージングツリーを 1 つの ISO にバンドルし、<code>/var/lib/sysmanage/airgap-iso/&lt;run_id&gt;.iso</code> に出力します。マニフェストは <code>/manifest.json</code> に埋め込まれます。ビルド後の手順では、ISO の SHA-256 ハッシュが転送ログに計算されます。",
           "step_mirror": "<strong>ミラー (スナップショット由来)</strong> -- すべてのスナップショットの準備が整うと、オーケストレーターは <code>\"&lt;distro&gt;:&lt;version&gt;\"</code> → スナップショットディレクトリパスの <code>source_snapshots</code> マップを使って <code>build_snapshot_collection_run_plan</code> を構築します。プランは各スナップショットツリーをターゲットごとのステージングディレクトリへ rsync します。収集時にアップストリームの apt-mirror / reposync / pkg fetch は一切実行されません -- バンドルがスナップショットとバイト単位で同一であることを証明できます。各 rsync には 4 時間のタイムアウト上限があり、エージェントの実行中ジャーナルが、WebSocket の再接続をまたいで数時間に及ぶ実行をカバーします。",
@@ -1993,6 +1993,12 @@
           "nopackage": "<strong>パッケージがない場合。</strong>macOS など、ツールリポジトリが対応していないシステムでは、<strong>このエアギャップ環境のリポジトリには、このシステム用の restate パッケージがありません</strong>と表示されます。そのシステムには restate を手動でインストールしてください。",
           "icloud": "<strong>iCloud 写真のバックアップは利用できません。</strong>インターネット接続が必要なため、エアギャップのサーバーでは提供されません。",
           "recover": "<strong>メディアからのサーバーの復旧。</strong> サーバー復旧の手順書はエアギャップ環境でも機能し、パッケージリポジトリの代わりにサーバー、エージェント、Pro+ の各バンドルのメディアを使用します。<a href=\"backup.html#recover\">サーバー自身のバックアップからの復旧</a> を参照してください。"
+        },
+        "catalog": {
+          "title": "ギャップ越しのセキュリティカタログ",
+          "carry": "エアギャップのリポジトリサーバーはCVEやアドバイザリーフィードにアクセスできないため、収集機は独自のカタログを運びます。<code>security-catalog/security-catalog.jsonl.gz</code>メディアにはすべてのCVEとそのパッケージのマッピング、およびUbuntu、Debian、RHELファミリー、Fedora、SUSE、Alpine、Freebsd、OpenBSDの各ベンダーアドバイザリーが含まれます。",
+          "load": "インジェストが完了すると、リポジトリサーバーはSHA-256が署名されたマニフェストで命名されている場合のみファイルを読み込みます。一致しないファイルは拒否され、ログに記録されます。CVEはCVE IDで照合されるため、ホストの脆弱性検出は同じ行を指すままになり、承認された各ホストのアドバイザリーは後で再計算されます。約15万のCVEと47,000のアドバイザリーを含むフルカタログは1分以内で読み込まれます。",
+          "offline": "リポジトリサーバーはオンラインでCVEやアドバイザリーを更新しません。メディアがその唯一のソースであり、カタログは最後のメディア転送日時に最新のものです。アドバイザリーと脆弱性のページには、最後に到着した日付が表示されます。"
         }
       },
       "airgap_runbook": {
