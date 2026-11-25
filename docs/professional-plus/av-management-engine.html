@@ -38,10 +38,9 @@
                     <h2 data-i18n="pro_plus.av_management_engine.opensource.title">Community Edition vs Professional+</h2>
                     <ul>
                         <li data-i18n="pro_plus.av_management_engine.opensource.deploy" data-i18n-html>Community Edition: per-host install / enable / disable / remove via <code>backend/services/av_plan_builder.py</code></li>
-                        <li data-i18n="pro_plus.av_management_engine.opensource.policies">Professional+: reusable named policies with cadence + scan schedule, applied to many hosts in one call</li>
-                        <li data-i18n="pro_plus.av_management_engine.opensource.commercial">Professional+: fleet-wide commercial-AV detection report (CrowdStrike, SentinelOne, Defender, etc.)</li>
-                        <li data-i18n="pro_plus.av_management_engine.opensource.scheduling" data-i18n-html>Professional+: cron-style daily / weekly / monthly scheduled scans (Linux/FreeBSD via <code>/etc/cron.d</code>; Windows via <code>schtasks</code>)</li>
-                        <li data-i18n="pro_plus.av_management_engine.opensource.scan_splay" data-i18n-html>Each host's scheduled scan starts up to an hour after the configured time, at a fixed point of its own, so hosts that share storage or a hypervisor do not all scan at once. The deploy plan reports the actual time and the shift (<code>splay_minutes</code>).</li>
+                        <li data-i18n="pro_plus.av_management_engine.opensource.policies">Professional+: reusable named policies with update cadence, applied to many hosts in one call</li>
+                        <li data-i18n="pro_plus.av_management_engine.opensource.commercial">Professional+: fleet-wide commercial-AV detection report (Microsoft Defender, Defender for Endpoint)</li>
+                        <li data-i18n="pro_plus.av_management_engine.opensource.scheduling" data-i18n-html>Scheduled scans are set up on the Malware page (Schedules and exclusions) and run through the agent, so their findings reach the server. A deploy plan no longer puts a scan on the host's own cron or Task Scheduler, and replaces one it put there before.</li>
                     </ul>
                 </section>
 
@@ -55,8 +54,7 @@
   "packages":         [str | {"manager": str, "name": str, "args": [str]}],
   "files":            [{"path", "content", "mode", "owner", "group", "backup"}],
   "commands":         [{"argv", "sudo", "elevated", "timeout", "ignore_errors", "description"}],
-  "service_actions":  [{"service", "action": "enable|start|stop|disable"}],
-  "scan_schedule":    {"frequency": "daily|weekly|monthly", "hour", "minute", "day_of_week"?, "day_of_month"?, "scan_paths": [str], "splay_minutes"?}
+  "service_actions":  [{"service", "action": "enable|start|stop|disable"}]
 }</code></pre>
                     </div>
                 </section>
@@ -80,7 +78,7 @@
 
                 <section class="docs-section">
                     <h2 data-i18n="pro_plus.av_management_engine.policies.title">AV Policies</h2>
-                    <p data-i18n="pro_plus.av_management_engine.policies.description" data-i18n-html>An <code>AvPolicy</code> bundles the AV product, definition-update cadence, and scan schedule into a named, reusable unit. Apply it across as many hosts as you like; the engine resolves the per-host build options and queues an <code>APPLY_DEPLOYMENT_PLAN</code> message for each.</p>
+                    <p data-i18n="pro_plus.av_management_engine.policies.description" data-i18n-html>An <code>AvPolicy</code> bundles the AV product and definition-update cadence into a named, reusable unit. Apply it across as many hosts as you like; the engine resolves the per-host build options and queues an <code>APPLY_DEPLOYMENT_PLAN</code> message for each. Scans are scheduled on the Malware page, not in an AV policy.</p>
 
                     <h3 data-i18n="pro_plus.av_management_engine.policies.endpoints">Endpoints</h3>
                     <ul>
@@ -96,14 +94,7 @@
 {
   "name": "production-tier",
   "av_product": "clamav",
-  "checks_per_day": 12,
-  "scan_schedule": {
-    "frequency": "weekly",
-    "day_of_week": 0,
-    "hour": 2,
-    "minute": 0,
-    "scan_paths": ["/var/www", "/opt/app"]
-  }
+  "checks_per_day": 12
 }
 
 POST /api/v1/av/policies/production-tier/apply
@@ -113,17 +104,16 @@ POST /api/v1/av/policies/production-tier/apply
 
                 <section class="docs-section">
                     <h2 data-i18n="pro_plus.av_management_engine.commercial.title">Commercial AV Fleet Report</h2>
-                    <p data-i18n="pro_plus.av_management_engine.commercial.description" data-i18n-html>The agent's open-source <code>commercial_antivirus_collection.py</code> already detects CrowdStrike, SentinelOne, Defender, McAfee, Symantec, etc. and writes per-host status to the <code>commercial_antivirus_status</code> table. Professional+ adds a <strong>fleet aggregation</strong> endpoint that summarizes which products are installed on how many hosts and surfaces hosts with realtime protection disabled.</p>
+                    <p data-i18n="pro_plus.av_management_engine.commercial.description" data-i18n-html>The agent's open-source <code>commercial_antivirus_collection.py</code> detects Microsoft Defender on Windows and Defender for Endpoint on macOS, and writes per-host status to the <code>commercial_antivirus_status</code> table; a malware scan also asks either one to scan. Other commercial products are not detected yet. Professional+ adds a <strong>fleet aggregation</strong> endpoint that summarizes which products are installed on how many hosts and surfaces hosts with realtime protection disabled.</p>
                     <div class="code-block">
                         <pre><code>GET /api/v1/av/commercial/fleet-report
 
 {
   "total_hosts": 142,
-  "hosts_with_commercial_av": 87,
+  "hosts_with_commercial_av": 65,
   "by_product": {
     "Microsoft Defender": 54,
-    "CrowdStrike": 22,
-    "SentinelOne": 11
+    "Microsoft Defender for Endpoint": 11
   },
   "realtime_protection_off_count": 3,
   "entries": [...]

@@ -1988,7 +1988,7 @@
         "backups": {
           "title": "Backups em um site isolado",
           "summary": "Os backups nunca atravessam o isolamento. Os hosts da rede isolada, e o próprio servidor de repositório, fazem backup em um host de armazenamento nessa rede. O coletor, no lado conectado à internet, faz backup em um host de armazenamento separado, só dele. Cada lado é configurado conforme descrito em <a href=\"fleet-backups.html\">Backups da frota</a>.",
-          "equip": "<strong>Preparar a partir dos repositórios do próprio site.</strong> Em um servidor cuja função é <em>Repositório isolado</em>, <strong>Preparar para backup</strong> instrui o agente de cada host a instalar a partir dos repositórios que o host já usa, que o reapontamento direcionou para o espelho e para o repositório de ferramentas. O agente instala o restate e o cliente NFS pelo nome, com a própria ferramenta de pacotes do sistema, e nunca adiciona um PPA ou um COPR, nunca baixa do GitHub e nunca usa o Homebrew. O servidor continua sem enviar nenhum nome de pacote nem comando.",
+          "equip": "<strong>Equipar-se dos repositórios próprios do site.</strong> Em um servidor cuja função é <em>Repositório Air-Gap</em>, <strong>Equipamento para backup</strong> instrui cada agente do host a instalar, a partir dos repositórios, o que o host já utiliza, apontado pelo repoint ao espelho e ao repositório de ferramentas. O agente instala restate por nome usando a ferramenta de pacote do sistema, sem adicionar PPA ou COPR, baixar do GitHub ou usar Homebrew. O servidor ainda não envia nenhum nome de pacote ou comando.",
           "proxy": "<strong>O restate-proxy também.</strong> No host de armazenamento de um destino que usa o <a href=\"backup-proxy.html\">restate-proxy</a>, a mesma ação Preparar também instala o <code>restate-proxy</code>, com apt, dnf ou o <code>pkg</code> do FreeBSD. Escolha um host de armazenamento Ubuntu, Debian, Fedora, da família RHEL ou FreeBSD para esse destino.",
           "order": "<strong>Reaponte primeiro.</strong> Preparar instala a partir dos repositórios que o host já tem, portanto só encontra o restate depois que o host for reapontado para o espelho e para o repositório de ferramentas da sua versão, o que acontece com os próximos relatórios dele após uma importação.",
           "nopackage": "<strong>Quando não há pacote.</strong> Um sistema que o repositório de ferramentas não cobre, como o macOS, responde <strong>O repositório próprio deste site isolado não tem um pacote do restate para este sistema</strong>. Instale o restate nele manualmente.",
@@ -1996,7 +1996,9 @@
           "recover": "<strong>Recuperando o servidor a partir de mídias.</strong> O runbook de recuperação do servidor funciona em um site isolado, com as mídias dos pacotes do servidor, do agente e do Pro+ no lugar dos repositórios de pacotes. Veja <a href=\"backup.html#recover\">Recuperando o servidor a partir do seu próprio backup</a>.",
           "storage": "<strong>Uma vez, no host de armazenamento: o caminho de armazenamento e a conta de backup.</strong> Como em qualquer site, você mesmo cria o caminho de armazenamento e a conta de backup (<code>restate</code> por padrão); <a href=\"fleet-backup-storage.html\">Armazenamento de backups da frota</a> tem os comandos. O SysManage configura o restate-proxy para ser executado com essa conta somente quando ela existe; se não existir, o host de armazenamento informa isso e nada é iniciado. Depois de criá-la, reinicie o agente do host de armazenamento (ou use Solicitar dados do host): a verificação de armazenamento detecta que o proxy está parado e o host de armazenamento recebe sua configuração novamente.",
           "nothing_out": "<strong>Nada é transmitido.</strong> O certificado do proxy restate é assinado pela própria autoridade de certificação do SysManage, captura, verifica e restaura o host de armazenamento para o host de execução, e a prontidão de recuperação (ponto de recuperação e tempo de restauração) é calculada com base nos registros do servidor. Um backup, uma verificação de leitura completa e um processo de restauração foram executados em uma rede isolada sem nada sair dela.",
-          "upgrade": "<strong>Atualizando o SysManage no site.</strong> Os pacotes do agente carregam tudo de que precisam: uma atualização mantém o ambiente Python empacotado do agente, e uma instalação que não puder ser concluída deixa o agente em execução no local. O pacote do servidor instala suas dependências Python a partir de wheels, então traga-as no meio do servidor e instale com <code>sudo PIP_NO_INDEX=1 PIP_FIND_LINKS=&lt;the media's wheels folder&gt; dpkg -i sysmanage_&lt;version&gt;.deb</code>, depois <code>sudo sysmanage-migrate</code>. Uma instalação do servidor que não conseguir obter suas dependências mantém o ambiente anterior."
+          "upgrade": "<strong>Atualizando o SysManage no site.</strong> Os pacotes do agente carregam tudo de que precisam: uma atualização mantém o ambiente Python empacotado do agente, e uma instalação que não puder ser concluída deixa o agente em execução no local. O pacote do servidor instala suas dependências Python a partir de wheels, então traga-as no meio do servidor e instale com <code>sudo PIP_NO_INDEX=1 PIP_FIND_LINKS=&lt;the media's wheels folder&gt; dpkg -i sysmanage_&lt;version&gt;.deb</code>, depois <code>sudo sysmanage-migrate</code>. Uma instalação do servidor que não conseguir obter suas dependências mantém o ambiente anterior.",
+          "nfs": "<strong>O cliente NFS.</strong> Preparar também instala o cliente NFS quando os repositórios do host o têm, o que acontece quando o site espelha a distribuição do host. Um host cujos repositórios não o têm é preparado mesmo assim: um destino que usa <a href=\"backup-proxy.html\">restate-proxy</a> nunca monta NFS. Para um destino NFS, espelhe a distribuição de cada host que faz backup nele, para que o cliente NFS possa ser instalado.",
+          "own_agent": "<strong>O agente do próprio servidor de repositório.</strong> O servidor de repositório lê a mídia de importação pelo seu próprio agente do SysManage, então instale o agente lá também, a partir do pacote do agente para a versão do servidor trazido na mídia do servidor: <code>sudo dpkg -i sysmanage-agent_&lt;version&gt;.deb</code> (ou <code>sudo rpm -i</code>). O pacote traz seu ambiente Python e precisa apenas do Python do sistema, então é instalado sem rede. Depois aprove o host na página <strong>Hosts</strong>."
         },
         "catalog": {
           "title": "O catálogo de segurança sem conexão",
@@ -2146,7 +2148,7 @@
         },
         "backup": {
           "title": "Passo 7 -- Fazer backup dos hosts isolados",
-          "summary": "Configure um destino de backup com um host de armazenamento na rede isolada, conforme descrito em <a href=\"fleet-backups.html\">Backups da frota</a>, e clique em <strong>Preparar para backup</strong> nos hosts. Em um servidor de repositório, Preparar instala o restate, o cliente NFS e, no host de armazenamento de um destino que usa o <a href=\"backup-proxy.html\">restate-proxy</a>, o proxy, tudo a partir dos repositórios dos próprios hosts: o espelho e o repositório de ferramentas. Nada é baixado da internet. Faça o backup do coletor separadamente, em um host de armazenamento no seu próprio lado da lacuna. Veja <a href=\"airgap-deployment.html#backups\">Backups em um site isolado</a>."
+          "summary": "Configure um destino de backup com um host de armazenamento na rede isolada, como descreve <a href=\"fleet-backups.html\">Fleet Backups</a>, e clique em <strong>Preparar para backup</strong> nos hosts. Em um servidor de repositório, Preparar instala o restate, o cliente NFS onde os repositórios do host o têm e, no host de armazenamento de um destino que usa <a href=\"backup-proxy.html\">restate-proxy</a>, o proxy, tudo a partir dos repositórios dos próprios hosts: o espelho e o repositório de ferramentas. Nada é buscado na internet. Faça o backup do coletor separadamente, para um host de armazenamento do seu próprio lado do isolamento. Veja <a href=\"airgap-deployment.html#backups\">Backups em um site isolado</a>."
         }
       },
       "antivirus": {
@@ -14228,7 +14230,7 @@
             "airgap_collector_engine": "{{c1}} -- Coleta offline de artefatos e CVEs (lado público)",
             "airgap_repository_engine": "{{c1}} -- Repositório de servidor air-gapped (lado privado)",
             "automation_engine": "{{c1}} -- Biblioteca de scripts salvos, execução agendada, fluxos de trabalho de aprovação",
-            "av_management_engine": "{{c1}} -- Implantação centralizada do ClamAV, políticas nomeadas, agendamento de varreduras, detecção de antivírus comerciais (CrowdStrike, SentinelOne, Defender, etc.)",
+            "av_management_engine": "{{c1}} -- Implantação centralizada do ClamAV, políticas nomeadas, detecção de AV comercial (Microsoft Defender, Defender para Endpoint)",
             "child_host_handlers_engine": "{{c1}} -- Manipuladores de ação de host filho (planos de implantação declarativos)",
             "config_management_engine": "{{c1}} -- Gerenciamento de configuração de estado desejado e desvio: adaptadores para Puppet / Salt / Chef, armazenamento e atribuição de perfis, aplicação agendada, captura de linha de base, remediação para a linha de base",
             "content_lifecycle_engine": "{{c1}} -- Visualizações de conteúdo e ambientes de ciclo de vida com promoção controlada",
@@ -21151,7 +21153,7 @@
       },
       "breadcrumb": "Motor de gestão antivírus",
       "commercial": {
-        "description": "O commercial_antivirus_collection.py de código aberto do agente já detecta CrowdStrike, SentinelOne, Defender, McAfee, Symantec, etc. e grava o status por host na tabela commercial_antivirus_status. Professional+ adiciona um endpoint de agregação de frota que resume quais produtos estão instalados em quantos hosts e destaca os hosts com proteção em tempo real desabilitada.",
+        "description": "A coleção de antivírus de código aberto do agente detecta o Microsoft Defender em Windows e o Defender para Endpoint no macOS, e escreve o status por host na tabela comercial_antivírus_status; uma verificação de malware também solicita a qualquer um deles que realize uma varredura. Outros produtos comerciais ainda não são detectados. O Professional+ adiciona um ponto final de agregação de frota que resume quais produtos estão instalados em quantos hosts e exibe os hosts com proteção em tempo real desativada.",
         "title": "Relatório de AV comercial da frota"
       },
       "deploy_plan": {
@@ -21168,10 +21170,10 @@
       },
       "meta_description": "Implantação centralizada de antivírus, gerenciamento de políticas, agendamento de varreduras e detecção de antivírus comerciais em toda a frota.",
       "opensource": {
-        "commercial": "Professional+: relatório de detecção de AV comercial em toda a frota (CrowdStrike, SentinelOne, Defender, etc.)",
+        "commercial": "Profissional+: Relatório de detecção AV comercial em toda a frota (Microsoft Defender, Defender para Pontos Finais)",
         "deploy": "Edição Comunitária: instalação/ativação/desativação/remoção por host via {{c1}}",
-        "policies": "Professional+: políticas nomeadas reutilizáveis com cadência + agendamento de varredura, aplicadas a muitos hosts em uma única chamada",
-        "scheduling": "Professional+: verificações agendadas diárias/semanais/mensais no estilo cron (Linux/FreeBSD via {{c1}}; Windows via {{c2}})",
+        "policies": "Profissional+: políticas nomeadas reutilizáveis com cadência de atualização, aplicadas a muitos hosts em uma única chamada",
+        "scheduling": "Escaneios agendados são configurados na página de Malware (Agendas e exclusões) e executados através do agente, de modo que suas descobertas cheguem ao servidor. Um plano de implantação não coloca mais um escaneio no cron ou no Agendador de Tarefas do próprio host, e substitui um que colocou lá antes.",
         "title": "Community Edition vs Professional+",
         "scan_splay": "A verificação agendada de cada host começa até uma hora após o horário configurado, em um momento fixo próprio, para que hosts que compartilham armazenamento ou um hipervisor não verifiquem todos ao mesmo tempo. O plano de implantação informa o horário real e o deslocamento (<code>splay_minutes</code>)."
       },
@@ -21181,7 +21183,7 @@
       },
       "page_title": "Motor de gestão antivírus - SysManage Professional+",
       "policies": {
-        "description": "Uma {{c1}} agrupa o produto AV, a cadência de atualização de definições e o agendamento de varredura em uma unidade nomeada e reutilizável. Aplique-a a quantos hosts desejar; o motor resolve as opções de compilação por host e enfileira uma mensagem {{c2}} para cada um.",
+        "description": "Um {{c1}} agrupa o produto AV e o ritmo de atualização de definições em uma unidade nomeada e reutilizável. Aplique-o em quantos hosts desejar; o motor resolve as opções de compilação por host e coloca uma mensagem {{c2}} na fila para cada um. Escaneios são agendados na página de Malware, não em uma política AV.",
         "endpoints": "Pontos finais",
         "example": "Exemplo",
         "title": "Políticas AV"
@@ -24352,11 +24354,13 @@
         "title": "Detecção de malware"
       },
       "legs": {
-        "blind_spots": "Uma verificação que não foi executada é um <strong>ponto cego</strong>, nunca um resultado limpo. A página os lista ao lado dos achados -- hosts sem ClamAV, hosts nunca verificados, verificações que não foram executadas e o motivo (memória insuficiente, nenhum banco de dados de assinaturas) e hosts em que o ClamAV carregou menos regras do que recebeu -- e um achado só é encerrado quando a verificação que o encontrou percorre o caminho dele novamente e não o vê mais.",
-        "description": "Cada verificação executa dois testes independentes, e cada um registra se foi executado e, se não, por quê:",
+        "blind_spots": "Uma verificação que não foi executada é um <strong>ponto cego</strong>, nunca um resultado limpo. A página lista-os ao lado dos achados - hosts sem ClamAV, hosts nunca escaneados, verificações que não foram executadas e o motivo (memória insuficiente, banco de dados de assinaturas ausente) e hosts onde o ClamAV carregou menos regras do que foi fornecido - e um achado só é fechado quando a verificação que o encontrou é executada novamente em seu caminho e já não o vê. Um host sem um verificador de rootkit ou um software antivírus comercial não tem ponto cego para ele; um cujo verificador não pôde ser executado.",
+        "description": "Cada varredura executa até quatro verificações independentes, e cada uma registra se foi executada e, em caso negativo, o motivo:",
         "feed": "<strong>Feed de regras</strong> -- regras YARA do servidor: um conjunto selecionado que acompanha o SysManage, mais quaisquer conjuntos que você importar. É leve (alguns megabytes de memória) e sempre é executado onde o ClamAV está instalado.",
         "signatures": "<strong>Assinaturas do ClamAV</strong> -- o próprio banco de dados do ClamAV de malware conhecido. Carregá-lo exige cerca de 1 GB de memória, por isso ele é executado pelo daemon do ClamAV quando há um em execução e, caso contrário, somente quando o host tem pelo menos 2 GB de memória livre.",
-        "title": "Dois testes por verificação"
+        "title": "Quatro Verificações por Varredura",
+        "rootkit": "<strong>Verificações de rootkit</strong> -- chkrootkit e rkhunter, qualquer um dos quais o host possui (eles podem ser escolhidos como antivírus do host no Linux e nos BSDs). Eles verificam todo o sistema, não os caminhos do scan, e executam como root através das regras sudo do agente.",
+        "vendor": "<strong>Antivírus do host</strong> -- Microsoft Defender no Windows, ou Defender para Endpoint no macOS e Linux, solicitado para escanear os mesmos caminhos. Ele apenas relata aqui; o que ele faz com uma ameaça ainda está sujeito às suas próprias configurações."
       },
       "limits": {
         "defender": "No Windows, o Microsoft Defender pode remover um arquivo sabidamente malicioso antes que uma verificação chegue até ele. Isso é o Defender fazendo seu trabalho; o arquivo simplesmente não está mais lá para ser relatado.",
@@ -24395,6 +24399,14 @@
         "scans_caption": "Tarefas de verificação com o progresso da implantação gradual e o que cada teste fez em cada host.",
         "targets": "<strong>Alvos</strong> -- todos os hosts, ou qualquer combinação de tags, inventários de configuração e hosts individuais. Os alvos são resolvidos quando a tarefa é iniciada, de modo que um host que receber uma tag na próxima semana será coberto pela verificação da próxima semana sem que ninguém edite uma lista.",
         "title": "Verificando a frota"
+      },
+      "schedules": {
+        "description": "A aba <strong>Agendamentos e exclusões</strong> contém dois tipos de política. Ambas são agendadas e aplicadas pelo SysManage, e cada varredura ainda passa pelo agente do host, de modo que suas descobertas cheguem ao servidor:",
+        "exclusion": "<strong>Remover caminhos das varreduras</strong> -- os caminhos que todas as varreduras dos hosts abrangidos deixam de fora, sejam iniciadas manualmente ou agendadas, para cada verificação. O ClamAV os ignora por si só; qualquer coisa relatada sob um caminho por outra verificação é descartada. Use-o para diretórios que contêm amostras de detecção intencionalmente, como arquivos de teste de uma ferramenta de segurança.",
+        "one_off": "Um escaneamento iniciado manualmente também pode deixar caminhos de fora, além das políticas de exclusão dos hosts.",
+        "schedule": "<strong>Varrer agendado</strong> -- diariamente, semanalmente ou mensalmente em UTC, ou uma expressão cron, Naquele horário, o servidor inicia uma tarefa de varredura padrão sobre os hosts cobertos pela política; cada varredura aguarda a janela de manutenção do host, assim como qualquer outro comando. Um agendamento perdido enquanto o servidor estava offline é executado uma vez quando ele volta, não uma vez por tempo perdido. <strong>Executar agora</strong> inicia-o imediatamente.",
+        "scope": "Cada política é para todos os hosts, os hosts com uma tag, ou um único host, e pode ser desligada como um todo. <strong>Desligar para...</strong> desativa-a para um host ou tag dentro do seu escopo, e remover essa configuração a reativa. Encontros já abertos sob uma nova exclusão permanecem abertos até que você tome uma decisão sobre eles.",
+        "title": "Agendamentos e Exclusões"
       }
     },
     "auto_updates": {

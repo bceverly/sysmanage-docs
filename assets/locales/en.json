@@ -2089,7 +2089,8 @@
         "backups": {
           "title": "Backups on an air-gapped site",
           "summary": "Backups never cross the gap. The hosts on the air-gapped network, and the repository server itself, back up to a storage host on that network. The collector, on the internet-connected side, backs up to a separate storage host of its own. Each side is set up as <a href=\"fleet-backups.html\">Fleet Backups</a> describes.",
-          "equip": "<strong>Equip from the site's own repositories.</strong> On a server whose role is <em>Air-Gap Repository</em>, <strong>Equip for backup</strong> tells each host's agent to install from the repositories the host already uses, which the repoint has pointed at the mirror and the tools repository. The agent installs restate and the NFS client by name with the system's own package tool, and never adds a PPA or a COPR, downloads from GitHub, or uses Homebrew. The server still sends no package name or command.",
+          "equip": "<strong>Equip from the site's own repositories.</strong> On a server whose role is <em>Air-Gap Repository</em>, <strong>Equip for backup</strong> tells each host's agent to install from the repositories the host already uses, which the repoint has pointed at the mirror and the tools repository. The agent installs restate by name with the system's own package tool, and never adds a PPA or a COPR, downloads from GitHub, or uses Homebrew. The server still sends no package name or command.",
+          "nfs": "<strong>The NFS client.</strong> Equip also installs the NFS client when the host's repositories have it, which they do when the site mirrors the host's distribution. A host whose repositories do not have it is still equipped: a target that uses <a href=\"backup-proxy.html\">restate-proxy</a> never mounts NFS. For an NFS target, mirror the distribution of every host that backs up to it, so the NFS client can be installed.",
           "proxy": "<strong>restate-proxy too.</strong> On the storage host of a target that uses <a href=\"backup-proxy.html\">restate-proxy</a>, the same Equip also installs <code>restate-proxy</code>, with apt, dnf or FreeBSD's <code>pkg</code>. Choose an Ubuntu, Debian, Fedora, RHEL-family or FreeBSD storage host for such a target.",
           "order": "<strong>Repoint first.</strong> Equip installs from the repositories the host already has, so it finds restate only once the host has been repointed at the mirror and the tools repository for its release, which happens with its next reports after an import.",
           "nopackage": "<strong>When there is no package.</strong> A system the tools repository does not cover, such as macOS, answers <strong>This air-gapped site has no restate package for this system in its own repository</strong>. Install restate on it by hand.",
@@ -2097,6 +2098,7 @@
           "recover": "<strong>Recovering the server from media.</strong> The server recovery runbook works on an air-gapped site, with the server, agent and Pro+ bundle media in place of package repositories. See <a href=\"backup.html#recover\">Recovering the server from its own backup</a>.",
           "storage": "<strong>Once, on the storage host: the storage path and the backup account.</strong> As on any site, you create the storage path and the backup account (<code>restate</code> by default) yourself; <a href=\"fleet-backup-storage.html\">Fleet Backup Storage</a> has the commands. SysManage sets up restate-proxy to run as that account only once it exists; if it does not, the storage host reports it and nothing is started. After you create it, restart the storage host's agent (or use Request Host Data): its storage check finds the proxy down and the storage host is sent its setup again.",
           "nothing_out": "<strong>Nothing reaches out.</strong> The restate-proxy certificate is signed by SysManage's own certificate authority, captures, checks and restores go host to storage host, and restore readiness (recovery point and restore time) is worked out from the server's own records. A backup, a full-read verification and a restore have been run on an isolated network with nothing leaving it.",
+          "own_agent": "<strong>The repository server's own agent.</strong> The repository server reads the import media through its own SysManage agent, so install the agent there too, from the agent package for the server's release brought on the server media: <code>sudo dpkg -i sysmanage-agent_&lt;version&gt;.deb</code> (or <code>sudo rpm -i</code>). The package carries its Python environment and needs only the system's Python, so it installs with no network. Then approve the host on the <strong>Hosts</strong> page.",
           "upgrade": "<strong>Upgrading SysManage on the site.</strong> The agent packages carry everything they need: an upgrade keeps the agent's packaged Python environment, and an install that cannot finish leaves the running agent in place. The server package installs its Python dependencies from wheels, so bring them on the server media and install with <code>sudo PIP_NO_INDEX=1 PIP_FIND_LINKS=&lt;the media's wheels folder&gt; dpkg -i sysmanage_&lt;version&gt;.deb</code>, then <code>sudo sysmanage-migrate</code>. A server install that cannot get its dependencies keeps the previous environment."
         },
         "catalog": {
@@ -2247,7 +2249,7 @@
         },
         "backup": {
           "title": "Step 7 -- Back up the air-gapped hosts",
-          "summary": "Set up a backup target with a storage host on the air-gapped network, as <a href=\"fleet-backups.html\">Fleet Backups</a> describes, and click <strong>Equip for backup</strong> on the hosts. On a repository server, Equip installs restate, the NFS client and, on the storage host of a target that uses <a href=\"backup-proxy.html\">restate-proxy</a>, the proxy, all from the hosts' own repositories: the mirror and the tools repository. Nothing is fetched from the internet. Back up the collector separately, to a storage host on its own side of the gap. See <a href=\"airgap-deployment.html#backups\">Backups on an air-gapped site</a>."
+          "summary": "Set up a backup target with a storage host on the air-gapped network, as <a href=\"fleet-backups.html\">Fleet Backups</a> describes, and click <strong>Equip for backup</strong> on the hosts. On a repository server, Equip installs restate, the NFS client where the host's repositories have it and, on the storage host of a target that uses <a href=\"backup-proxy.html\">restate-proxy</a>, the proxy, all from the hosts' own repositories: the mirror and the tools repository. Nothing is fetched from the internet. Back up the collector separately, to a storage host on its own side of the gap. See <a href=\"airgap-deployment.html#backups\">Backups on an air-gapped site</a>."
         }
       },
       "asset_tags": {
@@ -14601,7 +14603,7 @@
             "airgap_collector_engine": "{{c1}} -- Offline artifact and CVE collection (public side)",
             "airgap_repository_engine": "{{c1}} -- Air-gapped repository serving (private side)",
             "automation_engine": "{{c1}} -- Saved-script library, scheduled execution, approval workflows",
-            "av_management_engine": "{{c1}} -- Centralized ClamAV deployment, named policies, scan scheduling, commercial-AV detection (CrowdStrike, SentinelOne, Defender, etc.)",
+            "av_management_engine": "{{c1}} -- Centralized ClamAV deployment, named policies, commercial-AV detection (Microsoft Defender, Defender for Endpoint)",
             "child_host_handlers_engine": "{{c1}} -- Child-host action handlers (declarative deployment plans)",
             "config_management_engine": "{{c1}} -- Desired-state configuration management and drift: Puppet / Salt / Chef adapters, profile storage and assignment, scheduled enforcement, baseline capture, remediate-to-baseline",
             "content_lifecycle_engine": "{{c1}} -- Content views and lifecycle environments with gated promotion",
@@ -19795,7 +19797,7 @@
       },
       "breadcrumb": "AV Management Engine",
       "commercial": {
-        "description": "The agent's open-source commercial_antivirus_collection.py already detects CrowdStrike, SentinelOne, Defender, McAfee, Symantec, etc. and writes per-host status to the commercial_antivirus_status table. Professional+ adds a fleet aggregation endpoint that summarizes which products are installed on how many hosts and surfaces hosts with realtime protection disabled.",
+        "description": "The agent's open-source commercial_antivirus_collection.py detects Microsoft Defender on Windows and Defender for Endpoint on macOS, and writes per-host status to the commercial_antivirus_status table; a malware scan also asks either one to scan. Other commercial products are not detected yet. Professional+ adds a fleet aggregation endpoint that summarizes which products are installed on how many hosts and surfaces hosts with realtime protection disabled.",
         "title": "Commercial AV Fleet Report"
       },
       "deploy_plan": {
@@ -19812,12 +19814,11 @@
       },
       "meta_description": "Centralized antivirus deployment, policy management, scan scheduling, and commercial AV detection across the fleet.",
       "opensource": {
-        "commercial": "Professional+: fleet-wide commercial-AV detection report (CrowdStrike, SentinelOne, Defender, etc.)",
+        "commercial": "Professional+: fleet-wide commercial-AV detection report (Microsoft Defender, Defender for Endpoint)",
         "deploy": "Community Edition: per-host install / enable / disable / remove via {{c1}}",
-        "policies": "Professional+: reusable named policies with cadence + scan schedule, applied to many hosts in one call",
-        "scheduling": "Professional+: cron-style daily / weekly / monthly scheduled scans (Linux/FreeBSD via {{c1}}; Windows via {{c2}})",
-        "title": "Community Edition vs Professional+",
-        "scan_splay": "Each host's scheduled scan starts up to an hour after the configured time, at a fixed point of its own, so hosts that share storage or a hypervisor do not all scan at once. The deploy plan reports the actual time and the shift (<code>splay_minutes</code>)."
+        "policies": "Professional+: reusable named policies with update cadence, applied to many hosts in one call",
+        "scheduling": "Scheduled scans are set up on the Malware page (Schedules and exclusions) and run through the agent, so their findings reach the server. A deploy plan no longer puts a scan on the host's own cron or Task Scheduler, and replaces one it put there before.",
+        "title": "Community Edition vs Professional+"
       },
       "overview": {
         "description": "The AV Management Engine generates server-side ClamAV configurations and ships them to agents as fully-baked deploy plans. The agent runs the plan via the generic <code>apply_deployment_plan</code> handler -- no AV business logic lives on the agent. The engine layers an <strong>AvPolicy</strong> abstraction on top so an operator can define a single named policy (cadence + schedule + product) and apply it to any number of hosts.",
@@ -19825,7 +19826,7 @@
       },
       "page_title": "AV Management Engine - SysManage Professional+",
       "policies": {
-        "description": "An {{c1}} bundles the AV product, definition-update cadence, and scan schedule into a named, reusable unit. Apply it across as many hosts as you like; the engine resolves the per-host build options and queues an {{c2}} message for each.",
+        "description": "An {{c1}} bundles the AV product and definition-update cadence into a named, reusable unit. Apply it across as many hosts as you like; the engine resolves the per-host build options and queues an {{c2}} message for each. Scans are scheduled on the Malware page, not in an AV policy.",
         "endpoints": "Endpoints",
         "example": "Example",
         "title": "AV Policies"
@@ -22996,11 +22997,13 @@
         "title": "Malware Detection"
       },
       "legs": {
-        "blind_spots": "A check that did not run is a <strong>blind spot</strong>, never a clean result. The page lists them beside the findings -- hosts with no ClamAV, hosts never scanned, checks that did not run and why (not enough memory, no signature database), and hosts where ClamAV loaded fewer rules than it was given -- and a finding is only closed when the check that found it runs over its path again and no longer sees it.",
-        "description": "Each scan runs two independent checks, and each records whether it ran and, if not, why:",
+        "blind_spots": "A check that did not run is a <strong>blind spot</strong>, never a clean result. The page lists them beside the findings -- hosts with no ClamAV, hosts never scanned, checks that did not run and why (not enough memory, no signature database), and hosts where ClamAV loaded fewer rules than it was given -- and a finding is only closed when the check that found it runs over its path again and no longer sees it. A host without a rootkit checker or a commercial antivirus has no blind spot for it; one whose checker could not run does.",
+        "description": "Each scan runs up to four independent checks, and each records whether it ran and, if not, why:",
         "feed": "<strong>Rule feed</strong> -- YARA rules from the server: a curated set that ships with SysManage, plus any sets you import. It is cheap (a few megabytes of memory) and always runs where ClamAV is installed.",
         "signatures": "<strong>ClamAV signatures</strong> -- ClamAV's own database of known malware. Loading it takes about 1 GB of memory, so it runs through the ClamAV daemon when one is running, and otherwise only when the host has at least 2 GB of memory free.",
-        "title": "Two Checks per Scan"
+        "title": "Four Checks per Scan",
+        "rootkit": "<strong>Rootkit checks</strong> -- chkrootkit and rkhunter, whichever the host has (they can be chosen as a host's antivirus on Linux and the BSDs). They check the whole system, not the scan's paths, and run as root through the agent's sudo rules.",
+        "vendor": "<strong>Host antivirus</strong> -- Microsoft Defender on Windows, or Defender for Endpoint on macOS and Linux, asked to scan the same paths. It only reports here; what it does with a threat is still up to its own settings."
       },
       "limits": {
         "defender": "On Windows, Microsoft Defender may remove a known-malicious file before a scan reaches it. That is Defender doing its job; the file then simply is not there to report.",
@@ -23039,6 +23042,14 @@
         "scans_caption": "Scan jobs with their rollout progress, and what each check did on each host.",
         "targets": "<strong>Targets</strong> -- all hosts, or any mix of tags, configuration inventories and individual hosts. Targets are resolved when the job starts, so a host tagged next week is covered by next week's scan without anyone editing a list.",
         "title": "Scanning the Fleet"
+      },
+      "schedules": {
+        "title": "Schedules and Exclusions",
+        "description": "The <strong>Schedules and exclusions</strong> tab holds two kinds of policy. Both are scheduled and enforced by SysManage, and every scan still runs through the host's agent, so its findings reach the server:",
+        "schedule": "<strong>Scan on a schedule</strong> -- daily, weekly or monthly at a time in UTC, or a cron expression. At that time the server starts an ordinary scan job over the hosts the policy covers; each scan waits for its host's maintenance window like any other command. A schedule missed while the server was down runs once when it is back, not once per missed time. <strong>Run now</strong> starts it at once.",
+        "exclusion": "<strong>Leave paths out of scans</strong> -- paths that every scan of the hosts it covers leaves out, whether started by hand or on a schedule, for every check. ClamAV skips them itself; anything another check reports under one is dropped. Use it for directories that hold detection samples on purpose, such as a security tool's own test files.",
+        "scope": "Each policy is for all hosts, the hosts with a tag, or one host, and can be turned off as a whole. <strong>Switch off for...</strong> turns it off for one host or tag inside its scope, and removing that switch turns it back on. Findings already open under a new exclusion stay open until you decide on them.",
+        "one_off": "A scan started by hand can also leave paths out, on top of the hosts' exclusion policies."
       }
     },
     "auto_updates": {
