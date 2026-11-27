@@ -3520,6 +3520,18 @@
         "fig_bandwidth": "Professional+: el cuadro de diálogo <strong>Ancho de banda a través de restate-proxy</strong> con una regla, 2MiB/s de 08:00 a 18:00 según el reloj del host de almacenamiento, y sin límite para las demás horas.",
         "fig_target": "La tarjeta del destino con el proxy: su dirección, el certificado de la CA de SysManage y cuándo vence, y el aviso de la comprobación del almacenamiento de que restate-proxy aún no está instalado, con el botón que lo instala.",
         "fig_transport": "El cuadro de diálogo <strong>Cómo acceden los hosts al almacenamiento</strong> con restate-proxy elegido: la dirección del proxy a la que llegan los hosts, <code>backup.example.com</code>, y el puerto 8443."
+      },
+      "packages": {
+        "cleanup": {
+          "auto": "Con las actualizaciones automáticas, cada ejecución limpia lo que deja de forma predeterminada, dentro de la misma ventana de mantenimiento y con las mismas protecciones (consulte <a href=\"../professional-plus/automatic-updates.html\">Actualizaciones automáticas</a>).",
+          "intro": "Debian y Ubuntu conservan todos los kernels que han instalado hasta que algo los elimina, y los paquetes instalados solo como dependencias se quedan cuando ya nada los necesita. Los kernels antiguos llenan /boot, y cada uno sigue afectado por todas las vulnerabilidades del kernel corregidas desde que se publicó. En la pestaña Software de un host Linux, la tarjeta Kernels antiguos y paquetes innecesarios muestra el kernel en ejecución, cuántos kernels hay instalados y cuántos de ellos son antiguos, y los elimina de forma segura.",
+          "kept": "<strong>Qué kernels se conservan siempre.</strong> El kernel en ejecución; el más reciente instalado, que usará el próximo arranque; y el kernel más reciente que ha <em>demostrado</em> su fiabilidad -- uno con el que el host arrancó, que siguió funcionando y se reportó durante 15 minutos. Tras reiniciar con un kernel nuevo, el último kernel con el que el host arrancó correctamente se conserva hasta que el nuevo haya demostrado su fiabilidad, y después como vía de retorno. Si Livepatch ha estado protegiendo el kernel antiguo, nada elimina esa salida de emergencia antes de que el kernel nuevo haya tenido un arranque limpio. Siempre quedan al menos dos kernels.",
+          "plan": "<strong>Planificar y luego eliminar exactamente el plan.</strong> <strong>Planificar limpieza</strong> pregunta al host qué se eliminaría, con la propia simulación de apt: los paquetes que <code>apt autoremove</code> quitaría y todos los paquetes de un kernel antiguo, menos todo lo que pertenece a un kernel conservado. No se elimina nada. <strong>Eliminar los paquetes listados</strong> elimina esa lista y nada más: el host vuelve a simular primero la eliminación y la rechaza si apt se llevara cualquier otro paquete con ella, y nunca elimina un kernel conservado aunque se nombre alguno. Después comprueba que cada kernel conservado sigue teniendo su imagen y su initramfs en /boot. Eliminar requiere el rol Eliminar Paquete, y cada eliminación queda en el registro de auditoría.",
+          "platforms": "Hoy la limpieza se ejecuta en hosts Debian y Ubuntu con un agente actualizado; los demás hosts indican que todavía no pueden hacer la limpieza.",
+          "title": "Kernels antiguos y paquetes innecesarios",
+          "uninstall": "Desinstalar un paquete ya no ejecuta <code>apt-get remove --autoremove</code>: eliminar las dependencias que quedan atrás es tarea de la limpieza, donde los kernels están protegidos.",
+          "wait": "No se elimina nada mientras el kernel en ejecución aún no haya demostrado su fiabilidad: un host que acaba de arrancar espera primero sus 15 minutos, y la tarjeta lo indica."
+        }
       }
     },
     "administration": {
@@ -18395,7 +18407,8 @@
           "restore": "<strong>Restauración.</strong> <strong>Restaurar</strong> enumera todos los puntos a los que se puede restaurar un conjunto de datos y, antes de que empiece nada, cuánto tarda el descongelado y cuánto cuesta: Bulk (el más barato, hasta 48 horas) o Standard (hasta 12). Después, el host de almacenamiento descongela la copia completa y sus incrementales, las descarga, comprueba el SHA-256 de cada parte, las descifra y las recibe con <code>zfs receive</code> en un conjunto de datos nuevo cuyo nombre usted elige; nunca sobrescribe uno existente. El nuevo conjunto de datos contiene el repositorio de restate tal como estaba, y restate restaura desde él como desde cualquier otro. Restaurar requiere el rol <strong>Restaurar archivos</strong>.",
           "setup": "<strong>Configuración.</strong> En la página Copias de seguridad, <strong>Configurar la copia en la nube</strong> pide el bucket, su región y una clave de acceso; todo lo demás tiene un valor predeterminado. <strong>Configuración del bucket</strong> muestra entonces lo que hay que aplicar en AWS: los comandos <code>aws</code> que crean el bucket con Object Lock, sus reglas de ciclo de vida (<code>lifecycle.json</code>) y un usuario IAM cuya política (<code>iam-policy.json</code>) puede subir, leer y descongelar bajo el prefijo de la copia, pero nunca eliminar nada. <strong>Comprobar el bucket</strong> demuestra que las credenciales pueden subir datos y muestra si Object Lock está activado.",
           "status": "<strong>Estado.</strong> La tarjeta de copia en la nube muestra lo que se almacena por conjunto de datos, la última carga buena, la siguiente, una estimación del costo mensual y la última tarea. Una copia sin una carga buena en 48 horas está marcada como <strong>Retrasada</strong>.",
-          "title": "Copia en la nube: S3 Glacier Archivo Profundo"
+          "title": "Copia en la nube: S3 Glacier Archivo Profundo",
+          "runbook": "<strong>Paso a paso.</strong> <a href=\"../runbooks/recover-from-cloud-copy.html\">Recuperar desde la copia en la nube</a> explica cómo exportar las claves a una bóveda de contraseñas, demostrar que una restauración funciona y restaurar a mano solo con la exportación cuando el servidor SysManage también ha desaparecido."
         }
       },
       "backupops": {
@@ -19002,7 +19015,10 @@
         "replace_desc": "Restaurar un reemplazo desde una copia de seguridad, mover el nombre o la dirección a él y ver cada host volver sin necesidad de inscribirse nuevamente.",
         "replace_link": "Abrir la guía de ejecución",
         "h_more": "Haciéndolo a través de la API",
-        "more_p": "La mayoría de los pasos de estas guías de ejecución también pueden automatizarse con scripts. <a href=\"../api/examples.html\">Ejemplos de API</a> muestra cómo autenticarse y ofrece recetas listas para ejecutar en Bash, Python y PowerShell."
+        "more_p": "La mayoría de los pasos de estas guías de ejecución también pueden automatizarse con scripts. <a href=\"../api/examples.html\">Ejemplos de API</a> muestra cómo autenticarse y ofrece recetas listas para ejecutar en Bash, Python y PowerShell.",
+        "cloudcopy_desc": "Exporte las claves de la copia en la nube a una bóveda de contraseñas antes de necesitarlas y, después, descongele y restaure las copias de seguridad desde Amazon S3 Glacier, a través de SysManage o a mano cuando todo el sitio ha desaparecido.",
+        "cloudcopy_link": "Abrir la guía de ejecución",
+        "cloudcopy_title": "Recuperar desde la copia en la nube"
       },
       "crumb_docs": "Documentación",
       "crumb_section": "Guías de ejecución",
@@ -19244,6 +19260,69 @@
       "certs2": {
         "during_pin": "Los agentes anclan el servidor, y un certificado nuevo no rompe el anclaje. Un agente que ve una clave nueva la acepta una vez que la declaración de identidad firmada del servidor nombra esa clave. El servidor lee las claves que sirve nginx en esta máquina y vuelve a comprobarlas cada diez minutos, por lo que los agentes vuelven por sí solos unos diez minutos después de la recarga. Si nginx se ejecuta en otra máquina, añada el hash SPKI SHA-256 de la clave nueva a <code>agent_tls_spki</code> en Configuración, junto al anterior, antes de recargarlo. Consulte <a href=\"../security/mtls.html\">Certificados de Agente y TLS</a>.",
         "agentcerts_p": "Cada host aprobado tiene un certificado de cliente propio, para una clave que generó él mismo, emitido por la autoridad de certificación propia de SysManage. Los agentes los renuevan por sí solos, 30 días antes de que caduquen, por lo que este procedimiento no los toca. Renovar o sustituir el certificado TLS del servidor no cambia esa autoridad de certificación. Consulte <a href=\"../security/mtls.html\">Certificados de Agente y TLS</a>."
+      },
+      "cloudcopy": {
+        "a1_expect": "<strong>Resultado esperado:</strong> la tarjeta muestra <strong>Bloqueo de objetos activado</strong>. Si indica <strong>Bloqueo de objetos DESACTIVADO</strong>, el bucket se creó sin Object Lock y una credencial robada podría sobrescribir la copia: cree un bucket nuevo con Object Lock activado.",
+        "a1_p": "En la página <strong>Copias de seguridad</strong>, busque la tarjeta <strong>Copia en la nube (externa)</strong> y elija <strong>Configurar la copia en la nube</strong>. Introduzca el bucket, su región y la clave de acceso de subida; mantenga los demás valores predeterminados. Después abra <strong>Configuración del bucket</strong> y aplique en AWS lo que muestra: el bucket con Object Lock, sus reglas de ciclo de vida y un usuario IAM que pueda subir, leer y descongelar, pero nunca eliminar. Por último, elija <strong>Comprobar el bucket</strong>.",
+        "a2_expect": "<strong>Resultado esperado:</strong> la tarjeta indica cuánto hay almacenado, con la última subida correcta y la siguiente, y una estimación del costo mensual.",
+        "a2_p": "La primera subida es una copia completa de cada conjunto de datos y puede tardar días en un pool grande, con el límite de ancho de banda durante el horario laboral. Elija <strong>Ejecutar ahora</strong> para iniciarla en lugar de esperar a las 02:00 UTC. La tarjeta muestra el progreso de cada conjunto de datos; una subida interrumpida se reanuda a partir de las partes que ya están en el bucket.",
+        "a3_again": "<strong>Vuelva a exportar después de cada Nueva clave.</strong> Una exportación anterior no contiene una clave creada después de ella, y lo que se sube con esa clave no se puede leer sin ella. La tarjeta lo indica cuando pulsa <strong>Nueva clave</strong>.",
+        "a3_delete": "Elimine el archivo descargado de la máquina en la que lo exportó.",
+        "a3_download": "Elija <strong>Exportar y descargar</strong>. El navegador guarda un archivo con un nombre como <code>sysmanage-offsite-keys-20261127T122641Z.tar.asc</code>. Está cifrado para su clave, de modo que el servidor nunca lo ve en forma legible y la descarga puede quedarse en su carpeta de descargas hasta que la mueva.",
+        "a3_expect": "<strong>Resultado esperado:</strong> <code>README.txt</code>, <code>copy.json</code>, <code>credentials.json</code>, <code>streams.json</code>, <code>smoc_decrypt.py</code>, <code>keys/index.json</code> y un <code>keys/&lt;key id&gt;.key</code> por cada clave que haya tenido la copia.",
+        "a3_open": "En la tarjeta, elija <strong>Exportar claves</strong>. Deje <strong>Clave pública OpenPGP</strong> vacío para sellar la exportación con la clave de custodia guardada, o pegue otra clave pública cuya mitad privada usted posea.",
+        "a3_private": "Asegúrese de que su clave privada OpenPGP también se guarda en un lugar que no dependa del sitio: un token de hardware, o una copia cifrada en la misma bóveda en una entrada aparte, con su frase de contraseña conocida por alguien que pueda actuar sin usted.",
+        "a3_reason": "En <strong>Por qué exporta las claves</strong>, escriba un motivo de al menos 10 caracteres, como \"Copia de emergencia para la bóveda de contraseñas\". Queda registrado en el registro de auditoría.",
+        "a3_vault": "Adjunte el archivo <code>.tar.asc</code>, tal cual, a una entrada de su bóveda de contraseñas, y anote la fecha y el identificador de clave que muestra la tarjeta. Manténgalo sellado: la bóveda lo protege una vez y el sellado OpenPGP una segunda vez.",
+        "a3_verify": "En la máquina que contiene su clave privada, compruebe que se abre, sin escribir nada legible en el disco:",
+        "a4_p": "Una copia que nunca se ha restaurado es una esperanza, no una copia de seguridad. Una vez al año, y después de cualquier cambio en el host de almacenamiento, ejecute la parte B para un conjunto de datos pequeño hacia un conjunto de datos nuevo, compare algunos archivos con los originales y, después, destruya el conjunto de datos restaurado. Una descongelación Standard de un conjunto de datos pequeño cuesta unos céntimos.",
+        "b_expect": "<strong>Resultado esperado:</strong> la última tarea de la tarjeta indica <strong>Restauración completada</strong>, y <code>zfs list</code> en el host de almacenamiento muestra el conjunto de datos nuevo. Contiene el repositorio de restate tal como estaba en ese punto; restaure archivos desde él como desde cualquier repositorio (consulte <a href=\"../administration/fleet-backups.html\">Copias de seguridad de la flota</a>).",
+        "b_open": "En la página <strong>Copias de seguridad</strong>, en la tarjeta <strong>Copia en la nube (externa)</strong>, elija <strong>Restaurar</strong> en su fila de botones. Requiere el rol <strong>Restaurar Archivos</strong>.",
+        "b_point": "En <strong>Punto de restauración</strong>, elija el conjunto de datos y el momento al que volver; cada entrada tiene la forma <code>dataset@snapshot</code>, y el nombre de la instantánea es su hora en UTC. En <strong>Velocidad de descongelación</strong>, elija <strong>Bulk</strong> (el más barato, hasta 48 horas) o <strong>Standard</strong> (hasta 12 horas). El cuadro de diálogo muestra el tiempo y el costo antes de que empiece nada.",
+        "b_start": "Elija <strong>Descongelar y restaurar</strong>. La tarjeta muestra <strong>Descongelando: 0 de N partes listas</strong> y, después, cuánto se ha descargado y recibido. Puede cerrar el navegador; el trabajo lo hace el host de almacenamiento.",
+        "b_target": "<strong>Nuevo conjunto de datos de destino</strong> se rellena con el nombre del conjunto de datos seguido de <code>-restored</code>; puede cambiarlo, si lo desea, por cualquier conjunto de datos que aún no exista. Una restauración nunca sobrescribe un conjunto de datos existente.",
+        "c1_note": "Las credenciales son la propia clave de subida de la copia, que puede listar, leer y descongelar bajo el prefijo de la copia, pero no puede eliminar nada. Si se ha desactivado desde entonces, use otra clave suya con los mismos permisos. Si la copia usa un almacenamiento compatible con S3 en lugar de AWS, añada <code>--endpoint-url</code> con el valor de <code>endpoint</code> de <code>copy.json</code> a cada comando <code>aws</code>.",
+        "c2_keys": "Un manifiesto que ninguna de las claves abre se escribió con una clave creada después de esta exportación; su archivo <code>.json</code> queda vacío, y los flujos que describe no se pueden leer con esta exportación. En su lugar, restaure a un punto anterior.",
+        "c2_p": "<code>streams.json</code> enumera lo que había en el bucket cuando exportó. Las subidas realizadas desde entonces se describen en los manifiestos del bucket, que se guardan en S3 Standard y no necesitan descongelarse. Descárguelos y descífrelos todos:",
+        "c3_p": "Un punto de restauración es una copia completa más cada incremental posterior, en orden. Guarde esto como <code>chain.py</code>; para un conjunto de datos, imprime cada parte que hay que obtener, como una lista separada por tabulaciones con el número del flujo, su identificador de clave, la clave de objeto de la parte y su SHA-256:",
+        "c3_point": "Sin un segundo argumento se usa el punto más reciente. Para retroceder más, por ejemplo a antes de un ataque de ransomware, indique como segundo argumento un nombre de instantánea como <code>sysmanage-offsite-20261120T020000Z</code>.",
+        "c4_p": "Use <code>\"Tier\":\"Standard\"</code> en lugar de <code>Bulk</code> para un máximo de 12 horas en lugar de 48, a un precio más alto. Las copias descongeladas siguen siendo legibles durante 7 días. Compruébelas cada pocas horas; cada línea muestra <code>ongoing-request=\"false\"</code> cuando todas están listas:",
+        "c5_expect": "<strong>Resultado esperado:</strong> una instantánea por flujo, la última con el nombre del punto que eligió. El conjunto de datos contiene el repositorio de restate tal como estaba; móntelo (<code>sudo zfs mount</code>) y restaure desde él con restate, usando la propia clave del repositorio de su exportación de claves de copia de seguridad.",
+        "c5_p": "Cada flujo se recibe por turno en un único conjunto de datos nuevo: la copia completa lo crea y cada incremental añade la siguiente instantánea. El SHA-256 de cada parte se comprueba antes de descifrarla, y el propio descifrado falla ante cualquier cambio, de modo que una parte dañada o alterada detiene la restauración en lugar de recibirse.",
+        "c6_p": "Elimine <code>~/cloudcopy</code> cuando termine la restauración: contiene las claves y las credenciales en forma legible. Las copias descongeladas caducan por sí solas después de los días que solicitó; la copia en Deep Archive no se modifica.",
+        "c_intro": "Use esta parte cuando no haya ningún servidor SysManage a través del cual restaurar. Necesita una máquina con ZFS (cualquier máquina Linux o FreeBSD con un pool), la línea de comandos de AWS (<code>aws</code>), Python 3 con su paquete <code>cryptography</code>, <code>gpg</code> y su clave privada. Trabaje como un usuario que pueda ejecutar <code>zfs receive</code>; los comandos siguientes usan <code>sudo</code> para ello.",
+        "crumb_page": "Recuperar desde la copia en la nube",
+        "h_a": "Parte A: antes de que algo salga mal",
+        "h_a1": "A1. Configurar la copia",
+        "h_a2": "A2. Dejar que termine la primera copia completa",
+        "h_a3": "A3. Exportar las claves y guardarlas fuera del sitio",
+        "h_a4": "A4. Demostrar una restauración",
+        "h_b": "Parte B: restaurar con SysManage",
+        "h_c": "Parte C: restaurar a mano, sin SysManage",
+        "h_c1": "C1. Abrir la exportación",
+        "h_c2": "C2. Leer los manifiestos",
+        "h_c3": "C3. Determinar la cadena de un conjunto de datos",
+        "h_c4": "C4. Descongelar las partes",
+        "h_c5": "C5. Descargar, comprobar, descifrar y recibir",
+        "h_c6": "C6. Limpiar",
+        "h_need": "Lo que necesita",
+        "h_trouble": "Si algo sale mal",
+        "h_when": "Cuándo usarla",
+        "intro": "La copia en la nube es la copia de seguridad de último recurso: las copias de seguridad del host de almacenamiento, cifradas, en su propio bucket de Amazon S3. Esta guía de ejecución prepara el día en que se necesite y, después, recupera las copias de seguridad -- desde la página Copias de seguridad mientras SysManage está en funcionamiento, o a mano cuando el servidor, el host de almacenamiento y todo lo demás del sitio han desaparecido.",
+        "meta_description": "Prepárese para el día en que el sitio desaparezca: configure la copia en la nube, exporte sus claves a una bóveda de contraseñas, demuestre una restauración y recupere las copias de seguridad desde Amazon S3 Glacier con o sin SysManage.",
+        "meta_title": "Recuperar desde la copia en la nube - SysManage",
+        "need_edition": "<strong>Professional+</strong> para configurar la copia y mantener las subidas. Restaurar, <strong>Comprobar el bucket</strong> y <strong>Exportar claves</strong> funcionan en todas las ediciones, también después de que caduque una licencia.",
+        "need_pgp": "Un par de claves OpenPGP propio. Su clave pública se guarda en SysManage como clave de custodia de emergencia; su clave privada nunca.",
+        "need_storage": "Un host de almacenamiento sobre ZFS, en Linux o FreeBSD, y un bucket de Amazon S3 en su propia cuenta de AWS. Consulte <a href=\"../professional-plus/fleet-backups-pro.html#cloud-copy\">Copia en la nube: S3 Glacier Deep Archive</a> para saber cómo funciona la copia.",
+        "need_time": "Tiempo: S3 Glacier Deep Archive tarda hasta 12 horas (Standard) o 48 horas (Bulk) en descongelar antes de que se pueda descargar nada. Planifique la recuperación teniéndolo en cuenta.",
+        "title": "Recuperar desde la copia en la nube",
+        "trouble_denied": "<strong><code>AccessDenied</code>:</strong> la clave de acceso está desactivada o no tiene los permisos de lectura y descongelación; use otra clave suya con <code>s3:GetObject</code>, <code>s3:RestoreObject</code> y <code>s3:ListBucket</code> sobre el bucket.",
+        "trouble_invalid": "<strong><code>InvalidObjectState</code> al descargar:</strong> la parte no ha terminado de descongelarse, o su copia descongelada ha caducado. Compruébelo con <code>head-object</code> y vuelva a descongelarla si es necesario.",
+        "trouble_key": "<strong>\"this object needs the key ...\"</strong> La parte se subió con una clave que esta exportación no contiene. Use una exportación más reciente o restaure a un punto anterior.",
+        "trouble_receive": "<strong><code>zfs receive</code> falla en un incremental:</strong> el conjunto de datos se modificó después de recibir la copia completa. Destrúyalo y vuelva a empezar C5; las partes ya descargadas se vuelven a obtener, pero la descongelación no se repite mientras siga vigente.",
+        "when_pool": "<strong>El pool de almacenamiento se ha perdido pero SysManage está en funcionamiento:</strong> parte B.",
+        "when_prepare": "<strong>Ahora, antes de que algo vaya mal:</strong> parte A. Una copia cuyas claves solo existen en el servidor que protege no se puede leer una vez que ese servidor desaparece.",
+        "when_site": "<strong>El servidor SysManage también ha desaparecido:</strong> parte C, solo con el archivo de exportación y su clave privada OpenPGP."
       }
     },
     "dr2": {
@@ -23873,7 +23952,8 @@
           "score": "Calcula la puntuación de riesgo según la distribución de gravedad.",
           "version": "Compara versiones para identificar software vulnerable"
         },
-        "title": "Proceso de escaneo"
+        "title": "Proceso de escaneo",
+        "kernels": "Los paquetes del kernel solo cuentan para el kernel en ejecución y el más reciente instalado, que usará el próximo arranque. Los kernels más antiguos que siguen instalados aparecen en las recomendaciones como kernels antiguos que eliminar, y sus vulnerabilidades no se cuentan: no están en ejecución, y la limpieza los elimina."
       },
       "severity": {
         "critical": {
@@ -24439,7 +24519,8 @@
       "reboots": {
         "description": "De forma predeterminada, una política nunca reinicia: un host que necesita un reinicio muestra \"reinicio requerido\", como hasta ahora. Con <strong>Reiniciar cuando la actualización lo necesite</strong>, el servidor envía un único reinicio tras una ejecución que lo necesita -- incluso cuando el host solo informa de la necesidad un poco más tarde -- y lo registra en el registro de auditoría. Después vigila que el host vuelva: un host que no se ha vuelto a iniciar dentro del tiempo límite de reinicio (30 minutos de forma predeterminada) se marca en su ejecución y se contabiliza en el panel.",
         "title": "Reinicios",
-        "in_window": "Con <strong>Reiniciar cuando sea necesario, solo dentro de una ventana de mantenimiento</strong>, el reinicio solo se produce mientras el host está dentro de una ventana a la que le queda tiempo suficiente. De lo contrario, el host permanece en \"Se requiere reinicio\", la ejecución indica que espera a la siguiente ventana y el reinicio se envía cuando esa ventana se abre. Una ejecución con esta opción incluye la duración del reinicio al decidir si cabe en la ventana."
+        "in_window": "Con <strong>Reiniciar cuando sea necesario, solo dentro de una ventana de mantenimiento</strong>, el reinicio solo se produce mientras el host está dentro de una ventana a la que le queda tiempo suficiente. De lo contrario, el host permanece en \"Se requiere reinicio\", la ejecución indica que espera a la siguiente ventana y el reinicio se envía cuando esa ventana se abre. Una ejecución con esta opción incluye la duración del reinicio al decidir si cabe en la ventana.",
+        "kernel": "Un host también informa \"reinicio requerido\" siempre que hay instalado un kernel más reciente que el que está en ejecución, nombrando ambos kernels, incluso cuando falta el indicador de reinicio propio de la distribución."
       },
       "requirements": {
         "agent": "Un agente actualizado, para que se informe de los paquetes bloqueados y de la hora de inicio del host.",
@@ -24505,6 +24586,10 @@
         "alerts": "<strong>Alertas</strong> -- una regla de alerta sobre la condición <strong>Las actualizaciones automáticas requieren atención</strong> genera una alerta por host cuando su última ejecución automática falló, no regresó de un reinicio automático, un despliegue se detuvo por su causa, un parche para una CVE crítica sigue sin aplicarse un número determinado de horas después de su periodo de espera (24 de forma predeterminada), o su política lleva en espera más de un número determinado de días (7 de forma predeterminada). La alerta se actualiza a medida que los problemas aparecen y desaparecen, y se resuelve cuando ya no queda ninguno.",
         "report": "<strong>Informe</strong> -- el informe <strong>Actualizaciones automáticas</strong> muestra, por política y flota durante los últimos 30 días, las ejecuciones, los hosts parcheados, las ejecuciones fallidas, los reinicios y la mediana del tiempo que transcurre desde que aparece en un host un parche para una CVE crítica hasta que se aplica en él.",
         "dashboard": "<strong>Panel</strong> -- la página de inicio contabiliza los problemas de actualizaciones automáticas, los reinicios automáticos en espera de una ventana de mantenimiento y los despliegues en curso o detenidos."
+      },
+      "cleanup": {
+        "description": "Cuando termina la ejecución de un host -- aplicada, y de vuelta de cualquier reinicio que haya solicitado --, se eliminan sus kernels antiguos y paquetes innecesarios, dentro de la misma ventana de mantenimiento. El último kernel con el que el host arrancó correctamente se conserva siempre, y no se elimina nada hasta que un kernel recién arrancado haya seguido funcionando durante 15 minutos (consulte <a href=\"../administration/package-management.html#cleanup\">Kernels antiguos y paquetes innecesarios</a>). En la página de configuración Perfiles de actualización, el ajuste <strong>Tras una ejecución, los kernels antiguos y paquetes innecesarios</strong> puede, en cambio, limitarse a listar lo que se eliminaría o dejarlos como están.",
+        "title": "Limpieza después de una ejecución"
       }
     }
   },

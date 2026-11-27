@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="en" data-i18n-title="docs.runbooks.cloudcopy.meta_title">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title data-i18n="docs.runbooks.cloudcopy.meta_title">Recover From the Cloud Copy - SysManage</title>
+    <meta name="description" data-i18n="docs.runbooks.cloudcopy.meta_description" data-i18n-attr="content" content="Prepare for the day the site is gone: set up the cloud copy, export its keys into a password vault, prove a restore, and bring the backups back from Amazon S3 Glacier with or without SysManage.">
+    <link rel="stylesheet" href="/assets/css/style.css">
+    <link rel="icon" type="image/svg+xml" href="/assets/images/favicon.svg">
+</head>
+<body data-auto-header="documentation" data-auto-footer>
+    <main class="docs-main">
+        <div class="container">
+            <div class="docs-breadcrumb"><a href="../" data-i18n="docs.runbooks.crumb_docs">Documentation</a> &gt; <a href="./" data-i18n="docs.runbooks.crumb_section">Runbooks</a> &gt; <span data-i18n="docs.runbooks.cloudcopy.crumb_page">Recover From the Cloud Copy</span></div>
+            <div class="docs-header">
+                <h1 data-i18n="docs.runbooks.cloudcopy.title">Recover From the Cloud Copy</h1>
+                <p data-i18n="docs.runbooks.cloudcopy.intro">The cloud copy is the backup of last resort: the storage host's backups, encrypted, in your own Amazon S3 bucket. This runbook prepares for the day it is needed, then brings the backups back -- from the Backups page while SysManage is running, or by hand when the server, the storage host and everything else at the site are gone.</p>
+            </div>
+            <div class="docs-content">
+                <section class="docs-section">
+                    <h2 data-i18n="docs.runbooks.cloudcopy.h_when">When to use it</h2>
+                    <ul>
+                        <li data-i18n="docs.runbooks.cloudcopy.when_prepare" data-i18n-html><strong>Now, before anything is wrong:</strong> part A. A copy whose keys exist only on the server it protects cannot be read once that server is gone.</li>
+                        <li data-i18n="docs.runbooks.cloudcopy.when_pool" data-i18n-html><strong>The storage pool is lost but SysManage is running:</strong> part B.</li>
+                        <li data-i18n="docs.runbooks.cloudcopy.when_site" data-i18n-html><strong>The SysManage server is gone too:</strong> part C, with only the export file and your OpenPGP private key.</li>
+                    </ul>
+
+                    <h2 data-i18n="docs.runbooks.cloudcopy.h_need">What you need</h2>
+                    <ul>
+                        <li data-i18n="docs.runbooks.cloudcopy.need_edition" data-i18n-html><strong>Professional+</strong> to set up the copy and keep it uploading. Restoring, <strong>Check the bucket</strong> and <strong>Export keys</strong> work in every edition, also after a license lapses.</li>
+                        <li data-i18n="docs.runbooks.cloudcopy.need_storage" data-i18n-html>A storage host on ZFS, on Linux or FreeBSD, and an Amazon S3 bucket in your own AWS account. See <a href="../professional-plus/fleet-backups-pro.html#cloud-copy">Cloud copy: S3 Glacier Deep Archive</a> for how the copy works.</li>
+                        <li data-i18n="docs.runbooks.cloudcopy.need_pgp" data-i18n-html>An OpenPGP key pair of your own. Its public key is saved in SysManage as the break-glass escrow key; its private key never is.</li>
+                        <li data-i18n="docs.runbooks.cloudcopy.need_time" data-i18n-html>Time: S3 Glacier Deep Archive takes up to 12 hours (Standard) or 48 hours (Bulk) to thaw before anything can be downloaded. Plan the recovery around that.</li>
+                    </ul>
+
+                    <h2 data-i18n="docs.runbooks.cloudcopy.h_a">Part A: before anything goes wrong</h2>
+
+                    <h3 data-i18n="docs.runbooks.cloudcopy.h_a1">A1. Set up the copy</h3>
+                    <p data-i18n="docs.runbooks.cloudcopy.a1_p" data-i18n-html>On the <strong>Backups</strong> page, find the <strong>Cloud copy (off-site)</strong> card and choose <strong>Set up the cloud copy</strong>. Enter the bucket, its region and the upload access key; keep the other defaults. Then open <strong>Bucket setup</strong> and apply what it shows in AWS: the bucket with Object Lock, its lifecycle rules and an IAM user that can upload, read and thaw but never delete. Finally choose <strong>Check the bucket</strong>.</p>
+                    <p data-i18n="docs.runbooks.cloudcopy.a1_expect" data-i18n-html><strong>Expect:</strong> the card shows <strong>Object Lock on</strong>. If it says <strong>Object Lock OFF</strong>, the bucket was made without Object Lock and a stolen credential could overwrite the copy: make a new bucket with it on.</p>
+
+                    <h3 data-i18n="docs.runbooks.cloudcopy.h_a2">A2. Let the first full copy finish</h3>
+                    <p data-i18n="docs.runbooks.cloudcopy.a2_p" data-i18n-html>The first upload is a full copy of every dataset and can take days for a large pool, at the bandwidth cap during working hours. Choose <strong>Run now</strong> to start it instead of waiting for 02:00 UTC. The card shows each dataset's progress; an upload that is interrupted resumes from the parts already in the bucket.</p>
+                    <p data-i18n="docs.runbooks.cloudcopy.a2_expect" data-i18n-html><strong>Expect:</strong> the card says how much is stored, with the last good upload and the next one, and an estimate of the monthly cost.</p>
+
+                    <h3 data-i18n="docs.runbooks.cloudcopy.h_a3">A3. Export the keys and keep them off the site</h3>
+                    <ol>
+                        <li data-i18n="docs.runbooks.cloudcopy.a3_open" data-i18n-html>On the card, choose <strong>Export keys</strong>. Leave <strong>OpenPGP public key</strong> empty to seal the export to the saved escrow key, or paste another public key you hold the private half of.</li>
+                        <li data-i18n="docs.runbooks.cloudcopy.a3_reason" data-i18n-html>Under <strong>Why you are exporting them</strong>, write a reason of at least 10 characters, such as "Break-glass copy for the password vault". It goes into the audit log.</li>
+                        <li data-i18n="docs.runbooks.cloudcopy.a3_download" data-i18n-html>Choose <strong>Export and download</strong>. The browser saves a file named like <code>sysmanage-offsite-keys-20261127T122641Z.tar.asc</code>. It is encrypted to your key, so the server never sees it readable and the download can sit in your downloads folder until you move it.</li>
+                        <li data-i18n="docs.runbooks.cloudcopy.a3_verify" data-i18n-html>On the machine that holds your private key, prove it opens, without writing anything readable to disk:</li>
+                    </ol>
+<pre><code class="language-bash">gpg --decrypt sysmanage-offsite-keys-20261127T122641Z.tar.asc | tar -tvf -</code></pre>
+                    <p data-i18n="docs.runbooks.cloudcopy.a3_expect" data-i18n-html><strong>Expect:</strong> <code>README.txt</code>, <code>copy.json</code>, <code>credentials.json</code>, <code>streams.json</code>, <code>smoc_decrypt.py</code>, <code>keys/index.json</code> and one <code>keys/&lt;key id&gt;.key</code> per key the copy has held.</p>
+                    <ol start="5">
+                        <li data-i18n="docs.runbooks.cloudcopy.a3_vault" data-i18n-html>Attach the <code>.tar.asc</code> file, as it is, to an entry in your password vault, and note the date and the key id the card shows. Keep it sealed: the vault protects it once, the OpenPGP seal a second time.</li>
+                        <li data-i18n="docs.runbooks.cloudcopy.a3_private" data-i18n-html>Make sure your OpenPGP private key is kept somewhere that does not depend on the site either: a hardware token, or an encrypted copy in the same vault under a separate entry, with its passphrase known to someone who can act without you.</li>
+                        <li data-i18n="docs.runbooks.cloudcopy.a3_delete" data-i18n-html>Delete the downloaded file from the machine you exported it on.</li>
+                    </ol>
+                    <p data-i18n="docs.runbooks.cloudcopy.a3_again" data-i18n-html><strong>Export again after every New key.</strong> An earlier export does not hold a key made after it, and what is uploaded under that key cannot be read without it. The card says so when you press <strong>New key</strong>.</p>
+
+                    <h3 data-i18n="docs.runbooks.cloudcopy.h_a4">A4. Prove a restore</h3>
+                    <p data-i18n="docs.runbooks.cloudcopy.a4_p" data-i18n-html>A copy that has never been restored is a hope, not a backup. Once a year, and after any change to the storage host, run part B for one small dataset into a new dataset, compare a few files with the originals, and destroy the restored dataset afterwards. A Standard thaw of a small dataset costs cents.</p>
+
+                    <h2 data-i18n="docs.runbooks.cloudcopy.h_b">Part B: restore with SysManage</h2>
+                    <ol>
+                        <li data-i18n="docs.runbooks.cloudcopy.b_open" data-i18n-html>On the <strong>Backups</strong> page, on the <strong>Cloud copy (off-site)</strong> card, choose <strong>Restore</strong> in its row of buttons. It needs the <strong>Restore Files</strong> role.</li>
+                        <li data-i18n="docs.runbooks.cloudcopy.b_point" data-i18n-html>Under <strong>Restore point</strong>, choose the dataset and when to go back to; each entry reads <code>dataset@snapshot</code>, and the snapshot's name is its time in UTC. Under <strong>Thaw speed</strong>, choose <strong>Bulk</strong> (cheapest, up to 48 hours) or <strong>Standard</strong> (up to 12 hours). The dialog shows the time and the cost before anything starts.</li>
+                        <li data-i18n="docs.runbooks.cloudcopy.b_target" data-i18n-html><strong>New dataset to restore into</strong> is filled in as the dataset's name with <code>-restored</code> added; change it if you like, to any dataset that does not exist yet. A restore never writes over an existing dataset.</li>
+                        <li data-i18n="docs.runbooks.cloudcopy.b_start" data-i18n-html>Choose <strong>Thaw and restore</strong>. The card shows <strong>Thawing: 0 of N parts ready</strong>, then how much has been downloaded and received. You can close the browser; the storage host does the work.</li>
+                    </ol>
+                    <p data-i18n="docs.runbooks.cloudcopy.b_expect" data-i18n-html><strong>Expect:</strong> the card's last job reads <strong>Restore done</strong>, and <code>zfs list</code> on the storage host shows the new dataset. It holds the restate repository as it was at that point; restore files from it as from any repository (see <a href="../administration/fleet-backups.html">Fleet Backups</a>).</p>
+
+                    <h2 data-i18n="docs.runbooks.cloudcopy.h_c">Part C: restore by hand, without SysManage</h2>
+                    <p data-i18n="docs.runbooks.cloudcopy.c_intro" data-i18n-html>Use this when there is no SysManage server to restore through. You need a machine with ZFS (any Linux or FreeBSD machine with a pool), the AWS command line (<code>aws</code>), Python 3 with its <code>cryptography</code> package, <code>gpg</code> and your private key. Work as a user that may run <code>zfs receive</code>; the commands below use <code>sudo</code> for it.</p>
+
+                    <h3 data-i18n="docs.runbooks.cloudcopy.h_c1">C1. Open the export</h3>
+<pre><code class="language-bash">mkdir -m 700 ~/cloudcopy &amp;&amp; cd ~/cloudcopy
+gpg --decrypt /path/to/sysmanage-offsite-keys-20261127T122641Z.tar.asc | tar -xf -
+cat copy.json
+export AWS_ACCESS_KEY_ID=$(python3 -c 'import json; print(json.load(open("credentials.json"))["access_key"])')
+export AWS_SECRET_ACCESS_KEY=$(python3 -c 'import json; print(json.load(open("credentials.json"))["secret_key"])')
+export AWS_DEFAULT_REGION=$(python3 -c 'import json; print(json.load(open("copy.json"))["region"])')
+B=$(python3 -c 'import json; print(json.load(open("copy.json"))["bucket"])')
+P=$(python3 -c 'import json; print(json.load(open("copy.json"))["prefix"] or "")')</code></pre>
+                    <p data-i18n="docs.runbooks.cloudcopy.c1_note" data-i18n-html>The credentials are the copy's own upload key, which can list, read and thaw under the copy's prefix but delete nothing. If it has been deactivated since, use another key of yours with the same rights. If the copy uses an S3-compatible store rather than AWS, add <code>--endpoint-url</code> with the <code>endpoint</code> from <code>copy.json</code> to every <code>aws</code> command.</p>
+
+                    <h3 data-i18n="docs.runbooks.cloudcopy.h_c2">C2. Read the manifests</h3>
+                    <p data-i18n="docs.runbooks.cloudcopy.c2_p" data-i18n-html><code>streams.json</code> lists what was in the bucket when you exported. Uploads made since are described by the manifests in the bucket, which are kept in S3 Standard and need no thaw. Download and decrypt them all:</p>
+<pre><code class="language-bash">mkdir -p manifests
+aws s3api list-objects-v2 --bucket "$B" --prefix "${P:+$P/}m" --query 'Contents[].Key' --output text \
+  | tr '\t' '\n' | grep . | while read -r key; do
+    out="manifests/$(echo "$key" | tr '/' '_')"
+    aws s3api get-object --bucket "$B" --key "$key" "$out.smoc" &gt;/dev/null
+    for k in keys/*.key; do
+        python3 smoc_decrypt.py "$k" "$out.smoc" &gt; "$out.json" 2&gt;/dev/null &amp;&amp; break
+    done
+done
+ls manifests/*.json | wc -l</code></pre>
+                    <p data-i18n="docs.runbooks.cloudcopy.c2_keys" data-i18n-html>A manifest that none of the keys opens was written under a key made after this export; its <code>.json</code> file is left empty, and the streams it describes cannot be read with this export. Restore to an older point instead.</p>
+
+                    <h3 data-i18n="docs.runbooks.cloudcopy.h_c3">C3. Work out the chain for a dataset</h3>
+                    <p data-i18n="docs.runbooks.cloudcopy.c3_p" data-i18n-html>A restore point is a full copy plus each incremental after it, in order. Save this as <code>chain.py</code>; it prints, for one dataset, every part to fetch, as a tab-separated list of the stream's number, its key id, the part's object key and its SHA-256:</p>
+<pre><code class="language-python">import glob, json, sys
+
+dataset = sys.argv[1]
+streams = {}
+for name in glob.glob("manifests/*.json"):
+    try:
+        found = json.load(open(name))
+    except ValueError:
+        continue  # a manifest under a newer key
+    if found.get("dataset") == dataset:
+        streams[found["snapshot"]] = found
+for found in json.load(open("streams.json")):
+    if found["dataset"] == dataset:
+        streams.setdefault(found["snapshot"], found)
+if not streams:
+    sys.exit("nothing stored for " + dataset)
+point = sys.argv[2] if len(sys.argv) &gt; 2 else max(streams)
+chain = []
+while point in streams:
+    chain.append(streams[point])
+    if streams[point]["kind"] == "full":
+        break
+    point = streams[point]["base_snapshot"]
+if not chain or chain[-1]["kind"] != "full":
+    sys.exit("no full copy under " + str(point) + "; choose an older point")
+for number, stream in enumerate(reversed(chain)):
+    for part in sorted(stream["parts"], key=lambda p: p["index"]):
+        print(number, stream["key_id"], part["key"], part["sha256"], sep="\t")</code></pre>
+<pre><code class="language-bash">python3 -c 'import glob,json; print("\n".join(sorted({s["dataset"] for s in json.load(open("streams.json"))} | {json.load(open(f))["dataset"] for f in glob.glob("manifests/*.json") if open(f).read().strip()})))'   # the datasets stored
+python3 chain.py zfs-pool/backups/restate/hosta &gt; chain.tsv
+cut -f1 chain.tsv | uniq -c   # parts per stream: the full first</code></pre>
+                    <p data-i18n="docs.runbooks.cloudcopy.c3_point" data-i18n-html>Without a second argument the newest point is used. To go back further, for example to before a ransomware attack, give a snapshot name such as <code>sysmanage-offsite-20261120T020000Z</code> as the second argument.</p>
+
+                    <h3 data-i18n="docs.runbooks.cloudcopy.h_c4">C4. Thaw the parts</h3>
+<pre><code class="language-bash">cut -f3 chain.tsv | while read -r key; do
+    aws s3api restore-object --bucket "$B" --key "$key" \
+      --restore-request '{"Days":7,"GlacierJobParameters":{"Tier":"Bulk"}}'
+done</code></pre>
+                    <p data-i18n="docs.runbooks.cloudcopy.c4_p" data-i18n-html>Use <code>"Tier":"Standard"</code> instead of <code>Bulk</code> for up to 12 hours rather than 48, at a higher price. The thawed copies stay readable for 7 days. Check on them every few hours; every line reads <code>ongoing-request="false"</code> when all are ready:</p>
+<pre><code class="language-bash">cut -f3 chain.tsv | while read -r key; do
+    aws s3api head-object --bucket "$B" --key "$key" --query Restore --output text
+done | sort | uniq -c</code></pre>
+
+                    <h3 data-i18n="docs.runbooks.cloudcopy.h_c5">C5. Download, check, decrypt and receive</h3>
+                    <p data-i18n="docs.runbooks.cloudcopy.c5_p" data-i18n-html>Each stream is received in turn into one new dataset: the full creates it, and each incremental adds the next snapshot. Every part's SHA-256 is checked before it is decrypted, and decryption itself fails on any change, so a damaged or altered part stops the restore instead of being received.</p>
+<pre><code class="language-bash">TARGET=tank/restored-hosta   # must not exist yet
+rm -f failed
+for n in $(cut -f1 chain.tsv | sort -nu); do
+    awk -F'\t' -v n="$n" '$1 == n' chain.tsv | while IFS="$(printf '\t')" read -r _ kid key sum; do
+        aws s3api get-object --bucket "$B" --key "$key" part &gt;/dev/null || { touch failed; exit 1; }
+        [ "$(openssl dgst -sha256 -r part | cut -d' ' -f1)" = "$sum" ] || { echo "bad part $key" &gt;&amp;2; touch failed; exit 1; }
+        python3 smoc_decrypt.py "keys/$kid.key" part || { touch failed; exit 1; }
+    done | sudo zfs receive -u "$TARGET" || touch failed
+    [ -e failed ] &amp;&amp; { echo "stream $n failed: stopped" &gt;&amp;2; break; }
+done
+rm -f part
+zfs list -t snapshot -r "$TARGET"</code></pre>
+                    <p data-i18n="docs.runbooks.cloudcopy.c5_expect" data-i18n-html><strong>Expect:</strong> one snapshot per stream, the last named after the point you chose. The dataset holds the restate repository as it was; mount it (<code>sudo zfs mount</code>) and restore from it with restate, using the repository's own key from your backup key export.</p>
+
+                    <h3 data-i18n="docs.runbooks.cloudcopy.h_c6">C6. Clean up</h3>
+                    <p data-i18n="docs.runbooks.cloudcopy.c6_p" data-i18n-html>Remove <code>~/cloudcopy</code> once the restore is done: it holds the readable keys and credentials. The thawed copies expire by themselves after the days you asked for; the copy in Deep Archive is untouched.</p>
+
+                    <h2 data-i18n="docs.runbooks.cloudcopy.h_trouble">If something goes wrong</h2>
+                    <ul>
+                        <li data-i18n="docs.runbooks.cloudcopy.trouble_key" data-i18n-html><strong>"this object needs the key ..."</strong> The part was uploaded under a key this export does not hold. Use a newer export, or restore to an older point.</li>
+                        <li data-i18n="docs.runbooks.cloudcopy.trouble_invalid" data-i18n-html><strong><code>InvalidObjectState</code> on download:</strong> the part has not finished thawing, or its thawed copy has expired. Check with <code>head-object</code> and thaw it again if needed.</li>
+                        <li data-i18n="docs.runbooks.cloudcopy.trouble_denied" data-i18n-html><strong><code>AccessDenied</code>:</strong> the access key is deactivated or lacks the read and thaw rights; use another key of yours with <code>s3:GetObject</code>, <code>s3:RestoreObject</code> and <code>s3:ListBucket</code> on the bucket.</li>
+                        <li data-i18n="docs.runbooks.cloudcopy.trouble_receive" data-i18n-html><strong><code>zfs receive</code> fails on an incremental:</strong> the dataset was changed after the full was received. Destroy it and start C5 again; the parts already downloaded are fetched again, but the thaw is not repeated while it lasts.</li>
+                    </ul>
+                </section>
+            </div>
+        </div>
+    </main>
+    <script src="/assets/js/components.js"></script>
+    <script src="/assets/js/i18n.js"></script>
+    <script src="/assets/js/navbar.js"></script>
+    <script src="/assets/js/main.js"></script>
+</body>
+</html>

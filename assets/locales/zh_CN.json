@@ -3520,6 +3520,18 @@
         "fig_bandwidth": "Professional+：只有一条规则的<strong>通过 restate-proxy 的带宽</strong>对话框，按存储主机的时钟从 08:00 到 18:00 限速 2MiB/s，其余时间不限速。",
         "fig_target": "使用代理的目标卡片：代理地址、由 SysManage CA 签发的证书及其到期时间，以及存储检查发出的 restate-proxy 尚未安装的警告和用于安装它的按钮。",
         "fig_transport": "选择 restate-proxy 后的<strong>主机如何访问存储</strong>对话框：主机访问的代理地址 <code>backup.example.com</code> 和端口 8443。"
+      },
+      "packages": {
+        "cleanup": {
+          "auto": "使用自动更新时，每次运行默认会在同一维护窗口内、在相同的保护措施下自行完成清理（请参阅<a href=\"../professional-plus/automatic-updates.html\">自动更新</a>）。",
+          "intro": "Debian 和 Ubuntu 会保留曾经安装过的每个内核，直到有东西将其移除；仅作为依赖项安装的软件包在不再被任何东西需要时也会留下。旧内核会占满 /boot，而且每个旧内核仍然受其发布以来修复的所有内核漏洞影响。在 Linux 主机的软件选项卡上，旧内核和不需要的软件包卡片会显示正在运行的内核、已安装的内核数量以及其中有多少是旧内核，并安全地移除它们。",
+          "kept": "<strong>哪些内核始终保留。</strong>正在运行的内核；已安装的最新内核，即下次启动将使用的内核；以及最新的经过<em>验证</em>的内核 -- 即主机用它启动、持续运行并签到满 15 分钟的内核。重启进入新内核后，主机上次成功启动所用的内核会一直保留，直到新内核通过验证，之后仍作为回退途径保留。如果 Livepatch 一直在保护旧内核的安全，那么在新内核完成一次干净的启动之前，任何操作都不会移除这条退路。始终至少保留两个内核。",
+          "plan": "<strong>先规划，再严格按规划移除。</strong><strong>计划清理</strong>使用 apt 自身的模拟向主机询问哪些内容会被移除：<code>apt autoremove</code> 会删除的软件包以及旧内核的所有软件包，减去属于保留内核的一切。此时不会移除任何内容。<strong>移除列出的软件包</strong>只移除该列表，不移除其他任何内容：主机会先再次模拟移除，如果 apt 会连带移除任何其他软件包则拒绝执行，并且绝不移除保留的内核，即使列表中提到了它。之后，主机会检查每个保留的内核在 /boot 中是否仍有其映像和 initramfs。移除需要移除软件包角色，每次移除都会记录在审计日志中。",
+          "platforms": "目前，清理可在运行最新代理的 Debian 和 Ubuntu 主机上执行；其他主机会显示它们尚不能清理。",
+          "title": "旧内核和不需要的软件包",
+          "uninstall": "卸载软件包不再运行 <code>apt-get remove --autoremove</code>：移除遗留的依赖项是清理的工作，清理过程中内核会受到保护。",
+          "wait": "在正在运行的内核尚未通过验证之前，不会移除任何内容：刚刚启动的主机会先等待 15 分钟，卡片上会说明这一点。"
+        }
       }
     },
     "administration": {
@@ -18395,7 +18407,8 @@
           "restore": "<strong>恢复。</strong><strong>恢复</strong>会列出数据集可以恢复到的每个时间点，并在任何操作开始之前显示解冻所需的时间和费用：Bulk（最便宜，最长 48 小时）或 Standard（最长 12 小时）。随后，存储主机会解冻完整流及其增量并下载，校验每个分片的 SHA-256，解密后通过 <code>zfs receive</code> 接收到您命名的新数据集中；它绝不会覆盖现有数据集。新数据集保存着 restate 存储库当时的状态，restate 可以像从其他存储库一样从中恢复。执行恢复需要 <strong>恢复文件</strong> 角色。",
           "setup": "<strong>设置它。</strong>在备份页面上，<strong>设置云复制</strong>需要存储桶、其区域和访问密钥；其他所有内容都有默认值。<strong>存储桶设置</strong>然后显示了应在AWS中应用的内容：<code>aws</code>命令创建具有对象锁的存储桶，其生命周期规则（<code>lifecycle.json</code>）以及一个IAM用户，该用户的政策（<code>iam-policy.json</code>）可以在复制前缀下上传、读取和恢复，但永远不能删除任何内容。<strong>检查存储桶</strong>证明凭证可以上传并显示对象锁是否开启。",
           "status": "<strong>状态。</strong>云复制卡显示每个数据集存储的内容、上次成功上传时间、下一次上传、每月成本估计以及最近的一次作业。没有在过去48小时内进行过成功上传的复制将标记为<strong>逾期</strong>。",
-          "title": "云备份：S3 冰川深度归档"
+          "title": "云备份：S3 冰川深度归档",
+          "runbook": "<strong>分步操作。</strong><a href=\"../runbooks/recover-from-cloud-copy.html\">从云副本恢复</a>逐步介绍如何将密钥导出到密码库、验证一次恢复，以及在 SysManage 服务器也已不存在时，仅凭导出文件手动恢复。"
         }
       },
       "backupops": {
@@ -19002,7 +19015,10 @@
         "replace_desc": "从备份恢复一台替换服务器，将名称或地址转移到它上面，并看到每台主机无需重新注册即可重新连接。",
         "replace_link": "打开运行手册",
         "h_more": "通过 API 完成",
-        "more_p": "这些运行手册中的大多数步骤也可以编写脚本。<a href=\"../api/examples.html\">API 示例</a>展示了如何进行身份验证，并提供了可直接运行的 Bash、Python 和 PowerShell 示例脚本。"
+        "more_p": "这些运行手册中的大多数步骤也可以编写脚本。<a href=\"../api/examples.html\">API 示例</a>展示了如何进行身份验证，并提供了可直接运行的 Bash、Python 和 PowerShell 示例脚本。",
+        "cloudcopy_desc": "在需要之前就将云副本的密钥导出到密码库，然后从 Amazon S3 Glacier 解冻并恢复备份：通过 SysManage 进行，或在整个站点都已不存在时手动进行。",
+        "cloudcopy_link": "打开运行手册",
+        "cloudcopy_title": "从云副本恢复"
       },
       "crumb_docs": "文档",
       "crumb_section": "运行书",
@@ -19244,6 +19260,69 @@
       "certs2": {
         "during_pin": "代理会固定服务器，而新证书不会破坏这种固定。看到新密钥的代理，会在服务器的签名身份声明列出该密钥后接受它。服务器读取本机 nginx 所提供的密钥，并每十分钟重新检查一次，因此代理会在重新加载后大约十分钟内自行恢复连接。如果 nginx 运行在另一台机器上，请在重新加载它之前，将新密钥的 SHA-256 SPKI 哈希添加到设置中的 <code>agent_tls_spki</code>，与旧哈希并列。参见<a href=\"../security/mtls.html\">代理证书和 TLS</a>。",
         "agentcerts_p": "每台已批准的主机都有自己的客户端证书，对应其自行生成的密钥，由 SysManage 自己的证书颁发机构签发。代理会在证书到期前 30 天自行续订，因此本运行手册不涉及这些证书。续订或更换服务器的 TLS 证书不会改变该证书颁发机构。参见<a href=\"../security/mtls.html\">代理证书和 TLS</a>。"
+      },
+      "cloudcopy": {
+        "a1_expect": "<strong>预期结果：</strong>卡片显示<strong>对象锁定已开启</strong>。如果显示<strong>对象锁定已关闭</strong>，说明该存储桶创建时未启用对象锁定，被盗的凭据可能覆盖副本：请新建一个启用对象锁定的存储桶。",
+        "a1_p": "在<strong>备份</strong>页面上，找到<strong>云副本（异地）</strong>卡片并选择<strong>设置云副本</strong>。输入存储桶、其区域和上传用的访问密钥；其他保留默认值。然后打开<strong>存储桶设置</strong>，在 AWS 中应用其中显示的内容：启用对象锁定的存储桶、其生命周期规则，以及一个可以上传、读取和解冻但永远不能删除的 IAM 用户。最后选择<strong>检查存储桶</strong>。",
+        "a2_expect": "<strong>预期结果：</strong>卡片显示已存储的数据量、上一次成功上传和下一次上传的时间，以及每月费用估算。",
+        "a2_p": "第一次上传是每个数据集的完整副本，对于大型存储池可能需要数天，工作时间内按带宽上限进行。选择<strong>立即运行</strong>即可开始，而无需等到 02:00 UTC。卡片显示每个数据集的进度；中断的上传会从存储桶中已有的分片处继续。",
+        "a3_again": "<strong>每次执行\"新密钥\"之后都要重新导出。</strong>较早的导出不包含在其之后创建的密钥，而用该密钥上传的内容没有它就无法读取。按下<strong>新密钥</strong>时，卡片会给出这一提示。",
+        "a3_delete": "从执行导出的机器上删除下载的文件。",
+        "a3_download": "选择<strong>导出并下载</strong>。浏览器会保存一个名称类似 <code>sysmanage-offsite-keys-20261127T122641Z.tar.asc</code> 的文件。它已用您的密钥加密，因此服务器从未见到其可读内容，下载的文件可以留在下载文件夹中，直到您将其移走。",
+        "a3_expect": "<strong>预期结果：</strong><code>README.txt</code>、<code>copy.json</code>、<code>credentials.json</code>、<code>streams.json</code>、<code>smoc_decrypt.py</code>、<code>keys/index.json</code>，以及副本曾持有的每个密钥各一个 <code>keys/&lt;key id&gt;.key</code>。",
+        "a3_open": "在卡片上选择<strong>导出密钥</strong>。将 <strong>OpenPGP 公钥</strong>留空，即可将导出内容密封到已保存的托管密钥；或者粘贴另一个您持有其私钥的公钥。",
+        "a3_private": "确保您的 OpenPGP 私钥保存在同样不依赖该站点的地方：硬件令牌，或在同一密码库中以单独条目保存的加密副本，并让一位无需您也能采取行动的人知道其口令。",
+        "a3_reason": "在<strong>导出原因</strong>下，填写至少 10 个字符的原因，例如\"用于密码库的应急副本\"。该原因会写入审计日志。",
+        "a3_vault": "将 <code>.tar.asc</code> 文件原样附加到密码库中的一个条目，并记下日期和卡片显示的密钥 ID。保持其密封状态：密码库保护它一次，OpenPGP 密封再保护一次。",
+        "a3_verify": "在持有您私钥的机器上，验证它能够打开，且不向磁盘写入任何可读内容：",
+        "a4_p": "从未恢复过的副本只是一种希望，而不是备份。每年一次，以及在存储主机发生任何变更之后，针对一个小数据集执行 B 部分，恢复到一个新数据集，将几个文件与原始文件进行比较，之后销毁恢复出的数据集。对小数据集进行一次 Standard 解冻只需几美分。",
+        "b_expect": "<strong>预期结果：</strong>卡片上的上一个作业显示<strong>恢复 完成</strong>，并且在存储主机上运行 <code>zfs list</code> 可以看到新数据集。它保存着 restate 存储库在该时间点的状态；可以像从任何存储库一样从中恢复文件（参见<a href=\"../administration/fleet-backups.html\">机群备份</a>）。",
+        "b_open": "在<strong>备份</strong>页面的<strong>云副本（异地）</strong>卡片上，在其按钮行中选择<strong>恢复</strong>。这需要<strong>恢复文件</strong>角色。",
+        "b_point": "在<strong>恢复点</strong>下，选择数据集以及要回退到的时间；每个条目显示为 <code>dataset@snapshot</code>，快照名称即其 UTC 时间。在<strong>解冻速度</strong>下，选择<strong>批量</strong>（最便宜，最多 48 小时）或<strong>标准</strong>（最多 12 小时）。对话框会在任何操作开始之前显示所需时间和费用。",
+        "b_start": "选择<strong>解冻并恢复</strong>。卡片显示<strong>解冻中：0 / N 个部分已就绪</strong>，然后显示已下载和已接收的数据量。您可以关闭浏览器；工作由存储主机完成。",
+        "b_target": "<strong>要恢复到的新数据集</strong>会自动填入数据集名称加上 <code>-restored</code>；您可以按需更改为任何尚不存在的数据集。恢复绝不会覆盖现有数据集。",
+        "c1_note": "凭据是副本自身的上传密钥，它可以在副本的前缀下列出、读取和解冻，但不能删除任何内容。如果此后该密钥已被停用，请使用您自己的另一个具有相同权限的密钥。如果副本使用的是 S3 兼容存储而非 AWS，请在每个 <code>aws</code> 命令中添加 <code>--endpoint-url</code>，其值为 <code>copy.json</code> 中的 <code>endpoint</code>。",
+        "c2_keys": "如果某个清单无法用任何密钥打开，说明它是在此次导出之后创建的密钥下写入的；其 <code>.json</code> 文件会留空，它所描述的流无法用此次导出读取。请改为恢复到较早的时间点。",
+        "c2_p": "<code>streams.json</code> 列出了导出时存储桶中的内容。此后的上传由存储桶中的清单描述，这些清单保存在 S3 Standard 中，无需解冻。下载并解密全部清单：",
+        "c3_p": "一个恢复点由一个完整副本加上其后的每个增量按顺序组成。将以下内容保存为 <code>chain.py</code>；它会针对一个数据集打印需要获取的每个分片，以制表符分隔，依次为流的编号、其密钥 ID、分片的对象键及其 SHA-256：",
+        "c3_point": "不提供第二个参数时，使用最新的时间点。要回退到更早的时间，例如勒索软件攻击之前，请将快照名称（如 <code>sysmanage-offsite-20261120T020000Z</code>）作为第二个参数。",
+        "c4_p": "使用 <code>\"Tier\":\"Standard\"</code> 代替 <code>Bulk</code>，可将时间从最多 48 小时缩短到最多 12 小时，但价格更高。解冻后的副本在 7 天内保持可读。每隔几个小时检查一次；全部就绪时，每一行都显示 <code>ongoing-request=\"false\"</code>：",
+        "c5_expect": "<strong>预期结果：</strong>每个流对应一个快照，最后一个以您选择的时间点命名。该数据集保存着 restate 存储库当时的状态；挂载它（<code>sudo zfs mount</code>），并使用备份密钥导出中该存储库自己的密钥，通过 restate 从中恢复。",
+        "c5_p": "每个流依次接收到同一个新数据集中：完整流创建该数据集，每个增量添加下一个快照。每个分片的 SHA-256 都会在解密前进行校验，而解密本身在内容有任何改动时都会失败，因此损坏或被篡改的分片会使恢复停止，而不会被接收。",
+        "c6_p": "恢复完成后删除 <code>~/cloudcopy</code>：其中保存着可读的密钥和凭据。解冻后的副本会在您指定的天数后自行过期；Deep Archive 中的副本不受影响。",
+        "c_intro": "当没有 SysManage 服务器可用于恢复时使用此部分。您需要一台装有 ZFS 的机器（任何带有存储池的 Linux 或 FreeBSD 机器）、AWS 命令行工具（<code>aws</code>）、带有 <code>cryptography</code> 包的 Python 3、<code>gpg</code> 以及您的私钥。以一个可以运行 <code>zfs receive</code> 的用户身份操作；以下命令为此使用 <code>sudo</code>。",
+        "crumb_page": "从云副本恢复",
+        "h_a": "A 部分：在出现任何问题之前",
+        "h_a1": "A1. 设置副本",
+        "h_a2": "A2. 等待第一次完整副本完成",
+        "h_a3": "A3. 导出密钥并将其保存在站点之外",
+        "h_a4": "A4. 验证一次恢复",
+        "h_b": "B 部分：使用 SysManage 恢复",
+        "h_c": "C 部分：不使用 SysManage，手动恢复",
+        "h_c1": "C1. 打开导出文件",
+        "h_c2": "C2. 读取清单",
+        "h_c3": "C3. 确定一个数据集的链",
+        "h_c4": "C4. 解冻分片",
+        "h_c5": "C5. 下载、校验、解密并接收",
+        "h_c6": "C6. 清理",
+        "h_need": "所需条件",
+        "h_trouble": "如果出现问题",
+        "h_when": "何时使用",
+        "intro": "云副本是最后的备份手段：存储主机的备份经过加密，保存在您自己的 Amazon S3 存储桶中。本运行手册为需要它的那一天做好准备，然后将备份恢复回来 -- 在 SysManage 运行时通过备份页面进行，或在服务器、存储主机以及站点上的其他一切都已不存在时手动进行。",
+        "meta_description": "为站点不复存在的那一天做好准备：设置云副本，将其密钥导出到密码库，验证一次恢复，并在使用或不使用 SysManage 的情况下从 Amazon S3 Glacier 恢复备份。",
+        "meta_title": "从云副本恢复 - SysManage",
+        "need_edition": "设置副本并使其持续上传需要 <strong>Professional+</strong>。恢复、<strong>检查存储桶</strong>和<strong>导出密钥</strong>在所有版本中均可使用，许可证过期后也是如此。",
+        "need_pgp": "一个您自己的 OpenPGP 密钥对。其公钥作为应急托管密钥保存在 SysManage 中；其私钥则永远不会保存在其中。",
+        "need_storage": "一台使用 ZFS 的存储主机（Linux 或 FreeBSD），以及您自己 AWS 账户中的一个 Amazon S3 存储桶。有关副本的工作原理，请参见<a href=\"../professional-plus/fleet-backups-pro.html#cloud-copy\">云副本：S3 Glacier Deep Archive</a>。",
+        "need_time": "时间：S3 Glacier Deep Archive 需要最多 12 小时（Standard）或 48 小时（Bulk）完成解冻，之后才能下载任何内容。请围绕这一点规划恢复工作。",
+        "title": "从云副本恢复",
+        "trouble_denied": "<strong><code>AccessDenied</code>：</strong>访问密钥已被停用，或缺少读取和解冻权限；请使用您自己的另一个对该存储桶具有 <code>s3:GetObject</code>、<code>s3:RestoreObject</code> 和 <code>s3:ListBucket</code> 权限的密钥。",
+        "trouble_invalid": "<strong>下载时出现 <code>InvalidObjectState</code>：</strong>该分片尚未完成解冻，或其解冻后的副本已过期。使用 <code>head-object</code> 进行检查，必要时重新解冻。",
+        "trouble_key": "<strong>\"this object needs the key ...\"</strong> 该分片是在此导出不包含的密钥下上传的。请使用较新的导出，或恢复到较早的时间点。",
+        "trouble_receive": "<strong><code>zfs receive</code> 在某个增量上失败：</strong>在接收完整流之后，该数据集被更改过。销毁它并重新开始 C5；已下载的分片会被重新获取，但在解冻有效期内不会重复解冻。",
+        "when_pool": "<strong>存储池已丢失，但 SysManage 仍在运行：</strong>B 部分。",
+        "when_prepare": "<strong>现在，在任何问题出现之前：</strong>A 部分。如果副本的密钥只存在于它所保护的服务器上，一旦该服务器不复存在，副本就无法读取。",
+        "when_site": "<strong>SysManage 服务器也已不存在：</strong>C 部分，仅需导出文件和您的 OpenPGP 私钥。"
       }
     },
     "dr2": {
@@ -23873,7 +23952,8 @@
           "score": "根据严重性分布计算风险评分",
           "version": "比较版本以识别易受攻击的软件"
         },
-        "title": "Scanning 进程"
+        "title": "Scanning 进程",
+        "kernels": "内核软件包只针对正在运行的内核和已安装的最新内核（即下次启动将使用的内核）进行计数。仍然安装着的较旧内核会在建议中列为待移除的旧内核，其漏洞不计入：它们没有在运行，而且清理会将其移除。"
       },
       "severity": {
         "critical": {
@@ -24439,7 +24519,8 @@
       "reboots": {
         "description": "默认情况下，策略从不重启：需要重启的主机会像现在一样显示“需要重启”。启用<strong>在更新需要时重启</strong>后，服务器会在需要重启的运行之后发送一次重启 -- 包括主机稍后才报告需要重启的情况 -- 并将其记录在审计日志中。随后它会观察主机是否恢复：在重启超时时间（默认 30 分钟）内未重新启动的主机会在其运行记录上被标记，并在仪表板上计数。",
         "title": "重启",
-        "in_window": "选择<strong>需要时重启，仅在维护窗口内进行</strong>后，只有当主机处于仍有足够剩余时间的窗口内时才会重启。否则主机保持“需要重启”状态，运行会说明它在等待下一个窗口，并在该窗口打开时发送重启。使用此选项的运行在判断能否放进窗口时，会把重启所需的时间计算在内。"
+        "in_window": "选择<strong>需要时重启，仅在维护窗口内进行</strong>后，只有当主机处于仍有足够剩余时间的窗口内时才会重启。否则主机保持“需要重启”状态，运行会说明它在等待下一个窗口，并在该窗口打开时发送重启。使用此选项的运行在判断能否放进窗口时，会把重启所需的时间计算在内。",
+        "kernel": "只要安装了比正在运行的内核更新的内核，主机也会报告“需要重启”，并给出两个内核的名称，即使发行版自身的重启标志不存在也是如此。"
       },
       "requirements": {
         "agent": "需要使用最新的代理，以便报告已锁定 (hold) 的软件包和主机的启动时间。",
@@ -24505,6 +24586,10 @@
         "alerts": "<strong>警报</strong> -- 针对<strong>自动更新需要处理</strong>条件的警报规则，会在以下情况下为每台主机发出一条警报：其最近一次自动运行失败、它在自动重启后未恢复在线、部署因它而停止、某个严重 CVE 的补丁在等待期结束后超过设定的小时数（默认 24）仍未应用，或其策略暂停的时间超过设定的天数（默认 7）。警报会随问题的出现和消失而更新，问题全部消失后即被解决。",
         "report": "<strong>报告</strong> -- <strong>自动更新</strong>报告按策略和主机群显示过去 30 天内的运行、已打补丁的主机、失败的运行、重启，以及严重 CVE 的补丁从出现在主机上到在该主机上应用的中位时间。",
         "dashboard": "<strong>仪表板</strong> -- 主页会统计自动更新问题、等待维护窗口的自动重启，以及进行中或已停止的部署。"
+      },
+      "cleanup": {
+        "description": "当主机的运行结束时 -- 已应用，并且已从其请求的任何重启中恢复 -- 会在同一维护窗口内移除其旧内核和不需要的软件包。主机上次成功启动所用的内核始终保留，并且在新启动的内核持续运行满 15 分钟之前不会移除任何内容（请参阅<a href=\"../administration/package-management.html#cleanup\">旧内核和不需要的软件包</a>）。在更新配置文件设置页面上，可以将<strong>每次运行后，旧内核和不需要的软件包</strong>改为仅列出将被移除的内容，或保持不动。",
+        "title": "运行后清理"
       }
     }
   },

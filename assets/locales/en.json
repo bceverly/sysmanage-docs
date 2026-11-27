@@ -2720,6 +2720,18 @@
         "fig_bandwidth": "Professional+: the <strong>Bandwidth through restate-proxy</strong> dialog with one rule, 2MiB/s from 08:00 to 18:00 by the storage host's clock, and no limit for the other hours.",
         "fig_target": "The target card on the proxy: its address, the certificate from the SysManage CA and when it ends, and the storage check's warning that restate-proxy is not installed yet, with the button that installs it.",
         "fig_transport": "The <strong>How hosts reach the storage</strong> dialog with restate-proxy chosen: the proxy address hosts reach, <code>backup.example.com</code>, and port 8443."
+      },
+      "packages": {
+        "cleanup": {
+          "auto": "With automatic updates, each run cleans up after itself by default, inside the same maintenance window, under the same protections (see <a href=\"../professional-plus/automatic-updates.html\">Automatic Updates</a>).",
+          "intro": "Debian and Ubuntu keep every kernel they ever installed until something removes it, and packages installed only as dependencies stay behind when nothing needs them any more. Old kernels fill /boot, and each one still matches every kernel vulnerability fixed since it shipped. On a Linux host's Software tab, the Old kernels and unneeded packages card shows the running kernel, how many kernels are installed and how many of them are old, and removes them safely.",
+          "kept": "<strong>Which kernels are always kept.</strong> The running kernel; the newest installed one, which the next boot uses; and the newest kernel that has <em>proven</em> itself -- one the host booted and that stayed up and checked in for 15 minutes. After a reboot into a new kernel, the kernel the host last booted successfully stays until the new one has proven itself, and afterwards as the way back. If Livepatch has been keeping the old kernel safe, nothing takes away the escape hatch before the new kernel has had one clean boot. At least two kernels always remain.",
+          "plan": "<strong>Plan, then remove exactly the plan.</strong> <strong>Plan cleanup</strong> asks the host what would go, with apt's own simulation: the packages <code>apt autoremove</code> would drop and every package of an old kernel, minus everything that belongs to a kept kernel. Nothing is removed. <strong>Remove the packages listed</strong> removes that list and nothing else: the host simulates the removal again first and refuses if apt would take any other package with it, and it never removes a kept kernel even if one is named. Afterwards it checks that every kept kernel still has its image and initramfs in /boot. Removing needs the Remove Package role, and every removal is in the audit log.",
+          "platforms": "Today the cleanup runs on Debian and Ubuntu hosts with a current agent; other hosts say they cannot clean up yet.",
+          "title": "Old Kernels and Unneeded Packages",
+          "uninstall": "Uninstalling a package no longer runs <code>apt-get remove --autoremove</code>: removing the dependencies left behind is the cleanup's job, where the kernels are protected.",
+          "wait": "Nothing is removed while the running kernel is not yet proven: a host that has just booted waits its 15 minutes first, and the card says so."
+        }
       }
     },
     "administration": {
@@ -5005,7 +5017,8 @@
           "restore": "<strong>Restoring.</strong> <strong>Restore</strong> lists every point a dataset can be restored to and, before anything starts, how long the thaw takes and what it costs: Bulk (the cheapest, up to 48 hours) or Standard (up to 12). The storage host then thaws the full and its incrementals, downloads them, checks each part's SHA-256, decrypts them and receives them with <code>zfs receive</code> into a new dataset you name; it never writes over an existing one. The new dataset holds the restate repository as it was, and restate restores from it like any other. Restoring needs the <strong>Restore Files</strong> role.",
           "export": "<strong>Export keys.</strong> Everything a restore needs without SysManage, sealed to your own OpenPGP key like the break-glass export: the bucket, region and prefix, the credentials, every key the copy has held, the record of every stream and its parts, and a README with the procedure by hand. Export again after every <strong>New key</strong>. It needs both <strong>Manage Backups</strong> and <strong>Restore Files</strong>, and every export is audited.",
           "lapse": "<strong>After a lapse.</strong> Setting the copy up and running it needs Professional+. Without it the copy is frozen, not removed: nothing new is uploaded, and the record of what is in the bucket, <strong>Restore</strong>, <strong>Check the bucket</strong>, <strong>Turn off</strong> and <strong>Export keys</strong> keep working.",
-          "requirements": "<strong>Requirements.</strong> A storage host on ZFS, on Linux or FreeBSD, with a SysManage agent that has the cloud copy. Air-gapped sites have no cloud copy: nothing on such a site may reach out. An S3-compatible store can stand in for AWS under <strong>S3-compatible endpoint</strong>."
+          "requirements": "<strong>Requirements.</strong> A storage host on ZFS, on Linux or FreeBSD, with a SysManage agent that has the cloud copy. Air-gapped sites have no cloud copy: nothing on such a site may reach out. An S3-compatible store can stand in for AWS under <strong>S3-compatible endpoint</strong>.",
+          "runbook": "<strong>Step by step.</strong> <a href=\"../runbooks/recover-from-cloud-copy.html\">Recover From the Cloud Copy</a> walks through exporting the keys into a password vault, proving a restore, and restoring by hand with only the export when the SysManage server is gone too."
         }
       },
       "backupops": {
@@ -18199,7 +18212,10 @@
         "replace_desc": "Restore a replacement from backup, move the name or address to it, and see every host come back without enrolling again.",
         "replace_link": "Open the runbook",
         "h_more": "Doing it through the API",
-        "more_p": "Most steps in these runbooks can also be scripted. <a href=\"../api/examples.html\">API Examples</a> shows how to authenticate and gives ready-to-run recipes in Bash, Python and PowerShell."
+        "more_p": "Most steps in these runbooks can also be scripted. <a href=\"../api/examples.html\">API Examples</a> shows how to authenticate and gives ready-to-run recipes in Bash, Python and PowerShell.",
+        "cloudcopy_desc": "Export the cloud copy's keys into a password vault before you need them, then thaw and restore the backups from Amazon S3 Glacier, through SysManage or by hand when the whole site is gone.",
+        "cloudcopy_link": "Open the runbook",
+        "cloudcopy_title": "Recover From the Cloud Copy"
       },
       "crumb_docs": "Documentation",
       "crumb_section": "Runbooks",
@@ -18441,6 +18457,69 @@
       "certs2": {
         "during_pin": "Agents pin the server, and a new certificate does not break the pin. An agent that sees a new key accepts it once the server's signed identity statement names that key. The server reads the keys nginx serves on this machine and checks again every ten minutes, so agents come back on their own within about ten minutes of the reload. If nginx runs on another machine, add the new key's SHA-256 SPKI hash to <code>agent_tls_spki</code> in Settings, beside the old one, before you reload it. See <a href=\"../security/mtls.html\">Agent Certificates and TLS</a>.",
         "agentcerts_p": "Each approved host has a client certificate of its own, for a key it generated itself, issued by SysManage's own certificate authority. The agents renew them on their own, 30 days before they expire, so this runbook does not touch them. Renewing or replacing the server's TLS certificate does not change that certificate authority. See <a href=\"../security/mtls.html\">Agent Certificates and TLS</a>."
+      },
+      "cloudcopy": {
+        "a1_expect": "<strong>Expect:</strong> the card shows <strong>Object Lock on</strong>. If it says <strong>Object Lock OFF</strong>, the bucket was made without Object Lock and a stolen credential could overwrite the copy: make a new bucket with it on.",
+        "a1_p": "On the <strong>Backups</strong> page, find the <strong>Cloud copy (off-site)</strong> card and choose <strong>Set up the cloud copy</strong>. Enter the bucket, its region and the upload access key; keep the other defaults. Then open <strong>Bucket setup</strong> and apply what it shows in AWS: the bucket with Object Lock, its lifecycle rules and an IAM user that can upload, read and thaw but never delete. Finally choose <strong>Check the bucket</strong>.",
+        "a2_expect": "<strong>Expect:</strong> the card says how much is stored, with the last good upload and the next one, and an estimate of the monthly cost.",
+        "a2_p": "The first upload is a full copy of every dataset and can take days for a large pool, at the bandwidth cap during working hours. Choose <strong>Run now</strong> to start it instead of waiting for 02:00 UTC. The card shows each dataset's progress; an upload that is interrupted resumes from the parts already in the bucket.",
+        "a3_again": "<strong>Export again after every New key.</strong> An earlier export does not hold a key made after it, and what is uploaded under that key cannot be read without it. The card says so when you press <strong>New key</strong>.",
+        "a3_delete": "Delete the downloaded file from the machine you exported it on.",
+        "a3_download": "Choose <strong>Export and download</strong>. The browser saves a file named like <code>sysmanage-offsite-keys-20261127T122641Z.tar.asc</code>. It is encrypted to your key, so the server never sees it readable and the download can sit in your downloads folder until you move it.",
+        "a3_expect": "<strong>Expect:</strong> <code>README.txt</code>, <code>copy.json</code>, <code>credentials.json</code>, <code>streams.json</code>, <code>smoc_decrypt.py</code>, <code>keys/index.json</code> and one <code>keys/&lt;key id&gt;.key</code> per key the copy has held.",
+        "a3_open": "On the card, choose <strong>Export keys</strong>. Leave <strong>OpenPGP public key</strong> empty to seal the export to the saved escrow key, or paste another public key you hold the private half of.",
+        "a3_private": "Make sure your OpenPGP private key is kept somewhere that does not depend on the site either: a hardware token, or an encrypted copy in the same vault under a separate entry, with its passphrase known to someone who can act without you.",
+        "a3_reason": "Under <strong>Why you are exporting them</strong>, write a reason of at least 10 characters, such as \"Break-glass copy for the password vault\". It goes into the audit log.",
+        "a3_vault": "Attach the <code>.tar.asc</code> file, as it is, to an entry in your password vault, and note the date and the key id the card shows. Keep it sealed: the vault protects it once, the OpenPGP seal a second time.",
+        "a3_verify": "On the machine that holds your private key, prove it opens, without writing anything readable to disk:",
+        "a4_p": "A copy that has never been restored is a hope, not a backup. Once a year, and after any change to the storage host, run part B for one small dataset into a new dataset, compare a few files with the originals, and destroy the restored dataset afterwards. A Standard thaw of a small dataset costs cents.",
+        "b_expect": "<strong>Expect:</strong> the card's last job reads <strong>Restore done</strong>, and <code>zfs list</code> on the storage host shows the new dataset. It holds the restate repository as it was at that point; restore files from it as from any repository (see <a href=\"../administration/fleet-backups.html\">Fleet Backups</a>).",
+        "b_open": "On the <strong>Backups</strong> page, on the <strong>Cloud copy (off-site)</strong> card, choose <strong>Restore</strong> in its row of buttons. It needs the <strong>Restore Files</strong> role.",
+        "b_point": "Under <strong>Restore point</strong>, choose the dataset and when to go back to; each entry reads <code>dataset@snapshot</code>, and the snapshot's name is its time in UTC. Under <strong>Thaw speed</strong>, choose <strong>Bulk</strong> (cheapest, up to 48 hours) or <strong>Standard</strong> (up to 12 hours). The dialog shows the time and the cost before anything starts.",
+        "b_start": "Choose <strong>Thaw and restore</strong>. The card shows <strong>Thawing: 0 of N parts ready</strong>, then how much has been downloaded and received. You can close the browser; the storage host does the work.",
+        "b_target": "<strong>New dataset to restore into</strong> is filled in as the dataset's name with <code>-restored</code> added; change it if you like, to any dataset that does not exist yet. A restore never writes over an existing dataset.",
+        "c1_note": "The credentials are the copy's own upload key, which can list, read and thaw under the copy's prefix but delete nothing. If it has been deactivated since, use another key of yours with the same rights. If the copy uses an S3-compatible store rather than AWS, add <code>--endpoint-url</code> with the <code>endpoint</code> from <code>copy.json</code> to every <code>aws</code> command.",
+        "c2_keys": "A manifest that none of the keys opens was written under a key made after this export; its <code>.json</code> file is left empty, and the streams it describes cannot be read with this export. Restore to an older point instead.",
+        "c2_p": "<code>streams.json</code> lists what was in the bucket when you exported. Uploads made since are described by the manifests in the bucket, which are kept in S3 Standard and need no thaw. Download and decrypt them all:",
+        "c3_p": "A restore point is a full copy plus each incremental after it, in order. Save this as <code>chain.py</code>; it prints, for one dataset, every part to fetch, as a tab-separated list of the stream's number, its key id, the part's object key and its SHA-256:",
+        "c3_point": "Without a second argument the newest point is used. To go back further, for example to before a ransomware attack, give a snapshot name such as <code>sysmanage-offsite-20261120T020000Z</code> as the second argument.",
+        "c4_p": "Use <code>\"Tier\":\"Standard\"</code> instead of <code>Bulk</code> for up to 12 hours rather than 48, at a higher price. The thawed copies stay readable for 7 days. Check on them every few hours; every line reads <code>ongoing-request=\"false\"</code> when all are ready:",
+        "c5_expect": "<strong>Expect:</strong> one snapshot per stream, the last named after the point you chose. The dataset holds the restate repository as it was; mount it (<code>sudo zfs mount</code>) and restore from it with restate, using the repository's own key from your backup key export.",
+        "c5_p": "Each stream is received in turn into one new dataset: the full creates it, and each incremental adds the next snapshot. Every part's SHA-256 is checked before it is decrypted, and decryption itself fails on any change, so a damaged or altered part stops the restore instead of being received.",
+        "c6_p": "Remove <code>~/cloudcopy</code> once the restore is done: it holds the readable keys and credentials. The thawed copies expire by themselves after the days you asked for; the copy in Deep Archive is untouched.",
+        "c_intro": "Use this when there is no SysManage server to restore through. You need a machine with ZFS (any Linux or FreeBSD machine with a pool), the AWS command line (<code>aws</code>), Python 3 with its <code>cryptography</code> package, <code>gpg</code> and your private key. Work as a user that may run <code>zfs receive</code>; the commands below use <code>sudo</code> for it.",
+        "crumb_page": "Recover From the Cloud Copy",
+        "h_a": "Part A: before anything goes wrong",
+        "h_a1": "A1. Set up the copy",
+        "h_a2": "A2. Let the first full copy finish",
+        "h_a3": "A3. Export the keys and keep them off the site",
+        "h_a4": "A4. Prove a restore",
+        "h_b": "Part B: restore with SysManage",
+        "h_c": "Part C: restore by hand, without SysManage",
+        "h_c1": "C1. Open the export",
+        "h_c2": "C2. Read the manifests",
+        "h_c3": "C3. Work out the chain for a dataset",
+        "h_c4": "C4. Thaw the parts",
+        "h_c5": "C5. Download, check, decrypt and receive",
+        "h_c6": "C6. Clean up",
+        "h_need": "What you need",
+        "h_trouble": "If something goes wrong",
+        "h_when": "When to use it",
+        "intro": "The cloud copy is the backup of last resort: the storage host's backups, encrypted, in your own Amazon S3 bucket. This runbook prepares for the day it is needed, then brings the backups back -- from the Backups page while SysManage is running, or by hand when the server, the storage host and everything else at the site are gone.",
+        "meta_description": "Prepare for the day the site is gone: set up the cloud copy, export its keys into a password vault, prove a restore, and bring the backups back from Amazon S3 Glacier with or without SysManage.",
+        "meta_title": "Recover From the Cloud Copy - SysManage",
+        "need_edition": "<strong>Professional+</strong> to set up the copy and keep it uploading. Restoring, <strong>Check the bucket</strong> and <strong>Export keys</strong> work in every edition, also after a license lapses.",
+        "need_pgp": "An OpenPGP key pair of your own. Its public key is saved in SysManage as the break-glass escrow key; its private key never is.",
+        "need_storage": "A storage host on ZFS, on Linux or FreeBSD, and an Amazon S3 bucket in your own AWS account. See <a href=\"../professional-plus/fleet-backups-pro.html#cloud-copy\">Cloud copy: S3 Glacier Deep Archive</a> for how the copy works.",
+        "need_time": "Time: S3 Glacier Deep Archive takes up to 12 hours (Standard) or 48 hours (Bulk) to thaw before anything can be downloaded. Plan the recovery around that.",
+        "title": "Recover From the Cloud Copy",
+        "trouble_denied": "<strong><code>AccessDenied</code>:</strong> the access key is deactivated or lacks the read and thaw rights; use another key of yours with <code>s3:GetObject</code>, <code>s3:RestoreObject</code> and <code>s3:ListBucket</code> on the bucket.",
+        "trouble_invalid": "<strong><code>InvalidObjectState</code> on download:</strong> the part has not finished thawing, or its thawed copy has expired. Check with <code>head-object</code> and thaw it again if needed.",
+        "trouble_key": "<strong>\"this object needs the key ...\"</strong> The part was uploaded under a key this export does not hold. Use a newer export, or restore to an older point.",
+        "trouble_receive": "<strong><code>zfs receive</code> fails on an incremental:</strong> the dataset was changed after the full was received. Destroy it and start C5 again; the parts already downloaded are fetched again, but the thaw is not repeated while it lasts.",
+        "when_pool": "<strong>The storage pool is lost but SysManage is running:</strong> part B.",
+        "when_prepare": "<strong>Now, before anything is wrong:</strong> part A. A copy whose keys exist only on the server it protects cannot be read once that server is gone.",
+        "when_site": "<strong>The SysManage server is gone too:</strong> part C, with only the export file and your OpenPGP private key."
       }
     },
     "dr2": {
@@ -21727,7 +21806,8 @@
           "score": "Calculates risk score based on severity distribution",
           "version": "Compares versions to identify vulnerable software"
         },
-        "title": "Scanning Process"
+        "title": "Scanning Process",
+        "kernels": "Kernel packages count only for the running kernel and the newest installed one, which the next boot uses. Older kernels that are still installed are listed in the recommendations as old kernels to remove, and their vulnerabilities are not counted: they are not running, and the cleanup removes them."
       },
       "severity": {
         "critical": {
@@ -23082,7 +23162,8 @@
       "reboots": {
         "description": "By default a policy never reboots: a host that needs one shows \"reboot required\", as it does today. With <strong>Reboot when the update needs it</strong>, the server sends one reboot after a run that needs it -- including when the host only reports the need a little later -- and records it in the audit log. It then watches for the host to come back: a host that has not started up again within the reboot timeout (30 minutes by default) is flagged on its run and counted on the dashboard.",
         "title": "Reboots",
-        "in_window": "With <strong>Reboot when needed, only inside a maintenance window</strong>, the reboot happens only while the host is inside a window with time left for it. Otherwise the host stays \"reboot required\", the run says it waits for the next window, and the reboot is sent when that window opens. A run under this option counts the reboot's time when deciding whether it fits the window."
+        "in_window": "With <strong>Reboot when needed, only inside a maintenance window</strong>, the reboot happens only while the host is inside a window with time left for it. Otherwise the host stays \"reboot required\", the run says it waits for the next window, and the reboot is sent when that window opens. A run under this option counts the reboot's time when deciding whether it fits the window.",
+        "kernel": "A host also reports \"reboot required\" whenever a newer kernel is installed than the one running, naming both kernels, even when the distribution's own reboot flag is missing."
       },
       "requirements": {
         "agent": "A current agent, so that held packages and the time the host started are reported.",
@@ -23148,6 +23229,10 @@
         "alerts": "<strong>Alerts</strong> -- an alert rule on the <strong>Automatic Updates Need Attention</strong> condition raises one alert per host when its last automatic run failed, it did not come back from an automatic reboot, a rollout halted because of it, a patch for a critical CVE is still not applied a set number of hours after its waiting period (24 by default), or its policy has been on hold longer than a set number of days (7 by default). The alert updates as problems come and go, and is resolved when they are gone.",
         "report": "<strong>Report</strong> -- the <strong>Automatic Updates</strong> report shows, per policy and fleet over the last 30 days, the runs, hosts patched, failed runs, reboots, and the median time from a patch for a critical CVE appearing on a host to its being applied there.",
         "dashboard": "<strong>Dashboard</strong> -- the home page counts automatic update problems, automatic reboots waiting for a maintenance window, and rollouts in progress or halted."
+      },
+      "cleanup": {
+        "description": "When a host's run is finished -- applied, and back from any reboot it asked for -- its old kernels and unneeded packages are removed, inside the same maintenance window. The kernel the host last booted successfully is always kept, and nothing is removed until a newly booted kernel has stayed up for 15 minutes (see <a href=\"../administration/package-management.html#cleanup\">Old Kernels and Unneeded Packages</a>). On the Update Profiles settings page, <strong>After a run, old kernels and unneeded packages</strong> can instead only list what would go, or leave them alone.",
+        "title": "Cleaning Up After a Run"
       }
     }
   },
